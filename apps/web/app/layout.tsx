@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { PrimaryNav } from "@/components/PrimaryNav";
+
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -12,11 +14,6 @@ export const metadata: Metadata = {
   description: "Ken Research Agentic Interlinking OS — operator console.",
   robots: { index: false, follow: false },
 };
-
-const NAV_LINKS = [
-  { href: "/", label: "Home" },
-  { href: "/system", label: "System" },
-] as const;
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
@@ -35,20 +32,7 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
                 Ken Interlink OS
               </Link>
             </p>
-            <nav aria-label="Primary">
-              <ul className="flex gap-4">
-                {NAV_LINKS.map((link) => (
-                  <li key={link.href}>
-                    <Link
-                      href={link.href}
-                      className="rounded px-1 text-blue-800 underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
-                    >
-                      {link.label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </nav>
+            <PrimaryNav />
           </div>
         </header>
         <main id="main" tabIndex={-1} className="mx-auto max-w-5xl px-4 py-8 focus:outline-none">

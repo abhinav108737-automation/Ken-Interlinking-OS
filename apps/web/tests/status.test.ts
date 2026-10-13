@@ -143,7 +143,15 @@ describe("helpers", () => {
   });
 
   it("titles every API error kind", () => {
-    for (const kind of ["config", "network", "timeout", "http_status", "invalid_body"] as const) {
+    for (const kind of [
+      "config",
+      "invalid_argument",
+      "network",
+      "timeout",
+      "api_error",
+      "http_status",
+      "invalid_body",
+    ] as const) {
       expect(describeApiErrorKind(kind).trim()).not.toBe("");
     }
   });

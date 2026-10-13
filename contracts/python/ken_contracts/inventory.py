@@ -137,9 +137,10 @@ class LinkType(StrEnum):
 class LinkResolution(StrEnum):
     """Whether an internal link's destination is known (computed at read time).
 
-    ``resolved``        the destination URL maps to a known, live page
-    ``broken``          the destination returned 404/410, or maps to a page now gone
-    ``unresolved``      not (yet) observed: beyond crawl limits, robots-blocked or errored
+    ``resolved``        the destination URL has led to a known, live page (the mapping
+                        survives a later transient failure such as a timeout)
+    ``broken``          the destination's latest answer was 404/410, or it leads to a gone page
+    ``unresolved``      never led to a page: beyond crawl limits, robots-blocked or errored
     ``not_applicable``  the link is not internal
     """
 

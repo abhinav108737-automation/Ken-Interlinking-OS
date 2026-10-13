@@ -1,4 +1,4 @@
-"""Migration 0001 against a real PostgreSQL (the ``*_test`` database)."""
+"""Migrations 0001-0002 against a real PostgreSQL (the ``*_test`` database)."""
 
 from __future__ import annotations
 
@@ -16,6 +16,18 @@ from tests.integration.conftest import SyncDb
 
 pytestmark = pytest.mark.integration
 
+APP_TABLES = frozenset(
+    {
+        "events",
+        "ingestion_runs",
+        "ingestion_issues",
+        "pages",
+        "page_versions",
+        "existing_links",
+        "known_urls",
+    }
+)
+
 
 def _tables(db: SyncDb) -> set[str]:
     return db.run(lambda c: set(inspect(c).get_table_names()))
@@ -31,18 +43,18 @@ def _revision(db: SyncDb) -> str | None:
 
 def test_upgrade_downgrade_upgrade_round_trip(alembic_config: Config, sync_db: SyncDb) -> None:
     head = ScriptDirectory.from_config(alembic_config).get_current_head()
-    assert head == "0001_initial_events"
+    assert head == "0002_content_inventory"
 
     command.upgrade(alembic_config, "head")
-    assert "events" in _tables(sync_db)
+    assert _tables(sync_db) >= APP_TABLES
     assert _revision(sync_db) == head
 
     command.downgrade(alembic_config, "base")
-    assert "events" not in _tables(sync_db)
+    assert not APP_TABLES & _tables(sync_db)
     assert _revision(sync_db) is None
 
     command.upgrade(alembic_config, "head")
-    assert "events" in _tables(sync_db)
+    assert _tables(sync_db) >= APP_TABLES
     assert _revision(sync_db) == head
 
     # ADR-0003: pgvector is provisioned by the image but never enabled in Phase 0.

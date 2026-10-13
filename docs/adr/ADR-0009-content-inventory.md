@@ -158,9 +158,27 @@ All nine `/inventory/*` routes are `GET`. Runs start from the command line (`mak
 - **`page.deleted` fires on the transition only** (`gone_at` NULL → set), and only for 404 or
   410. A page that reappears has `gone_at` cleared, and `page.updated` fires only if its hash
   changed.
+- **Identity edge cases.**
+  - An alias document's `external_id` is not used for matching, because it names the alias's own
+    record, not the canonical page.
+  - A document whose URL matches a page that carries a **different** `external_id` is an
+    `identity_conflict`. Example: a CMS page deleted and recreated at the same URL under a new id.
+    It is recorded and skipped, never merged silently. Resolving it is an operator decision.
+- **Link resolution follows the mapping.** A latest outcome of 404 or 410 means `broken`.
+  Otherwise, a URL that has ever led to a page resolves to that page, which is `broken` if the
+  page is gone. A later timeout or robots block does not make an established link flap to
+  `unresolved`.
 - **Single writer.** A run holds a session-level `pg_advisory_lock`, so a second concurrent run
   is refused. The lock is released even if the process is killed. Each document's
   transaction takes `SELECT … FOR UPDATE` on its `pages` row.
+- **Two small vocabularies, fixed by the fixture evals.**
+  - `metadata.title_source` is one of `assertion`, `title`, `og:title` or `h1`, and is absent
+    when there is no title.
+  - The query-variant cap counts **every** URL sharing a path, including the bare path.
+    `/trap` plus `/trap?page=1..4` is 5.
+- **Text is quoted exactly as a browser renders it.** Inline elements concatenate (`Hel<b>lo</b>`
+  reads "Hello"). Line breaks and block or container boundaries separate words. Phase 3 matches
+  anchors against this text and must never fabricate source text (PRD §7.7).
 - **`max_pages` caps page requests, whatever their outcome,** so limits stay polite on
   error-heavy sites. robots.txt fetches are not counted.
 

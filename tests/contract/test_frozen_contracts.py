@@ -245,3 +245,14 @@ def test_non_promotion_events_are_not_constrained_by_promotion_rules() -> None:
         event_name=events.EventName.SKILL_PROPOSED, emitted_by="ken-learning-agent"
     )
     assert envelope.payload == {}
+
+
+def test_list_response_round_trips_through_json() -> None:
+    """A typed client must be able to validate what the API emits (has_more is computed)."""
+    page = errors.ListResponse[int](items=[1, 2], page=errors.PageInfo(total=5, limit=2, offset=0))
+    data = page.model_dump(mode="json")
+    assert data["page"]["has_more"] is True
+    again = errors.ListResponse[int].model_validate(data)
+    assert again == page
+    with pytest.raises(ValidationError):
+        errors.PageInfo.model_validate({"total": 1, "limit": 1, "offset": 0, "surprise": 1})

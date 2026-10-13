@@ -161,6 +161,11 @@ export function formatLatency(ms: number): string {
  */
 const SENSITIVE_KEY = /pass(word)?|secret|token|credential|api[_-]?key|authorization|dsn/i;
 
+/** True when a key looks credential-like and its value must be withheld from display. */
+export function isSensitiveKey(key: string): boolean {
+  return SENSITIVE_KEY.test(key);
+}
+
 const MAX_DETAIL_ENTRIES = 4;
 const MAX_VALUE_LENGTH = 60;
 
@@ -231,12 +236,21 @@ export function describeAutoApprove(enabled: boolean): StatusPresentation {
       };
 }
 
-export type ApiErrorKind = "config" | "network" | "timeout" | "http_status" | "invalid_body";
+export type ApiErrorKind =
+  | "config"
+  | "invalid_argument"
+  | "network"
+  | "timeout"
+  | "api_error"
+  | "http_status"
+  | "invalid_body";
 
 const API_ERROR_TITLE: Readonly<Record<ApiErrorKind, string>> = {
   config: "API address is misconfigured",
+  invalid_argument: "Invalid request",
   network: "API unreachable",
   timeout: "API timed out",
+  api_error: "API rejected the request",
   http_status: "Unexpected API response",
   invalid_body: "API response did not match the contract",
 };

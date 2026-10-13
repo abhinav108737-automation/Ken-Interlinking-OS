@@ -141,9 +141,11 @@ def normalize_url(url: str, *, base: str | None = None) -> str:
         InvalidUrlError: see the module docstring.
     """
     raw = url.strip().translate(_TAB_NEWLINE)
-    if base is not None:
-        raw = urljoin(base.strip(), raw)
     try:
+        # urljoin parses both arguments and raises ValueError on e.g. "http://[bad",
+        # so it belongs inside the try: try_normalize_url must never raise.
+        if base is not None:
+            raw = urljoin(base.strip(), raw)
         parts = urlsplit(raw)
         port = parts.port
     except ValueError as exc:

@@ -1,0 +1,59 @@
+{
+  "_comment": "Spec-derived crawl expectations for the fixture site (ADR-0009 section 8). Paths include the query string. 'documents' are the final_url paths of yielded SourceDocuments, excluding /trap query variants, which are checked under 'trap'. Changing an expectation is a reviewed decision.",
+  "config": {
+    "user_agent": "KenInventoryFixtureBot/1.0 (+eval)",
+    "delay_s": 0.0,
+    "concurrency": 2,
+    "max_pages": 500,
+    "max_depth": 10,
+    "timeout_s": 5.0,
+    "max_bytes": 1000000,
+    "max_redirects": 5,
+    "max_query_variants_per_path": 5
+  },
+  "documents": [
+    "/",
+    "/about/",
+    "/broken-links",
+    "/canonical-invalid",
+    "/canonical-offsite",
+    "/contact",
+    "/guides/base-demo",
+    "/loop/a",
+    "/loop/b",
+    "/malformed",
+    "/no-title",
+    "/noindex",
+    "/reports/",
+    "/reports/alias-x",
+    "/reports/moved",
+    "/reports/sea-ev",
+    "/reports/sea-ev?region=sea",
+    "/reports/x",
+    "/trap"
+  ],
+  "redirects": {
+    "/reports/moved": {"requested": "/old", "chain": ["/old", "/older-move"]}
+  },
+  "issues": {
+    "_comment": "Every issue except /trap limit_reached, keyed by the issue url's path. No other issue may appear.",
+    "/files/report.pdf": ["non_html"],
+    "/gone-page": ["http_gone"],
+    "/leave": ["redirect_out_of_scope"],
+    "/missing-page": ["http_not_found"],
+    "/private/secret": ["robots_disallowed"]
+  },
+  "trap": {
+    "path": "/trap",
+    "linked_variants": 30,
+    "min_query_variants_fetched": 4,
+    "max_query_variants_fetched": 5,
+    "issue_code": "limit_reached",
+    "_note": "max_query_variants_per_path=5. Whether the bare /trap counts as one of the 5 is not fixed by the spec, so 4 or 5 queried variants are accepted."
+  },
+  "never_requested_paths": ["/only-from-noindex", "/script-link", "/reports/base-demo"],
+  "never_requested_prefixes": ["/private/"],
+  "never_requested_query_params": ["utm_source", "utm_medium"],
+  "requested_at_most_once": ["/reports/x", "/robots.txt", "/loop/a", "/loop/b"],
+  "only_method": "GET"
+}

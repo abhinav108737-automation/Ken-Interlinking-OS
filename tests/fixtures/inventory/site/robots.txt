@@ -1,0 +1,3 @@
+# Fixture robots.txt (synthetic). /private/ must never be requested.
+User-agent: *
+Disallow: /private/

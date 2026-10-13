@@ -29,6 +29,8 @@ const CHECKS: DependencyCheck[] = [
     required: false,
     status: "skipped",
     latency_ms: 0,
+    detail: {},
+    error: null,
   },
 ];
 
@@ -96,7 +98,9 @@ describe("DependencyTable", () => {
   it("renders an unknown status as explicit text", () => {
     render(
       <DependencyTable
-        checks={[{ name: "cms", kind: "cms", required: true, status: "melted" as never, latency_ms: 1 }]}
+        checks={[
+          { name: "cms", kind: "cms", required: true, status: "melted" as never, latency_ms: 1, detail: {}, error: null },
+        ]}
       />,
     );
     expect(screen.getByText("Unknown (melted)")).toBeInTheDocument();

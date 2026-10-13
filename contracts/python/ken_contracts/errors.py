@@ -16,9 +16,9 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from enum import StrEnum
-from typing import Self
+from typing import Any, Self
 
-from pydantic import Field, computed_field
+from pydantic import Field, computed_field, model_validator
 
 from ken_contracts.common import ContractModel
 
@@ -106,6 +106,18 @@ class PageInfo(ContractModel):
     total: int = Field(ge=0, description="Total matching items, ignoring pagination.")
     limit: int = Field(gt=0, le=200)
     offset: int = Field(ge=0)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _accept_serialised_has_more(cls, data: Any) -> Any:
+        """Let a serialised PageInfo be validated back (typed clients, tests).
+
+        ``has_more`` is computed, so ``extra="forbid"`` would otherwise reject
+        the very key this model emits. It is dropped on input and recomputed.
+        """
+        if isinstance(data, dict) and "has_more" in data:
+            return {key: value for key, value in data.items() if key != "has_more"}
+        return data
 
     @computed_field  # type: ignore[prop-decorator]
     @property

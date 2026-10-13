@@ -1,0 +1,38 @@
+{
+  "_comment": "Route table for the inventory fixture site (synthetic). Matching is on the URL PATH only; the query string is ignored, so /trap?page=7 serves trap.html and /reports/x?utm_source=... serves reports/x.html. A route with 'file' serves that file (status 200 unless given); text bodies and 'location' have {{ORIGIN}} replaced by the serving origin. Unlisted paths answer 'not_found'. Loaded by tests/support/fixture_site.py.",
+  "not_found": {
+    "status": 404,
+    "content_type": "text/html; charset=utf-8",
+    "body": "<!DOCTYPE html><html lang=\"en\"><head><title>Not found</title></head><body><h1>Not found</h1></body></html>"
+  },
+  "routes": {
+    "/robots.txt": {"file": "robots.txt", "content_type": "text/plain; charset=utf-8"},
+    "/": {"file": "index.html"},
+    "/about/": {"file": "about.html"},
+    "/contact": {"file": "contact.html", "headers": {"Content-Language": "de"}},
+    "/reports/": {"file": "reports/index.html"},
+    "/reports/x": {"file": "reports/x.html"},
+    "/reports/alias-x": {"file": "reports/alias-x.html"},
+    "/reports/sea-ev": {"file": "reports/sea-ev.html", "headers": {"Content-Language": "en-IN"}},
+    "/reports/moved": {"file": "reports/moved.html"},
+    "/canonical-offsite": {"file": "canonical-offsite.html"},
+    "/canonical-invalid": {"file": "canonical-invalid.html"},
+    "/no-title": {"file": "no-title.html"},
+    "/malformed": {"file": "malformed.html"},
+    "/guides/base-demo": {"file": "guides/base-demo.html"},
+    "/loop/a": {"file": "loop/a.html"},
+    "/loop/b": {"file": "loop/b.html"},
+    "/trap": {"file": "trap.html"},
+    "/noindex": {"file": "noindex.html"},
+    "/broken-links": {"file": "broken-links.html"},
+    "/files/report.pdf": {"file": "files/report.pdf", "content_type": "application/pdf"},
+    "/old": {"status": 301, "location": "/older-move"},
+    "/older-move": {"status": 302, "location": "{{ORIGIN}}/reports/moved"},
+    "/leave": {"status": 301, "location": "https://external.example.org/"},
+    "/gone-page": {
+      "status": 410,
+      "content_type": "text/html; charset=utf-8",
+      "body": "<!DOCTYPE html><html lang=\"en\"><head><title>Gone</title></head><body><h1>Gone</h1></body></html>"
+    }
+  }
+}

@@ -1,0 +1,170 @@
+{
+  "_comment": "Spec-derived goldens for tests/fixtures/inventory/exports/*.jsonl, read through FileExportContentSource and normalised with normalize_document. Assertions in a record take precedence over parsed HTML (SourceAssertions). links: [link_type, resolved_url or null, anchor_text, anchor_source, rel]. Changing an expectation is a reviewed decision.",
+  "scope_hosts": ["export.fixture.test", "www.export.fixture.test"],
+  "valid": {
+    "https://export.fixture.test/reports/india-ev": {
+      "_covers": "asserted title/state/language(case-folded)/dates/metadata/external_id/page_type; body_html is a FRAGMENT (no <body>): the whole fragment is the content root; allowed_hosts link is internal.",
+      "external_id": "cms-1001",
+      "page_type": "report",
+      "published_at": "2026-01-15T09:00:00+00:00",
+      "modified_at": "2026-09-30T12:00:00+05:30",
+      "metadata_includes": {"author": "Fixture Analyst", "region": "India"},
+      "title": "India EV Market Report (asserted)",
+      "title_source": "assertion",
+      "canonical_status": "missing",
+      "canonical_url": "https://export.fixture.test/reports/india-ev",
+      "language": "en-in",
+      "publication_state": "published",
+      "robots": [],
+      "headings": [[1, "India EV Market Report"]],
+      "links": [
+        ["internal", "https://export.fixture.test/reports/sea-ev", "Southeast Asia report", "text", []],
+        ["internal", "https://www.export.fixture.test/methodology", "methodology", "text", []],
+        ["external", "https://external.example.org/registry", "the national registry", "text", []]
+      ]
+    },
+    "https://export.fixture.test/reports/sea-ev": {
+      "_covers": "draft state; asserted canonical (declared, in scope); nav removed from a full document.",
+      "external_id": "cms-1002",
+      "page_type": "report",
+      "published_at": "2026-02-01T00:00:00+00:00",
+      "modified_at": null,
+      "metadata_includes": {},
+      "title": "SEA EV Draft",
+      "title_source": "title",
+      "canonical_status": "declared",
+      "canonical_url": "https://export.fixture.test/reports/india-ev",
+      "language": "en",
+      "publication_state": "draft",
+      "robots": [],
+      "headings": [[1, "Southeast Asia EV (draft)"]],
+      "links": [
+        ["internal", "https://export.fixture.test/reports/india-ev", "the India report", "text", []]
+      ]
+    },
+    "https://export.fixture.test/insights/battery-costs": {
+      "_covers": "unpublished state; fragment with h1 title fallback; http:// link to an in-scope host is internal and keeps its scheme.",
+      "external_id": "cms-1003",
+      "page_type": "insight",
+      "published_at": null,
+      "modified_at": null,
+      "metadata_includes": {},
+      "title": "Battery Cost Outlook",
+      "title_source": "h1",
+      "canonical_status": "missing",
+      "canonical_url": "https://export.fixture.test/insights/battery-costs",
+      "language": null,
+      "publication_state": "unpublished",
+      "robots": [],
+      "headings": [[1, "Battery Cost Outlook"]],
+      "links": [
+        ["internal", "http://export.fixture.test/reports/india-ev", "India report", "text", []]
+      ]
+    },
+    "https://export.fixture.test/fr/marche-ve": {
+      "_covers": "no assertions at all: publication_state unknown (not public_web), language from <html lang>, title from <title> (non-ASCII, NFC).",
+      "external_id": null,
+      "page_type": null,
+      "published_at": null,
+      "modified_at": null,
+      "metadata_includes": {},
+      "title": "Marché des véhicules électriques",
+      "title_source": "title",
+      "canonical_status": "missing",
+      "canonical_url": "https://export.fixture.test/fr/marche-ve",
+      "language": "fr",
+      "publication_state": "unknown",
+      "robots": [],
+      "headings": [[1, "Marché des véhicules électriques"]],
+      "links": [
+        ["internal", "https://export.fixture.test/reports/india-ev", "le rapport Inde", "text", []]
+      ]
+    },
+    "https://export.fixture.test/about": {
+      "_covers": "asserted canonical equal to own URL -> self.",
+      "external_id": "cms-1005",
+      "page_type": "about",
+      "published_at": null,
+      "modified_at": "2026-05-01T00:00:00+00:00",
+      "metadata_includes": {"owner": "web-team"},
+      "title": "About the fixture publisher",
+      "title_source": "h1",
+      "canonical_status": "self",
+      "canonical_url": "https://export.fixture.test/about",
+      "language": null,
+      "publication_state": "published",
+      "robots": [],
+      "headings": [[1, "About the fixture publisher"]],
+      "links": [
+        ["non_http", null, "us", "text", []]
+      ]
+    },
+    "https://export.fixture.test/reports/india-ev-print": {
+      "_covers": "asserted canonical beats <link rel=canonical>; meta robots NOINDEX lower-cased; rel=alternate kept.",
+      "external_id": "cms-1006",
+      "page_type": null,
+      "published_at": null,
+      "modified_at": null,
+      "metadata_includes": {},
+      "title": "India EV (print)",
+      "title_source": "title",
+      "canonical_status": "declared",
+      "canonical_url": "https://export.fixture.test/reports/india-ev",
+      "language": null,
+      "publication_state": "published",
+      "robots": ["noindex"],
+      "headings": [[1, "India EV (print)"]],
+      "links": [
+        ["internal", "https://export.fixture.test/reports/india-ev", "the report", "text", ["alternate"]]
+      ]
+    }
+  },
+  "v2_changed": {
+    "_comment": "valid.jsonl -> v2_changed.jsonl. content_hash must change ONLY for content changes (ADR-0009 section 4).",
+    "hash_changes": [
+      "https://export.fixture.test/reports/india-ev",
+      "https://export.fixture.test/reports/sea-ev"
+    ],
+    "hash_unchanged": [
+      "https://export.fixture.test/insights/battery-costs",
+      "https://export.fixture.test/fr/marche-ve",
+      "https://export.fixture.test/about",
+      "https://export.fixture.test/reports/india-ev-print"
+    ],
+    "why": {
+      "https://export.fixture.test/reports/india-ev": "body text changed ('growing fast' -> 'growing very fast')",
+      "https://export.fixture.test/reports/sea-ev": "link target changed, anchor text identical (a content change for an interlinking system)",
+      "https://export.fixture.test/insights/battery-costs": "whitespace-only HTML formatting change (body text is whitespace-collapsed)",
+      "https://export.fixture.test/about": "only page_type, modified_at and metadata changed: excluded from the hash",
+      "https://export.fixture.test/fr/marche-ve": "identical",
+      "https://export.fixture.test/reports/india-ev-print": "identical"
+    }
+  },
+  "with_errors": {
+    "_comment": "Per-record failures are SourceIssues, never exceptions; records keep file order.",
+    "sequence": [
+      ["document", "https://export.fixture.test/w/a"],
+      ["issue", "invalid_record"],
+      ["issue", "invalid_record"],
+      ["issue", "invalid_record"],
+      ["issue", "invalid_url"],
+      ["issue", "out_of_scope"],
+      ["issue", "duplicate_url"],
+      ["document", "https://export.fixture.test/w/b"]
+    ],
+    "why": [
+      "line 2: valid",
+      "line 3: not valid JSON",
+      "line 4: required body_html missing",
+      "line 5: unknown key 'colour' (records are extra=forbid)",
+      "line 6: ftp:// URL cannot be normalised",
+      "line 7: host not in the header's scope",
+      "line 8: /w/a?utm_source=dup normalises to line 2's URL",
+      "line 9: valid"
+    ]
+  },
+  "bad_header": {
+    "_comment": "version 2 is not a supported export version: the source as a whole cannot continue, so it RAISES (from site_scope or iter_records) instead of yielding issues.",
+    "raises": true
+  }
+}

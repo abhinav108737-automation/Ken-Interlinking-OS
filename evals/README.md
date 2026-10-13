@@ -75,6 +75,9 @@ from the eval-learning-engineer role definition and supports PRD §10.
 | [stale-page-version](suites/stale-page-version/README.md) | Does a version conflict force regeneration and never publish? | `VALIDATE` → `PUBLISH` (409 path) | Phase 6 |
 | [policy-regression](suites/policy-regression/README.md) | Does a candidate policy regress against history and safety cases? | `POLICY_GATE`, ranking policy | Phase 8 (policy proposals); Phase 9 (autonomy policy engine) |
 
+Phase 1 also has a deterministic inventory fixture corpus (no model, pass/fail goldens):
+[inventory/README.md](inventory/README.md).
+
 Phase 8 ("Evaluation datasets … offline evals") is when these suites become
 formal, versioned datasets with a runner. Before Phase 8, the phases above may
 add recorded fixtures as they build the corresponding nodes.

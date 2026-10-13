@@ -1,0 +1,296 @@
+{
+  "_comment": "Spec-derived goldens (ADR-0009 section 2 + ken_contracts/inventory.py). Written from the specification, NOT from the implementation. Each page is normalised as a PUBLIC_WEB SourceDocument served with HTTP 200 at {{ORIGIN}}<path>, with Content-Language taken from _routes.json, scope = the origin host. {{ORIGIN}} is replaced with the origin used by the eval. links: [link_type, resolved_url or null, anchor_text, anchor_source, rel]. headings: [level, text]. title_source: assertion | title | og_title | h1 | none. Changing an expectation is a reviewed decision: see evals/inventory/README.md.",
+  "pages": {
+    "/": {
+      "title": "Ken Research Fixture Home",
+      "title_source": "title",
+      "canonical_status": "self",
+      "canonical_url": "{{ORIGIN}}/",
+      "language": "en",
+      "publication_state": "published",
+      "robots": [],
+      "headings": [[1, "Fixture Home"], [2, "Featured research"], [2, "Fixture cases"]],
+      "links": [
+        ["internal", "{{ORIGIN}}/reports/x", "India EV market report", "text", []],
+        ["internal", "{{ORIGIN}}/reports/x", "India EV report (newsletter)", "text", []],
+        ["internal", "{{ORIGIN}}/reports/alias-x", "India EV report (alias)", "text", []],
+        ["internal", "{{ORIGIN}}/reports/sea-ev", "Southeast Asia EV report", "text", []],
+        ["internal", "{{ORIGIN}}/old", "Archived report", "text", []],
+        ["internal", "{{ORIGIN}}/canonical-offsite", "Off-site canonical", "text", []],
+        ["internal", "{{ORIGIN}}/canonical-invalid", "Invalid canonical", "text", []],
+        ["internal", "{{ORIGIN}}/no-title", "No title", "text", []],
+        ["internal", "{{ORIGIN}}/malformed", "Malformed markup", "text", []],
+        ["internal", "{{ORIGIN}}/contact", "Contact", "text", []],
+        ["internal", "{{ORIGIN}}/guides/base-demo", "Base href guide", "text", []],
+        ["internal", "{{ORIGIN}}/loop/a", "Loop start", "text", []],
+        ["internal", "{{ORIGIN}}/trap", "Paginated archive", "text", []],
+        ["internal", "{{ORIGIN}}/noindex", "Draft notes", "text", []],
+        ["internal", "{{ORIGIN}}/broken-links", "Broken links", "text", []],
+        ["internal", "{{ORIGIN}}/leave", "Partner site", "text", []],
+        ["internal", "{{ORIGIN}}/private/secret", "Private area", "text", []],
+        ["internal", "{{ORIGIN}}/files/report.pdf", "Download PDF", "text", []],
+        ["external", "https://external.example.org/about", "External publisher", "text", []]
+      ]
+    },
+    "/reports/": {
+      "title": "All Reports",
+      "title_source": "title",
+      "canonical_status": "self",
+      "canonical_url": "{{ORIGIN}}/reports/",
+      "language": "en",
+      "publication_state": "published",
+      "robots": [],
+      "headings": [[1, "All Reports"]],
+      "links": [
+        ["internal", "{{ORIGIN}}/reports/x", "India EV market", "text", []],
+        ["internal", "{{ORIGIN}}/reports/sea-ev", "Southeast Asia EV market", "text", []],
+        ["internal", "{{ORIGIN}}/reports/alias-x", "India EV (print)", "text", []]
+      ]
+    },
+    "/reports/x": {
+      "_covers": "boilerplate removal (header/nav/aside/footer outside article, role=navigation, aria-hidden, hidden, form, noscript, script, style); header/footer INSIDE article kept; title beats og:title; every link type and anchor source; rel sorting; tracking-param stripping on an external link.",
+      "title": "India Electric Vehicle Market Report 2026",
+      "title_source": "title",
+      "canonical_status": "self",
+      "canonical_url": "{{ORIGIN}}/reports/x",
+      "language": "en",
+      "publication_state": "published",
+      "robots": [],
+      "headings": [[1, "India Electric Vehicle Market Report 2026"], [2, "Methodology"]],
+      "links": [
+        ["internal", "{{ORIGIN}}/about/", "Ken Research analyst team", "text", []],
+        ["internal", "{{ORIGIN}}/reports/sea-ev", "Southeast Asia EV market", "text", []],
+        ["fragment", null, "methodology", "text", []],
+        ["external", "https://external.example.org/data?id=7", "national registry data", "text", []],
+        ["external", "https://partner.example.net/", "partner dataset", "text", ["nofollow", "sponsored"]],
+        ["non_http", null, "our analysts", "text", []],
+        ["non_http", null, "+91 12345 67890", "text", []],
+        ["non_http", null, "open chat", "text", []],
+        ["invalid", null, "Empty link", "text", []],
+        ["internal", "{{ORIGIN}}/reports/sea-ev", "Southeast Asia EV report cover", "img_alt", []],
+        ["internal", "{{ORIGIN}}/about/", "About Ken Research", "aria_label", []],
+        ["internal", "{{ORIGIN}}/contact", "Contact the research desk", "title", []],
+        ["internal", "{{ORIGIN}}/contact", "", "none", []],
+        ["invalid", null, "Broken bracket URL", "text", []],
+        ["internal", "{{ORIGIN}}/reports/", "all reports", "text", []]
+      ]
+    },
+    "/reports/alias-x": {
+      "_covers": "declared in-scope canonical (alias of /reports/x).",
+      "title": "India EV Market Report (print edition)",
+      "title_source": "title",
+      "canonical_status": "declared",
+      "canonical_url": "{{ORIGIN}}/reports/x",
+      "language": "en",
+      "publication_state": "published",
+      "robots": [],
+      "headings": [[1, "India EV Market Report (print edition)"]],
+      "links": [
+        ["internal", "{{ORIGIN}}/reports/x", "full report", "text", []]
+      ]
+    },
+    "/reports/sea-ev": {
+      "_covers": "no <html lang>: Content-Language header (en-IN) beats meta http-equiv (fr), lower-cased; root = <article>; external URL normalisation (host case, :443, dot segment, fragment dropped; path case, trailing slash and query order kept).",
+      "title": "Southeast Asia Electric Vehicle Market",
+      "title_source": "title",
+      "canonical_status": "missing",
+      "canonical_url": "{{ORIGIN}}/reports/sea-ev",
+      "language": "en-in",
+      "publication_state": "published",
+      "robots": [],
+      "headings": [[1, "Southeast Asia Electric Vehicle Market"], [2, "Outlook"]],
+      "links": [
+        ["internal", "{{ORIGIN}}/reports/x", "India EV report", "text", []],
+        ["external", "https://external.example.org/Outlook/2026/?b=2&a=1", "the regional outlook", "text", []]
+      ]
+    },
+    "/reports/moved": {
+      "title": "Moved Report",
+      "title_source": "title",
+      "canonical_status": "self",
+      "canonical_url": "{{ORIGIN}}/reports/moved",
+      "language": "en",
+      "publication_state": "published",
+      "robots": [],
+      "headings": [[1, "Moved Report"]],
+      "links": [
+        ["internal", "{{ORIGIN}}/reports/x", "India EV report", "text", []]
+      ]
+    },
+    "/about/": {
+      "_covers": "no canonical (missing); rel lower-cased, de-duplicated, sorted; protocol-relative href takes the page scheme (fixture origins are http); href whitespace trimmed.",
+      "title": "About Ken Research",
+      "title_source": "title",
+      "canonical_status": "missing",
+      "canonical_url": "{{ORIGIN}}/about/",
+      "language": "en",
+      "publication_state": "published",
+      "robots": [],
+      "headings": [[1, "About Ken Research"]],
+      "links": [
+        ["internal", "{{ORIGIN}}/reports/x", "India EV report", "text", ["author", "nofollow"]],
+        ["external", "https://external.example.org/team", "wider team", "text", ["noopener"]],
+        ["external", "http://external.example.org/press", "press office", "text", []],
+        ["internal", "{{ORIGIN}}/contact", "contact page", "text", []]
+      ]
+    },
+    "/contact": {
+      "_covers": "<html lang=en-GB> beats the Content-Language header (de); root = [role=main], so the link outside it is excluded.",
+      "title": "Contact Ken Research",
+      "title_source": "title",
+      "canonical_status": "missing",
+      "canonical_url": "{{ORIGIN}}/contact",
+      "language": "en-gb",
+      "publication_state": "published",
+      "robots": [],
+      "headings": [[1, "Contact us"]],
+      "links": [
+        ["non_http", null, "hello@example.com", "text", []],
+        ["internal", "{{ORIGIN}}/", "home", "text", []]
+      ]
+    },
+    "/canonical-offsite": {
+      "_covers": "no <title>: og:title fallback (beats h1); off-site canonical ignored.",
+      "title": "Off-site Canonical Example",
+      "title_source": "og_title",
+      "canonical_status": "out_of_scope",
+      "canonical_url": "{{ORIGIN}}/canonical-offsite",
+      "language": "en",
+      "publication_state": "published",
+      "robots": [],
+      "headings": [[1, "A heading that is not the title"]],
+      "links": [
+        ["external", "https://external.example.org/elsewhere", "elsewhere", "text", []]
+      ]
+    },
+    "/canonical-invalid": {
+      "_covers": "no <title>/og:title: FIRST h1 fallback; javascript: canonical is invalid.",
+      "title": "Invalid Canonical Heading",
+      "title_source": "h1",
+      "canonical_status": "invalid",
+      "canonical_url": "{{ORIGIN}}/canonical-invalid",
+      "language": "en",
+      "publication_state": "published",
+      "robots": [],
+      "headings": [[1, "Invalid Canonical Heading"], [1, "Second H1 Is Ignored"]],
+      "links": [
+        ["internal", "{{ORIGIN}}/", "home", "text", []]
+      ]
+    },
+    "/no-title": {
+      "_covers": "no title signal at all; invalid lang value ('!!') rejected -> null.",
+      "title": null,
+      "title_source": "none",
+      "canonical_status": "missing",
+      "canonical_url": "{{ORIGIN}}/no-title",
+      "language": null,
+      "publication_state": "published",
+      "robots": [],
+      "headings": [[2, "Untitled section"]],
+      "links": [
+        ["internal", "{{ORIGIN}}/", "Home", "text", []]
+      ]
+    },
+    "/malformed": {
+      "_covers": "unclosed <p>/<li>, stray </div>, mis-nested inline tags, unquoted and single-quoted attributes; root = body.",
+      "title": "Malformed Markup Survivor",
+      "title_source": "title",
+      "canonical_status": "missing",
+      "canonical_url": "{{ORIGIN}}/malformed",
+      "language": "en",
+      "publication_state": "published",
+      "robots": [],
+      "headings": [[1, "Malformed markup survivor"], [2, "Closing heading"]],
+      "links": [
+        ["internal", "{{ORIGIN}}/reports/x", "unquoted link", "text", []],
+        ["internal", "{{ORIGIN}}/about/", "single-quoted link", "text", []],
+        ["internal", "{{ORIGIN}}/contact", "Contact item", "text", []],
+        ["internal", "{{ORIGIN}}/reports/sea-ev", "SEA item", "text", ["nofollow"]],
+        ["internal", "{{ORIGIN}}/loop/a", "loop link", "text", []]
+      ]
+    },
+    "/guides/base-demo": {
+      "_covers": "<base href=/reports/> applies to links AND the canonical; fragment dropped, query kept; dot segments; '#top' is a fragment link.",
+      "title": "Base Href Guide",
+      "title_source": "title",
+      "canonical_status": "declared",
+      "canonical_url": "{{ORIGIN}}/reports/base-demo",
+      "language": "en",
+      "publication_state": "published",
+      "robots": [],
+      "headings": [[1, "Base Href Guide"]],
+      "links": [
+        ["internal", "{{ORIGIN}}/reports/x", "India report", "text", []],
+        ["internal", "{{ORIGIN}}/reports/sea-ev?region=sea", "regional view", "text", []],
+        ["internal", "{{ORIGIN}}/reports/", "report index", "text", []],
+        ["internal", "{{ORIGIN}}/about/", "about", "text", []],
+        ["internal", "{{ORIGIN}}/reports/x", "dot segment", "text", []],
+        ["fragment", null, "back to top", "text", []]
+      ]
+    },
+    "/loop/a": {
+      "title": "Loop A",
+      "title_source": "title",
+      "canonical_status": "missing",
+      "canonical_url": "{{ORIGIN}}/loop/a",
+      "language": "en",
+      "publication_state": "published",
+      "robots": [],
+      "headings": [[1, "Loop A"]],
+      "links": [["internal", "{{ORIGIN}}/loop/b", "Go to B", "text", []]]
+    },
+    "/loop/b": {
+      "title": "Loop B",
+      "title_source": "title",
+      "canonical_status": "missing",
+      "canonical_url": "{{ORIGIN}}/loop/b",
+      "language": "en",
+      "publication_state": "published",
+      "robots": [],
+      "headings": [[1, "Loop B"]],
+      "links": [["internal", "{{ORIGIN}}/loop/a", "Back to A", "text", []]]
+    },
+    "/trap": {
+      "_covers": "30 query-only relative links; links listed by the eval programmatically (?page=1..30, anchor = the number).",
+      "title": "Paginated Archive",
+      "title_source": "title",
+      "canonical_status": "self",
+      "canonical_url": "{{ORIGIN}}/trap",
+      "language": "en",
+      "publication_state": "published",
+      "robots": [],
+      "headings": [[1, "Archive"]],
+      "links_generated": {"template": ["internal", "{{ORIGIN}}/trap?page={n}", "{n}", "text", []], "from": 1, "to": 30}
+    },
+    "/noindex": {
+      "_covers": "meta robots 'noindex, nofollow' -> directives; links are still extracted (following is the crawler's concern).",
+      "title": "Draft Research Notes",
+      "title_source": "title",
+      "canonical_status": "missing",
+      "canonical_url": "{{ORIGIN}}/noindex",
+      "language": "en",
+      "publication_state": "published",
+      "robots": ["nofollow", "noindex"],
+      "headings": [[1, "Draft Research Notes"]],
+      "links": [
+        ["internal", "{{ORIGIN}}/only-from-noindex", "unpublished appendix", "text", []],
+        ["internal", "{{ORIGIN}}/reports/x", "published report", "text", []]
+      ]
+    },
+    "/broken-links": {
+      "title": "Broken Links Example",
+      "title_source": "title",
+      "canonical_status": "missing",
+      "canonical_url": "{{ORIGIN}}/broken-links",
+      "language": "en",
+      "publication_state": "published",
+      "robots": [],
+      "headings": [[1, "Broken Links Example"]],
+      "links": [
+        ["internal", "{{ORIGIN}}/missing-page", "A page that never existed", "text", []],
+        ["internal", "{{ORIGIN}}/gone-page", "A retired page", "text", []],
+        ["internal", "{{ORIGIN}}/reports/x", "A working page", "text", []]
+      ]
+    }
+  }
+}

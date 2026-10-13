@@ -20,6 +20,7 @@ convention, not a freeze.
 | `analytics.py` | `AnalyticsProvider` protocol (read-only, **no implementation until Phase 7**) |
 | `events.py` | `EventName` (TRD §15 vocabulary + governed additions), `EventEnvelope`, `PromotionAuditPayload` |
 | `errors.py` | `ErrorResponse`, `ErrorCode`, `ListResponse[T]`, `PageInfo` |
+| `inventory.py` | Phase 1. `ContentSourceProvider` + `CMSInventoryReader` protocols, `SourceDocument` / `SourceIssue`, `SiteScope`, `CrawlConfig`, `NormalizedPage`, the JSONL export format, inventory event payloads, API read models, `InventoryReader` (the API's only route to persistence) |
 
 ## Rules
 
@@ -142,3 +143,55 @@ recorded decision — never by a specialist on its own. Current additions:
 | `skill.promoted` | user decision, post-Phase-0 cleanup (2026-10-13) — closes the TRD gap where PROMOTE_SKILL had no audit event |
 
 `EventName` is a Pydantic enum, not a database enum, so additions need no migration.
+
+Phase 1 additions: `json_schema_serialization_defaults_required` on the contract bases marks every
+always-present response field as required in OpenAPI. TypeScript clients therefore no longer treat
+`detail`, `error`, `title` and similar fields as possibly absent. The wire format is unchanged.
+
+### 13. Content inventory (Phase 1)
+
+The design is in [ADR-0009](adr/ADR-0009-content-inventory.md). The rules that bind every
+implementation:
+
+- **Sources yield, never raise, per URL.** A `ContentSourceProvider` yields `SourceDocument` /
+  `SourceIssue` in a deterministic order; an exception means the whole source failed. Sources are
+  read-only: GET only, no forms, no authentication. `config_snapshot()` is persisted and must hold
+  no secret.
+- **Inventory never holds a mutation-capable CMS object.** It reads through `CMSInventoryReader`,
+  never `CMSProvider`.
+- **Normalisation is deterministic and LLM-free.** The same document gives a byte-identical
+  `NormalizedPage`. `content_hash` covers content fields only, and `hash_version` is stored with it.
+- **Versions are immutable.** `page_versions` and `existing_links` reject `UPDATE`/`DELETE` by
+  trigger, and a version is written only when the hash changes.
+- **The inventory API is GET-only** (a snapshot test asserts this). It reaches the database only
+  through `InventoryReader`. `PageVersionDetail.body_html` must never be rendered as HTML by a
+  client.
+
+#### JSONL export format, version 1
+
+UTF-8, one JSON object per line, blank lines ignored. Unknown keys are rejected.
+
+```jsonl
+{"format": "ken-inventory-export", "version": 1, "site_url": "https://example.com/", "allowed_hosts": ["www.example.com"], "exported_at": "2026-10-13T09:00:00Z", "generator": "cms-export 1.2"}
+{"url": "https://example.com/reports/india-ev", "body_html": "<main>…</main>", "external_id": "cms-123", "page_type": "report", "title": "India EV Market", "publication_state": "published", "language": "en", "published_at": "2026-01-15T09:00:00Z", "metadata": {"author": "Research team"}}
+```
+
+- **Line 1 is an `ExportHeader`.** Its `site_url` host plus `allowed_hosts` define which links count
+  as internal.
+- **Each following line is an `ExportPageRecord`.** Only `url` and `body_html` are required. Every
+  other field is an assertion that overrides what HTML parsing would infer.
+- **A bad line becomes an `invalid_record` issue.** It never aborts the import, and the issue
+  message never echoes field values.
+
+#### Inventory events
+
+| Event | `subject_type` / `subject_id` | Payload model |
+|---|---|---|
+| `page.created` | `page` / `str(page_id)` | `PageEventPayload` (version 1) |
+| `page.updated` | `page` / `str(page_id)` | `PageEventPayload` (with `previous_version`, `previous_content_hash`) |
+| `page.deleted` | `page` / `str(page_id)` | `PageDeletedPayload` — a 404/410 observation, on the transition only |
+| `crawl.completed` | `ingestion_run` / `str(run_id)` | `CrawlCompletedPayload` — every run, of every source type, including failed runs |
+
+`emitted_by` is `ken-ingest` and `correlation_id` is the run id. Payloads are always built from
+these models (`model_dump(mode="json")`). No event name was added: `crawl.completed` covers file
+and CMS imports via `source_type` (rule 12).

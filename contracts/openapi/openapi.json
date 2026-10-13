@@ -618,7 +618,7 @@
         "type": "string"
       },
       "LinkResolution": {
-        "description": "Whether an internal link's destination is known (computed at read time).\n\n``resolved``        the destination URL maps to a known, live page\n``broken``          the destination returned 404/410, or maps to a page now gone\n``unresolved``      not (yet) observed: beyond crawl limits, robots-blocked or errored\n``not_applicable``  the link is not internal",
+        "description": "Whether an internal link's destination is known (computed at read time).\n\n``resolved``        the destination URL has led to a known, live page (the mapping\n                    survives a later transient failure such as a timeout)\n``broken``          the destination's latest answer was 404/410, or it leads to a gone page\n``unresolved``      never led to a page: beyond crawl limits, robots-blocked or errored\n``not_applicable``  the link is not internal",
         "enum": [
           "resolved",
           "broken",

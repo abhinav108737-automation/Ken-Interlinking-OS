@@ -21,7 +21,7 @@ export NEXT_TELEMETRY_DISABLED := 1
 .PHONY: help setup lock db-up db-down migrate dev dev-api dev-web \
         test test-integration test-all test-live web-test lint format types \
         compose-config compose-full-up compose-full-down doctor verify openapi \
-        ingest-file crawl
+        ingest-file ingest-cms-mock crawl
 
 help: ## List targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "} {printf "  %-18s %s\n", $$1, $$2}'
@@ -99,6 +99,9 @@ openapi: ## Regenerate contracts/openapi/openapi.json and apps/web/lib/types.gen
 ingest-file: ## Import a JSONL export: make ingest-file FILE=path/to/export.jsonl
 	@test -n "$(FILE)" || (echo "usage: make ingest-file FILE=path/to/export.jsonl" >&2; exit 2)
 	$(VENV)/python -m ken_services.inventory.cli import-file "$(FILE)"
+
+ingest-cms-mock: ## Import the mock CMS seed pages (no real CMS): make ingest-cms-mock
+	$(VENV)/python -m ken_services.inventory.cli import-cms-mock --site-url https://example.com/
 
 crawl: ## Crawl the ONE site configured in KEN_CRAWL_BASE_URL (refuses if unset)
 	$(VENV)/python -m ken_services.inventory.cli crawl

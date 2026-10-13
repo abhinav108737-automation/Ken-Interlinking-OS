@@ -1,0 +1,9 @@
+{"format": "ken-inventory-export", "version": 1, "site_url": "https://export.fixture.test/", "allowed_hosts": ["www.export.fixture.test"], "exported_at": "2026-10-01T00:00:00Z", "generator": "ken-fixture-builder"}
+{"url": "https://export.fixture.test/w/a", "body_html": "<h1>Record A</h1><p>Fine.</p>"}
+{"url": "https://export.fixture.test/w/broken", "body_html": "<p>unterminated
+{"url": "https://export.fixture.test/w/no-body", "title": "No body"}
+{"url": "https://export.fixture.test/w/extra", "body_html": "<p>x</p>", "colour": "blue"}
+{"url": "ftp://export.fixture.test/w/bad-scheme", "body_html": "<p>x</p>"}
+{"url": "https://other.example.com/w/offsite", "body_html": "<p>x</p>"}
+{"url": "https://export.fixture.test/w/a?utm_source=dup", "body_html": "<h1>Record A again</h1>"}
+{"url": "https://export.fixture.test/w/b", "body_html": "<h1>Record B</h1>"}
