@@ -17,6 +17,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from ken_api.middleware.request_id import REQUEST_ID_HEADER
 from ken_contracts.errors import ErrorCode, ErrorDetail, ErrorResponse
+from ken_contracts.inventory import InventoryNotFoundError
 from ken_core.logging import get_logger
 
 logger = get_logger(__name__)
@@ -93,6 +94,22 @@ async def validation_exception_handler(request: Request, exc: Exception) -> JSON
     return _respond(request, 422, body)
 
 
+_NOT_FOUND: Final[dict[str, tuple[ErrorCode, str]]] = {
+    "page": (ErrorCode.PAGE_NOT_FOUND, "Page not found."),
+    "page_version": (ErrorCode.NOT_FOUND, "Page version not found."),
+    "run": (ErrorCode.NOT_FOUND, "Ingestion run not found."),
+}
+
+
+async def inventory_not_found_handler(request: Request, exc: Exception) -> JSONResponse:
+    if not isinstance(exc, InventoryNotFoundError):  # registration guarantees it
+        return await unhandled_exception_handler(request, exc)
+    # A fixed message per resource kind: the requested id is never echoed.
+    code, message = _NOT_FOUND.get(exc.resource, (ErrorCode.NOT_FOUND, "Not found."))
+    body = ErrorResponse.of(code, message, request_id=_request_id(request))
+    return _respond(request, 404, body)
+
+
 async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     request_id = _request_id(request)
     logger.error(
@@ -111,4 +128,5 @@ async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONR
 def install_exception_handlers(app: FastAPI) -> None:
     app.add_exception_handler(StarletteHTTPException, http_exception_handler)
     app.add_exception_handler(RequestValidationError, validation_exception_handler)
+    app.add_exception_handler(InventoryNotFoundError, inventory_not_found_handler)
     app.add_exception_handler(Exception, unhandled_exception_handler)

@@ -21,6 +21,159 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/inventory/links": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Body links across every page's current version. */
+        get: operations["listInventoryLinks"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/inventory/pages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Page inventory, newest change first. */
+        get: operations["listInventoryPages"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/inventory/pages/{page_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One page with its current version. */
+        get: operations["getInventoryPage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/inventory/pages/{page_id}/links": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Body links of one page version (default: current). */
+        get: operations["listInventoryPageLinks"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/inventory/pages/{page_id}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A page's immutable version history, newest first. */
+        get: operations["listInventoryPageVersions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/inventory/pages/{page_id}/versions/{version}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One page version, including its stored content. */
+        get: operations["getInventoryPageVersion"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/inventory/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Crawl and import runs, newest first. */
+        get: operations["listIngestionRuns"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/inventory/runs/{run_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One run with its configuration snapshot and issue counts. */
+        get: operations["getIngestionRun"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/inventory/runs/{run_id}/issues": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Per-URL issues recorded by one run. */
+        get: operations["listIngestionRunIssues"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/meta": {
         parameters: {
             query?: never;
@@ -59,6 +212,27 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** @enum {string} */
+        AnchorSource: "text" | "img_alt" | "aria_label" | "title" | "none";
+        /**
+         * CanonicalStatus
+         * @description How the page's identity URL was chosen.
+         *
+         *     ``self``          declared canonical equals the page's own URL
+         *     ``declared``      a different, in-scope canonical was declared and is used
+         *     ``missing``       none declared; the normalised final URL is used
+         *     ``out_of_scope``  declared canonical is off-site; ignored, final URL used
+         *     ``invalid``       declared canonical is unparseable; ignored, final URL used
+         *
+         *     Precedence at persistence (prevents identity flip-flop): a ``self`` or
+         *     ``missing`` document is the AUTHORITY for its identity URL. A ``declared``
+         *     (alias) document may create identity X only while X has no version from an
+         *     authoritative document; once it has, the alias records ``known_urls`` Y -> X
+         *     plus a ``duplicate_canonical`` issue and writes no version. Within one run,
+         *     the authoritative document for X always wins over aliases of X.
+         * @enum {string}
+         */
+        CanonicalStatus: "self" | "declared" | "missing" | "out_of_scope" | "invalid";
         /**
          * CheckKind
          * @description Category of a readiness check, so clients can group them in a UI.
@@ -74,14 +248,14 @@ export interface components {
              * Detail
              * @description Probe-specific facts. Must never contain secrets or credentials.
              */
-            detail?: {
+            detail: {
                 [key: string]: unknown;
             };
             /**
              * Error
              * @description Human-readable failure reason when status is not ok.
              */
-            error?: string | null;
+            error: string | null;
             kind: components["schemas"]["CheckKind"];
             /**
              * Latency Ms
@@ -115,15 +289,11 @@ export interface components {
          * @description One field-level or item-level problem within a failed request.
          */
         ErrorDetail: {
-            /**
-             * Code
-             * @default null
-             */
+            /** Code */
             code: string | null;
             /**
              * Location
              * @description Dotted path to the offending field, when applicable.
-             * @default null
              */
             location: string | null;
             /** Message */
@@ -142,7 +312,7 @@ export interface components {
             /** @description Stable machine-readable code. */
             code: components["schemas"]["ErrorCode"];
             /** Details */
-            details?: components["schemas"]["ErrorDetail"][];
+            details: components["schemas"]["ErrorDetail"][];
             /**
              * Message
              * @description Human-readable summary. Never branch on this.
@@ -151,9 +321,58 @@ export interface components {
             /**
              * Request Id
              * @description Correlates this failure with server logs.
-             * @default null
              */
             request_id: string | null;
+        };
+        /**
+         * ExistingLinkView
+         * @description One body link as stored for a page version, with read-time resolution.
+         */
+        ExistingLinkView: {
+            anchor_source: components["schemas"]["AnchorSource"];
+            /** Anchor Text */
+            anchor_text: string;
+            /** Block Id */
+            block_id: string;
+            /** Block Kind */
+            block_kind: string;
+            /** Context Text */
+            context_text: string;
+            /** Href */
+            href: string;
+            link_type: components["schemas"]["LinkType"];
+            /** Occurrence Index */
+            occurrence_index: number;
+            /** Ordinal */
+            ordinal: number;
+            /**
+             * Page Id
+             * Format: uuid
+             */
+            page_id: string;
+            /** Page Version */
+            page_version: number;
+            /** Rel */
+            rel: string[];
+            resolution: components["schemas"]["LinkResolution"];
+            /** Resolved Url */
+            resolved_url: string | null;
+            /**
+             * Source Url
+             * @description Canonical URL of the page the link is on.
+             */
+            source_url: string;
+            /** Target Page Id */
+            target_page_id: string | null;
+        };
+        /** Heading */
+        Heading: {
+            /** Block Id */
+            block_id: string;
+            /** Level */
+            level: number;
+            /** Text */
+            text: string;
         };
         /**
          * HealthResponse
@@ -181,6 +400,150 @@ export interface components {
          * @enum {string}
          */
         HealthStatus: "ok" | "degraded" | "unavailable" | "error" | "skipped";
+        /** IngestionIssueView */
+        IngestionIssueView: {
+            code: components["schemas"]["IssueCode"];
+            /** Http Status */
+            http_status: number | null;
+            /** Id */
+            id: number;
+            /** Message */
+            message: string;
+            /**
+             * Occurred At
+             * Format: date-time
+             */
+            occurred_at: string;
+            /** Related Url */
+            related_url: string | null;
+            /**
+             * Run Id
+             * Format: uuid
+             */
+            run_id: string;
+            severity: components["schemas"]["IssueSeverity"];
+            /** Url */
+            url: string | null;
+        };
+        /** IngestionRunDetail */
+        IngestionRunDetail: {
+            /** Completed At */
+            completed_at: string | null;
+            /**
+             * Config Snapshot
+             * @description Secret-free run configuration.
+             */
+            config_snapshot: {
+                [key: string]: unknown;
+            };
+            counters: components["schemas"]["RunCounters"];
+            /**
+             * Failure Reason
+             * @description Safe summary when status is failed. Never exception text.
+             */
+            failure_reason: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Issue Counts
+             * @description Issues stored for this run, by IssueCode.
+             */
+            issue_counts: {
+                [key: string]: number;
+            };
+            /** Source Name */
+            source_name: string;
+            source_type: components["schemas"]["SourceType"];
+            /**
+             * Started At
+             * Format: date-time
+             */
+            started_at: string;
+            status: components["schemas"]["RunStatus"];
+        };
+        /** IngestionRunSummary */
+        IngestionRunSummary: {
+            /** Completed At */
+            completed_at: string | null;
+            counters: components["schemas"]["RunCounters"];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Source Name */
+            source_name: string;
+            source_type: components["schemas"]["SourceType"];
+            /**
+             * Started At
+             * Format: date-time
+             */
+            started_at: string;
+            status: components["schemas"]["RunStatus"];
+        };
+        /**
+         * IssueCode
+         * @description Stable machine-readable reason for one per-URL or per-record problem.
+         *
+         *     Adding a member is additive and non-breaking.
+         * @enum {string}
+         */
+        IssueCode: "robots_disallowed" | "robots_unavailable" | "out_of_scope" | "limit_reached" | "redirect_out_of_scope" | "redirect_loop" | "too_many_redirects" | "http_not_found" | "http_gone" | "http_error" | "timeout" | "network_error" | "non_html" | "too_large" | "invalid_url" | "invalid_record" | "parse_error" | "duplicate_url" | "duplicate_canonical" | "identity_conflict" | "persist_error";
+        /**
+         * IssueSeverity
+         * @enum {string}
+         */
+        IssueSeverity: "info" | "warning" | "error";
+        /**
+         * LinkResolution
+         * @description Whether an internal link's destination is known (computed at read time).
+         *
+         *     ``resolved``        the destination URL maps to a known, live page
+         *     ``broken``          the destination returned 404/410, or maps to a page now gone
+         *     ``unresolved``      not (yet) observed: beyond crawl limits, robots-blocked or errored
+         *     ``not_applicable``  the link is not internal
+         * @enum {string}
+         */
+        LinkResolution: "resolved" | "broken" | "unresolved" | "not_applicable";
+        /**
+         * LinkType
+         * @description Classification of one ``<a href>`` in a page body.
+         * @enum {string}
+         */
+        LinkType: "internal" | "external" | "fragment" | "non_http" | "invalid";
+        /** ListResponse[ExistingLinkView] */
+        ListResponse_ExistingLinkView_: {
+            /** Items */
+            items: components["schemas"]["ExistingLinkView"][];
+            page: components["schemas"]["PageInfo"];
+        };
+        /** ListResponse[IngestionIssueView] */
+        ListResponse_IngestionIssueView_: {
+            /** Items */
+            items: components["schemas"]["IngestionIssueView"][];
+            page: components["schemas"]["PageInfo"];
+        };
+        /** ListResponse[IngestionRunSummary] */
+        ListResponse_IngestionRunSummary_: {
+            /** Items */
+            items: components["schemas"]["IngestionRunSummary"][];
+            page: components["schemas"]["PageInfo"];
+        };
+        /** ListResponse[PageSummary] */
+        ListResponse_PageSummary_: {
+            /** Items */
+            items: components["schemas"]["PageSummary"][];
+            page: components["schemas"]["PageInfo"];
+        };
+        /** ListResponse[PageVersionSummary] */
+        ListResponse_PageVersionSummary_: {
+            /** Items */
+            items: components["schemas"]["PageVersionSummary"][];
+            page: components["schemas"]["PageInfo"];
+        };
         /**
          * MetaResponse
          * @description ``GET /meta`` -- build and configuration facts.
@@ -206,10 +569,261 @@ export interface components {
              * Settings
              * @description Non-secret settings allowlist.
              */
-            settings?: {
+            settings: {
                 [key: string]: unknown;
             };
         };
+        /** PageDetail */
+        PageDetail: {
+            /** Canonical Url */
+            canonical_url: string;
+            /** Content Hash */
+            content_hash: string;
+            current: components["schemas"]["PageVersionDetail"];
+            /** Current Version */
+            current_version: number;
+            /** External Id */
+            external_id: string | null;
+            /** External Link Count */
+            external_link_count: number;
+            /**
+             * First Seen At
+             * Format: date-time
+             */
+            first_seen_at: string;
+            /**
+             * Gone At
+             * @description Set when the identity URL last answered 404/410.
+             */
+            gone_at: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Internal Link Count */
+            internal_link_count: number;
+            /** Language */
+            language: string | null;
+            /**
+             * Last Changed At
+             * Format: date-time
+             */
+            last_changed_at: string;
+            /**
+             * Last Seen At
+             * Format: date-time
+             */
+            last_seen_at: string;
+            /** Page Type */
+            page_type: string | null;
+            publication_state: components["schemas"]["PublicationState"];
+            /** Title */
+            title: string | null;
+            /** Word Count */
+            word_count: number;
+        };
+        /**
+         * PageInfo
+         * @description Pagination metadata.
+         *
+         *     Offset/limit rather than cursors: the Phase 5 review inbox needs jumpable
+         *     pages and stable total counts more than it needs consistency under
+         *     concurrent insertion.
+         */
+        PageInfo: {
+            /** Has More */
+            readonly has_more: boolean;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+            /**
+             * Total
+             * @description Total matching items, ignoring pagination.
+             */
+            total: number;
+        };
+        /**
+         * PageSummary
+         * @description One row of the page inventory, describing the page's CURRENT version.
+         */
+        PageSummary: {
+            /** Canonical Url */
+            canonical_url: string;
+            /** Content Hash */
+            content_hash: string;
+            /** Current Version */
+            current_version: number;
+            /** External Id */
+            external_id: string | null;
+            /** External Link Count */
+            external_link_count: number;
+            /**
+             * First Seen At
+             * Format: date-time
+             */
+            first_seen_at: string;
+            /**
+             * Gone At
+             * @description Set when the identity URL last answered 404/410.
+             */
+            gone_at: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Internal Link Count */
+            internal_link_count: number;
+            /** Language */
+            language: string | null;
+            /**
+             * Last Changed At
+             * Format: date-time
+             */
+            last_changed_at: string;
+            /**
+             * Last Seen At
+             * Format: date-time
+             */
+            last_seen_at: string;
+            /** Page Type */
+            page_type: string | null;
+            publication_state: components["schemas"]["PublicationState"];
+            /** Title */
+            title: string | null;
+            /** Word Count */
+            word_count: number;
+        };
+        /** PageVersionDetail */
+        PageVersionDetail: {
+            /**
+             * Body Html
+             * @description Stored content region. Clients must NEVER render it as HTML.
+             */
+            body_html: string;
+            /** Body Text */
+            body_text: string;
+            canonical_status: components["schemas"]["CanonicalStatus"];
+            /** Canonical Url */
+            canonical_url: string;
+            /** Content Hash */
+            content_hash: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Declared Canonical Url */
+            declared_canonical_url: string | null;
+            /** External Link Count */
+            external_link_count: number;
+            /**
+             * Fetched At
+             * Format: date-time
+             */
+            fetched_at: string;
+            /** Hash Version */
+            hash_version: number;
+            /** Headings */
+            headings: components["schemas"]["Heading"][];
+            /** Http Status */
+            http_status: number | null;
+            /** Internal Link Count */
+            internal_link_count: number;
+            /** Language */
+            language: string | null;
+            /** Meta Description */
+            meta_description: string | null;
+            /** Metadata */
+            metadata: {
+                [key: string]: string;
+            };
+            /** Modified At */
+            modified_at: string | null;
+            /**
+             * Page Id
+             * Format: uuid
+             */
+            page_id: string;
+            /** Page Type */
+            page_type: string | null;
+            publication_state: components["schemas"]["PublicationState"];
+            /** Published At */
+            published_at: string | null;
+            /** Redirect Chain */
+            redirect_chain: string[];
+            /** Requested Url */
+            requested_url: string;
+            /** Robots Directives */
+            robots_directives: string[];
+            /** Run Id */
+            run_id: string | null;
+            /** Source Id */
+            source_id: string;
+            source_type: components["schemas"]["SourceType"];
+            /** Title */
+            title: string | null;
+            /** Url */
+            url: string;
+            /** Version */
+            version: number;
+            /** Word Count */
+            word_count: number;
+        };
+        /** PageVersionSummary */
+        PageVersionSummary: {
+            /** Content Hash */
+            content_hash: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** External Link Count */
+            external_link_count: number;
+            /**
+             * Fetched At
+             * Format: date-time
+             */
+            fetched_at: string;
+            /** Hash Version */
+            hash_version: number;
+            /** Http Status */
+            http_status: number | null;
+            /** Internal Link Count */
+            internal_link_count: number;
+            /**
+             * Page Id
+             * Format: uuid
+             */
+            page_id: string;
+            publication_state: components["schemas"]["PublicationState"];
+            /** Run Id */
+            run_id: string | null;
+            /** Source Id */
+            source_id: string;
+            source_type: components["schemas"]["SourceType"];
+            /** Title */
+            title: string | null;
+            /** Url */
+            url: string;
+            /** Version */
+            version: number;
+            /** Word Count */
+            word_count: number;
+        };
+        /**
+         * PublicationState
+         * @description Publication state as the source reports it.
+         *
+         *     The public web crawler can only observe ``published`` (a page served with
+         *     HTTP 200). Drafts are visible only through an export or a CMS read API.
+         *     ``unknown`` is the honest default when a source does not say.
+         * @enum {string}
+         */
+        PublicationState: "published" | "draft" | "unpublished" | "unknown";
         /**
          * ReadinessResponse
          * @description ``GET /ready`` -- aggregate readiness.
@@ -253,6 +867,80 @@ export interface components {
          */
         ReadinessStatus: "ready" | "degraded" | "not_ready";
         /**
+         * RunCounters
+         * @description Run accounting. Invariant (checked by tests)::
+         *
+         *     pages_fetched == pages_created + pages_changed + pages_unchanged
+         *                      + pages_duplicate + pages_failed
+         */
+        RunCounters: {
+            /**
+             * Error Count
+             * @default 0
+             */
+            error_count: number;
+            /**
+             * Pages Changed
+             * @default 0
+             */
+            pages_changed: number;
+            /**
+             * Pages Created
+             * @default 0
+             */
+            pages_created: number;
+            /**
+             * Pages Discovered
+             * @default 0
+             */
+            pages_discovered: number;
+            /**
+             * Pages Duplicate
+             * @default 0
+             */
+            pages_duplicate: number;
+            /**
+             * Pages Failed
+             * @default 0
+             */
+            pages_failed: number;
+            /**
+             * Pages Fetched
+             * @default 0
+             */
+            pages_fetched: number;
+            /**
+             * Pages Gone
+             * @default 0
+             */
+            pages_gone: number;
+            /**
+             * Pages Skipped
+             * @default 0
+             */
+            pages_skipped: number;
+            /**
+             * Pages Unchanged
+             * @default 0
+             */
+            pages_unchanged: number;
+            /**
+             * Warning Count
+             * @default 0
+             */
+            warning_count: number;
+        };
+        /**
+         * RunStatus
+         * @description Lifecycle of one ingestion run.
+         *
+         *     ``failed`` means the run itself could not complete (the source could not
+         *     start, or an unexpected error aborted it). Per-URL problems never fail a
+         *     run: they are recorded as issues and give ``completed_with_errors``.
+         * @enum {string}
+         */
+        RunStatus: "running" | "succeeded" | "completed_with_errors" | "failed";
+        /**
          * ServiceIdentity
          * @description Who is answering. Present in every health, readiness and meta payload.
          */
@@ -266,7 +954,7 @@ export interface components {
              * Git Sha
              * @description Short commit SHA when discoverable, else null.
              */
-            git_sha?: string | null;
+            git_sha: string | null;
             /**
              * Service
              * @description Logical service name, e.g. 'ken-api'.
@@ -278,6 +966,12 @@ export interface components {
              */
             version: string;
         };
+        /**
+         * SourceType
+         * @description Where a document came from. Recorded on every run and page version.
+         * @enum {string}
+         */
+        SourceType: "public_web" | "file_export" | "cms";
     };
     responses: never;
     parameters: never;
@@ -303,6 +997,362 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HealthResponse"];
+                };
+            };
+        };
+    };
+    listInventoryLinks: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+                link_type?: components["schemas"]["LinkType"] | null;
+                resolution?: components["schemas"]["LinkResolution"] | null;
+                target_page_id?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListResponse_ExistingLinkView_"];
+                };
+            };
+            /** @description A parameter is invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    listInventoryPages: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+                q?: string | null;
+                publication_state?: components["schemas"]["PublicationState"] | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListResponse_PageSummary_"];
+                };
+            };
+            /** @description A parameter is invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    getInventoryPage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                page_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PageDetail"];
+                };
+            };
+            /** @description No such resource. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A parameter is invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    listInventoryPageLinks: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+                version?: number | null;
+                link_type?: components["schemas"]["LinkType"] | null;
+            };
+            header?: never;
+            path: {
+                page_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListResponse_ExistingLinkView_"];
+                };
+            };
+            /** @description No such resource. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A parameter is invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    listInventoryPageVersions: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                page_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListResponse_PageVersionSummary_"];
+                };
+            };
+            /** @description No such resource. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A parameter is invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    getInventoryPageVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                page_id: string;
+                version: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PageVersionDetail"];
+                };
+            };
+            /** @description No such resource. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A parameter is invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    listIngestionRuns: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+                source_type?: components["schemas"]["SourceType"] | null;
+                status?: components["schemas"]["RunStatus"] | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListResponse_IngestionRunSummary_"];
+                };
+            };
+            /** @description A parameter is invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    getIngestionRun: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IngestionRunDetail"];
+                };
+            };
+            /** @description No such resource. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A parameter is invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    listIngestionRunIssues: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+                severity?: components["schemas"]["IssueSeverity"] | null;
+            };
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListResponse_IngestionIssueView_"];
+                };
+            };
+            /** @description No such resource. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A parameter is invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };

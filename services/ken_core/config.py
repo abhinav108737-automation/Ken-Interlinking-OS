@@ -30,6 +30,7 @@ from urllib.parse import urlsplit
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from ken_contracts.inventory import CrawlConfig
 from ken_contracts.model import ModelRole
 
 # services/ken_core/config.py -> repository root. Identical in native dev and in
@@ -113,7 +114,7 @@ class Settings(BaseSettings):
     # ---------------------------------------------------------------- service
     service_name: str = "ken-api"
     environment: Literal["local", "ci", "staging", "production"] = "local"
-    phase: int = 0
+    phase: int = 1
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
     log_format: Literal["json", "console"] = "console"
 
@@ -156,6 +157,34 @@ class Settings(BaseSettings):
 
     # ------------------------------------------------------------------- cms
     cms_provider: Literal["mock"] = "mock"
+
+    # ------------------------------------------------------- content inventory
+    # Phase 1. There is deliberately NO default base URL: the crawler must never
+    # guess which site to crawl. Until KEN_CRAWL_BASE_URL is set, `crawl` refuses
+    # to start; file imports and tests work without it.
+    crawl_base_url: str | None = Field(
+        default=None, description="Start URL of the one site the crawler may visit."
+    )
+    crawl_allowed_hosts: str = Field(
+        default="",
+        description="Comma-separated extra in-scope hosts (e.g. the www. variant).",
+    )
+    crawl_user_agent: str = Field(
+        default="KenInterlinkBot/0.1 (self-hosted content inventory; read-only)",
+        min_length=1,
+        max_length=200,
+    )
+    # Polite by default: one request start per second, two in flight at most.
+    crawl_delay_s: float = Field(default=1.0, ge=0.0, le=60.0)
+    crawl_concurrency: int = Field(default=2, ge=1, le=8)
+    crawl_max_pages: int = Field(default=500, ge=1, le=100_000)
+    crawl_max_depth: int = Field(default=10, ge=0, le=50)
+    crawl_timeout_s: float = Field(default=15.0, gt=0.0, le=120.0)
+    crawl_max_bytes: int = Field(default=5_000_000, ge=1024, le=50_000_000)
+    crawl_max_redirects: int = Field(default=5, ge=0, le=10)
+    ingest_max_file_bytes: int = Field(
+        default=200_000_000, ge=1, description="Largest JSONL export an import will read."
+    )
 
     # -------------------------------------------------------------- readiness
     require_pgvector: bool = Field(
@@ -208,6 +237,18 @@ class Settings(BaseSettings):
     def _resolve_against_repo_root(cls, value: str) -> str:
         path = Path(value)
         return str(path if path.is_absolute() else REPO_ROOT / path)
+
+    @model_validator(mode="after")
+    def _refuse_default_credentials_outside_dev(self) -> Settings:
+        """The code-default ``ken:ken`` credentials are for local containers only."""
+        if self.environment in {"staging", "production"}:
+            parsed = urlsplit(self.database_url)
+            if parsed.username == "ken" and parsed.password == "ken":  # noqa: S105
+                raise ValueError(
+                    "KEN_DATABASE_URL uses the local development credentials; set real "
+                    "credentials for a staging or production environment"
+                )
+        return self
 
     @model_validator(mode="after")
     def _enforce_auto_approve_disabled(self) -> Settings:
@@ -277,6 +318,38 @@ class Settings(BaseSettings):
                 "KEN_DATABASE_URL, or set KEN_ALLOW_NATIVE_POSTGRES_PORT=true if intended."
             )
 
+    def crawl_config(self) -> CrawlConfig:
+        """The crawl configuration, or ConfigurationError when no site is configured.
+
+        Never falls back to a guessed URL (Phase 1 brief: a real crawl awaits a
+        user-configured source URL).
+        """
+        if not self.crawl_base_url:
+            raise ConfigurationError(
+                "KEN_CRAWL_BASE_URL is not set. The crawler never guesses a site: set it "
+                "to the one site you have approved for crawling."
+            )
+        try:
+            return CrawlConfig(
+                base_url=self.crawl_base_url,
+                allowed_hosts=tuple(
+                    host for host in self.crawl_allowed_hosts.split(",") if host.strip()
+                ),
+                user_agent=self.crawl_user_agent,
+                delay_s=self.crawl_delay_s,
+                concurrency=self.crawl_concurrency,
+                max_pages=self.crawl_max_pages,
+                max_depth=self.crawl_max_depth,
+                timeout_s=self.crawl_timeout_s,
+                max_bytes=self.crawl_max_bytes,
+                max_redirects=self.crawl_max_redirects,
+            )
+        except ValueError as exc:
+            # The base URL is not secret, but keep the message generic anyway.
+            raise ConfigurationError(
+                "KEN_CRAWL_BASE_URL / KEN_CRAWL_* settings are invalid"
+            ) from exc
+
     def role_model(self, role: ModelRole) -> str:
         """Resolve a model role to its configured model name.
 
@@ -316,6 +389,12 @@ class Settings(BaseSettings):
             database = parsed.path.lstrip("/") or "unknown"
         except ValueError:  # pragma: no cover - malformed URL
             pass
+        crawl_host: str | None = None
+        if self.crawl_base_url:
+            try:
+                crawl_host = urlsplit(self.crawl_base_url).hostname
+            except ValueError:  # pragma: no cover - malformed URL
+                crawl_host = None
         return {
             "environment": self.environment,
             "phase": self.phase,
@@ -327,6 +406,10 @@ class Settings(BaseSettings):
             "database_name": database,
             "require_pgvector": self.require_pgvector,
             "require_ollama": self.require_ollama,
+            "crawl_host": crawl_host,
+            "crawl_delay_s": self.crawl_delay_s,
+            "crawl_concurrency": self.crawl_concurrency,
+            "crawl_max_pages": self.crawl_max_pages,
             "model_roles": {
                 "fast": self.model_fast,
                 "reasoning": self.model_reasoning,

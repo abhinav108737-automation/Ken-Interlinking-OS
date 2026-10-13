@@ -163,3 +163,16 @@ async def test_aclose_is_idempotent(provider: MockModelProvider) -> None:
     assert (await provider.health()).reachable is False
     with pytest.raises(ModelProviderError):
         await provider.complete(role=ModelRole.FAST, messages=MSGS)
+
+
+async def test_recorded_calls_are_bounded() -> None:
+    """A long-running process must not grow the call log forever (Phase 0 QA L3)."""
+    from ken_core.providers.model.mock import MAX_RECORDED_CALLS
+
+    provider = MockModelProvider()
+    for _ in range(MAX_RECORDED_CALLS + 25):
+        await provider.health()
+    assert len(provider.calls) == MAX_RECORDED_CALLS
+    await provider.capabilities()
+    assert provider.calls[-1].method == "capabilities"
+    assert len(provider.calls) == MAX_RECORDED_CALLS

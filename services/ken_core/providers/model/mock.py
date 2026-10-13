@@ -42,6 +42,8 @@ from ken_contracts.model import (
 from ken_core.config import Settings
 
 PROVIDER_NAME = "mock"
+MAX_RECORDED_CALLS = 1000
+"""Newest calls kept in ``MockModelProvider.calls``; older ones are dropped."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -120,6 +122,17 @@ class MockModelProvider:
     def reset_calls(self) -> None:
         self.calls.clear()
 
+    def _record(self, call: MockCall) -> None:
+        """Append to :attr:`calls`, keeping only the newest ``MAX_RECORDED_CALLS``.
+
+        Bounded because a long-running Mode B process calls ``health`` and
+        ``capabilities`` on every ``/ready`` and worker tick (Phase 0 QA L3).
+        """
+        self.calls.append(call)
+        overflow = len(self.calls) - MAX_RECORDED_CALLS
+        if overflow > 0:
+            del self.calls[:overflow]
+
     # -------------------------------------------------------------- protocol
     def _ensure_open(self) -> None:
         if self.closed:
@@ -137,7 +150,7 @@ class MockModelProvider:
         options: GenerationOptions | None = None,
     ) -> Completion:
         self._ensure_open()
-        self.calls.append(MockCall(method="complete", role=role, messages=tuple(messages)))
+        self._record(MockCall(method="complete", role=role, messages=tuple(messages)))
         digest = _messages_digest(messages)
         return Completion(
             text=f"mock completion {digest[:16]}",
@@ -161,7 +174,7 @@ class MockModelProvider:
         self._ensure_open()
         if max_attempts < 1:
             raise ValueError("max_attempts must be >= 1")
-        self.calls.append(
+        self._record(
             MockCall(
                 method="complete_structured",
                 role=role,
@@ -204,7 +217,7 @@ class MockModelProvider:
         role: ModelRole = ModelRole.EMBEDDING,
     ) -> EmbeddingResult:
         self._ensure_open()
-        self.calls.append(MockCall(method="embed", role=role, texts=tuple(texts)))
+        self._record(MockCall(method="embed", role=role, texts=tuple(texts)))
         if ModelRole(role) is not ModelRole.EMBEDDING:
             # Mirrors the real provider: never embed with a completion model.
             raise ModelUnavailableError(f"Role {role.value!r} is not an embedding role")
@@ -219,7 +232,7 @@ class MockModelProvider:
         )
 
     async def capabilities(self) -> ProviderCapabilities:
-        self.calls.append(MockCall(method="capabilities"))
+        self._record(MockCall(method="capabilities"))
         models = [self._model_for(r) for r in ModelRole]
         return ProviderCapabilities(
             provider=PROVIDER_NAME,
@@ -234,7 +247,7 @@ class MockModelProvider:
         )
 
     async def health(self) -> ProviderHealth:
-        self.calls.append(MockCall(method="health"))
+        self._record(MockCall(method="health"))
         return ProviderHealth(
             provider=PROVIDER_NAME,
             reachable=not self.closed,

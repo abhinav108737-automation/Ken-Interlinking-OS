@@ -294,3 +294,74 @@ def test_worker_owns_no_queue_no_langgraph_no_server_no_inference() -> None:
     assert not {"Queue", "PriorityQueue", "LifoQueue"} & attributes
     # The model provider is only built and closed, never asked to infer.
     assert not {"complete", "complete_structured", "embed"} & attributes
+
+
+# --------------------------------------------------------------------------- #
+# Heartbeat persistence: first tick + status transitions only (Phase 0 QA L4)
+# --------------------------------------------------------------------------- #
+def _scripted_probe(statuses: list[HealthStatus], stop: asyncio.Event) -> Probe:
+    """Returns the scripted statuses in order; sets ``stop`` after the last one."""
+    remaining = list(statuses)
+
+    async def body() -> ProbeResult:
+        status = remaining.pop(0)
+        if not remaining:
+            stop.set()
+        return ProbeResult(status=status)
+
+    return Probe("postgres", CheckKind.DATABASE, True, body)
+
+
+async def _run_scripted(statuses: list[HealthStatus], appender: Appender) -> None:
+    stop = asyncio.Event()
+    resources, *_ = _resources(probes=[_scripted_probe(statuses, stop)], appender=appender)
+    code = await asyncio.wait_for(
+        run(_settings(), stop=stop, resources=resources, handle_signals=False), timeout=5
+    )
+    assert code == 0
+
+
+async def test_unchanged_status_is_not_persisted_every_tick() -> None:
+    appender = Appender()
+    await _run_scripted([HealthStatus.OK] * 5, appender)
+    assert [e.payload["tick"] for e in appender.envelopes] == [1]
+
+
+async def test_status_transitions_are_persisted() -> None:
+    appender = Appender()
+    ok, down = HealthStatus.OK, HealthStatus.UNAVAILABLE
+    await _run_scripted([ok, ok, down, down, ok], appender)
+    assert [(e.payload["tick"], e.payload["status"]) for e in appender.envelopes] == [
+        (1, "ready"),
+        (3, "not_ready"),
+        (5, "ready"),
+    ]
+
+
+async def test_skipped_write_is_reported_as_skipped_not_failed() -> None:
+    appender = Appender()
+    result = await run_tick(
+        tick=2,
+        probes=[_probe("postgres")],
+        sessionmaker=FakeSessionmaker(),  # type: ignore[arg-type]
+        timeout_ms=500,
+        append=appender,
+        skip_if_status=ReadinessStatus.READY,
+    )
+    assert (result.heartbeat_written, result.write_skipped) == (False, True)
+    assert appender.envelopes == []
+
+
+async def test_a_failed_write_is_retried_on_the_next_tick() -> None:
+    """A heartbeat that could not be written must not count as persisted."""
+
+    class FlakyAppender(Appender):
+        async def __call__(self, session: AsyncSession, envelope: EventEnvelope) -> None:
+            if not self.envelopes and not getattr(self, "failed_once", False):
+                self.failed_once = True
+                raise ConnectionRefusedError("transient")
+            await super().__call__(session, envelope)
+
+    appender = FlakyAppender()
+    await _run_scripted([HealthStatus.OK] * 3, appender)
+    assert [e.payload["tick"] for e in appender.envelopes] == [2]

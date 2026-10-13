@@ -5,13 +5,13 @@ a generated client depends on -- and for the OpenAPI version and title.
 
 Two decisions behind the exact match:
 
-* No Phase 0 route takes parameters, so FastAPI emits no
-  ``HTTPValidationError`` / ``ValidationError`` schemas. If a later route adds
-  parameters, FastAPI will add them; that is a contract change and must update
-  the frozen file through the orchestrator, not be filtered out here.
-* ``ErrorResponse``, ``ErrorDetail`` and ``ErrorCode`` are referenced by no
-  Phase 0 path, so ``ken_api.main`` registers them explicitly: every error the
-  API returns has that shape.
+* Every parameterised route declares its 422 as ``ErrorResponse``, so FastAPI
+  emits no ``HTTPValidationError`` / ``ValidationError`` schemas: the API never
+  returns that shape (ken_api.errors). A test below keeps it that way.
+* ``ken_api.main`` also registers ``ErrorResponse`` explicitly, so the schema
+  is published even if no route referenced it.
+
+Regenerate with ``make openapi`` -- a deliberate contract change.
 """
 
 from __future__ import annotations
@@ -66,4 +66,39 @@ def test_operation_ids_and_tags(live: dict[str, Any]) -> None:
         "/health": ("getHealth", ["system"]),
         "/ready": ("getReady", ["system"]),
         "/meta": ("getMeta", ["system"]),
+        "/inventory/pages": ("listInventoryPages", ["inventory"]),
+        "/inventory/pages/{page_id}": ("getInventoryPage", ["inventory"]),
+        "/inventory/pages/{page_id}/versions": ("listInventoryPageVersions", ["inventory"]),
+        "/inventory/pages/{page_id}/versions/{version}": (
+            "getInventoryPageVersion",
+            ["inventory"],
+        ),
+        "/inventory/pages/{page_id}/links": ("listInventoryPageLinks", ["inventory"]),
+        "/inventory/links": ("listInventoryLinks", ["inventory"]),
+        "/inventory/runs": ("listIngestionRuns", ["inventory"]),
+        "/inventory/runs/{run_id}": ("getIngestionRun", ["inventory"]),
+        "/inventory/runs/{run_id}/issues": ("listIngestionRunIssues", ["inventory"]),
     }
+
+
+def test_inventory_api_is_read_only(live: dict[str, Any]) -> None:
+    """Phase 1 exposes no mutation: nothing can write to the inventory or a CMS over HTTP."""
+    methods = {
+        method
+        for path, item in live["paths"].items()
+        for method in item
+        if path.startswith("/inventory")
+    }
+    assert methods == {"get"}
+
+
+def test_errors_are_always_error_response(live: dict[str, Any]) -> None:
+    """FastAPI's own validation-error shape never appears: every 4xx is ErrorResponse."""
+    schemas = live["components"]["schemas"]
+    assert "HTTPValidationError" not in schemas
+    for path, item in live["paths"].items():
+        for operation in item.values():
+            for status, response in operation["responses"].items():
+                if status.startswith("4"):
+                    ref = response["content"]["application/json"]["schema"]["$ref"]
+                    assert ref.endswith("/ErrorResponse"), (path, status)

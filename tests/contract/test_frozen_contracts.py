@@ -12,10 +12,10 @@ from uuid import uuid4
 import pytest
 from pydantic import BaseModel, ValidationError
 
-from ken_contracts import analytics, cms, common, errors, events, health, model
+from ken_contracts import analytics, cms, common, errors, events, health, inventory, model
 from ken_contracts.common import AsyncClosable, ContractModel
 
-CONTRACT_MODULES = [analytics, cms, common, errors, events, health, model]
+CONTRACT_MODULES = [analytics, cms, common, errors, events, health, inventory, model]
 
 
 def _contract_models() -> list[type[BaseModel]]:
@@ -58,7 +58,14 @@ def test_event_envelope_carries_audit_fields() -> None:
 
 
 @pytest.mark.parametrize(
-    "protocol", [model.ModelProvider, cms.CMSProvider, analytics.AnalyticsProvider]
+    "protocol",
+    [
+        model.ModelProvider,
+        cms.CMSProvider,
+        analytics.AnalyticsProvider,
+        inventory.ContentSourceProvider,
+        inventory.CMSInventoryReader,
+    ],
 )
 def test_provider_protocols_are_closable(protocol: type) -> None:
     assert issubclass(protocol, AsyncClosable)
@@ -76,6 +83,17 @@ def test_provider_protocols_are_closable(protocol: type) -> None:
         (cms.CMSProvider, "apply_link_changes"),
         (cms.CMSProvider, "rollback"),
         (analytics.AnalyticsProvider, "fetch_link_metrics"),
+        (inventory.CMSInventoryReader, "list_pages"),
+        (inventory.CMSInventoryReader, "get_page"),
+        (inventory.InventoryReader, "list_pages"),
+        (inventory.InventoryReader, "get_page"),
+        (inventory.InventoryReader, "list_page_versions"),
+        (inventory.InventoryReader, "get_page_version"),
+        (inventory.InventoryReader, "list_page_links"),
+        (inventory.InventoryReader, "list_links"),
+        (inventory.InventoryReader, "list_runs"),
+        (inventory.InventoryReader, "get_run"),
+        (inventory.InventoryReader, "list_run_issues"),
     ],
 )
 def test_protocol_methods_are_async_and_keyword_only(protocol: type, method: str) -> None:

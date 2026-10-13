@@ -25,6 +25,7 @@ from pydantic import TypeAdapter
 from ken_api.errors import install_exception_handlers
 from ken_api.middleware.request_id import RequestIdMiddleware
 from ken_api.routers.health import router as health_router
+from ken_api.routers.inventory import router as inventory_router
 from ken_contracts.cms import CMSProvider
 from ken_contracts.common import ServiceIdentity
 from ken_contracts.errors import ErrorResponse
@@ -155,6 +156,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.add_middleware(RequestIdMiddleware)
     install_exception_handlers(app)
     app.include_router(health_router)
+    app.include_router(inventory_router)
     _install_openapi(app)
     return app
 

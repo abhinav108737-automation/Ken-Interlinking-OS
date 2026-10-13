@@ -35,7 +35,7 @@ def test_meta_shape() -> None:
     settings = make_settings()
     response = TestClient(make_app(settings)).get("/meta")
     body = MetaResponse.model_validate(response.json())
-    assert body.phase == 0
+    assert body.phase == 1
     assert body.auto_approve_enabled is False
     assert body.python_version == platform.python_version()
     # Exactly the allowlist: nothing else from Settings leaks in.

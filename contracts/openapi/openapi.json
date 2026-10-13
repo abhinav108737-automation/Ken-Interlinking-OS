@@ -1,6 +1,28 @@
 {
   "components": {
     "schemas": {
+      "AnchorSource": {
+        "enum": [
+          "text",
+          "img_alt",
+          "aria_label",
+          "title",
+          "none"
+        ],
+        "type": "string"
+      },
+      "CanonicalStatus": {
+        "description": "How the page's identity URL was chosen.\n\n``self``          declared canonical equals the page's own URL\n``declared``      a different, in-scope canonical was declared and is used\n``missing``       none declared; the normalised final URL is used\n``out_of_scope``  declared canonical is off-site; ignored, final URL used\n``invalid``       declared canonical is unparseable; ignored, final URL used\n\nPrecedence at persistence (prevents identity flip-flop): a ``self`` or\n``missing`` document is the AUTHORITY for its identity URL. A ``declared``\n(alias) document may create identity X only while X has no version from an\nauthoritative document; once it has, the alias records ``known_urls`` Y -> X\nplus a ``duplicate_canonical`` issue and writes no version. Within one run,\nthe authoritative document for X always wins over aliases of X.",
+        "enum": [
+          "self",
+          "declared",
+          "missing",
+          "out_of_scope",
+          "invalid"
+        ],
+        "title": "CanonicalStatus",
+        "type": "string"
+      },
       "CheckKind": {
         "description": "Category of a readiness check, so clients can group them in a UI.",
         "enum": [
@@ -63,7 +85,9 @@
           "kind",
           "required",
           "status",
-          "latency_ms"
+          "latency_ms",
+          "detail",
+          "error"
         ],
         "title": "DependencyCheck",
         "type": "object"
@@ -102,7 +126,6 @@
                 "type": "null"
               }
             ],
-            "default": null,
             "title": "Code"
           },
           "location": {
@@ -114,7 +137,6 @@
                 "type": "null"
               }
             ],
-            "default": null,
             "description": "Dotted path to the offending field, when applicable.",
             "title": "Location"
           },
@@ -124,7 +146,9 @@
           }
         },
         "required": [
-          "message"
+          "location",
+          "message",
+          "code"
         ],
         "title": "ErrorDetail",
         "type": "object"
@@ -158,16 +182,153 @@
                 "type": "null"
               }
             ],
-            "default": null,
             "description": "Correlates this failure with server logs.",
             "title": "Request Id"
           }
         },
         "required": [
           "code",
-          "message"
+          "message",
+          "details",
+          "request_id"
         ],
         "title": "ErrorResponse",
+        "type": "object"
+      },
+      "ExistingLinkView": {
+        "additionalProperties": false,
+        "description": "One body link as stored for a page version, with read-time resolution.",
+        "properties": {
+          "anchor_source": {
+            "$ref": "#/components/schemas/AnchorSource"
+          },
+          "anchor_text": {
+            "title": "Anchor Text",
+            "type": "string"
+          },
+          "block_id": {
+            "title": "Block Id",
+            "type": "string"
+          },
+          "block_kind": {
+            "title": "Block Kind",
+            "type": "string"
+          },
+          "context_text": {
+            "title": "Context Text",
+            "type": "string"
+          },
+          "href": {
+            "title": "Href",
+            "type": "string"
+          },
+          "link_type": {
+            "$ref": "#/components/schemas/LinkType"
+          },
+          "occurrence_index": {
+            "minimum": 0.0,
+            "title": "Occurrence Index",
+            "type": "integer"
+          },
+          "ordinal": {
+            "minimum": 0.0,
+            "title": "Ordinal",
+            "type": "integer"
+          },
+          "page_id": {
+            "format": "uuid",
+            "title": "Page Id",
+            "type": "string"
+          },
+          "page_version": {
+            "minimum": 1.0,
+            "title": "Page Version",
+            "type": "integer"
+          },
+          "rel": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Rel",
+            "type": "array"
+          },
+          "resolution": {
+            "$ref": "#/components/schemas/LinkResolution"
+          },
+          "resolved_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved Url"
+          },
+          "source_url": {
+            "description": "Canonical URL of the page the link is on.",
+            "title": "Source Url",
+            "type": "string"
+          },
+          "target_page_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Page Id"
+          }
+        },
+        "required": [
+          "page_id",
+          "page_version",
+          "source_url",
+          "ordinal",
+          "href",
+          "resolved_url",
+          "link_type",
+          "resolution",
+          "target_page_id",
+          "anchor_text",
+          "anchor_source",
+          "rel",
+          "block_id",
+          "block_kind",
+          "occurrence_index",
+          "context_text"
+        ],
+        "title": "ExistingLinkView",
+        "type": "object"
+      },
+      "Heading": {
+        "additionalProperties": false,
+        "properties": {
+          "block_id": {
+            "title": "Block Id",
+            "type": "string"
+          },
+          "level": {
+            "maximum": 6.0,
+            "minimum": 1.0,
+            "title": "Level",
+            "type": "integer"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "level",
+          "text",
+          "block_id"
+        ],
+        "title": "Heading",
         "type": "object"
       },
       "HealthResponse": {
@@ -193,6 +354,7 @@
           }
         },
         "required": [
+          "status",
           "identity",
           "uptime_s",
           "timestamp"
@@ -211,6 +373,377 @@
         ],
         "title": "HealthStatus",
         "type": "string"
+      },
+      "IngestionIssueView": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "$ref": "#/components/schemas/IssueCode"
+          },
+          "http_status": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Http Status"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "occurred_at": {
+            "format": "date-time",
+            "title": "Occurred At",
+            "type": "string"
+          },
+          "related_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Related Url"
+          },
+          "run_id": {
+            "format": "uuid",
+            "title": "Run Id",
+            "type": "string"
+          },
+          "severity": {
+            "$ref": "#/components/schemas/IssueSeverity"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          }
+        },
+        "required": [
+          "id",
+          "run_id",
+          "code",
+          "severity",
+          "url",
+          "related_url",
+          "http_status",
+          "message",
+          "occurred_at"
+        ],
+        "title": "IngestionIssueView",
+        "type": "object"
+      },
+      "IngestionRunDetail": {
+        "additionalProperties": false,
+        "properties": {
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "config_snapshot": {
+            "additionalProperties": true,
+            "description": "Secret-free run configuration.",
+            "title": "Config Snapshot",
+            "type": "object"
+          },
+          "counters": {
+            "$ref": "#/components/schemas/RunCounters"
+          },
+          "failure_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Safe summary when status is failed. Never exception text.",
+            "title": "Failure Reason"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "issue_counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "description": "Issues stored for this run, by IssueCode.",
+            "title": "Issue Counts",
+            "type": "object"
+          },
+          "source_name": {
+            "title": "Source Name",
+            "type": "string"
+          },
+          "source_type": {
+            "$ref": "#/components/schemas/SourceType"
+          },
+          "started_at": {
+            "format": "date-time",
+            "title": "Started At",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RunStatus"
+          }
+        },
+        "required": [
+          "id",
+          "source_type",
+          "source_name",
+          "status",
+          "started_at",
+          "completed_at",
+          "counters",
+          "config_snapshot",
+          "failure_reason",
+          "issue_counts"
+        ],
+        "title": "IngestionRunDetail",
+        "type": "object"
+      },
+      "IngestionRunSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "counters": {
+            "$ref": "#/components/schemas/RunCounters"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "source_name": {
+            "title": "Source Name",
+            "type": "string"
+          },
+          "source_type": {
+            "$ref": "#/components/schemas/SourceType"
+          },
+          "started_at": {
+            "format": "date-time",
+            "title": "Started At",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RunStatus"
+          }
+        },
+        "required": [
+          "id",
+          "source_type",
+          "source_name",
+          "status",
+          "started_at",
+          "completed_at",
+          "counters"
+        ],
+        "title": "IngestionRunSummary",
+        "type": "object"
+      },
+      "IssueCode": {
+        "description": "Stable machine-readable reason for one per-URL or per-record problem.\n\nAdding a member is additive and non-breaking.",
+        "enum": [
+          "robots_disallowed",
+          "robots_unavailable",
+          "out_of_scope",
+          "limit_reached",
+          "redirect_out_of_scope",
+          "redirect_loop",
+          "too_many_redirects",
+          "http_not_found",
+          "http_gone",
+          "http_error",
+          "timeout",
+          "network_error",
+          "non_html",
+          "too_large",
+          "invalid_url",
+          "invalid_record",
+          "parse_error",
+          "duplicate_url",
+          "duplicate_canonical",
+          "identity_conflict",
+          "persist_error"
+        ],
+        "title": "IssueCode",
+        "type": "string"
+      },
+      "IssueSeverity": {
+        "enum": [
+          "info",
+          "warning",
+          "error"
+        ],
+        "title": "IssueSeverity",
+        "type": "string"
+      },
+      "LinkResolution": {
+        "description": "Whether an internal link's destination is known (computed at read time).\n\n``resolved``        the destination URL maps to a known, live page\n``broken``          the destination returned 404/410, or maps to a page now gone\n``unresolved``      not (yet) observed: beyond crawl limits, robots-blocked or errored\n``not_applicable``  the link is not internal",
+        "enum": [
+          "resolved",
+          "broken",
+          "unresolved",
+          "not_applicable"
+        ],
+        "title": "LinkResolution",
+        "type": "string"
+      },
+      "LinkType": {
+        "description": "Classification of one ``<a href>`` in a page body.",
+        "enum": [
+          "internal",
+          "external",
+          "fragment",
+          "non_http",
+          "invalid"
+        ],
+        "title": "LinkType",
+        "type": "string"
+      },
+      "ListResponse_ExistingLinkView_": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ExistingLinkView"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          }
+        },
+        "required": [
+          "items",
+          "page"
+        ],
+        "title": "ListResponse[ExistingLinkView]",
+        "type": "object"
+      },
+      "ListResponse_IngestionIssueView_": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/IngestionIssueView"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          }
+        },
+        "required": [
+          "items",
+          "page"
+        ],
+        "title": "ListResponse[IngestionIssueView]",
+        "type": "object"
+      },
+      "ListResponse_IngestionRunSummary_": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/IngestionRunSummary"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          }
+        },
+        "required": [
+          "items",
+          "page"
+        ],
+        "title": "ListResponse[IngestionRunSummary]",
+        "type": "object"
+      },
+      "ListResponse_PageSummary_": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PageSummary"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          }
+        },
+        "required": [
+          "items",
+          "page"
+        ],
+        "title": "ListResponse[PageSummary]",
+        "type": "object"
+      },
+      "ListResponse_PageVersionSummary_": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PageVersionSummary"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          }
+        },
+        "required": [
+          "items",
+          "page"
+        ],
+        "title": "ListResponse[PageVersionSummary]",
+        "type": "object"
       },
       "MetaResponse": {
         "additionalProperties": false,
@@ -244,10 +777,698 @@
           "identity",
           "python_version",
           "phase",
-          "auto_approve_enabled"
+          "auto_approve_enabled",
+          "settings"
         ],
         "title": "MetaResponse",
         "type": "object"
+      },
+      "PageDetail": {
+        "additionalProperties": false,
+        "properties": {
+          "canonical_url": {
+            "title": "Canonical Url",
+            "type": "string"
+          },
+          "content_hash": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Content Hash",
+            "type": "string"
+          },
+          "current": {
+            "$ref": "#/components/schemas/PageVersionDetail"
+          },
+          "current_version": {
+            "minimum": 1.0,
+            "title": "Current Version",
+            "type": "integer"
+          },
+          "external_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Id"
+          },
+          "external_link_count": {
+            "minimum": 0.0,
+            "title": "External Link Count",
+            "type": "integer"
+          },
+          "first_seen_at": {
+            "format": "date-time",
+            "title": "First Seen At",
+            "type": "string"
+          },
+          "gone_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Set when the identity URL last answered 404/410.",
+            "title": "Gone At"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "internal_link_count": {
+            "minimum": 0.0,
+            "title": "Internal Link Count",
+            "type": "integer"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          },
+          "last_changed_at": {
+            "format": "date-time",
+            "title": "Last Changed At",
+            "type": "string"
+          },
+          "last_seen_at": {
+            "format": "date-time",
+            "title": "Last Seen At",
+            "type": "string"
+          },
+          "page_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page Type"
+          },
+          "publication_state": {
+            "$ref": "#/components/schemas/PublicationState"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "word_count": {
+            "minimum": 0.0,
+            "title": "Word Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "canonical_url",
+          "external_id",
+          "title",
+          "publication_state",
+          "page_type",
+          "language",
+          "current_version",
+          "content_hash",
+          "word_count",
+          "internal_link_count",
+          "external_link_count",
+          "first_seen_at",
+          "last_seen_at",
+          "last_changed_at",
+          "gone_at",
+          "current"
+        ],
+        "title": "PageDetail",
+        "type": "object"
+      },
+      "PageInfo": {
+        "additionalProperties": false,
+        "description": "Pagination metadata.\n\nOffset/limit rather than cursors: the Phase 5 review inbox needs jumpable\npages and stable total counts more than it needs consistency under\nconcurrent insertion.",
+        "properties": {
+          "has_more": {
+            "readOnly": true,
+            "title": "Has More",
+            "type": "boolean"
+          },
+          "limit": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 200.0,
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "minimum": 0.0,
+            "title": "Offset",
+            "type": "integer"
+          },
+          "total": {
+            "description": "Total matching items, ignoring pagination.",
+            "minimum": 0.0,
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total",
+          "limit",
+          "offset",
+          "has_more"
+        ],
+        "title": "PageInfo",
+        "type": "object"
+      },
+      "PageSummary": {
+        "additionalProperties": false,
+        "description": "One row of the page inventory, describing the page's CURRENT version.",
+        "properties": {
+          "canonical_url": {
+            "title": "Canonical Url",
+            "type": "string"
+          },
+          "content_hash": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Content Hash",
+            "type": "string"
+          },
+          "current_version": {
+            "minimum": 1.0,
+            "title": "Current Version",
+            "type": "integer"
+          },
+          "external_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Id"
+          },
+          "external_link_count": {
+            "minimum": 0.0,
+            "title": "External Link Count",
+            "type": "integer"
+          },
+          "first_seen_at": {
+            "format": "date-time",
+            "title": "First Seen At",
+            "type": "string"
+          },
+          "gone_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Set when the identity URL last answered 404/410.",
+            "title": "Gone At"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "internal_link_count": {
+            "minimum": 0.0,
+            "title": "Internal Link Count",
+            "type": "integer"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          },
+          "last_changed_at": {
+            "format": "date-time",
+            "title": "Last Changed At",
+            "type": "string"
+          },
+          "last_seen_at": {
+            "format": "date-time",
+            "title": "Last Seen At",
+            "type": "string"
+          },
+          "page_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page Type"
+          },
+          "publication_state": {
+            "$ref": "#/components/schemas/PublicationState"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "word_count": {
+            "minimum": 0.0,
+            "title": "Word Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "canonical_url",
+          "external_id",
+          "title",
+          "publication_state",
+          "page_type",
+          "language",
+          "current_version",
+          "content_hash",
+          "word_count",
+          "internal_link_count",
+          "external_link_count",
+          "first_seen_at",
+          "last_seen_at",
+          "last_changed_at",
+          "gone_at"
+        ],
+        "title": "PageSummary",
+        "type": "object"
+      },
+      "PageVersionDetail": {
+        "additionalProperties": false,
+        "properties": {
+          "body_html": {
+            "description": "Stored content region. Clients must NEVER render it as HTML.",
+            "title": "Body Html",
+            "type": "string"
+          },
+          "body_text": {
+            "title": "Body Text",
+            "type": "string"
+          },
+          "canonical_status": {
+            "$ref": "#/components/schemas/CanonicalStatus"
+          },
+          "canonical_url": {
+            "title": "Canonical Url",
+            "type": "string"
+          },
+          "content_hash": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Content Hash",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "declared_canonical_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Declared Canonical Url"
+          },
+          "external_link_count": {
+            "minimum": 0.0,
+            "title": "External Link Count",
+            "type": "integer"
+          },
+          "fetched_at": {
+            "format": "date-time",
+            "title": "Fetched At",
+            "type": "string"
+          },
+          "hash_version": {
+            "minimum": 1.0,
+            "title": "Hash Version",
+            "type": "integer"
+          },
+          "headings": {
+            "items": {
+              "$ref": "#/components/schemas/Heading"
+            },
+            "title": "Headings",
+            "type": "array"
+          },
+          "http_status": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Http Status"
+          },
+          "internal_link_count": {
+            "minimum": 0.0,
+            "title": "Internal Link Count",
+            "type": "integer"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          },
+          "meta_description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meta Description"
+          },
+          "metadata": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Metadata",
+            "type": "object"
+          },
+          "modified_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Modified At"
+          },
+          "page_id": {
+            "format": "uuid",
+            "title": "Page Id",
+            "type": "string"
+          },
+          "page_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page Type"
+          },
+          "publication_state": {
+            "$ref": "#/components/schemas/PublicationState"
+          },
+          "published_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published At"
+          },
+          "redirect_chain": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Redirect Chain",
+            "type": "array"
+          },
+          "requested_url": {
+            "title": "Requested Url",
+            "type": "string"
+          },
+          "robots_directives": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Robots Directives",
+            "type": "array"
+          },
+          "run_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Id"
+          },
+          "source_id": {
+            "title": "Source Id",
+            "type": "string"
+          },
+          "source_type": {
+            "$ref": "#/components/schemas/SourceType"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          },
+          "version": {
+            "minimum": 1.0,
+            "title": "Version",
+            "type": "integer"
+          },
+          "word_count": {
+            "minimum": 0.0,
+            "title": "Word Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "page_id",
+          "version",
+          "content_hash",
+          "hash_version",
+          "run_id",
+          "source_type",
+          "source_id",
+          "url",
+          "http_status",
+          "title",
+          "publication_state",
+          "word_count",
+          "internal_link_count",
+          "external_link_count",
+          "fetched_at",
+          "created_at",
+          "requested_url",
+          "redirect_chain",
+          "canonical_url",
+          "declared_canonical_url",
+          "canonical_status",
+          "meta_description",
+          "language",
+          "page_type",
+          "published_at",
+          "modified_at",
+          "robots_directives",
+          "metadata",
+          "headings",
+          "body_text",
+          "body_html"
+        ],
+        "title": "PageVersionDetail",
+        "type": "object"
+      },
+      "PageVersionSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "content_hash": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Content Hash",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "external_link_count": {
+            "minimum": 0.0,
+            "title": "External Link Count",
+            "type": "integer"
+          },
+          "fetched_at": {
+            "format": "date-time",
+            "title": "Fetched At",
+            "type": "string"
+          },
+          "hash_version": {
+            "minimum": 1.0,
+            "title": "Hash Version",
+            "type": "integer"
+          },
+          "http_status": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Http Status"
+          },
+          "internal_link_count": {
+            "minimum": 0.0,
+            "title": "Internal Link Count",
+            "type": "integer"
+          },
+          "page_id": {
+            "format": "uuid",
+            "title": "Page Id",
+            "type": "string"
+          },
+          "publication_state": {
+            "$ref": "#/components/schemas/PublicationState"
+          },
+          "run_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Id"
+          },
+          "source_id": {
+            "title": "Source Id",
+            "type": "string"
+          },
+          "source_type": {
+            "$ref": "#/components/schemas/SourceType"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          },
+          "version": {
+            "minimum": 1.0,
+            "title": "Version",
+            "type": "integer"
+          },
+          "word_count": {
+            "minimum": 0.0,
+            "title": "Word Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "page_id",
+          "version",
+          "content_hash",
+          "hash_version",
+          "run_id",
+          "source_type",
+          "source_id",
+          "url",
+          "http_status",
+          "title",
+          "publication_state",
+          "word_count",
+          "internal_link_count",
+          "external_link_count",
+          "fetched_at",
+          "created_at"
+        ],
+        "title": "PageVersionSummary",
+        "type": "object"
+      },
+      "PublicationState": {
+        "description": "Publication state as the source reports it.\n\nThe public web crawler can only observe ``published`` (a page served with\nHTTP 200). Drafts are visible only through an export or a CMS read API.\n``unknown`` is the honest default when a source does not say.",
+        "enum": [
+          "published",
+          "draft",
+          "unpublished",
+          "unknown"
+        ],
+        "title": "PublicationState",
+        "type": "string"
       },
       "ReadinessResponse": {
         "additionalProperties": false,
@@ -297,6 +1518,104 @@
         "title": "ReadinessStatus",
         "type": "string"
       },
+      "RunCounters": {
+        "additionalProperties": false,
+        "description": "Run accounting. Invariant (checked by tests)::\n\npages_fetched == pages_created + pages_changed + pages_unchanged\n                 + pages_duplicate + pages_failed",
+        "properties": {
+          "error_count": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Error Count",
+            "type": "integer"
+          },
+          "pages_changed": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Pages Changed",
+            "type": "integer"
+          },
+          "pages_created": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Pages Created",
+            "type": "integer"
+          },
+          "pages_discovered": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Pages Discovered",
+            "type": "integer"
+          },
+          "pages_duplicate": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Pages Duplicate",
+            "type": "integer"
+          },
+          "pages_failed": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Pages Failed",
+            "type": "integer"
+          },
+          "pages_fetched": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Pages Fetched",
+            "type": "integer"
+          },
+          "pages_gone": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Pages Gone",
+            "type": "integer"
+          },
+          "pages_skipped": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Pages Skipped",
+            "type": "integer"
+          },
+          "pages_unchanged": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Pages Unchanged",
+            "type": "integer"
+          },
+          "warning_count": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Warning Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "pages_discovered",
+          "pages_fetched",
+          "pages_created",
+          "pages_changed",
+          "pages_unchanged",
+          "pages_duplicate",
+          "pages_failed",
+          "pages_skipped",
+          "pages_gone",
+          "error_count",
+          "warning_count"
+        ],
+        "title": "RunCounters",
+        "type": "object"
+      },
+      "RunStatus": {
+        "description": "Lifecycle of one ingestion run.\n\n``failed`` means the run itself could not complete (the source could not\nstart, or an unexpected error aborted it). Per-URL problems never fail a\nrun: they are recorded as issues and give ``completed_with_errors``.",
+        "enum": [
+          "running",
+          "succeeded",
+          "completed_with_errors",
+          "failed"
+        ],
+        "title": "RunStatus",
+        "type": "string"
+      },
       "ServiceIdentity": {
         "additionalProperties": false,
         "description": "Who is answering. Present in every health, readiness and meta payload.",
@@ -332,10 +1651,21 @@
         "required": [
           "service",
           "version",
-          "environment"
+          "environment",
+          "git_sha"
         ],
         "title": "ServiceIdentity",
         "type": "object"
+      },
+      "SourceType": {
+        "description": "Where a document came from. Recorded on every run and page version.",
+        "enum": [
+          "public_web",
+          "file_export",
+          "cms"
+        ],
+        "title": "SourceType",
+        "type": "string"
       }
     }
   },
@@ -363,6 +1693,741 @@
         "summary": "Liveness. Performs zero I/O.",
         "tags": [
           "system"
+        ]
+      }
+    },
+    "/inventory/links": {
+      "get": {
+        "operationId": "listInventoryLinks",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "maximum": 10000000,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "link_type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/LinkType"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Link Type"
+            }
+          },
+          {
+            "in": "query",
+            "name": "resolution",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/LinkResolution"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Resolution"
+            }
+          },
+          {
+            "in": "query",
+            "name": "target_page_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Target Page Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListResponse_ExistingLinkView_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A parameter is invalid."
+          }
+        },
+        "summary": "Body links across every page's current version.",
+        "tags": [
+          "inventory"
+        ]
+      }
+    },
+    "/inventory/pages": {
+      "get": {
+        "operationId": "listInventoryPages",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "maximum": 10000000,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "publication_state",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/PublicationState"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Publication State"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListResponse_PageSummary_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A parameter is invalid."
+          }
+        },
+        "summary": "Page inventory, newest change first.",
+        "tags": [
+          "inventory"
+        ]
+      }
+    },
+    "/inventory/pages/{page_id}": {
+      "get": {
+        "operationId": "getInventoryPage",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "page_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Page Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A parameter is invalid."
+          }
+        },
+        "summary": "One page with its current version.",
+        "tags": [
+          "inventory"
+        ]
+      }
+    },
+    "/inventory/pages/{page_id}/links": {
+      "get": {
+        "operationId": "listInventoryPageLinks",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "page_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Page Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "maximum": 10000000,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "version",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Version"
+            }
+          },
+          {
+            "in": "query",
+            "name": "link_type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/LinkType"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Link Type"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListResponse_ExistingLinkView_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A parameter is invalid."
+          }
+        },
+        "summary": "Body links of one page version (default: current).",
+        "tags": [
+          "inventory"
+        ]
+      }
+    },
+    "/inventory/pages/{page_id}/versions": {
+      "get": {
+        "operationId": "listInventoryPageVersions",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "page_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Page Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "maximum": 10000000,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListResponse_PageVersionSummary_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A parameter is invalid."
+          }
+        },
+        "summary": "A page's immutable version history, newest first.",
+        "tags": [
+          "inventory"
+        ]
+      }
+    },
+    "/inventory/pages/{page_id}/versions/{version}": {
+      "get": {
+        "operationId": "getInventoryPageVersion",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "page_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Page Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Version",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageVersionDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A parameter is invalid."
+          }
+        },
+        "summary": "One page version, including its stored content.",
+        "tags": [
+          "inventory"
+        ]
+      }
+    },
+    "/inventory/runs": {
+      "get": {
+        "operationId": "listIngestionRuns",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "maximum": 10000000,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "source_type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/SourceType"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Source Type"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/RunStatus"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListResponse_IngestionRunSummary_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A parameter is invalid."
+          }
+        },
+        "summary": "Crawl and import runs, newest first.",
+        "tags": [
+          "inventory"
+        ]
+      }
+    },
+    "/inventory/runs/{run_id}": {
+      "get": {
+        "operationId": "getIngestionRun",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngestionRunDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A parameter is invalid."
+          }
+        },
+        "summary": "One run with its configuration snapshot and issue counts.",
+        "tags": [
+          "inventory"
+        ]
+      }
+    },
+    "/inventory/runs/{run_id}/issues": {
+      "get": {
+        "operationId": "listIngestionRunIssues",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "maximum": 10000000,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "severity",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/IssueSeverity"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Severity"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListResponse_IngestionIssueView_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A parameter is invalid."
+          }
+        },
+        "summary": "Per-URL issues recorded by one run.",
+        "tags": [
+          "inventory"
         ]
       }
     },

@@ -59,13 +59,19 @@ class ContractModel(BaseModel):
     dropped (TRD.md section 6).
     """
 
-    model_config = ConfigDict(extra="forbid")
+    # json_schema_serialization_defaults_required: in the RESPONSE (serialization)
+    # schema, a field with a default is always present, so it is marked required.
+    # Without it the generated TypeScript made every defaulted field optional
+    # (``detail?:``), and clients had to guard against keys the API always sends.
+    model_config = ConfigDict(extra="forbid", json_schema_serialization_defaults_required=True)
 
 
 class FrozenModel(ContractModel):
     """Base for contract models that must not be mutated after construction."""
 
-    model_config = ConfigDict(frozen=True, extra="forbid")
+    model_config = ConfigDict(
+        frozen=True, extra="forbid", json_schema_serialization_defaults_required=True
+    )
 
 
 @runtime_checkable

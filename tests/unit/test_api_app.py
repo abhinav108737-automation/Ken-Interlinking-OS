@@ -62,6 +62,8 @@ def test_create_app_performs_no_database_io() -> None:
 
 @pytest.mark.parametrize(("environment", "exposed"), [("local", True), ("production", False)])
 def test_docs_only_in_development(environment: str, exposed: bool) -> None:
-    client = TestClient(make_app(make_settings(environment=environment)))
+    # Non-default credentials: outside local/ci the code-default ken:ken is refused.
+    url = "postgresql+asyncpg://app:not-the-default@db.internal:5432/ken"
+    client = TestClient(make_app(make_settings(environment=environment, database_url=url)))
     assert (client.get("/openapi.json").status_code == 200) is exposed
     assert (client.get("/docs").status_code == 200) is exposed

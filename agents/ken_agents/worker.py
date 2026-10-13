@@ -6,7 +6,13 @@ What it does, each tick:
 
 1. runs the readiness probes (the same set as ``GET /ready``);
 2. emits ONE structured ``worker.heartbeat`` log line;
-3. appends ONE ``worker.heartbeat`` row to the ``events`` table and commits.
+3. appends ONE ``worker.heartbeat`` row to the ``events`` table and commits --
+   on the first tick, and afterwards ONLY when the aggregate status changes.
+
+Why not every tick: from Phase 1 the ``events`` table carries real domain
+events (page.created, crawl.completed ...). A row every 30 s per worker
+(~2,880/day) would bury them, with no retention policy (Phase 0 QA L4). A
+status *transition* is the audit-worthy fact; liveness is the log line.
 
 What it deliberately does NOT do (ADR-0005): own a queue, poll for work, make
 decisions, call a model, import LangGraph or open a port. When real work
@@ -72,6 +78,8 @@ class TickResult:
     duration_ms: float
     heartbeat_written: bool
     event_id: UUID | None = None
+    write_skipped: bool = False
+    """True when the status was unchanged, so no row was written (by design)."""
 
 
 @dataclass(slots=True)
@@ -112,8 +120,13 @@ async def run_tick(
     sessionmaker: async_sessionmaker[AsyncSession],
     timeout_ms: int,
     append: AppendEvent = append_event,
+    skip_if_status: ReadinessStatus | None = None,
 ) -> TickResult:
-    """Probe, log one heartbeat line, append one heartbeat event.
+    """Probe, log one heartbeat line, and append one heartbeat event.
+
+    The event is NOT appended when the aggregate status equals
+    ``skip_if_status`` (the status last persisted): the result then reports
+    ``write_skipped=True``.
 
     Never raises for a dependency failure: probes are already exception-safe
     (``run_probes``) and a failed write is logged at warning and reported via
@@ -135,6 +148,17 @@ async def run_tick(
             tick=tick,
             duration_ms=duration_ms,
         )
+
+        if skip_if_status is not None and status is skip_if_status:
+            return TickResult(
+                tick=tick,
+                correlation_id=correlation_id,
+                status=status,
+                checks=statuses,
+                duration_ms=duration_ms,
+                heartbeat_written=False,
+                write_skipped=True,
+            )
 
         envelope = EventEnvelope(
             event_name=EventName.WORKER_HEARTBEAT,
@@ -239,6 +263,7 @@ async def run(
     )
 
     last: TickResult | None = None
+    last_persisted: ReadinessStatus | None = None
     tick = 0
     try:
         while once or not stop.is_set():
@@ -250,7 +275,10 @@ async def run(
                     sessionmaker=resources.sessionmaker,
                     timeout_ms=settings.readiness_timeout_ms,
                     append=resources.append,
+                    skip_if_status=last_persisted,
                 )
+                if last.heartbeat_written:
+                    last_persisted = last.status
             except Exception as exc:
                 logger.error(
                     "worker.tick_failed", tick=tick, error=type(exc).__name__, exc_info=True

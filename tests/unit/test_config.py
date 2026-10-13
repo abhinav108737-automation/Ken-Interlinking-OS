@@ -10,6 +10,7 @@ from pydantic import ValidationError
 
 from ken_contracts.model import ModelRole
 from ken_core.config import REPO_ROOT, ConfigurationError, Settings
+from tests.conftest import make_settings
 
 SECRET = "sup3rs3cret"
 
@@ -149,7 +150,7 @@ def test_env_file_location_is_independent_of_the_working_directory() -> None:
         ("postgresql+asyncpg://ken:ken@localhost:5432/x", "local", False, True),
         ("postgresql+asyncpg://ken:ken@localhost:5432/x", "local", True, False),
         ("postgresql+asyncpg://ken:ken@localhost:5433/x", "local", False, False),
-        ("postgresql+asyncpg://ken:ken@db.prod:5432/x", "production", False, False),
+        ("postgresql+asyncpg://app:real-secret@db.prod:5432/x", "production", False, False),
         # Inside the compose network "postgres:5432" IS the project container.
         ("postgresql+asyncpg://ken:ken@postgres:5432/ken_interlink", "local", False, False),
         # A container reaching the HOST's own server through the gateway name.
@@ -209,3 +210,78 @@ def test_migrations_refuse_the_developers_own_postgres(
             s.assert_safe_migration_target()
     else:
         s.assert_safe_migration_target()
+
+
+# --------------------------------------------------------------------------- #
+# Phase 1: content inventory settings
+# --------------------------------------------------------------------------- #
+@pytest.mark.parametrize("environment", ["staging", "production"])
+def test_default_credentials_are_refused_outside_development(environment: str) -> None:
+    with pytest.raises(ValidationError) as excinfo:
+        make_settings(environment=environment)
+    assert "ken:ken" not in str(excinfo.value)
+
+
+@pytest.mark.parametrize("environment", ["local", "ci"])
+def test_default_credentials_are_fine_for_development(environment: str) -> None:
+    assert make_settings(environment=environment).environment == environment
+
+
+def test_crawl_has_no_default_site() -> None:
+    """The crawler must never guess which site to crawl."""
+    settings = make_settings()
+    assert settings.crawl_base_url is None
+    with pytest.raises(ConfigurationError, match="KEN_CRAWL_BASE_URL"):
+        settings.crawl_config()
+
+
+def test_crawl_config_is_built_from_settings() -> None:
+    config = make_settings(
+        crawl_base_url="https://example.com/start",
+        crawl_allowed_hosts="WWW.example.com, cdn.example.com ,",
+        crawl_delay_s=2.5,
+        crawl_concurrency=3,
+    ).crawl_config()
+    assert config.base_url == "https://example.com/start"
+    assert config.allowed_hosts == ("cdn.example.com", "www.example.com")
+    assert (config.delay_s, config.concurrency) == (2.5, 3)
+
+
+def test_crawl_politeness_defaults() -> None:
+    settings = make_settings()
+    assert settings.crawl_delay_s >= 1.0
+    assert settings.crawl_concurrency <= 2
+    assert settings.crawl_max_pages <= 1000
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"crawl_concurrency": 0},
+        {"crawl_concurrency": 9},
+        {"crawl_delay_s": -1},
+        {"crawl_max_redirects": 11},
+    ],
+)
+def test_crawl_bounds_are_enforced(overrides: dict[str, object]) -> None:
+    with pytest.raises(ValidationError):
+        make_settings(**overrides)
+
+
+@pytest.mark.parametrize(
+    "base_url",
+    ["ftp://example.com/", "https://user:pw@example.com/", "not a url", "/relative"],
+)
+def test_crawl_base_url_must_be_plain_http(base_url: str) -> None:
+    with pytest.raises(ConfigurationError) as excinfo:
+        make_settings(crawl_base_url=base_url).crawl_config()
+    assert "pw" not in str(excinfo.value)
+
+
+def test_public_settings_expose_crawl_host_only() -> None:
+    public = make_settings(
+        crawl_base_url="https://example.com/secret-path?token=x"
+    ).public_settings()
+    assert public["crawl_host"] == "example.com"
+    assert "secret-path" not in repr(public)
+    assert "token" not in repr(public)

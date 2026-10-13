@@ -21,6 +21,9 @@ dependencies = [
   "httpx==0.28.1",
   "structlog==26.1.0",
   "pyyaml==6.0.3",
+  # Phase 1 HTML parsing (TRD.md section 2). MIT. Used with Python's built-in
+  # html.parser backend only: no lxml/html5lib native code (ADR-0009).
+  "beautifulsoup4==4.15.0",
 ]
 
 [project.optional-dependencies]
@@ -66,7 +69,7 @@ ignore = [
 "infrastructure/scripts/*" = ["S603", "S607"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["ken_contracts", "ken_core", "ken_api", "ken_agents"]
+known-first-party = ["ken_contracts", "ken_core", "ken_services", "ken_api", "ken_agents"]
 
 [tool.mypy]
 python_version = "3.12"
@@ -80,9 +83,9 @@ show_error_codes = true
 exclude = ["^migrations/versions/", "^_research/", "^\\.venv/"]
 files = ["contracts/python", "services", "apps/api", "agents", "tests", "infrastructure/scripts"]
 
-# Strict only where the frozen contracts live — see docs/CONTRACTS.md.
+# Strict where the frozen contracts and the deterministic services live — docs/CONTRACTS.md.
 [[tool.mypy.overrides]]
-module = ["ken_contracts.*", "ken_core.*"]
+module = ["ken_contracts.*", "ken_core.*", "ken_services.*"]
 strict = true
 
 [[tool.mypy.overrides]]

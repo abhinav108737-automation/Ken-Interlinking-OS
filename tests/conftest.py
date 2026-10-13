@@ -223,10 +223,18 @@ def fake_cms_provider() -> FakeCMSProvider:
 # Settings and API app helpers
 # --------------------------------------------------------------------------- #
 def make_settings(**overrides: Any) -> Any:
-    """Settings isolated from any developer ``.env`` and from ``KEN_*`` env vars' file."""
+    """Settings isolated from the developer's ``.env`` AND from inherited ``KEN_*`` variables.
+
+    Without the second part, a ``KEN_CRAWL_BASE_URL`` (or any ``KEN_*``) exported
+    in the shell running pytest would silently change what a test asserts.
+    """
     from ken_core.config import Settings
 
-    return Settings(_env_file=None, **overrides)
+    inherited = {key: os.environ.pop(key) for key in list(os.environ) if key.startswith("KEN_")}
+    try:
+        return Settings(_env_file=None, **overrides)
+    finally:
+        os.environ.update(inherited)
 
 
 def make_app(settings: Any = None, *, probes: Sequence[Any] | None = None) -> Any:

@@ -9,16 +9,20 @@ reaches for a module-level global.
 
 from __future__ import annotations
 
-from typing import Annotated, Any, cast
+import importlib
+from typing import Annotated, Any, Final, cast
 
 from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from ken_contracts.cms import CMSProvider
 from ken_contracts.common import ServiceIdentity
+from ken_contracts.inventory import InventoryReader
 from ken_contracts.model import ModelProvider
 from ken_core.config import Settings
 from ken_core.health.probes import Probe, build_probes
+
+INVENTORY_READER: Final = "ken_services.inventory.reader"
 
 
 class AppStateNotInitialisedError(RuntimeError):
@@ -66,6 +70,16 @@ def get_probes(
     )
 
 
+def get_inventory_reader(
+    sessionmaker: Annotated[async_sessionmaker[AsyncSession], Depends(get_sessionmaker)],
+) -> InventoryReader:
+    """The SQL-backed reader. Resolved by name, like the provider factories in main.py."""
+    module: Any = importlib.import_module(INVENTORY_READER)
+    reader: InventoryReader = module.SqlInventoryReader(sessionmaker)
+    return reader
+
+
 SettingsDep = Annotated[Settings, Depends(get_app_settings)]
 IdentityDep = Annotated[ServiceIdentity, Depends(get_identity)]
 ProbesDep = Annotated[list[Probe], Depends(get_probes)]
+InventoryReaderDep = Annotated[InventoryReader, Depends(get_inventory_reader)]
