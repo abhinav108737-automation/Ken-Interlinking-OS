@@ -1,0 +1,16 @@
+{
+  "page_id": "page-sea-ev-market-2030",
+  "url": "https://example.com/industry-reports/southeast-asia-electric-vehicle-market-outlook-to-2030",
+  "title": "Southeast Asia Electric Vehicle Market Outlook to 2030",
+  "body_html": "<p id=\"p-intro\">Southeast Asia's electric vehicle market is led by Thailand, Indonesia and Vietnam, each pursuing local assembly and battery supply-chain investment.</p><p id=\"p-charging\">Charging infrastructure remains concentrated in major metropolitan areas, limiting adoption outside urban centres.</p>",
+  "version": "seed-v1",
+  "canonical_url": "https://example.com/industry-reports/southeast-asia-electric-vehicle-market-outlook-to-2030",
+  "protected": false,
+  "published_at": "2026-01-15T09:00:00Z",
+  "updated_at": "2026-03-02T12:30:00Z",
+  "metadata": {
+    "content_type": "market_report",
+    "geography": "Southeast Asia",
+    "sector": "Automotive"
+  }
+}

@@ -1,0 +1,31 @@
+# =============================================================================
+# OPTIONAL — NOT REQUIRED FOR NORMAL PHASE 0 DEVELOPMENT.
+#
+# The preferred loop (Mode A) runs FastAPI natively, so it reaches the host
+# Ollama at 127.0.0.1:11434 directly and needs nothing from this file.
+#
+# This example exists only for someone who CHOOSES to run the containerised
+# API (Mode B, --profile full) against the HOST Ollama instead of the mock
+# provider or the slow ollama-container profile.
+#
+# Trade-off you are opting into: the host Ollama listens on 127.0.0.1 only,
+# so a container cannot reach it unless you restart Ollama with
+# OLLAMA_HOST=0.0.0.0 — which exposes it to your whole network. Do not do this
+# on an untrusted network. Phase 0 never requires it. (docs/adr/ADR-0007.md)
+#
+# To use: copy to docker-compose.override.yml (gitignored), then
+#   docker compose --profile full up -d
+# =============================================================================
+services:
+  api:
+    environment:
+      KEN_MODEL_PROVIDER: ollama
+      KEN_OLLAMA_BASE_URL: http://host.docker.internal:11434
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+  worker:
+    environment:
+      KEN_MODEL_PROVIDER: ollama
+      KEN_OLLAMA_BASE_URL: http://host.docker.internal:11434
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

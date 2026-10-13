@@ -1,0 +1,16 @@
+{
+  "page_id": "page-india-ev-market-2030",
+  "url": "https://example.com/industry-reports/india-electric-vehicle-market-outlook-to-2030",
+  "title": "India Electric Vehicle Market Outlook to 2030",
+  "body_html": "<p id=\"p-intro\">The India electric vehicle market is expanding rapidly, driven by state purchase incentives, falling battery pack prices and a growing public charging network.</p><p id=\"p-regional\">Manufacturers are also benchmarking India against neighbouring Southeast Asian markets, where two-wheeler electrification is following a similar trajectory.</p>",
+  "version": "seed-v1",
+  "canonical_url": "https://example.com/industry-reports/india-electric-vehicle-market-outlook-to-2030",
+  "protected": false,
+  "published_at": "2026-01-15T09:00:00Z",
+  "updated_at": "2026-03-02T12:30:00Z",
+  "metadata": {
+    "content_type": "market_report",
+    "geography": "India",
+    "sector": "Automotive"
+  }
+}

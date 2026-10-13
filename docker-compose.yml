@@ -1,0 +1,150 @@
+# =============================================================================
+# Ken Research Agentic Interlinking OS — local stack
+#
+# TRD.md section 21 services: postgres, ollama, api, worker, web.
+#
+# MODE A (preferred Mac development) — Postgres only; API and web run natively:
+#     docker compose up -d postgres
+#
+# MODE B (optional, full container stack):
+#     docker compose --profile full up -d --build
+#
+# OPTIONAL containerised Ollama (slow on macOS: no Metal/GPU in the VM):
+#     docker compose --profile full --profile ollama-container up -d
+#
+# Service names are a FROZEN contract (MULTI_AGENT_ORCHESTRATION.md).
+# See docs/adr/ADR-0003.md and docs/adr/ADR-0007.md.
+# =============================================================================
+
+name: ken-interlink
+
+x-app-env: &app-env
+  env_file:
+    - .env.compose
+
+services:
+  # ---------------------------------------------------------------------------
+  # postgres — the system of record. Starts in EVERY mode (no profile).
+  #
+  # Host port 5433, NOT 5432: the developer's own PostgreSQL already listens on
+  # 5432. Publishing 5432 here would collide, and if unnoticed the API would
+  # silently talk to the wrong database.
+  #
+  # The pgvector image PROVISIONS the extension; Phase 0 never ENABLES it.
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: ken
+      POSTGRES_PASSWORD: ken
+      POSTGRES_DB: ken_interlink
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./infrastructure/docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      # -h 127.0.0.1 probes over TCP. Over the Unix socket, the TEMPORARY server that
+      # runs init scripts on a fresh volume already answers "ready", so compose
+      # could mark postgres healthy before init completes and migrate would fail.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U ken -d ken_interlink"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # migrate — one-shot job: alembic upgrade head, then exit.
+  #
+  # Runs migrations exactly once per bring-up, before api and worker start,
+  # instead of every replica racing to migrate on boot. Same image as api; not
+  # a new piece of infrastructure.
+  # ---------------------------------------------------------------------------
+  migrate:
+    profiles: ["full"]
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    <<: *app-env
+    command: ["alembic", "upgrade", "head"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  # ---------------------------------------------------------------------------
+  # api — FastAPI control plane.
+  # Liveness uses /health (zero I/O) so a database blip cannot restart-loop it.
+  # ---------------------------------------------------------------------------
+  api:
+    profiles: ["full"]
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    <<: *app-env
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2).status == 200 else 1)"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # worker — tick loop, NOT a queue consumer (docs/adr/ADR-0005.md).
+  # No Celery, no Redis, no queue: TRD and the Phase 0 brief forbid them.
+  # ---------------------------------------------------------------------------
+  worker:
+    profiles: ["full"]
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    <<: *app-env
+    command: ["python", "-m", "ken_agents.worker"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # web — Next.js. Reaches the API by service name, server-side only.
+  # ---------------------------------------------------------------------------
+  web:
+    profiles: ["full"]
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    environment:
+      KEN_API_BASE_URL: http://api:8000
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # ollama — OPTIONAL. Opt-in only via --profile ollama-container.
+  #
+  # The preferred development model service is the HOST daemon at
+  # 127.0.0.1:11434. This container exists for TRD section 21 completeness.
+  # It publishes NO host port: 11434 already belongs to the host daemon.
+  # On macOS it has no Metal/GPU access and is roughly an order of magnitude
+  # slower than the host daemon. No model is pulled automatically.
+  # ---------------------------------------------------------------------------
+  ollama:
+    profiles: ["ollama-container"]
+    image: ollama/ollama:0.35.0
+    volumes:
+      - ollama-models:/root/.ollama
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+  ollama-models:

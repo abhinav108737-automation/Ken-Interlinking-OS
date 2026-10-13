@@ -1,0 +1,71 @@
+"""FastAPI dependencies.
+
+Everything a route needs is resolved here from ``app.state``, which is
+populated by ``create_app`` (settings, identity) and by the lifespan
+(sessionmaker, providers). Tests replace any of these with
+``app.dependency_overrides`` or by pre-seeding ``app.state`` -- no route ever
+reaches for a module-level global.
+"""
+
+from __future__ import annotations
+
+from typing import Annotated, Any, cast
+
+from fastapi import Depends, Request
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
+from ken_contracts.cms import CMSProvider
+from ken_contracts.common import ServiceIdentity
+from ken_contracts.model import ModelProvider
+from ken_core.config import Settings
+from ken_core.health.probes import Probe, build_probes
+
+
+class AppStateNotInitialisedError(RuntimeError):
+    """A dependency was requested before the lifespan populated ``app.state``."""
+
+
+def _state(request: Request, name: str) -> Any:
+    value = getattr(request.app.state, name, None)
+    if value is None:
+        raise AppStateNotInitialisedError(f"app.state.{name} is not initialised")
+    return value
+
+
+def get_app_settings(request: Request) -> Settings:
+    return cast(Settings, _state(request, "settings"))
+
+
+def get_identity(request: Request) -> ServiceIdentity:
+    return cast(ServiceIdentity, _state(request, "identity"))
+
+
+def get_sessionmaker(request: Request) -> async_sessionmaker[AsyncSession]:
+    return cast(async_sessionmaker[AsyncSession], _state(request, "sessionmaker"))
+
+
+def get_model_provider(request: Request) -> ModelProvider:
+    return cast(ModelProvider, _state(request, "model_provider"))
+
+
+def get_cms_provider(request: Request) -> CMSProvider:
+    return cast(CMSProvider, _state(request, "cms_provider"))
+
+
+def get_probes(
+    settings: Annotated[Settings, Depends(get_app_settings)],
+    sessionmaker: Annotated[async_sessionmaker[AsyncSession], Depends(get_sessionmaker)],
+    model_provider: Annotated[ModelProvider, Depends(get_model_provider)],
+    cms_provider: Annotated[CMSProvider, Depends(get_cms_provider)],
+) -> list[Probe]:
+    return build_probes(
+        settings=settings,
+        sessionmaker=sessionmaker,
+        model_provider=model_provider,
+        cms_provider=cms_provider,
+    )
+
+
+SettingsDep = Annotated[Settings, Depends(get_app_settings)]
+IdentityDep = Annotated[ServiceIdentity, Depends(get_identity)]
+ProbesDep = Annotated[list[Probe], Depends(get_probes)]

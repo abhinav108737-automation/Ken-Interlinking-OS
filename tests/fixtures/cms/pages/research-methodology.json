@@ -1,0 +1,14 @@
+{
+  "page_id": "page-research-methodology",
+  "url": "https://example.com/research-methodology",
+  "title": "Research Methodology",
+  "body_html": "<p id=\"p-overview\">Our research combines primary interviews with industry participants and structured secondary research.</p><p id=\"p-validation\">Market estimates are triangulated using top-down and bottom-up approaches before publication.</p>",
+  "version": "seed-v1",
+  "canonical_url": "https://example.com/research-methodology",
+  "protected": true,
+  "published_at": "2026-01-15T09:00:00Z",
+  "updated_at": "2026-03-02T12:30:00Z",
+  "metadata": {
+    "content_type": "corporate"
+  }
+}

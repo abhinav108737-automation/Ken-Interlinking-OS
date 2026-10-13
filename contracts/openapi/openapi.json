@@ -1,0 +1,422 @@
+{
+  "components": {
+    "schemas": {
+      "CheckKind": {
+        "description": "Category of a readiness check, so clients can group them in a UI.",
+        "enum": [
+          "database",
+          "schema",
+          "extension",
+          "model_server",
+          "cms"
+        ],
+        "title": "CheckKind",
+        "type": "string"
+      },
+      "DependencyCheck": {
+        "additionalProperties": false,
+        "description": "Result of probing exactly one dependency.",
+        "properties": {
+          "detail": {
+            "additionalProperties": true,
+            "description": "Probe-specific facts. Must never contain secrets or credentials.",
+            "title": "Detail",
+            "type": "object"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Human-readable failure reason when status is not ok.",
+            "title": "Error"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/CheckKind"
+          },
+          "latency_ms": {
+            "description": "Wall-clock duration of this probe.",
+            "minimum": 0.0,
+            "title": "Latency Ms",
+            "type": "number"
+          },
+          "name": {
+            "description": "Stable identifier, e.g. 'postgres'.",
+            "title": "Name",
+            "type": "string"
+          },
+          "required": {
+            "description": "Whether failure makes the service NOT_READY. Computed from settings (KEN_REQUIRE_PGVECTOR, KEN_REQUIRE_OLLAMA) so one binary can be lenient in native development and strict elsewhere.",
+            "title": "Required",
+            "type": "boolean"
+          },
+          "status": {
+            "$ref": "#/components/schemas/HealthStatus"
+          }
+        },
+        "required": [
+          "name",
+          "kind",
+          "required",
+          "status",
+          "latency_ms"
+        ],
+        "title": "DependencyCheck",
+        "type": "object"
+      },
+      "ErrorCode": {
+        "description": "Stable machine-readable error codes.\n\nCodes are ``snake_case``. A client may branch on a code but must never\nbranch on ``message``, which is human-readable and may be reworded at any\ntime. Adding a member in a later phase is additive and non-breaking.",
+        "enum": [
+          "validation_failed",
+          "not_found",
+          "conflict",
+          "internal_error",
+          "service_unavailable",
+          "page_not_found",
+          "stale_page_version",
+          "protected_page",
+          "cms_version_conflict",
+          "cms_unavailable",
+          "model_unavailable",
+          "model_schema_violation",
+          "approval_required",
+          "permission_denied"
+        ],
+        "title": "ErrorCode",
+        "type": "string"
+      },
+      "ErrorDetail": {
+        "additionalProperties": false,
+        "description": "One field-level or item-level problem within a failed request.",
+        "properties": {
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Code"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Dotted path to the offending field, when applicable.",
+            "title": "Location"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "message"
+        ],
+        "title": "ErrorDetail",
+        "type": "object"
+      },
+      "ErrorResponse": {
+        "additionalProperties": false,
+        "description": "The ONLY error body any endpoint returns.\n\nDeliberately does not carry a stack trace, an exception class name or a\ndatabase message: backend-engineer.md forbids exposing internal\nexceptions. ``request_id`` is how a caller correlates a failure with the\nserver logs instead.",
+        "properties": {
+          "code": {
+            "$ref": "#/components/schemas/ErrorCode",
+            "description": "Stable machine-readable code."
+          },
+          "details": {
+            "items": {
+              "$ref": "#/components/schemas/ErrorDetail"
+            },
+            "title": "Details",
+            "type": "array"
+          },
+          "message": {
+            "description": "Human-readable summary. Never branch on this.",
+            "title": "Message",
+            "type": "string"
+          },
+          "request_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Correlates this failure with server logs.",
+            "title": "Request Id"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "ErrorResponse",
+        "type": "object"
+      },
+      "HealthResponse": {
+        "additionalProperties": false,
+        "description": "``GET /health`` -- liveness only. No dependency is consulted.",
+        "properties": {
+          "identity": {
+            "$ref": "#/components/schemas/ServiceIdentity"
+          },
+          "status": {
+            "$ref": "#/components/schemas/HealthStatus",
+            "default": "ok"
+          },
+          "timestamp": {
+            "format": "date-time",
+            "title": "Timestamp",
+            "type": "string"
+          },
+          "uptime_s": {
+            "minimum": 0.0,
+            "title": "Uptime S",
+            "type": "number"
+          }
+        },
+        "required": [
+          "identity",
+          "uptime_s",
+          "timestamp"
+        ],
+        "title": "HealthResponse",
+        "type": "object"
+      },
+      "HealthStatus": {
+        "description": "Status of a single dependency check.\n\nDistinct from :class:`~ken_contracts.health.ReadinessStatus`: a dependency\nis *described* by this enum, whereas the service as a whole is *judged* by\nan aggregate verdict.",
+        "enum": [
+          "ok",
+          "degraded",
+          "unavailable",
+          "error",
+          "skipped"
+        ],
+        "title": "HealthStatus",
+        "type": "string"
+      },
+      "MetaResponse": {
+        "additionalProperties": false,
+        "description": "``GET /meta`` -- build and configuration facts.\n\n``settings`` is an explicit allowlist built in the router. Secrets are\nnever placed in this payload; see docs/CONTRACTS.md.",
+        "properties": {
+          "auto_approve_enabled": {
+            "description": "Must be false in v1 (TRD.md section 20). Enforced by a Settings validator.",
+            "title": "Auto Approve Enabled",
+            "type": "boolean"
+          },
+          "identity": {
+            "$ref": "#/components/schemas/ServiceIdentity"
+          },
+          "phase": {
+            "description": "Implementation phase this build targets.",
+            "title": "Phase",
+            "type": "integer"
+          },
+          "python_version": {
+            "title": "Python Version",
+            "type": "string"
+          },
+          "settings": {
+            "additionalProperties": true,
+            "description": "Non-secret settings allowlist.",
+            "title": "Settings",
+            "type": "object"
+          }
+        },
+        "required": [
+          "identity",
+          "python_version",
+          "phase",
+          "auto_approve_enabled"
+        ],
+        "title": "MetaResponse",
+        "type": "object"
+      },
+      "ReadinessResponse": {
+        "additionalProperties": false,
+        "description": "``GET /ready`` -- aggregate readiness.\n\nHTTP status mapping, implemented in the router and asserted by tests:\n\n==================  =====  ===============================\naggregate status    code   headers\n==================  =====  ===============================\nready               200    Cache-Control: no-store\ndegraded            200    Cache-Control: no-store\nnot_ready           503    no-store, Retry-After: 5\n==================  =====  ===============================\n\nA probe that itself raises yields 503 with that check marked ERROR -- never\na 500, because an unhandled exception in a readiness probe is still a\nreadiness answer.",
+        "properties": {
+          "checks": {
+            "items": {
+              "$ref": "#/components/schemas/DependencyCheck"
+            },
+            "title": "Checks",
+            "type": "array"
+          },
+          "duration_ms": {
+            "minimum": 0.0,
+            "title": "Duration Ms",
+            "type": "number"
+          },
+          "identity": {
+            "$ref": "#/components/schemas/ServiceIdentity"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ReadinessStatus"
+          },
+          "timestamp": {
+            "format": "date-time",
+            "title": "Timestamp",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "identity",
+          "timestamp",
+          "duration_ms",
+          "checks"
+        ],
+        "title": "ReadinessResponse",
+        "type": "object"
+      },
+      "ReadinessStatus": {
+        "description": "Aggregate verdict over all dependency checks.\n\nThe distinction between DEGRADED and NOT_READY is the whole point of the\n``required`` flag on each check: an optional dependency that is missing\ndegrades the service without making it unready. In Phase 0 pgvector and\nOllama are both optional, so their absence must not take the API down.",
+        "enum": [
+          "ready",
+          "degraded",
+          "not_ready"
+        ],
+        "title": "ReadinessStatus",
+        "type": "string"
+      },
+      "ServiceIdentity": {
+        "additionalProperties": false,
+        "description": "Who is answering. Present in every health, readiness and meta payload.",
+        "properties": {
+          "environment": {
+            "description": "Deployment environment, e.g. 'local'.",
+            "title": "Environment",
+            "type": "string"
+          },
+          "git_sha": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Short commit SHA when discoverable, else null.",
+            "title": "Git Sha"
+          },
+          "service": {
+            "description": "Logical service name, e.g. 'ken-api'.",
+            "title": "Service",
+            "type": "string"
+          },
+          "version": {
+            "description": "Application version from the distribution metadata.",
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "service",
+          "version",
+          "environment"
+        ],
+        "title": "ServiceIdentity",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "Ken Interlink OS API",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/health": {
+      "get": {
+        "operationId": "getHealth",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Liveness. Performs zero I/O.",
+        "tags": [
+          "system"
+        ]
+      }
+    },
+    "/meta": {
+      "get": {
+        "operationId": "getMeta",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetaResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Build and non-secret configuration facts.",
+        "tags": [
+          "system"
+        ]
+      }
+    },
+    "/ready": {
+      "get": {
+        "operationId": "getReady",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadinessResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadinessResponse"
+                }
+              }
+            },
+            "description": "A required dependency is not ready."
+          }
+        },
+        "summary": "Readiness. Probes every dependency.",
+        "tags": [
+          "system"
+        ]
+      }
+    }
+  }
+}

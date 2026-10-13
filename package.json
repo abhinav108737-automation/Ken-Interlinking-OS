@@ -1,0 +1,17 @@
+{
+  "name": "ken-interlink",
+  "private": true,
+  "description": "Ken Research Agentic Interlinking OS — npm workspaces root",
+  "workspaces": [
+    "apps/web"
+  ],
+  "engines": {
+    "node": "^22.22.2 || ^24.15.0 || >=26.0.0"
+  },
+  "scripts": {
+    "lint": "npm run lint -w apps/web",
+    "typecheck": "npm run typecheck -w apps/web",
+    "test": "npm run test -w apps/web",
+    "gen:types": "npm run gen:types -w apps/web"
+  }
+}

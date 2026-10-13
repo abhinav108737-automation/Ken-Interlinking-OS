@@ -1,0 +1,37 @@
+# Build context is the repository root (docker-compose.yml: context: .).
+# Keep secrets, local environments and bulky artefacts out of every image.
+
+# secrets / local config — .env.compose is non-secret and read by compose, not COPY'd
+**/.env
+**/.env.*
+**/*.pem
+**/*.key
+
+# VCS and editor
+.git
+.github
+.claude
+.vscode
+.idea
+.DS_Store
+
+# Python
+.venv
+**/__pycache__
+**/*.py[cod]
+**/*.egg-info
+.pytest_cache
+.mypy_cache
+.ruff_cache
+.coverage
+htmlcov
+
+# Node
+**/node_modules
+**/.next
+**/out
+**/*.tsbuildinfo
+
+# Research references and large docs
+_research
+ARCHITECTURE_REFERENCE.png

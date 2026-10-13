@@ -1,0 +1,27 @@
+# Initial ranking policy — TRD.md section 12.
+#
+# TRD.md: "Weights live in versioned policy data, not source-code constants."
+# This file is that data. No Phase 0 code loads it; the Phase 3 ranking service
+# reads it through a typed, validated loader.
+#
+# Changing a weight means creating ranking_weights.v2.yaml, never editing v1 in
+# place: a recommendation records the policy version that produced it (PRD 7.8),
+# so a past decision must stay reproducible against the exact weights it used.
+#
+# Lifecycle (PRD.md section 10):
+#   PROPOSED -> OFFLINE_TEST -> SHADOW -> CANARY -> EXPERIMENT -> PROMOTED
+# No agent may promote a policy. Promotion is an ASK-level human action.
+
+policy: ranking
+version: 1
+status: baseline
+source: TRD.md section 12
+weights:
+  semantic: 0.30
+  taxonomy: 0.20
+  intent: 0.15
+  graph: 0.15
+  geography: 0.08
+  commercial: 0.05
+  underlinked: 0.04
+  historical: 0.03
