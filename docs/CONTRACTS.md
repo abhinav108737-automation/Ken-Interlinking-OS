@@ -145,7 +145,9 @@ recorded decision — never by a specialist on its own. Current additions:
 `EventName` is a Pydantic enum, not a database enum, so additions need no migration.
 
 Phase 1 additions: `json_schema_serialization_defaults_required` on the contract bases marks every
-always-present response field as required in OpenAPI. TypeScript clients therefore no longer treat
+always-present response field as required in OpenAPI. `PageInfo` also accepts and drops an incoming
+`has_more` (a computed field), so a serialised `ListResponse` can be validated back by a typed client.
+The wire format is unchanged. TypeScript clients therefore no longer treat
 `detail`, `error`, `title` and similar fields as possibly absent. The wire format is unchanged.
 
 ### 13. Content inventory (Phase 1)

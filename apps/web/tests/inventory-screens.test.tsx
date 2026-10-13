@@ -140,7 +140,7 @@ function mockDetail() {
     ),
   );
   api.listInventoryLinks.mockResolvedValue(
-    ok(list([link({ page_id: OTHER_PAGE_ID, source_url: "https://www.kenresearch.com/reports/gadgets", target_page_id: PAGE_ID })])),
+    ok(list([link({ page_id: OTHER_PAGE_ID, source_url: "https://www.example.com/reports/gadgets", target_page_id: PAGE_ID })])),
   );
 }
 
@@ -171,7 +171,7 @@ describe("/inventory/pages/[pageId]", () => {
     expect(screen.getByRole("rowheader", { name: "og:title" })).toBeInTheDocument();
     expect(screen.queryByText("abc123")).toBeNull();
     // Canonical URL is an external link with safe attributes.
-    const canonical = screen.getAllByRole("link", { name: /^https:\/\/www\.kenresearch\.com\/reports\/widgets/ })[0]!;
+    const canonical = screen.getAllByRole("link", { name: /^https:\/\/www\.example\.com\/reports\/widgets/ })[0]!;
     expect(canonical).toHaveAttribute("rel", "noopener noreferrer nofollow");
     // The run that produced the version is linked internally.
     expect(screen.getByRole("link", { name: RUN_ID })).toHaveAttribute("href", `/inventory/runs/${RUN_ID}`);
@@ -180,7 +180,7 @@ describe("/inventory/pages/[pageId]", () => {
     // Body links and inbound links.
     expect(screen.getByRole("table", { name: /body links/i })).toBeInTheDocument();
     expect(screen.getByRole("table", { name: /inbound links/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "https://www.kenresearch.com/reports/gadgets" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "https://www.example.com/reports/gadgets" })).toHaveAttribute(
       "href",
       `/inventory/pages/${OTHER_PAGE_ID}`,
     );
@@ -300,9 +300,9 @@ describe("/inventory/runs/[runId]", () => {
     const config = screen.getByRole("table", { name: /run configuration/i });
     expect(within(config).getByRole("rowheader", { name: "max_pages" })).toBeInTheDocument();
     expect(within(config).getByText("500")).toBeInTheDocument();
-    expect(within(config).getByText('["www.kenresearch.com"]')).toBeInTheDocument();
+    expect(within(config).getByText('["www.example.com"]')).toBeInTheDocument();
     expect(within(config).getByText("true")).toBeInTheDocument();
-    expect(within(config).getByText("https://www.kenresearch.com/")).toBeInTheDocument();
+    expect(within(config).getByText("https://www.example.com/")).toBeInTheDocument();
     expect(container.textContent).not.toContain("should-never-show");
     expect(container.textContent).not.toContain('"nope"');
 

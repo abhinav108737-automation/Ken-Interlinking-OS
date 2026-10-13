@@ -192,11 +192,11 @@ def _content_length(response: httpx.Response) -> int | None:
 
 
 def _normalize(url: str, base: str) -> str | None:
-    """``urls.try_normalize_url`` that also absorbs the ``ValueError`` ``urljoin`` raises.
+    """``urls.try_normalize_url``, defensively absorbing any ``ValueError``.
 
-    ``urls.normalize_url`` calls ``urljoin`` outside its own ``try``, so an href
-    such as ``http://[bad`` resolved against a base raises a plain ``ValueError``
-    instead of returning ``None``. A hostile page must never abort a crawl.
+    ``urls.normalize_url`` now resolves ``urljoin`` inside its own ``try`` (an
+    href such as ``http://[bad`` returns ``None``); this wrapper stays as a
+    second guard, because a hostile page must never abort a crawl.
     """
     try:
         return urls.try_normalize_url(url, base=base)
@@ -537,7 +537,14 @@ class PublicWebContentSource:
                 trust_env=False,
                 follow_redirects=False,
                 timeout=httpx.Timeout(self._config.timeout_s),
-                headers={"User-Agent": self._config.user_agent, "Accept": ACCEPT},
+                # identity: the max_bytes cap then bounds what is actually held in
+                # memory. With gzip, each raw chunk is inflated whole before the cap
+                # can apply, so a compression bomb could peak at ~150 MB (QA L2).
+                headers={
+                    "User-Agent": self._config.user_agent,
+                    "Accept": ACCEPT,
+                    "Accept-Encoding": "identity",
+                },
                 cookies=jar,
                 event_hooks={"request": [_strip_credentials]},
             )
@@ -596,7 +603,9 @@ class PublicWebContentSource:
                     return unavailable("redirect outside the site", status)
                 url = target
                 continue
-            if 400 <= status < 500:
+            # 4xx means "no robots.txt": allow all (RFC 9309) -- except 429, which
+            # means "slow down", so it is treated like a 5xx: disallow (QA L4).
+            if 400 <= status < 500 and status != 429:
                 return allow_all(), None
             return unavailable(f"HTTP {status}", status)
         return unavailable("too many redirects")

@@ -68,7 +68,9 @@ async def list_pages(
     reader: InventoryReaderDep,
     limit: Limit = DEFAULT_LIMIT,
     offset: Offset = 0,
-    q: Annotated[str | None, Query(min_length=1, max_length=200)] = None,
+    # No NUL: PostgreSQL text cannot hold it, and stored text never contains it
+    # (the normaliser replaces it), so it is a client error, not a 500 (QA M2).
+    q: Annotated[str | None, Query(min_length=1, max_length=200, pattern=r"^[^\x00]*$")] = None,
     publication_state: PublicationState | None = None,
 ) -> ListResponse[PageSummary]:
     return await reader.list_pages(

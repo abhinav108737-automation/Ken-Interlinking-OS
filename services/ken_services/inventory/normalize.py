@@ -31,7 +31,7 @@ import re
 import unicodedata
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Final
+from typing import Any, Final
 from urllib.parse import urlsplit
 
 from bs4 import BeautifulSoup, Tag
@@ -60,6 +60,7 @@ from ken_contracts.inventory import (
     NormalizedPage,
     PublicationState,
     SiteScope,
+    SourceAssertions,
     SourceDocument,
     SourceType,
 )
@@ -188,8 +189,33 @@ def _is_text(node: PageElement) -> bool:
 # Elements that separate words when rendered, although they are not blocks.
 _BREAKING_TAGS: Final = frozenset({"br", "hr", "img", "wbr"})
 
+# Bounds that keep normalisation linear on hostile markup (Phase 1 QA M1):
+# nested <a> tags are not auto-closed by html.parser, so an unbounded per-anchor
+# descendant scan is O(n^2), and one page could stall a whole run.
+MAX_LINKS_PER_PAGE: Final = 10_000
+"""Body links kept per page, in document order; the rest are dropped and flagged."""
+ANCHOR_SCAN_MAX_NODES: Final = 256
+"""Descendant nodes read per anchor when computing its text."""
+ANCHOR_TEXT_MAX: Final = 1_000
+"""Anchor text longer than this is truncated."""
 
-def _text_of(tag: Tag) -> str:
+
+def _scrub(value: Any) -> Any:
+    """Replace NUL with U+FFFD, as browsers do (Phase 1 QA M2).
+
+    PostgreSQL text cannot store NUL: one stray NUL byte would otherwise make a
+    page fail to persist on every run, i.e. never be inventoried.
+    """
+    if isinstance(value, str):
+        return value.replace("\x00", "\ufffd")
+    if isinstance(value, dict):
+        return {_scrub(key): _scrub(item) for key, item in value.items()}
+    if isinstance(value, list | tuple):
+        return type(value)(_scrub(item) for item in value)
+    return value
+
+
+def _text_of(tag: Tag, *, max_nodes: int | None = None) -> str:
     """Collapsed text of ``tag`` as a browser renders it, NFC-normalised.
 
     Inline elements CONCATENATE (``Hel<b>lo</b>`` is "Hello", not "Hel lo"):
@@ -198,7 +224,9 @@ def _text_of(tag: Tag) -> str:
     section 7.7). Line breaks and block-level children separate words.
     """
     parts: list[str] = []
-    for node in tag.descendants:
+    for count, node in enumerate(tag.descendants):
+        if max_nodes is not None and count >= max_nodes:
+            break
         if isinstance(node, Tag):
             if (
                 node.name in _BREAKING_TAGS
@@ -460,7 +488,7 @@ def _scheme_of(href: str) -> str:
 
 
 def _anchor_text(anchor: Tag) -> tuple[str, AnchorSource]:
-    text = _text_of(anchor)
+    text = _text_of(anchor, max_nodes=ANCHOR_SCAN_MAX_NODES)[:ANCHOR_TEXT_MAX]
     if text:
         return text, "text"
     for img in anchor.find_all("img"):
@@ -485,12 +513,16 @@ def _rel_tokens(anchor: Tag) -> tuple[str, ...]:
 def _extract_links(walk: _Walk, *, base: str, scope: SiteScope) -> tuple[ExtractedLink, ...]:
     links: list[ExtractedLink] = []
     per_block: dict[int, int] = {}
-    for ordinal, (anchor, block) in enumerate(walk.anchors):
+    block_hashes: dict[int, str] = {}  # one sha256 per block, not one per link
+    for ordinal, (anchor, block) in enumerate(walk.anchors[:MAX_LINKS_PER_PAGE]):
         href = (_attr(anchor, "href") or "").strip()
         link_type, resolved = _classify(href, base=base, scope=scope)
         anchor_text, anchor_source = _anchor_text(anchor)
         occurrence = per_block.get(id(block), 0)
         per_block[id(block)] = occurrence + 1
+        context_hash = block_hashes.get(id(block))
+        if context_hash is None:
+            context_hash = block_hashes[id(block)] = sha256_hex(block.text)
         block_id = block.block_id
         if block_id is None:  # pragma: no cover - a link-bearing block always has an id
             raise AssertionError("link-bearing block without an id")
@@ -507,7 +539,7 @@ def _extract_links(walk: _Walk, *, base: str, scope: SiteScope) -> tuple[Extract
                 block_kind=block.kind,
                 occurrence_index=occurrence,
                 context_text=block.text[:CONTEXT_TEXT_MAX],
-                context_hash=sha256_hex(block.text),
+                context_hash=context_hash,
             )
         )
     return tuple(links)
@@ -554,9 +586,11 @@ def normalize_document(doc: SourceDocument, *, scope: SiteScope) -> NormalizedPa
     redirect_chain = tuple(
         url for url in (try_normalize_url(hop) for hop in doc.redirect_chain) if url is not None
     )
-    assertions = doc.assertions
+    assertions = SourceAssertions.model_validate(_scrub(doc.assertions.model_dump()))
+    source_id = _scrub(doc.source_id)
+    content_language = _scrub(doc.content_language)
 
-    soup = _parse(doc.html)
+    soup = _parse(_scrub(doc.html))
     discovery = discover_soup(soup)
     head = _head_facts(soup)
 
@@ -615,7 +649,7 @@ def normalize_document(doc: SourceDocument, *, scope: SiteScope) -> NormalizedPa
     for candidate in (
         assertions.language,
         head.html_lang,
-        _first_language_tag(doc.content_language),
+        _first_language_tag(content_language),
         _first_language_tag(head.http_equiv_language),
     ):
         language = _valid_language(candidate)
@@ -647,6 +681,8 @@ def normalize_document(doc: SourceDocument, *, scope: SiteScope) -> NormalizedPa
         metadata["h1"] = _metadata_value(first_h1)
     for key, value in assertions.metadata.items():
         metadata[key] = _metadata_value(value)
+    if len(walk.anchors) > MAX_LINKS_PER_PAGE:
+        metadata["links_truncated"] = str(len(walk.anchors))
     metadata = dict(sorted(metadata.items()))
 
     robots_directives = tuple(sorted(discovery.robots))
@@ -666,7 +702,7 @@ def normalize_document(doc: SourceDocument, *, scope: SiteScope) -> NormalizedPa
 
     return NormalizedPage(
         source_type=doc.source_type,
-        source_id=doc.source_id,
+        source_id=source_id,
         external_id=assertions.external_id,
         requested_url=requested_url,
         url=final_url,

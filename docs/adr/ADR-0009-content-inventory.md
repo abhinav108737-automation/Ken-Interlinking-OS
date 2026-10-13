@@ -52,7 +52,8 @@ A per-URL failure is a `SourceIssue`, never an exception: one bad page cannot fa
   to licence-check for a desktop build, and tolerant of malformed markup.
 - **Canonical:** the declared `<link rel=canonical>` is used as identity only if it is valid and in
   scope. Otherwise the normalised final URL is used, and `canonical_status` records why.
-- **Language:** from `<html lang>` or `Content-Language` only. No detection library.
+- **Language:** from `<html lang>`, then the `Content-Language` header, then the meta
+  `http-equiv` value. No detection library.
 - **Boilerplate:** removed only where structurally unambiguous (`nav`, `aside`, scripts, forms,
   ARIA landmarks for navigation, banner and contentinfo, and `header`/`footer` outside
   `main`/`article`). No heuristics.
@@ -144,7 +145,10 @@ All nine `/inventory/*` routes are `GET`. Runs start from the command line (`mak
   - `page_type`: opaque and source-asserted (a CMS template, say), never inferred in Phase 1;
     page classification is Phase 2;
   - `published_at` and `modified_at`;
-  - the `Content-Language` header, which is the only response header kept.
+  - `Content-Language` is the only response header carried on `SourceDocument`. It is used only as
+    the `language` fallback after `<html lang>`, and the raw header is not persisted. The derived
+    `language` **is** hashed, so a header-only change on a page without `<html lang>` creates a
+    version (intended).
 - **`known_urls.page_id` is "the last page this URL led to".** A later transient failure
   (robots, timeout) changes the outcome but keeps the mapping, so link resolution does not
   flap. The CHECK is an implication, not an "iff".
@@ -179,8 +183,25 @@ All nine `/inventory/*` routes are `GET`. Runs start from the command line (`mak
 - **Text is quoted exactly as a browser renders it.** Inline elements concatenate (`Hel<b>lo</b>`
   reads "Hello"). Line breaks and block or container boundaries separate words. Phase 3 matches
   anchors against this text and must never fabricate source text (PRD §7.7).
+- **A redirect chain counts as one page request for `max_pages`.** Its hops are bounded separately
+  by `max_redirects`, so the worst case is `max_pages × (max_redirects + 1)` HTTP requests, all
+  rate-limited.
 - **`max_pages` caps page requests, whatever their outcome,** so limits stay polite on
   error-heavy sites. robots.txt fetches are not counted.
+
+### 10. Hostile-content bounds (from the final QA review)
+
+A site is chosen by the operator, but its content is untrusted. Each bound below has a regression
+test (`tests/unit/inventory/test_qa_hardening.py`).
+
+| Risk | Bound |
+|---|---|
+| Nested `<a>` tags (never auto-closed) make per-anchor text extraction quadratic | Anchor text reads at most 256 descendant nodes, keeps at most 1,000 characters, and at most 10,000 body links are kept per page (the excess is flagged in `metadata.links_truncated`) |
+| Thousands of links in one huge block | That block's context hash is computed once, not once per link |
+| NUL characters, which PostgreSQL text cannot store | Replaced with U+FFFD before parsing, as browsers do; `?q=` containing NUL gets a 422 |
+| Hostile robots.txt wildcards | Linear split-and-find matcher; patterns over 2,048 characters and rules beyond 2,000 are ignored |
+| Compression bombs | Requests ask for `Accept-Encoding: identity`, so the 5 MB cap bounds memory |
+| robots.txt answering 429 | Treated like a 5xx (disallow all), not like "no robots.txt" |
 
 ## Consequences
 

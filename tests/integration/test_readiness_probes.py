@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from urllib.parse import urlsplit
+
 import pytest
 from alembic import command
 from alembic.config import Config
@@ -13,10 +15,13 @@ from ken_core.health.probes import probe_migrations, probe_pgvector, probe_postg
 pytestmark = pytest.mark.integration
 
 
-async def test_postgres_probe(sessionmaker: async_sessionmaker[AsyncSession]) -> None:
+async def test_postgres_probe(
+    sessionmaker: async_sessionmaker[AsyncSession], test_database_url: str
+) -> None:
     result = await probe_postgres(sessionmaker)
     assert result.status is HealthStatus.OK
-    assert result.detail["database"] == "ken_interlink_test"
+    # Whatever *_test database KEN_TEST_DATABASE_URL names, not a hard-coded one.
+    assert result.detail["database"] == urlsplit(test_database_url).path.lstrip("/")
     assert result.detail["server_version"]
     assert "ken:ken" not in str(result.detail)
 

@@ -3,9 +3,18 @@
 A fully self-hosted, local-first system that will manage contextual internal body links across Ken Research
 pages: observe → understand → recommend → approve → publish → verify → measure → learn.
 
-**Current status: Phase 0 — foundation.** The repository contains the platform skeleton, frozen contracts
-and verification harness. There is no interlinking intelligence, publishing or learning yet. See
-[PHASE_0_REPORT.md](PHASE_0_REPORT.md) and [NEXT_STEPS.md](NEXT_STEPS.md).
+**Current status: Phase 1 — content inventory.** The system can ingest pages from:
+- a polite, robots-respecting crawler, tested only against local fixtures, with **no site configured
+  yet**;
+- a JSONL export;
+- a read-only CMS adapter (mock only).
+
+It normalises pages deterministically, stores them with an immutable, hash-based version history,
+extracts the links they already contain, and makes all of it inspectable through a read-only API and
+web screens. The API is GET-only; crawls and imports start from the command line. There is no
+recommendation intelligence, publishing or learning yet. See
+[PHASE_1_REPORT.md](PHASE_1_REPORT.md), [PHASE_0_REPORT.md](PHASE_0_REPORT.md) and
+[NEXT_STEPS.md](NEXT_STEPS.md).
 
 ## Quick start (macOS)
 
@@ -14,7 +23,8 @@ colima start
 make setup        # Python 3.12 venv + npm install + .env
 make dev          # Postgres container on :5433 + migrations
 make dev-api      # terminal 1 → http://127.0.0.1:8000/ready
-make dev-web      # terminal 2 → http://127.0.0.1:3000/system
+make dev-web      # terminal 2 → http://127.0.0.1:3000/inventory
+make ingest-file FILE=tests/fixtures/inventory/exports/valid.jsonl   # load sample pages
 make verify       # the full quality gate
 ```
 

@@ -270,7 +270,11 @@ class CrawlConfig(FrozenModel):
     max_pages: int = Field(
         ge=1,
         le=100_000,
-        description="Page REQUESTS, at most, whatever their outcome (robots.txt not counted).",
+        description=(
+            "Page requests, at most, whatever their outcome. A redirect chain counts as one "
+            "request (so at most max_pages x (max_redirects + 1) HTTP requests); robots.txt "
+            "is not counted."
+        ),
     )
     max_depth: int = Field(ge=0, le=50, description="Link hops from the base URL.")
     timeout_s: float = Field(gt=0.0, le=120.0)

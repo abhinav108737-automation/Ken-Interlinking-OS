@@ -65,7 +65,7 @@ def check_python() -> list[Row]:
 
 def check_packages() -> list[Row]:
     rows: list[Row] = []
-    for name in ("ken_contracts", "ken_core", "ken_api", "ken_agents"):
+    for name in ("ken_contracts", "ken_core", "ken_services", "ken_api", "ken_agents"):
         try:
             module = importlib.import_module(name)
         except Exception as exc:
@@ -207,7 +207,7 @@ def check_ollama() -> list[Row]:
         response.raise_for_status()
         installed = {m["name"] for m in response.json().get("models", [])}
     except Exception as exc:
-        return [Row("WARN", "ollama", f"unreachable ({type(exc).__name__}) — optional in Phase 0")]
+        return [Row("WARN", "ollama", f"unreachable ({type(exc).__name__}) — optional for now")]
 
     rows.append(
         Row(
@@ -223,9 +223,7 @@ def check_ollama() -> list[Row]:
         if present:
             rows.append(Row("OK", f"model role {role.value}", model))
         else:
-            note = (
-                "not pulled — expected in Phase 0" if role is ModelRole.EMBEDDING else "not pulled"
-            )
+            note = "not pulled — Phase 2" if role is ModelRole.EMBEDDING else "not pulled"
             rows.append(Row("WARN", f"model role {role.value}", f"{model} — {note}"))
     return rows
 

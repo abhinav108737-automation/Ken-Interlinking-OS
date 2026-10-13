@@ -1839,6 +1839,7 @@
                 {
                   "maxLength": 200,
                   "minLength": 1,
+                  "pattern": "^[^\\x00]*$",
                   "type": "string"
                 },
                 {

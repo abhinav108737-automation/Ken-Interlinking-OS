@@ -659,3 +659,28 @@ async def test_run_row_matches_the_returned_detail(sessionmaker: SM) -> None:
     assert run.completed_at == detail.completed_at
     assert run.pages_created == detail.counters.pages_created == 1
     assert run.warning_count == detail.counters.warning_count == 1
+
+
+async def test_a_repeated_export_line_is_not_recorded_as_a_self_redirect(
+    sessionmaker: async_sessionmaker[AsyncSession],
+) -> None:
+    """QA L3: a duplicate line names the same URL; its known_urls outcome stays 'page'."""
+    from ken_contracts.inventory import IssueCode, IssueSeverity
+    from ken_core.db.models import KnownUrl
+    from tests.integration.conftest import ingest, make_issue, make_page, url
+
+    await ingest(
+        sessionmaker,
+        make_page("/dup"),
+        make_issue(
+            IssueCode.DUPLICATE_URL,
+            url("/dup"),
+            severity=IssueSeverity.WARNING,
+            related_url=url("/dup"),
+        ),
+    )
+    async with sessionmaker() as session:
+        known = await session.get(KnownUrl, url("/dup"))
+    assert known is not None
+    assert known.outcome == "page"
+    assert known.page_id is not None

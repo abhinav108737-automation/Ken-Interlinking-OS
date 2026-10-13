@@ -83,7 +83,7 @@ describe("PageInventoryTable", () => {
       />,
     );
     const rowHeader = screen.getByRole("rowheader");
-    expect(within(rowHeader).getByRole("link")).toHaveTextContent("https://www.kenresearch.com/reports/widgets");
+    expect(within(rowHeader).getByRole("link")).toHaveTextContent("https://www.example.com/reports/widgets");
     expect(within(rowHeader).getByText("Gone")).toBeInTheDocument();
     expect(screen.getByText("Unknown (weird)")).toBeInTheDocument();
   });
@@ -189,7 +189,7 @@ describe("LinkTable", () => {
       <LinkTable links={[link()]} total={1} caption="Inbound links" showSource emptyMessage="none" />,
     );
     expect(screen.getByRole("columnheader", { name: "Linking page" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "https://www.kenresearch.com/reports/widgets" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "https://www.example.com/reports/widgets" })).toHaveAttribute(
       "href",
       `/inventory/pages/${PAGE_ID}`,
     );
@@ -225,10 +225,10 @@ describe("BodyText and HeadingsOutline", () => {
 describe("RunTable, IssueTable, KeyValueTable", () => {
   it("shows run status as text, duration and counters", () => {
     render(<RunTable runs={[runSummary()]} total={1} />);
-    const row = screen.getByRole("row", { name: /kenresearch/ });
+    const row = screen.getByRole("row", { name: /www\.example\.com/ });
     expect(within(row).getByText("Completed with errors")).toBeInTheDocument();
     expect(within(row).getByText("2 min 05 s")).toBeInTheDocument();
-    expect(within(row).getByRole("link", { name: "https://www.kenresearch.com/" })).toHaveAttribute(
+    expect(within(row).getByRole("link", { name: "https://www.example.com/" })).toHaveAttribute(
       "href",
       `/inventory/runs/${RUN_ID}`,
     );
@@ -245,7 +245,7 @@ describe("RunTable, IssueTable, KeyValueTable", () => {
       <IssueTable issues={[issue({ related_url: "https://x.test/r" })]} total={1} emptyMessage="none" />,
     );
     expect(container.querySelector("a")).toBeNull();
-    expect(screen.getByText("https://www.kenresearch.com/missing")).toBeInTheDocument();
+    expect(screen.getByText("https://www.example.com/missing")).toBeInTheDocument();
     expect(screen.getByText("Error")).toBeInTheDocument();
     expect(screen.getByText("http_not_found")).toBeInTheDocument();
   });

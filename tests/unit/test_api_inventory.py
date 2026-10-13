@@ -410,3 +410,10 @@ async def test_default_dependency_builds_the_sql_reader() -> None:
         assert isinstance(reader, InventoryReader)
     finally:
         await engine.dispose()
+
+
+def test_search_rejects_nul_with_422_not_500(client: TestClient) -> None:
+    """QA M2: PostgreSQL text cannot hold NUL; it is a client error, never a 500."""
+    response = client.get("/inventory/pages", params={"q": "a\x00b"})
+    assert response.status_code == 422
+    assert response.json()["code"] == "validation_failed"

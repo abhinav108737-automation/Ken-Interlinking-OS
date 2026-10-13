@@ -392,7 +392,10 @@ class _Run:
         await self._transaction(lambda s, t, now: self._apply_issue(s, t, issue, now))
         if issue.code is IssueCode.DUPLICATE_URL:
             url, related = _storable_url(issue.url), _storable_url(issue.related_url)
-            if url is not None and related is not None:
+            # A repeated line in an export names the SAME url: that is not a
+            # redirect, and recording it as one would overwrite the URL's "page"
+            # outcome with a self-redirect (Phase 1 QA L3).
+            if url is not None and related is not None and url != related:
                 self.redirects.append((url, related))
 
     async def _apply_issue(

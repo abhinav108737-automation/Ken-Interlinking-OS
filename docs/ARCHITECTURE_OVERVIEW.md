@@ -1,6 +1,6 @@
 # Architecture Overview
 
-How the Ken Research Agentic Interlinking OS is put together, and what Phase 0 actually built.
+How the Ken Research Agentic Interlinking OS is put together, and what Phases 0 and 1 actually built.
 The governing specification is TRD.md; this page maps it onto the repository.
 
 ## The target architecture (TRD §3)
@@ -19,7 +19,7 @@ LLM → structured decision → policy → deterministic validation → approval
     → deterministic execution → measurement → learning
 ```
 
-## What exists after Phase 0
+## What Phase 0 built (the platform; see below for Phase 1)
 
 ```
  Next.js (apps/web) ──server-side fetch──▶ FastAPI (apps/api/ken_api)
@@ -34,19 +34,42 @@ LLM → structured decision → policy → deterministic validation → approval
                               ▼                          pgvector provisioned, not enabled
                      host Ollama :11434                  table: events
                                              ▲
-                         worker (agents/ken_agents) — tick loop, heartbeat events
+                         worker (agents/ken_agents) — tick loop: heartbeat log every tick;
+                         event on first tick and on status change (ADR-0005 amendment)
 ```
 
-| Layer | Package | Phase 0 contents |
+| Layer | Package | Contents |
 |---|---|---|
-| Contracts | `ken_contracts` | Frozen Pydantic models + provider protocols. Imports nothing internal. |
-| Platform | `ken_core` | Settings, structured logging, DB engine/session, `events` model, readiness probes, provider implementations |
-| Control API | `ken_api` | App factory, request-id middleware, error envelope, health/ready/meta |
+| Contracts | `ken_contracts` | Frozen Pydantic models + protocols. Imports nothing internal. Phase 1 adds `inventory.py`. |
+| Platform | `ken_core` | Settings, structured logging, DB engine/session, ORM models (`events` + the six inventory tables), repositories, readiness probes, provider implementations |
+| Deterministic services | `ken_services` | **Phase 1.** `inventory/`: URL normalisation, HTML discovery, normaliser + content hash, robots.txt, the three content sources, ingestion, the SQL inventory reader, the CLI. No LLM anywhere. |
+| Control API | `ken_api` | App factory, request-id middleware, error envelope, health/ready/meta, **read-only `/inventory/*`** |
 | Agent runtime | `ken_agents` | Worker tick loop only. No LangGraph, no reasoning. |
-| UI | `apps/web` | Shell + system-status page; typed platform bridge; environment-agnostic API client core |
+| UI | `apps/web` | System status; **inventory, page detail and run screens** (read-only); typed platform bridge; environment-agnostic API client core |
 | Desktop (future) | `apps/desktop` | README only — Electron deliberately not installed (ADR-0008) |
 
-Dependencies point **inward** only: `ken_api`, `ken_agents` → `ken_core` → `ken_contracts`.
+Dependencies point **inward** only:
+`ken_api` → `ken_services` → `ken_core` → `ken_contracts`, and `ken_agents` → `ken_core`.
+
+## What Phase 1 added: the content inventory
+
+```
+ ContentSourceProvider ──SourceDocument / SourceIssue──▶ normalize_document (pure, no LLM)
+ ├ PublicWebContentSource  robots.txt · scope · rate limit        │ NormalizedPage + content_hash
+ ├ FileExportContentSource JSONL                                  ▼
+ └ CMSContentSource ── CMSInventoryReader (read-only; mock)   run_ingestion (advisory lock,
+                                                               one transaction per document)
+                                                                  │
+          PostgreSQL: ingestion_runs · ingestion_issues · pages · page_versions* · existing_links*
+                      · known_urls · events (page.created/updated/deleted, crawl.completed)
+                                                                  │      * immutable (trigger)
+          GET /inventory/* ◀── InventoryReader (SqlInventoryReader) ◀┘
+                 ▲
+          apps/web /inventory, /inventory/pages/[id], /inventory/runs, /inventory/runs/[id]
+```
+
+Runs start from the CLI only (`make ingest-file`, `make ingest-cms-mock`, `make crawl`); the API cannot
+start one. Design and rules: [ADR-0009](adr/ADR-0009-content-inventory.md).
 
 ## Boundaries that are enforced in code, not by convention
 
@@ -63,13 +86,19 @@ Dependencies point **inward** only: `ken_api`, `ken_agents` → `ken_core` → `
 | Migrations never touch the developer's own PostgreSQL | `migrations/env.py` refuses port 5432 on host-local addresses (`localhost`, all of `127.0.0.0/8`, `::1`, `0.0.0.0`/`::`, IPv4-mapped loopback, socket DSNs, the container-to-host gateway names). The target is resolved through the asyncpg dialect, so `?port=`/`?host=` overrides and multi-host URLs can't hide it. It does not resolve DNS, so exotic spellings (`127.1`, decimal/hex IPs) are not caught — it guards accidents. |
 | Promotion is governed | `skill.promoted` / `policy.promoted` are rejected without a human `promoted_by` and an `evaluation_ref` — at construction, by a frozen envelope that refuses field assignment, **and again at persistence** (`append_event` re-validates, so `model_copy` or in-place payload edits cannot slip one into the log) (CONTRACTS rule 11) |
 | UI never imports Electron or reaches the database | ESLint guards across `apps/web` + tests proving them; data only via FastAPI (ADR-0008) |
+| Page history is immutable | a database trigger rejects `UPDATE`/`DELETE` on `page_versions` and `existing_links`; a deferred FK keeps `pages.current_version` pointing at a real version |
+| A version only when content changes | `content_hash` over content fields only; equal hash ⇒ no row (tested end to end) |
+| Crawler stays polite and on-site | no default site; robots.txt always honoured (no override); scope checked on every redirect hop; GET only, no cookies or credentials; rate, concurrency, size, depth and page caps |
+| Inventory never holds a CMS mutation object | `CMSContentSource` takes a read-only `CMSInventoryReader`, never `CMSProvider` |
+| Inventory API cannot mutate | GET-only routes, asserted by the OpenAPI snapshot test; `body_html` is never rendered by the UI |
+| One ingestion run at a time | session-level PostgreSQL advisory lock |
 
 `docs/CONTRACTS.md` has the full rule set.
 
 ## Approved stack
 
 FastAPI · Pydantic · SQLAlchemy · Alembic · asyncpg · PostgreSQL · pgvector · Ollama · structlog ·
-httpx · Next.js · TypeScript · Tailwind CSS. LangGraph (Phase 4), Playwright (Phase 6) and others are
+httpx · BeautifulSoup (`html.parser` backend, Phase 1) · Next.js · TypeScript · Tailwind CSS. LangGraph (Phase 4), Playwright (Phase 6) and others are
 approved but deliberately deferred — see ADR-0005.
 
 ## Forbidden without an explicit user decision
@@ -93,6 +122,7 @@ Proposing one requires stopping and asking the user (CLAUDE.md), with an ADR.
 | [0003](adr/ADR-0003.md) | pgvector provisioned, not enabled, in Phase 0 |
 | [0004](adr/ADR-0004.md) | asyncpg as the single driver (Apache-2.0; replaced LGPL psycopg 3) |
 | [0005](adr/ADR-0005.md) | Worker is a tick loop; heavy dependencies deferred |
-| [0006](adr/ADR-0006.md) | Minimal Phase 0 schema: `events` only |
+| [0006](adr/ADR-0006.md) | Minimal Phase 0 schema: `events` only (extended by migration 0002, ADR-0009) |
 | [0007](adr/ADR-0007.md) | Hybrid local topology; host Ollama preferred |
 | [0008](adr/ADR-0008-electron-readiness.md) | Electron readiness: web UI canonical, typed bridge, Electron deferred |
+| [0009](adr/ADR-0009-content-inventory.md) | Phase 1 content inventory: sources, identity, immutable versions, read-time link resolution, crawler politeness |
