@@ -20,12 +20,16 @@ import {
 } from "./fixtures/agents";
 import { PAGE_ID, list } from "./fixtures/inventory";
 import { OLD_PLAN_ID, PLAN_ID, linkPlanDetail } from "./fixtures/recommendations";
+import { principal } from "./fixtures/review";
 
 const api = vi.hoisted(() => ({
   listAgentRuns: vi.fn(),
   getAgentRun: vi.fn(),
   listAgentPlanReviews: vi.fn(),
   getLinkPlan: vi.fn(),
+  requireSessionUser: vi.fn(),
+  listPlanReviewActions: vi.fn(),
+  listPlanTargetOptions: vi.fn(),
 }));
 
 const nav = vi.hoisted(() => ({
@@ -55,6 +59,9 @@ function fail(error: Partial<ApiError> & Pick<ApiError, "kind">): ApiResult<neve
 beforeEach(() => {
   for (const mock of Object.values(api)) mock.mockReset();
   nav.notFound.mockClear();
+  api.requireSessionUser.mockResolvedValue(ok(principal("viewer")));
+  api.listPlanReviewActions.mockResolvedValue(ok([]));
+  api.listPlanTargetOptions.mockResolvedValue(ok([]));
 });
 
 async function renderPage(element: Promise<React.ReactElement>) {

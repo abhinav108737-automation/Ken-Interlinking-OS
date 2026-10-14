@@ -7,7 +7,7 @@
  * labelled, and an unexpected runtime value degrades to an explicit
  * "Unknown (…)" label instead of crashing.
  *
- * Read-only: nothing here approves, rejects or edits a plan (Phase 5).
+ * Read-only presentation; review actions live in lib/review.ts (Phase 5).
  *
  * Types come from `lib/api-client.ts`, never from the env-reading `lib/api.ts`.
  */
@@ -423,14 +423,15 @@ export function planHref(planId: string): string {
 // Query-string handling (GET forms only; nothing here mutates)
 // ---------------------------------------------------------------------------
 
-/** The status filter's "every status" token. Absent means the default (`proposed`). */
+/** The status filter's "every status" token. Absent means the default (`awaiting_approval`). */
 export const ALL_STATUSES = "all";
-export const DEFAULT_STATUS_FILTER: LinkPlanStatus = "proposed";
+/** The recommendation inbox opens on the human queue (ADR-0013 section 5). */
+export const DEFAULT_STATUS_FILTER: LinkPlanStatus = "awaiting_approval";
 export const PAGE_PLANS_LIMIT = 10;
 
 export type StatusFilter = LinkPlanStatus | typeof ALL_STATUSES;
 
-/** `status`: a contract status, `all`, or (absent/invalid) the default `proposed`. */
+/** `status`: a contract status, `all`, or (absent/invalid) the default `awaiting_approval`. */
 export function parseStatusFilter(params: SearchParams, name = "status"): StatusFilter {
   const value = firstParam(params, name);
   if (value === ALL_STATUSES) return ALL_STATUSES;

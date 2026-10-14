@@ -7,6 +7,7 @@ from typing import Annotated, Any, Final
 
 from fastapi import APIRouter, Query
 
+from ken_api.deps import ControlPlaneReaderDep
 from ken_api.security import Auditor, Reader, SettingsReader
 from ken_contracts.controlplane import DashboardSummary, EventRecord, PoliciesView
 from ken_contracts.errors import ErrorResponse, ListResponse
@@ -28,8 +29,8 @@ _AUTH: Final[dict[int | str, dict[str, Any]]] = {
     response_model=DashboardSummary,
     responses=_AUTH,
 )
-async def dashboard(principal: Reader) -> DashboardSummary:
-    raise NotImplementedError
+async def dashboard(principal: Reader, reader: ControlPlaneReaderDep) -> DashboardSummary:
+    return await reader.dashboard()
 
 
 @router.get(
@@ -45,8 +46,12 @@ async def events(
     offset: Annotated[int, Query(ge=0, le=10_000_000)] = 0,
     event_name: EventName | None = None,
     subject_id: Annotated[str | None, Query(max_length=200)] = None,
+    *,
+    reader: ControlPlaneReaderDep,
 ) -> ListResponse[EventRecord]:
-    raise NotImplementedError
+    return await reader.list_events(
+        limit=limit, offset=offset, event_name=event_name, subject_id=subject_id
+    )
 
 
 @router.get(
@@ -56,5 +61,5 @@ async def events(
     response_model=PoliciesView,
     responses=_AUTH,
 )
-async def policies(principal: SettingsReader) -> PoliciesView:
-    raise NotImplementedError
+async def policies(principal: SettingsReader, reader: ControlPlaneReaderDep) -> PoliciesView:
+    return await reader.policies()

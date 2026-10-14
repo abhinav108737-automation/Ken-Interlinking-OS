@@ -163,7 +163,72 @@ export type AgentPlanReviewList = operations["listAgentPlanReviews"]["responses"
 
 export type ListAgentRunsQuery = NonNullable<operations["listAgentRuns"]["parameters"]["query"]>;
 
+// Phase 5 reviewer control plane (ADR-0013). Auth, human review, audit, settings.
+export type Role = Schemas["Role"];
+export type Permission = Schemas["Permission"];
+export type LoginRequest = Schemas["LoginRequest"];
+export type SessionView = Schemas["SessionView"];
+export type PrincipalView = Schemas["PrincipalView"];
+export type ReviewAction = Schemas["ReviewAction"];
+export type FeedbackReason = Schemas["FeedbackReason"];
+export type BulkAction = Schemas["BulkAction"];
+export type ApproveRequest = Schemas["ApproveRequest"];
+export type RejectRequest = Schemas["RejectRequest"];
+export type EditAnchorRequest = Schemas["EditAnchorRequest"];
+export type ReplaceTargetRequest = Schemas["ReplaceTargetRequest"];
+export type BulkReviewRequest = Schemas["BulkReviewRequest"];
+export type ReviewResult = Schemas["ReviewResult"];
+export type BulkItemResult = Schemas["BulkItemResult"];
+export type BulkReviewResult = Schemas["BulkReviewResult"];
+export type ReviewActionView = Schemas["ReviewActionView"];
+export type TargetOption = Schemas["TargetOption"];
+export type DashboardSummary = Schemas["DashboardSummary"];
+export type EventName = Schemas["EventName"];
+export type EventRecord = Schemas["EventRecord"];
+export type PolicyDocument = Schemas["PolicyDocument"];
+export type PolicyKind = PolicyDocument["kind"];
+export type PoliciesView = Schemas["PoliciesView"];
+
+export type ReviewActionList = Schemas["ListResponse_ReviewActionView_"];
+export type EventList = Schemas["ListResponse_EventRecord_"];
+/** `GET /recommendations/{plan_id}/review-actions` returns a bare array, oldest first. */
+export type PlanReviewActionList = operations["listPlanReviewActions"]["responses"][200]["content"]["application/json"];
+/** `GET /recommendations/{plan_id}/target-options` returns a bare array. */
+export type TargetOptionList = operations["listPlanTargetOptions"]["responses"][200]["content"]["application/json"];
+
+export type ListReviewActionsQuery = NonNullable<operations["listReviewActions"]["parameters"]["query"]>;
+export type ListEventsQuery = NonNullable<operations["listEvents"]["parameters"]["query"]>;
+export type ListPlanTargetOptionsQuery = NonNullable<operations["listPlanTargetOptions"]["parameters"]["query"]>;
+
 export type ApiPath = keyof paths;
+
+/**
+ * Paths that need no session (ADR-0013 section 7). Every other path requires
+ * `Authorization: Bearer <token>` and may answer 401 (no or dead session) or
+ * 403 (role lacks the permission), both with an `ErrorResponse` body.
+ */
+export const PUBLIC_API_PATHS: ReadonlySet<ApiPath> = new Set<ApiPath>(["/health", "/ready", "/auth/login"]);
+
+/** True for a 401: no session, or the session expired or was revoked. */
+export function isUnauthenticatedError(error: ApiError): boolean {
+  return error.status === 401;
+}
+
+/** True for a 403: the session is valid but its role lacks the permission. */
+export function isPermissionDeniedError(error: ApiError): boolean {
+  return error.status === 403;
+}
+
+/**
+ * A bearer token as RFC 6750 `b64token` (the API issues URL-safe tokens of at
+ * least 43 characters). Anything else is never put in a header or a cookie, so
+ * a malformed value can never inject a header or cookie attribute.
+ */
+const BEARER_TOKEN = /^[A-Za-z0-9\-._~+/]{20,512}=*$/;
+
+export function isWellFormedToken(value: unknown): value is string {
+  return typeof value === "string" && value.length <= 600 && BEARER_TOKEN.test(value);
+}
 
 export const DEFAULT_API_BASE_URL = "http://127.0.0.1:8000";
 export const DEFAULT_TIMEOUT_MS = 5000;
@@ -194,6 +259,12 @@ export interface ApiError {
   readonly code?: ErrorCode;
   /** `ErrorResponse.request_id`, for correlating with server logs, when supplied. */
   readonly requestId?: string;
+  /**
+   * `ErrorResponse.message` of a refused mutation (409 / 422 on a POST), so a
+   * reviewer learns WHY (e.g. the span overlaps an existing link). Plain text,
+   * truncated; it is the API's own wording and never echoes input (ADR-0013).
+   */
+  readonly detail?: string;
 }
 
 /** True for a contract-declared 404 (`page_not_found` / `not_found`). */
@@ -236,6 +307,13 @@ export interface ApiClientOptions {
   readonly fetch?: FetchLike;
   /** Default per-request timeout; a per-call `timeoutMs` overrides it. */
   readonly timeoutMs?: number;
+  /**
+   * Session bearer token, sent as `Authorization: Bearer <token>` to every
+   * non-public path. The caller owns its custody: the web app reads it from an
+   * HttpOnly cookie on the server (lib/api.ts); it never reaches browser code.
+   * A malformed token is never sent.
+   */
+  readonly token?: string;
 }
 
 export interface ApiClient {
@@ -366,6 +444,47 @@ export interface ApiClient {
    * Contract: 200 (an empty array when no agent reviewed it), 422. No 404.
    */
   listAgentPlanReviews(planId: string, options?: RequestOptions): Promise<ApiResult<AgentPlanReviewList>>;
+
+  // --- Phase 5 reviewer control plane (ADR-0013) ------------------------------
+  // Every path below except `POST /auth/login` needs a session; 401 and 403 are
+  // `api_error`s (see `isUnauthenticatedError` / `isPermissionDeniedError`).
+
+  /** `POST /auth/login` — exchange credentials for a session. Contract: 200, 401 (any failure), 422. Public. */
+  login(body: LoginRequest, options?: RequestOptions): Promise<ApiResult<SessionView>>;
+  /** `POST /auth/logout` — revoke the current session. Contract: 204, 401. */
+  logout(options?: RequestOptions): Promise<ApiResult<null>>;
+  /** `GET /auth/me` — the caller, role and permissions (drives the UI). Contract: 200, 401. */
+  getCurrentUser(options?: RequestOptions): Promise<ApiResult<PrincipalView>>;
+  /** `GET /dashboard` — the reviewer's home summary (`read`). Contract: 200, 401, 403, 422. */
+  getDashboard(options?: RequestOptions): Promise<ApiResult<DashboardSummary>>;
+  /** `POST /recommendations/{plan_id}/approve` (`review`). Contract: 200, 401, 403, 404, 409, 422. */
+  approvePlan(planId: string, body: ApproveRequest, options?: RequestOptions): Promise<ApiResult<ReviewResult>>;
+  /** `POST /recommendations/{plan_id}/reject` (`review`). Contract: 200, 401, 403, 404, 409, 422. */
+  rejectPlan(planId: string, body: RejectRequest, options?: RequestOptions): Promise<ApiResult<ReviewResult>>;
+  /** `POST /recommendations/{plan_id}/edit-anchor` (`review`): supersede with a new span. Contract: 200, 401, 403, 404, 409, 422. */
+  editPlanAnchor(planId: string, body: EditAnchorRequest, options?: RequestOptions): Promise<ApiResult<ReviewResult>>;
+  /** `POST /recommendations/{plan_id}/replace-target` (`review`): supersede with a new destination. Contract: 200, 401, 403, 404, 409, 422. */
+  replacePlanTarget(
+    planId: string,
+    body: ReplaceTargetRequest,
+    options?: RequestOptions,
+  ): Promise<ApiResult<ReviewResult>>;
+  /** `POST /recommendations/bulk-review` (`review`): ≤ 50 plans, per-plan results. Contract: 200, 401, 403, 404, 409, 422. */
+  bulkReviewPlans(body: BulkReviewRequest, options?: RequestOptions): Promise<ApiResult<BulkReviewResult>>;
+  /** `GET /recommendations/{plan_id}/target-options` (`review`): eligible replacement destinations. Contract: 200, 401, 403, 404, 422. */
+  listPlanTargetOptions(
+    planId: string,
+    query?: ListPlanTargetOptionsQuery,
+    options?: RequestOptions,
+  ): Promise<ApiResult<TargetOptionList>>;
+  /** `GET /recommendations/{plan_id}/review-actions` (`read`): the plan's human review history. Contract: 200, 401, 403, 404, 422. */
+  listPlanReviewActions(planId: string, options?: RequestOptions): Promise<ApiResult<PlanReviewActionList>>;
+  /** `GET /review/actions` (`read_audit`): every review action, newest first. Contract: 200, 401, 403, 422. */
+  listReviewActions(query?: ListReviewActionsQuery, options?: RequestOptions): Promise<ApiResult<ReviewActionList>>;
+  /** `GET /events` (`read_audit`): the append-only event log, newest first. Contract: 200, 401, 403, 422. */
+  listEvents(query?: ListEventsQuery, options?: RequestOptions): Promise<ApiResult<EventList>>;
+  /** `GET /settings/policies` (`read_settings`): the active policy documents. Contract: 200, 401, 403, 422. */
+  getPolicies(options?: RequestOptions): Promise<ApiResult<PoliciesView>>;
 }
 
 // ---------------------------------------------------------------------------
@@ -1181,6 +1300,157 @@ export const isAgentRunList = (value: unknown): value is AgentRunList => isListR
 export const isAgentPlanReviewList = (value: unknown): value is AgentPlanReviewList =>
   everyItem(value, isAgentPlanReview);
 
+// --- Control-plane guards (Phase 5) -------------------------------------------
+// Same policy: every field the review, audit and settings screens read is
+// checked; enum membership is left to lib/review.ts, lib/auth.ts and lib/audit.ts.
+
+export function isPrincipalView(value: unknown): value is PrincipalView {
+  return (
+    isObject(value) &&
+    typeof value["username"] === "string" &&
+    typeof value["display_name"] === "string" &&
+    typeof value["role"] === "string" &&
+    isStringArray(value["permissions"]) &&
+    typeof value["session_expires_at"] === "string"
+  );
+}
+
+export function isSessionView(value: unknown): value is SessionView {
+  return (
+    isObject(value) &&
+    typeof value["token"] === "string" &&
+    typeof value["expires_at"] === "string" &&
+    isPrincipalView(value["user"])
+  );
+}
+
+export function isReviewActionView(value: unknown): value is ReviewActionView {
+  return (
+    isObject(value) &&
+    typeof value["id"] === "number" &&
+    typeof value["operation_id"] === "string" &&
+    typeof value["action"] === "string" &&
+    typeof value["actor"] === "string" &&
+    typeof value["plan_id"] === "string" &&
+    isNullableString(value["new_plan_id"]) &&
+    isNullableString(value["new_plan_status"]) &&
+    typeof value["from_status"] === "string" &&
+    typeof value["to_status"] === "string" &&
+    isStringArray(value["reasons"]) &&
+    typeof value["note"] === "string" &&
+    typeof value["anchor_before"] === "string" &&
+    isNullableString(value["anchor_after"]) &&
+    typeof value["target_before"] === "string" &&
+    isNullableString(value["target_after"]) &&
+    isNullableString(value["bulk_operation_id"]) &&
+    typeof value["created_at"] === "string"
+  );
+}
+
+export function isReviewResult(value: unknown): value is ReviewResult {
+  return (
+    isObject(value) &&
+    typeof value["action_id"] === "number" &&
+    typeof value["operation_id"] === "string" &&
+    typeof value["action"] === "string" &&
+    typeof value["plan_id"] === "string" &&
+    typeof value["status"] === "string" &&
+    isNullableString(value["new_plan_id"]) &&
+    isNullableString(value["new_plan_status"]) &&
+    typeof value["idempotent_replay"] === "boolean"
+  );
+}
+
+export function isBulkItemResult(value: unknown): value is BulkItemResult {
+  return (
+    isObject(value) &&
+    typeof value["plan_id"] === "string" &&
+    typeof value["ok"] === "boolean" &&
+    isNullableString(value["status"]) &&
+    isNullableString(value["error_code"])
+  );
+}
+
+export function isBulkReviewResult(value: unknown): value is BulkReviewResult {
+  return (
+    isObject(value) &&
+    typeof value["operation_id"] === "string" &&
+    typeof value["action"] === "string" &&
+    everyItem(value["items"], isBulkItemResult) &&
+    typeof value["idempotent_replay"] === "boolean"
+  );
+}
+
+export function isTargetOption(value: unknown): value is TargetOption {
+  return (
+    isObject(value) &&
+    typeof value["page_id"] === "string" &&
+    typeof value["canonical_url"] === "string" &&
+    isNullableString(value["title"]) &&
+    isNullableString(value["page_type"]) &&
+    isNullableString(value["market_id"]) &&
+    (value["relevance"] === null || isNumber(value["relevance"]))
+  );
+}
+
+export function isDashboardSummary(value: unknown): value is DashboardSummary {
+  return (
+    isObject(value) &&
+    ["pages_total", "pages_live", "pages_analyzed", "pages_protected", "awaiting_approval"].every((key) =>
+      isNumber(value[key]),
+    ) &&
+    isNumberRecord(value["plans_by_status"]) &&
+    isNumberRecord(value["opportunities_by_kind"]) &&
+    isNumberRecord(value["agent_runs_by_outcome"]) &&
+    isNumberRecord(value["reviews_by_action"]) &&
+    everyItem(value["recent_review_actions"], isReviewActionView) &&
+    everyItem(value["latest_jobs"], isJobRunSummary) &&
+    typeof value["auto_approve_enabled"] === "boolean"
+  );
+}
+
+export function isEventRecord(value: unknown): value is EventRecord {
+  return (
+    isObject(value) &&
+    typeof value["id"] === "number" &&
+    typeof value["event_id"] === "string" &&
+    typeof value["event_name"] === "string" &&
+    typeof value["event_version"] === "number" &&
+    typeof value["occurred_at"] === "string" &&
+    typeof value["emitted_by"] === "string" &&
+    isNullableString(value["subject_type"]) &&
+    isNullableString(value["subject_id"]) &&
+    isObject(value["payload"]) &&
+    isNullableString(value["correlation_id"])
+  );
+}
+
+export function isPolicyDocument(value: unknown): value is PolicyDocument {
+  return (
+    isObject(value) &&
+    typeof value["kind"] === "string" &&
+    (typeof value["version"] === "number" || typeof value["version"] === "string") &&
+    typeof value["path"] === "string" &&
+    typeof value["sha256"] === "string" &&
+    isObject(value["content"])
+  );
+}
+
+export function isPoliciesView(value: unknown): value is PoliciesView {
+  return (
+    isObject(value) &&
+    everyItem(value["policies"], isPolicyDocument) &&
+    typeof value["auto_approve_enabled"] === "boolean"
+  );
+}
+
+export const isReviewActionList = (value: unknown): value is ReviewActionList =>
+  isListResponse(value, isReviewActionView);
+export const isEventList = (value: unknown): value is EventList => isListResponse(value, isEventRecord);
+export const isPlanReviewActionList = (value: unknown): value is PlanReviewActionList =>
+  everyItem(value, isReviewActionView);
+export const isTargetOptionList = (value: unknown): value is TargetOptionList => everyItem(value, isTargetOption);
+
 /** The contract's only error body. `details` may be absent from older servers. */
 export function isErrorResponse(value: unknown): value is ErrorResponse {
   return (
@@ -1281,6 +1551,9 @@ interface ResolvedRequest {
   readonly path: ApiPath;
   readonly urlPath: string;
   readonly query?: URLSearchParams;
+  /** Defaults to GET. A POST carries `body` as JSON. */
+  readonly method?: "GET" | "POST";
+  readonly body?: unknown;
 }
 
 interface ResponseSpec<T> {
@@ -1289,16 +1562,50 @@ interface ResponseSpec<T> {
   /** Error statuses the contract declares for this path; their body is an `ErrorResponse`. */
   readonly declaredErrors: readonly number[];
   readonly guard: (value: unknown) => value is T;
+  /** The success status has no body (204); `data` is `null`. */
+  readonly empty?: boolean;
 }
 
-async function getJson<T>(
+/** Statuses every non-public path may answer with an `ErrorResponse` (ADR-0013 section 7). */
+const SESSION_ERRORS: readonly number[] = [401, 403];
+
+const MAX_DETAIL_CHARS = 300;
+
+function errorMessage(path: ApiPath, status: number): string {
+  switch (status) {
+    case 401:
+      return path === "/auth/login"
+        ? "The username or password was not accepted, or the account is temporarily locked."
+        : "You are not signed in, or your session has expired.";
+    case 403:
+      return `Your role does not permit this request (${path}).`;
+    case 404:
+      return `The API reported that the requested ${path} resource does not exist.`;
+    case 409:
+      return `The API refused the change to ${path} because it conflicts with the current state (HTTP 409).`;
+    case 503:
+      return `The API reported that a service needed for ${path} is unavailable (HTTP 503).`;
+    default:
+      return `The API rejected the request to ${path} (HTTP ${status}).`;
+  }
+}
+
+function truncate(text: string, max: number): string {
+  return text.length > max ? `${text.slice(0, max - 1)}…` : text;
+}
+
+const isNull = (value: unknown): value is null => value === null;
+
+async function send<T>(
   base: URL,
   fetchImpl: FetchLike,
   request: ResolvedRequest,
   spec: ResponseSpec<T>,
   timeoutMs: number,
+  token: string | undefined,
 ): Promise<ApiResult<T>> {
   const { path } = request;
+  const method = request.method ?? "GET";
   // Preserve any path prefix on the base URL (e.g. behind a reverse proxy).
   const url = new URL(
     request.urlPath.replace(/^\//, ""),
@@ -1309,13 +1616,20 @@ async function getJson<T>(
     url.search = search;
   }
 
+  const headers: Record<string, string> = { Accept: "application/json" };
+  if (method === "POST") headers["Content-Type"] = "application/json";
+  if (token !== undefined) headers["Authorization"] = `Bearer ${token}`;
+
   let response: Response;
   try {
     response = await fetchImpl(url, {
-      method: "GET",
-      headers: { Accept: "application/json" },
+      method,
+      headers,
       cache: "no-store",
+      // Never follow a redirect with the bearer token attached.
+      redirect: "manual",
       signal: AbortSignal.timeout(timeoutMs),
+      ...(method === "POST" ? { body: JSON.stringify(request.body ?? {}) } : {}),
     });
   } catch (error) {
     return {
@@ -1324,6 +1638,10 @@ async function getJson<T>(
         ? { kind: "timeout", path, message: `The API did not respond to ${path} in time.` }
         : { kind: "network", path, message: `The API could not be reached for ${path}.` },
     };
+  }
+
+  if (spec.empty === true && spec.ok.includes(response.status)) {
+    return { ok: true, data: null as T, status: response.status };
   }
 
   let body: unknown;
@@ -1348,6 +1666,10 @@ async function getJson<T>(
   if (spec.declaredErrors.includes(response.status)) {
     if (parsed && isErrorResponse(body)) {
       const requestId = typeof body.request_id === "string" ? body.request_id : undefined;
+      const detail =
+        method === "POST" && (response.status === 409 || response.status === 422) && body.message.trim() !== ""
+          ? truncate(body.message, MAX_DETAIL_CHARS)
+          : undefined;
       return {
         ok: false,
         error: {
@@ -1355,13 +1677,9 @@ async function getJson<T>(
           path,
           status: response.status,
           code: body.code,
-          message:
-            response.status === 404
-              ? `The API reported that the requested ${path} resource does not exist.`
-              : response.status === 503
-                ? `The API reported that a service needed for ${path} is unavailable (HTTP 503).`
-                : `The API rejected the request to ${path} (HTTP ${response.status}).`,
+          message: errorMessage(path, response.status),
           ...(requestId === undefined ? {} : { requestId }),
+          ...(detail === undefined ? {} : { detail }),
         },
       };
     }
@@ -1413,6 +1731,7 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
   const base = parseBaseUrl(options.baseUrl);
   const fetchImpl = options.fetch ?? globalFetch;
   const defaultTimeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  const token = isWellFormedToken(options.token) ? options.token : undefined;
 
   function call<T>(
     request: ResolvedRequest,
@@ -1424,8 +1743,33 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
         configError<T>(request.path, "The API base URL is not a valid http(s) URL."),
       );
     }
-    return getJson(base, fetchImpl, request, spec, callOptions.timeoutMs ?? defaultTimeoutMs);
+    // Public paths never receive the token; every other path may answer 401/403.
+    const isPublic = PUBLIC_API_PATHS.has(request.path);
+    const declaredErrors = isPublic
+      ? spec.declaredErrors
+      : [...new Set([...spec.declaredErrors, ...SESSION_ERRORS])];
+    return send(
+      base,
+      fetchImpl,
+      request,
+      { ...spec, declaredErrors },
+      callOptions.timeoutMs ?? defaultTimeoutMs,
+      isPublic ? undefined : token,
+    );
   }
+
+  /** A JSON POST (review mutations, login, logout). */
+  function post<T>(
+    path: ApiPath,
+    urlPath: string,
+    body: unknown,
+    spec: ResponseSpec<T>,
+    callOptions: RequestOptions,
+  ): Promise<ApiResult<T>> {
+    return call({ path, urlPath, method: "POST", body }, spec, callOptions);
+  }
+
+  const REVIEW_ERRORS = [404, 409, 422] as const;
 
   function invalidArgument<T>(path: ApiPath, what: string): Promise<ApiResult<T>> {
     return Promise.resolve({
@@ -1627,5 +1971,70 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
         [422],
       );
     },
+
+    login: (body, callOptions = {}) =>
+      post("/auth/login", "/auth/login", body, { ok: [200], declaredErrors: [401, 422], guard: isSessionView }, callOptions),
+
+    logout: (callOptions = {}) =>
+      post("/auth/logout", "/auth/logout", {}, { ok: [204], declaredErrors: [], guard: isNull, empty: true }, callOptions),
+
+    getCurrentUser: (callOptions = {}) =>
+      inventory("/auth/me", "/auth/me", isPrincipalView, undefined, callOptions, []),
+
+    getDashboard: (callOptions = {}) =>
+      inventory("/dashboard", "/dashboard", isDashboardSummary, undefined, callOptions, [422]),
+
+    approvePlan: (planId, body, callOptions = {}) => {
+      const path = "/recommendations/{plan_id}/approve";
+      if (!isSafePathId(planId)) return invalidArgument(path, "recommendation id");
+      return post(path, `/recommendations/${id(planId)}/approve`, body, { ok: [200], declaredErrors: REVIEW_ERRORS, guard: isReviewResult }, callOptions);
+    },
+
+    rejectPlan: (planId, body, callOptions = {}) => {
+      const path = "/recommendations/{plan_id}/reject";
+      if (!isSafePathId(planId)) return invalidArgument(path, "recommendation id");
+      return post(path, `/recommendations/${id(planId)}/reject`, body, { ok: [200], declaredErrors: REVIEW_ERRORS, guard: isReviewResult }, callOptions);
+    },
+
+    editPlanAnchor: (planId, body, callOptions = {}) => {
+      const path = "/recommendations/{plan_id}/edit-anchor";
+      if (!isSafePathId(planId)) return invalidArgument(path, "recommendation id");
+      return post(path, `/recommendations/${id(planId)}/edit-anchor`, body, { ok: [200], declaredErrors: REVIEW_ERRORS, guard: isReviewResult }, callOptions);
+    },
+
+    replacePlanTarget: (planId, body, callOptions = {}) => {
+      const path = "/recommendations/{plan_id}/replace-target";
+      if (!isSafePathId(planId)) return invalidArgument(path, "recommendation id");
+      return post(path, `/recommendations/${id(planId)}/replace-target`, body, { ok: [200], declaredErrors: REVIEW_ERRORS, guard: isReviewResult }, callOptions);
+    },
+
+    bulkReviewPlans: (body, callOptions = {}) =>
+      post(
+        "/recommendations/bulk-review",
+        "/recommendations/bulk-review",
+        body,
+        { ok: [200], declaredErrors: REVIEW_ERRORS, guard: isBulkReviewResult },
+        callOptions,
+      ),
+
+    listPlanTargetOptions: (planId, query, callOptions = {}) => {
+      const path = "/recommendations/{plan_id}/target-options";
+      if (!isSafePathId(planId)) return invalidArgument(path, "recommendation id");
+      return inventory(path, `/recommendations/${id(planId)}/target-options`, isTargetOptionList, query, callOptions);
+    },
+
+    listPlanReviewActions: (planId, callOptions = {}) => {
+      const path = "/recommendations/{plan_id}/review-actions";
+      if (!isSafePathId(planId)) return invalidArgument(path, "recommendation id");
+      return inventory(path, `/recommendations/${id(planId)}/review-actions`, isPlanReviewActionList, undefined, callOptions);
+    },
+
+    listReviewActions: (query, callOptions = {}) =>
+      inventory("/review/actions", "/review/actions", isReviewActionList, query, callOptions, [422]),
+
+    listEvents: (query, callOptions = {}) => inventory("/events", "/events", isEventList, query, callOptions, [422]),
+
+    getPolicies: (callOptions = {}) =>
+      inventory("/settings/policies", "/settings/policies", isPoliciesView, undefined, callOptions, [422]),
   };
 }

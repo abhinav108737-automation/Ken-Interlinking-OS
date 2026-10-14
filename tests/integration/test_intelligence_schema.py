@@ -26,6 +26,7 @@ from ken_core.db.models.agents import APPEND_ONLY_AGENT_TABLES
 from ken_core.db.models.intelligence import IMMUTABLE_INTELLIGENCE_TABLES
 from ken_core.db.models.inventory import IMMUTABLE_TABLES
 from ken_core.db.models.recommendations import APPEND_ONLY_RECOMMENDATION_TABLES
+from ken_core.db.models.review import APPEND_ONLY_REVIEW_TABLES
 from tests.integration.conftest import SyncDb
 
 pytestmark = pytest.mark.integration
@@ -211,6 +212,7 @@ def test_trigger_set_covers_all_history_tables(db: SyncDb) -> None:
         | set(IMMUTABLE_INTELLIGENCE_TABLES)
         | set(APPEND_ONLY_RECOMMENDATION_TABLES)
         | set(APPEND_ONLY_AGENT_TABLES)
+        | set(APPEND_ONLY_REVIEW_TABLES)
     )
 
 
@@ -448,4 +450,4 @@ def test_downgrade_to_0002_restores_exactly_the_inventory_schema(
     state = sync_db.run(_state)
     assert set(INTELLIGENCE_TABLES) <= state["tables"]
     assert "vector" in state["extensions"]
-    assert state["revision"] == "0005_agent_runs"
+    assert state["revision"] == "0006_review_control_plane"

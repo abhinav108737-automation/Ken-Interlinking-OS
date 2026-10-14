@@ -28,7 +28,7 @@ export function HighlightedAnchor({
       {before}
       <span className="sr-only">[anchor start] </span>
       <mark
-        className={`rounded-sm bg-yellow-200 px-0.5 font-semibold text-slate-950 ${linked ? "underline decoration-2 underline-offset-2" : ""}`}
+        className={`rounded-sm bg-yellow-200 px-0.5 font-semibold text-slate-950 ${linked ? "text-blue-900 underline decoration-2 underline-offset-2" : ""}`}
       >
         {anchor}
       </mark>

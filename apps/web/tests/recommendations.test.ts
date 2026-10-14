@@ -199,12 +199,13 @@ describe("helpers", () => {
 });
 
 describe("query parsing", () => {
-  it("defaults the status filter to proposed and accepts all or a contract status", () => {
-    expect(parseStatusFilter({})).toBe("proposed");
+  it("defaults the status filter to awaiting_approval (the inbox) and accepts all or a contract status", () => {
+    expect(parseStatusFilter({})).toBe("awaiting_approval");
+    expect(parseStatusFilter({ status: "proposed" })).toBe("proposed");
     expect(parseStatusFilter({ status: "all" })).toBe(ALL_STATUSES);
     expect(parseStatusFilter({ status: "approved" })).toBe("approved");
     expect(parseStatusFilter({ status: ["verified", "x"] })).toBe("verified");
-    expect(parseStatusFilter({ status: "approved; drop" })).toBe("proposed");
+    expect(parseStatusFilter({ status: "approved; drop" })).toBe("awaiting_approval");
   });
 
   it("accepts a minimum score only within [0, 1]", () => {

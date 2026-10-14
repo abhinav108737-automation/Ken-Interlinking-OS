@@ -10,19 +10,25 @@ reaches for a module-level global.
 from __future__ import annotations
 
 import importlib
-from typing import Annotated, Any, Final, cast
+import uuid
+from typing import Annotated, Any, Final, Protocol, cast
 
 from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from ken_contracts.agents import AgentReader
+from ken_contracts.auth import AuthProvider
 from ken_contracts.cms import CMSProvider
 from ken_contracts.common import ServiceIdentity
+from ken_contracts.controlplane import DashboardSummary, EventRecord, PoliciesView
+from ken_contracts.errors import ListResponse
+from ken_contracts.events import EventName
 from ken_contracts.intelligence import IntelligenceReader
 from ken_contracts.inventory import InventoryReader
 from ken_contracts.jobs import JobReader
 from ken_contracts.model import ModelProvider
 from ken_contracts.recommendations import RecommendationReader
+from ken_contracts.review import ReviewReader, ReviewService, TargetOption
 from ken_core.config import Settings
 from ken_core.health.probes import Probe, build_probes
 
@@ -31,6 +37,32 @@ INTELLIGENCE_READER: Final = "ken_services.intelligence.reader"
 JOB_READER: Final = "ken_services.jobs.reader"
 RECOMMENDATION_READER: Final = "ken_services.recommendations.reader"
 AGENT_READER: Final = "ken_services.agents.reader"
+REVIEW_SERVICE: Final = "ken_services.review.service"
+REVIEW_READER: Final = "ken_services.review.reader"
+CONTROL_PLANE_READER: Final = "ken_services.review.controlplane"
+
+
+class TargetOptionsService(ReviewService, Protocol):
+    """The review service plus the replacement-destination picker (ADR-0013 s7)."""
+
+    async def target_options(self, *, plan_id: uuid.UUID, limit: int) -> list[TargetOption]: ...
+
+
+class ControlPlaneReader(Protocol):
+    """``ken_services.review.controlplane.SqlControlPlaneReader`` (structural)."""
+
+    async def dashboard(self) -> DashboardSummary: ...
+
+    async def list_events(
+        self,
+        *,
+        limit: int,
+        offset: int,
+        event_name: EventName | None = None,
+        subject_id: str | None = None,
+    ) -> ListResponse[EventRecord]: ...
+
+    async def policies(self) -> PoliciesView: ...
 
 
 class AppStateNotInitialisedError(RuntimeError):
@@ -126,6 +158,42 @@ def get_agent_reader(
     return reader
 
 
+def get_review_service(
+    settings: Annotated[Settings, Depends(get_app_settings)],
+    sessionmaker: Annotated[async_sessionmaker[AsyncSession], Depends(get_sessionmaker)],
+) -> TargetOptionsService:
+    module: Any = importlib.import_module(REVIEW_SERVICE)
+    service: TargetOptionsService = module.DatabaseReviewService(
+        sessionmaker=sessionmaker, settings=settings
+    )
+    return service
+
+
+def get_review_reader(
+    sessionmaker: Annotated[async_sessionmaker[AsyncSession], Depends(get_sessionmaker)],
+) -> ReviewReader:
+    module: Any = importlib.import_module(REVIEW_READER)
+    reader: ReviewReader = module.SqlReviewReader(sessionmaker=sessionmaker)
+    return reader
+
+
+def get_control_plane_reader(
+    settings: Annotated[Settings, Depends(get_app_settings)],
+    sessionmaker: Annotated[async_sessionmaker[AsyncSession], Depends(get_sessionmaker)],
+) -> ControlPlaneReader:
+    module: Any = importlib.import_module(CONTROL_PLANE_READER)
+    reader: ControlPlaneReader = module.SqlControlPlaneReader(
+        sessionmaker=sessionmaker, settings=settings
+    )
+    return reader
+
+
+def get_auth_provider_dep(request: Request) -> AuthProvider:
+    from ken_api.security import get_auth_provider
+
+    return get_auth_provider(request)
+
+
 SettingsDep = Annotated[Settings, Depends(get_app_settings)]
 IdentityDep = Annotated[ServiceIdentity, Depends(get_identity)]
 ProbesDep = Annotated[list[Probe], Depends(get_probes)]
@@ -134,3 +202,7 @@ IntelligenceReaderDep = Annotated[IntelligenceReader, Depends(get_intelligence_r
 JobReaderDep = Annotated[JobReader, Depends(get_job_reader)]
 RecommendationReaderDep = Annotated[RecommendationReader, Depends(get_recommendation_reader)]
 AgentReaderDep = Annotated[AgentReader, Depends(get_agent_reader)]
+ReviewServiceDep = Annotated[TargetOptionsService, Depends(get_review_service)]
+ReviewReaderDep = Annotated[ReviewReader, Depends(get_review_reader)]
+ControlPlaneReaderDep = Annotated[ControlPlaneReader, Depends(get_control_plane_reader)]
+AuthProviderDep = Annotated[AuthProvider, Depends(get_auth_provider_dep)]

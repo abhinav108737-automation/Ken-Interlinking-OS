@@ -1,8 +1,9 @@
 """Phase 3 recommendation read API: link plans, candidates, opportunities.
 
-READ-ONLY in Phase 3. Recommendation runs start from the command line
-(``make recommend``); approving, rejecting and editing plans is the Phase 5
-review API (TRD section 14), behind authentication. Nothing here can publish.
+READ-ONLY. Recommendation runs start from the command line (``make recommend``);
+approving, rejecting and editing plans is the Phase 5 review API
+(``ken_api.routers.review``). Every route here needs the ``read`` permission
+(ADR-0013, router-level). Nothing here can publish.
 
 Route functions carry no docstrings on purpose (see routers/health.py).
 """
@@ -12,9 +13,11 @@ from __future__ import annotations
 from typing import Annotated, Any, Final
 from uuid import UUID
 
-from fastapi import APIRouter, Path, Query
+from fastapi import APIRouter, Depends, Path, Query
 
 from ken_api.deps import RecommendationReaderDep
+from ken_api.security import AUTH_RESPONSES, require
+from ken_contracts.auth import Permission
 from ken_contracts.errors import ErrorResponse, ListResponse
 from ken_contracts.recommendations import (
     CandidateView,
@@ -26,7 +29,14 @@ from ken_contracts.recommendations import (
     RecommendationSummary,
 )
 
-router = APIRouter(prefix="/recommendations", tags=["recommendations"])
+# Deny by default (ADR-0013 s7): every route here needs the `read` permission.
+_READ: Final = [Depends(require(Permission.READ))]
+router = APIRouter(
+    prefix="/recommendations",
+    tags=["recommendations"],
+    dependencies=_READ,
+    responses=AUTH_RESPONSES,
+)
 
 _ERRORS: Final[dict[int | str, dict[str, Any]]] = {
     422: {"model": ErrorResponse, "description": "A parameter is invalid."},

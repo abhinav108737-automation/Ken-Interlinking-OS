@@ -17,7 +17,8 @@ import {
 
 import { CountTable } from "../intelligence/CountTable";
 
-function statusHref(status: string): string | undefined {
+/** Inbox href filtered to `status`, or `undefined` for a status this build does not know. */
+export function statusHref(status: string): string | undefined {
   if (!(LINK_PLAN_STATUSES as readonly string[]).includes(status)) return undefined;
   return status === DEFAULT_STATUS_FILTER ? RECOMMENDATIONS_PATH : buildHref(RECOMMENDATIONS_PATH, { status });
 }

@@ -8,6 +8,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Path, Query
 
+from ken_api.deps import ReviewReaderDep, ReviewServiceDep
 from ken_api.security import Auditor, Reader, Reviewer
 from ken_contracts.errors import ErrorResponse, ListResponse
 from ken_contracts.review import (
@@ -51,8 +52,10 @@ Offset = Annotated[int, Query(ge=0, le=10_000_000)]
     response_model=ReviewResult,
     responses=_MUTATION,
 )
-async def approve(principal: Reviewer, plan_id: PlanId, body: ApproveRequest) -> ReviewResult:
-    raise NotImplementedError
+async def approve(
+    principal: Reviewer, plan_id: PlanId, body: ApproveRequest, service: ReviewServiceDep
+) -> ReviewResult:
+    return await service.approve(plan_id=plan_id, request=body, principal=principal)
 
 
 @router.post(
@@ -62,8 +65,10 @@ async def approve(principal: Reviewer, plan_id: PlanId, body: ApproveRequest) ->
     response_model=ReviewResult,
     responses=_MUTATION,
 )
-async def reject(principal: Reviewer, plan_id: PlanId, body: RejectRequest) -> ReviewResult:
-    raise NotImplementedError
+async def reject(
+    principal: Reviewer, plan_id: PlanId, body: RejectRequest, service: ReviewServiceDep
+) -> ReviewResult:
+    return await service.reject(plan_id=plan_id, request=body, principal=principal)
 
 
 @router.post(
@@ -74,9 +79,9 @@ async def reject(principal: Reviewer, plan_id: PlanId, body: RejectRequest) -> R
     responses=_MUTATION,
 )
 async def edit_anchor(
-    principal: Reviewer, plan_id: PlanId, body: EditAnchorRequest
+    principal: Reviewer, plan_id: PlanId, body: EditAnchorRequest, service: ReviewServiceDep
 ) -> ReviewResult:
-    raise NotImplementedError
+    return await service.edit_anchor(plan_id=plan_id, request=body, principal=principal)
 
 
 @router.post(
@@ -87,9 +92,9 @@ async def edit_anchor(
     responses=_MUTATION,
 )
 async def replace_target(
-    principal: Reviewer, plan_id: PlanId, body: ReplaceTargetRequest
+    principal: Reviewer, plan_id: PlanId, body: ReplaceTargetRequest, service: ReviewServiceDep
 ) -> ReviewResult:
-    raise NotImplementedError
+    return await service.replace_target(plan_id=plan_id, request=body, principal=principal)
 
 
 @router.post(
@@ -99,8 +104,10 @@ async def replace_target(
     response_model=BulkReviewResult,
     responses=_MUTATION,
 )
-async def bulk_review(principal: Reviewer, body: BulkReviewRequest) -> BulkReviewResult:
-    raise NotImplementedError
+async def bulk_review(
+    principal: Reviewer, body: BulkReviewRequest, service: ReviewServiceDep
+) -> BulkReviewResult:
+    return await service.bulk(request=body, principal=principal)
 
 
 @router.get(
@@ -111,9 +118,12 @@ async def bulk_review(principal: Reviewer, body: BulkReviewRequest) -> BulkRevie
     responses={**_AUTH, 404: {"model": ErrorResponse, "description": "No such plan."}},
 )
 async def target_options(
-    principal: Reviewer, plan_id: PlanId, limit: Annotated[int, Query(ge=1, le=50)] = 20
+    principal: Reviewer,
+    plan_id: PlanId,
+    service: ReviewServiceDep,
+    limit: Annotated[int, Query(ge=1, le=50)] = 20,
 ) -> list[TargetOption]:
-    raise NotImplementedError
+    return await service.target_options(plan_id=plan_id, limit=limit)
 
 
 @router.get(
@@ -123,8 +133,10 @@ async def target_options(
     response_model=list[ReviewActionView],
     responses={**_AUTH, 404: {"model": ErrorResponse, "description": "No such plan."}},
 )
-async def plan_review_actions(principal: Reader, plan_id: PlanId) -> list[ReviewActionView]:
-    raise NotImplementedError
+async def plan_review_actions(
+    principal: Reader, plan_id: PlanId, reader: ReviewReaderDep
+) -> list[ReviewActionView]:
+    return await reader.actions_for_plan(plan_id=plan_id)
 
 
 @router.get(
@@ -140,5 +152,7 @@ async def list_actions(
     offset: Offset = 0,
     action: ReviewAction | None = None,
     actor: Annotated[str | None, Query(max_length=210)] = None,
+    *,
+    reader: ReviewReaderDep,
 ) -> ListResponse[ReviewActionView]:
-    raise NotImplementedError
+    return await reader.list_actions(limit=limit, offset=offset, action=action, actor=actor)

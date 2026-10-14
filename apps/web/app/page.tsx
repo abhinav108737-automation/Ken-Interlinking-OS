@@ -1,20 +1,39 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 
-export default function HomePage() {
+import { ApiErrorNotice } from "@/components/ApiErrorNotice";
+import { DashboardView } from "@/components/dashboard/DashboardView";
+import { getDashboard, requireSessionUser } from "@/lib/api";
+import { can, permissionsOf } from "@/lib/auth";
+
+// Live counts: never prerender or cache this page.
+export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Dashboard",
+};
+
+export default async function DashboardPage() {
+  const [result, me] = await Promise.all([getDashboard(), requireSessionUser()]);
+  const canReview = can(permissionsOf(me.ok ? me.data : null), "review");
   return (
-    <section aria-labelledby="home-heading" className="space-y-4">
-      <h1 id="home-heading" className="text-2xl font-semibold">
-        Ken Interlink OS
-      </h1>
-      <p className="max-w-prose text-slate-800">
-        This is the Phase 0 foundation of the Ken Research Agentic Interlinking OS. It provides the
-        application shell and a live view of the control API and its dependencies; review and
-        recommendation screens arrive in later phases. See{" "}
-        <Link href="/system" className="text-blue-800 underline underline-offset-4">
-          system status
-        </Link>{" "}
-        to check the API, database and model server.
-      </p>
-    </section>
+    <div className="space-y-8">
+      <header className="space-y-2">
+        <h1 className="text-2xl font-semibold">Dashboard</h1>
+        <p className="max-w-prose text-slate-800">
+          The state of the content inventory, the recommendation queue and recent reviews. Nothing is deployed from this
+          console in this phase; see{" "}
+          <Link href="/system" className="text-blue-800 underline underline-offset-4">
+            system status
+          </Link>{" "}
+          for the API, database and model server.
+        </p>
+      </header>
+      {result.ok ? (
+        <DashboardView summary={result.data} canReview={canReview} />
+      ) : (
+        <ApiErrorNotice error={result.error} what="Dashboard" />
+      )}
+    </div>
   );
 }

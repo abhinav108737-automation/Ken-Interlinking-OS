@@ -5,6 +5,7 @@ import { formatDateTime } from "@/lib/format";
 import { describeRelationshipType } from "@/lib/intelligence";
 import { pageDisplayTitle } from "@/lib/inventory";
 import { describeLinkPlanStatus, describeReasonCode, planHref, topReasonCodes } from "@/lib/recommendations";
+import { BULK_STATUS } from "@/lib/review";
 
 import { StatusBadge } from "../StatusBadge";
 import { pageHref } from "../inventory/PageInventoryTable";
@@ -23,6 +24,12 @@ export interface RecommendationTableProps {
    * screen: `from` (plans whose source is the page) or `to` (whose target is).
    */
   readonly variant?: "full" | "from" | "to";
+  /**
+   * Id of a bulk-review form: adds a selection checkbox (bound to that form via
+   * the `form` attribute) to every plan awaiting approval. Omit for read-only
+   * sessions; bulk review applies to nothing else.
+   */
+  readonly selectFormId?: string;
 }
 
 function TargetCell({ plan }: { readonly plan: LinkPlan }) {
@@ -57,9 +64,11 @@ export function RecommendationTable({
   caption = "Recommendations",
   emptyMessage = "No recommendations.",
   variant = "full",
+  selectFormId,
 }: RecommendationTableProps) {
   const full = variant === "full";
   const columns = [
+    ...(selectFormId === undefined ? [] : ["Select"]),
     "Score",
     "Anchor text",
     ...(variant !== "from" ? ["Source page"] : []),
@@ -79,6 +88,21 @@ export function RecommendationTable({
             const reasons = topReasonCodes(plan.reason_codes);
             return (
               <tr key={plan.id} className={ROW}>
+                {selectFormId !== undefined && (
+                  <td className={CELL}>
+                    {plan.status === BULK_STATUS ? (
+                      <input
+                        type="checkbox"
+                        name="plan_ids"
+                        value={plan.id}
+                        form={selectFormId}
+                        aria-label={`Select “${plan.anchor_text}” for bulk review`}
+                      />
+                    ) : (
+                      <span className="text-xs text-slate-600">—</span>
+                    )}
+                  </td>
+                )}
                 <td className={CELL}>
                   <PlanScore plan={plan} />
                 </td>

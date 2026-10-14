@@ -12,9 +12,21 @@
  * Reusable code (components, lib/status, lib/platform) must import types from
  * `lib/api-client.ts`, not from here — ESLint enforces that.
  *
- * Functions never throw. They return an `ApiResult`, so a page can always
- * render either the data or a meaningful error state.
+ * Functions never throw for an API failure. They return an `ApiResult`, so a
+ * page can always render either the data or a meaningful error state.
+ *
+ * SESSION CUSTODY (ADR-0013 sections 2 and 7). This is also the ONE module that
+ * reads and writes the session cookie. Every call to a non-public path
+ * forwards the cookie's token as `Authorization: Bearer <token>`, so no page
+ * can forget it. When the API answers 401, the call does not return: it
+ * redirects (a Next.js control-flow throw) to `/auth/expired`, which clears a
+ * cookie the API no longer accepts and continues to `/login?next=<this page>`.
+ * Authorisation itself is always the API's decision, never this module's.
  */
+import { cookies, headers } from "next/headers";
+import { redirect } from "next/navigation";
+import { cache } from "react";
+
 import {
   type AgentPlanReviewList,
   type AgentRunDetail,
@@ -61,11 +73,44 @@ import {
   type SemanticSearchQuery,
   type SimilarPageList,
   type TaxonomyView,
+  type ApproveRequest,
+  type BulkReviewRequest,
+  type BulkReviewResult,
+  type DashboardSummary,
+  type EditAnchorRequest,
+  type EventList,
+  type ListEventsQuery,
+  type ListPlanTargetOptionsQuery,
+  type ListReviewActionsQuery,
+  type LoginRequest,
+  type PlanReviewActionList,
+  type PoliciesView,
+  type PrincipalView,
+  type RejectRequest,
+  type ReplaceTargetRequest,
+  type ReviewActionList,
+  type ReviewResult,
+  type SessionView,
+  type TargetOptionList,
   DEFAULT_API_BASE_URL,
+  PUBLIC_API_PATHS,
   configError,
   createApiClient,
+  isUnauthenticatedError,
+  isWellFormedToken,
   parseBaseUrl,
 } from "./api-client";
+import {
+  REQUEST_PATH_HEADER,
+  SESSION_COOKIE,
+  clearedSessionCookieOptions,
+  loginHref,
+  safeNextPath,
+  sessionCookieOptions,
+  sessionExpiredHref,
+  sessionMaxAgeSeconds,
+  shouldUseSecureCookie,
+} from "./session";
 
 export type {
   AgentErrorCode,
@@ -127,6 +172,31 @@ export type {
   SimilarPageList,
   TaxonomyView,
   ToolCallRecord,
+  ApproveRequest,
+  BulkAction,
+  BulkItemResult,
+  BulkReviewRequest,
+  BulkReviewResult,
+  DashboardSummary,
+  EditAnchorRequest,
+  EventList,
+  EventName,
+  EventRecord,
+  FeedbackReason,
+  Permission,
+  PlanReviewActionList,
+  PoliciesView,
+  PolicyDocument,
+  PrincipalView,
+  RejectRequest,
+  ReplaceTargetRequest,
+  ReviewAction,
+  ReviewActionList,
+  ReviewActionView,
+  ReviewResult,
+  Role,
+  TargetOption,
+  TargetOptionList,
 } from "./api-client";
 export {
   DEFAULT_API_BASE_URL,
@@ -137,7 +207,9 @@ export {
   isMissingResourceError,
   isModelUnavailableError,
   isNotFoundError,
+  isPermissionDeniedError,
   isReadinessResponse,
+  isUnauthenticatedError,
 } from "./api-client";
 
 /** The configured API base URL, or `null` when `KEN_API_BASE_URL` is not a valid http(s) URL. */
@@ -145,16 +217,81 @@ export function resolveBaseUrl(): URL | null {
   return parseBaseUrl(process.env["KEN_API_BASE_URL"]?.trim() || DEFAULT_API_BASE_URL);
 }
 
+// ---------------------------------------------------------------------------
+// Session custody: the only reads and writes of the session cookie.
+// ---------------------------------------------------------------------------
+
+/** The session token from the request's cookie, when present and well formed. */
+async function sessionToken(): Promise<string | undefined> {
+  const value = (await cookies()).get(SESSION_COOKIE)?.value;
+  return isWellFormedToken(value) ? value : undefined;
+}
+
+/** The requested path (set by proxy.ts), made safe for a `next` parameter. */
+async function requestedPath(): Promise<string> {
+  return safeNextPath((await headers()).get(REQUEST_PATH_HEADER));
+}
+
+/** Whether this request's cookie must carry `Secure` (see `shouldUseSecureCookie`). */
+async function secureCookie(): Promise<boolean> {
+  const requestHeaders = await headers();
+  return shouldUseSecureCookie(requestHeaders.get("host"), requestHeaders.get("x-forwarded-proto"));
+}
+
+/**
+ * Store a new session in the HttpOnly cookie. Server actions and route handlers
+ * only (Next.js cannot set cookies while rendering). Returns `false`, storing
+ * nothing, when the token is malformed or the session is already expired.
+ */
+export async function startSession(session: SessionView, nowMs: number = Date.now()): Promise<boolean> {
+  const maxAge = sessionMaxAgeSeconds(session.expires_at, nowMs);
+  if (maxAge === null || !isWellFormedToken(session.token)) return false;
+  (await cookies()).set(SESSION_COOKIE, session.token, sessionCookieOptions(maxAge, await secureCookie()));
+  return true;
+}
+
+/** Delete the session cookie. Server actions and route handlers only. */
+export async function endSession(): Promise<void> {
+  (await cookies()).set(SESSION_COOKIE, "", clearedSessionCookieOptions(await secureCookie()));
+}
+
+/** True when the request carries a (well-formed) session cookie. Says nothing about validity. */
+export async function hasSessionCookie(): Promise<boolean> {
+  return (await sessionToken()) !== undefined;
+}
+
+/**
+ * Leave the current request after an API 401: to `/auth/expired` (which clears
+ * the dead cookie) when one was sent, otherwise straight to `/login`. Both keep
+ * a safe `next` back to the requested page. Never returns.
+ */
+async function leaveUnauthenticated(sentToken: boolean): Promise<never> {
+  const next = await requestedPath();
+  redirect(sentToken ? sessionExpiredHref(next) : loginHref(next));
+}
+
+interface ServerCallOptions {
+  /** Default true: a 401 redirects to sign-in. False returns the 401 as a result. */
+  readonly redirectOnUnauthenticated?: boolean;
+}
+
 // Resolved per call (not at import) so the environment is read at request time.
-function withServerClient<T>(
+async function withServerClient<T>(
   path: ApiPath,
   run: (client: ApiClient) => Promise<ApiResult<T>>,
+  { redirectOnUnauthenticated = true }: ServerCallOptions = {},
 ): Promise<ApiResult<T>> {
   const baseUrl = resolveBaseUrl();
   if (baseUrl === null) {
-    return Promise.resolve(configError<T>(path, "KEN_API_BASE_URL is not a valid http(s) URL."));
+    return configError<T>(path, "KEN_API_BASE_URL is not a valid http(s) URL.");
   }
-  return run(createApiClient({ baseUrl }));
+  const isPublic = PUBLIC_API_PATHS.has(path);
+  const token = isPublic ? undefined : await sessionToken();
+  const result = await run(createApiClient({ baseUrl, ...(token === undefined ? {} : { token }) }));
+  if (!isPublic && redirectOnUnauthenticated && !result.ok && isUnauthenticatedError(result.error)) {
+    return leaveUnauthenticated(token !== undefined);
+  }
+  return result;
 }
 
 /** `GET /health` — liveness. Contract: 200 only. */
@@ -403,4 +540,117 @@ export function listAgentPlanReviews(
   options: RequestOptions = {},
 ): Promise<ApiResult<AgentPlanReviewList>> {
   return withServerClient("/agents/plans/{plan_id}/reviews", (client) => client.listAgentPlanReviews(planId, options));
+}
+
+// ---------------------------------------------------------------------------
+// Phase 5 reviewer control plane (ADR-0013). Mutations are called ONLY from
+// server actions; each carries a client-generated operation_id.
+// ---------------------------------------------------------------------------
+
+/** Login and review calls may wait on scrypt or a per-plan transaction. */
+const MUTATION_TIMEOUT_MS = 15_000;
+/** Bulk review runs ≤ 50 transactions sequentially. */
+const BULK_TIMEOUT_MS = 60_000;
+
+/** `POST /auth/login`. Public; a 401 is returned (wrong credentials), never redirected. */
+export function login(body: LoginRequest): Promise<ApiResult<SessionView>> {
+  return withServerClient("/auth/login", (client) => client.login(body, { timeoutMs: MUTATION_TIMEOUT_MS }));
+}
+
+/** `POST /auth/logout`. A 401 (already expired) is returned, never redirected. */
+export function logout(): Promise<ApiResult<null>> {
+  return withServerClient("/auth/logout", (client) => client.logout(), { redirectOnUnauthenticated: false });
+}
+
+/**
+ * `GET /auth/me` without redirecting on 401 (for the layout and the sign-in
+ * screens, which must render signed-out). Deduplicated per request.
+ */
+export const getSessionUser = cache(
+  (): Promise<ApiResult<PrincipalView>> =>
+    withServerClient("/auth/me", (client) => client.getCurrentUser(), { redirectOnUnauthenticated: false }),
+);
+
+/**
+ * `GET /auth/me` for a page that needs a session: a 401 redirects to sign-in.
+ * Shares the per-request result of `getSessionUser`.
+ */
+export async function requireSessionUser(): Promise<ApiResult<PrincipalView>> {
+  const result = await getSessionUser();
+  if (!result.ok && isUnauthenticatedError(result.error)) {
+    return leaveUnauthenticated(await hasSessionCookie());
+  }
+  return result;
+}
+
+/** `GET /dashboard`. */
+export function getDashboard(): Promise<ApiResult<DashboardSummary>> {
+  return withServerClient("/dashboard", (client) => client.getDashboard());
+}
+
+/** `POST /recommendations/{plan_id}/approve`. */
+export function approvePlan(planId: string, body: ApproveRequest): Promise<ApiResult<ReviewResult>> {
+  return withServerClient("/recommendations/{plan_id}/approve", (client) =>
+    client.approvePlan(planId, body, { timeoutMs: MUTATION_TIMEOUT_MS }),
+  );
+}
+
+/** `POST /recommendations/{plan_id}/reject`. */
+export function rejectPlan(planId: string, body: RejectRequest): Promise<ApiResult<ReviewResult>> {
+  return withServerClient("/recommendations/{plan_id}/reject", (client) =>
+    client.rejectPlan(planId, body, { timeoutMs: MUTATION_TIMEOUT_MS }),
+  );
+}
+
+/** `POST /recommendations/{plan_id}/edit-anchor`. */
+export function editPlanAnchor(planId: string, body: EditAnchorRequest): Promise<ApiResult<ReviewResult>> {
+  return withServerClient("/recommendations/{plan_id}/edit-anchor", (client) =>
+    client.editPlanAnchor(planId, body, { timeoutMs: MUTATION_TIMEOUT_MS }),
+  );
+}
+
+/** `POST /recommendations/{plan_id}/replace-target`. */
+export function replacePlanTarget(planId: string, body: ReplaceTargetRequest): Promise<ApiResult<ReviewResult>> {
+  return withServerClient("/recommendations/{plan_id}/replace-target", (client) =>
+    client.replacePlanTarget(planId, body, { timeoutMs: MUTATION_TIMEOUT_MS }),
+  );
+}
+
+/** `POST /recommendations/bulk-review`. */
+export function bulkReviewPlans(body: BulkReviewRequest): Promise<ApiResult<BulkReviewResult>> {
+  return withServerClient("/recommendations/bulk-review", (client) =>
+    client.bulkReviewPlans(body, { timeoutMs: BULK_TIMEOUT_MS }),
+  );
+}
+
+/** `GET /recommendations/{plan_id}/target-options`. */
+export function listPlanTargetOptions(
+  planId: string,
+  query: ListPlanTargetOptionsQuery = {},
+): Promise<ApiResult<TargetOptionList>> {
+  return withServerClient("/recommendations/{plan_id}/target-options", (client) =>
+    client.listPlanTargetOptions(planId, query),
+  );
+}
+
+/** `GET /recommendations/{plan_id}/review-actions`. */
+export function listPlanReviewActions(planId: string): Promise<ApiResult<PlanReviewActionList>> {
+  return withServerClient("/recommendations/{plan_id}/review-actions", (client) =>
+    client.listPlanReviewActions(planId),
+  );
+}
+
+/** `GET /review/actions`. */
+export function listReviewActions(query: ListReviewActionsQuery = {}): Promise<ApiResult<ReviewActionList>> {
+  return withServerClient("/review/actions", (client) => client.listReviewActions(query));
+}
+
+/** `GET /events`. */
+export function listEvents(query: ListEventsQuery = {}): Promise<ApiResult<EventList>> {
+  return withServerClient("/events", (client) => client.listEvents(query));
+}
+
+/** `GET /settings/policies`. */
+export function getPolicies(): Promise<ApiResult<PoliciesView>> {
+  return withServerClient("/settings/policies", (client) => client.getPolicies());
 }

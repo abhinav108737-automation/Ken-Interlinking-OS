@@ -31,6 +31,19 @@ from tests.integration.conftest import SyncDb
 pytestmark = pytest.mark.integration
 
 AGENT_TABLES = ("agent_runs", "agent_steps", "agent_run_plans")
+REVIEW_TABLES = ("users", "auth_sessions", "review_actions")
+"""Migration 0006 (Phase 5): gone again below it."""
+REVIEW_TRIGGERS = frozenset(
+    {
+        "users_guard",
+        "users_no_delete",
+        "auth_sessions_guard",
+        "auth_sessions_prune_only",
+        "page_protections_guard",
+        "page_protections_no_delete",
+        "review_actions_immutable",
+    }
+)
 HASH = sha256(b"x").hexdigest()
 CTX = sha256(b"block").hexdigest()
 SOURCE = uuid.UUID("00000000-0000-4000-8000-000000000201")
@@ -685,9 +698,9 @@ def test_downgrade_to_0004_restores_exactly_the_recommendations_schema(
     try:
         state = sync_db.run(_state)
         assert not set(AGENT_TABLES) & state["tables"]
-        assert state["tables"] == head["tables"] - set(AGENT_TABLES)
+        assert state["tables"] == head["tables"] - set(AGENT_TABLES) - set(REVIEW_TABLES)
         assert state["functions"] == {"ken_reject_mutation", "ken_link_plan_content_guard"}
-        assert state["triggers"] == head["triggers"] - {
+        assert state["triggers"] == head["triggers"] - REVIEW_TRIGGERS - {
             "agent_runs_guard",
             "agent_runs_no_delete",
             "agent_steps_immutable",
@@ -699,4 +712,4 @@ def test_downgrade_to_0004_restores_exactly_the_recommendations_schema(
         command.upgrade(alembic_config, "head")
     state = sync_db.run(_state)
     assert state == head
-    assert state["revision"] == "0005_agent_runs"
+    assert state["revision"] == "0006_review_control_plane"

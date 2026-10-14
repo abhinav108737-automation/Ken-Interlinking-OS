@@ -15,6 +15,7 @@ rather than risk dropping tables in a real database.
 from __future__ import annotations
 
 import os
+import uuid
 from collections.abc import Sequence
 from typing import Any
 from urllib.parse import urlsplit
@@ -237,17 +238,50 @@ def make_settings(**overrides: Any) -> Any:
         os.environ.update(inherited)
 
 
-def make_app(settings: Any = None, *, probes: Sequence[Any] | None = None) -> Any:
+TEST_USER_ID = uuid.UUID("00000000-0000-4000-8000-00000000a11e")
+TEST_SESSION_ID = uuid.UUID("00000000-0000-4000-8000-00000000a11f")
+
+
+def make_principal(role: Any = None, *, username: str = "test-user") -> Any:
+    """The principal API tests act as (default role ``operator_admin``)."""
+    from ken_contracts.auth import Principal, Role
+
+    return Principal(
+        user_id=TEST_USER_ID,
+        username=username,
+        display_name="Test User",
+        role=role if role is not None else Role.OPERATOR_ADMIN,
+        session_id=TEST_SESSION_ID,
+    )
+
+
+def make_app(
+    settings: Any = None,
+    *,
+    probes: Sequence[Any] | None = None,
+    role: Any = None,
+    real_auth: bool = False,
+) -> Any:
     """A ``create_app`` instance whose readiness probes are replaced by ``probes``.
+
+    Authentication (ADR-0013 s7): by default ``get_principal`` is replaced, through
+    ``app.dependency_overrides`` ONLY, by :func:`make_principal` with ``role`` (default
+    ``operator_admin``, so every permission check passes and existing tests keep their
+    meaning); the permission checks themselves still run. ``real_auth=True`` keeps the real
+    dependency (Bearer token -> AuthProvider), for the auth and permission-matrix tests.
 
     No lifespan runs unless the caller enters ``TestClient`` as a context
     manager, so nothing here touches a database or a provider.
     """
     from ken_api.deps import get_probes
     from ken_api.main import create_app
+    from ken_api.security import get_principal
 
     app = create_app(settings if settings is not None else make_settings())
     if probes is not None:
         fixed = list(probes)
         app.dependency_overrides[get_probes] = lambda: fixed
+    if not real_auth:
+        principal = make_principal(role)
+        app.dependency_overrides[get_principal] = lambda: principal
     return app

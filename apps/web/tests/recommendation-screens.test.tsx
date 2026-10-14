@@ -22,6 +22,7 @@ import {
   recommendationSummary,
   transition,
 } from "./fixtures/recommendations";
+import { principal } from "./fixtures/review";
 
 const api = vi.hoisted(() => ({
   listLinkPlans: vi.fn(),
@@ -31,6 +32,10 @@ const api = vi.hoisted(() => ({
   getRecommendationSummary: vi.fn(),
   // The plan detail screen's agent review panel (Phase 4).
   listAgentPlanReviews: vi.fn(),
+  // Phase 5: the session user, review history and replacement targets.
+  requireSessionUser: vi.fn(),
+  listPlanReviewActions: vi.fn(),
+  listPlanTargetOptions: vi.fn(),
   // The page detail screen's other calls.
   getInventoryPage: vi.fn(),
   getInventoryPageVersion: vi.fn(),
@@ -72,6 +77,10 @@ beforeEach(() => {
   nav.notFound.mockClear();
   api.getRecommendationSummary.mockResolvedValue(ok(recommendationSummary()));
   api.listAgentPlanReviews.mockResolvedValue(ok([]));
+  // These screens are tested as a read-only viewer; reviewer flows live in review-screens.test.tsx.
+  api.requireSessionUser.mockResolvedValue(ok(principal("viewer")));
+  api.listPlanReviewActions.mockResolvedValue(ok([]));
+  api.listPlanTargetOptions.mockResolvedValue(ok([]));
 });
 
 async function renderPage(element: Promise<React.ReactElement>) {
@@ -87,18 +96,18 @@ function expectNoInjectedMarkup(container: HTMLElement) {
 }
 
 describe("/recommendations", () => {
-  it("defaults to proposed plans and renders the table with a raw-confidence label", async () => {
+  it("defaults to plans awaiting approval and renders the table with a raw-confidence label", async () => {
     api.listLinkPlans.mockResolvedValue(ok(list([linkPlan()], { total: 120, has_more: true })));
     await renderPage(RecommendationsPage({ searchParams: Promise.resolve({}) }));
     expect(api.listLinkPlans).toHaveBeenCalledWith({
-      status: "proposed",
+      status: "awaiting_approval",
       min_score: null,
       source_page_id: null,
       target_page_id: null,
       limit: 50,
       offset: 0,
     });
-    const table = screen.getByRole("table", { name: /recommendations: proposed/i });
+    const table = screen.getByRole("table", { name: /recommendations: awaiting approval/i });
     const row = within(table).getAllByRole("row")[1]!;
     expect(within(row).getByRole("link", { name: `${ANCHOR} — view recommendation` })).toHaveAttribute(
       "href",
@@ -167,7 +176,7 @@ describe("/recommendations", () => {
       RecommendationsPage({ searchParams: Promise.resolve({ min_score: "2", source_page_id: "../x", status: "bogus" }) }),
     );
     expect(api.listLinkPlans).toHaveBeenCalledWith(
-      expect.objectContaining({ status: "proposed", min_score: null, source_page_id: null }),
+      expect.objectContaining({ status: "awaiting_approval", min_score: null, source_page_id: null }),
     );
     const alert = screen.getByRole("alert");
     expect(alert).toHaveTextContent("Minimum score must be a number from 0 to 1.");
@@ -187,7 +196,7 @@ describe("/recommendations", () => {
     api.listLinkPlans.mockResolvedValue(ok(list([])));
     await renderPage(RecommendationsPage({ searchParams: Promise.resolve({}) }));
     expect(screen.getByRole("status")).toHaveTextContent(
-      "No recommendations match these filters (only proposed plans are shown by default).",
+      "No recommendations match these filters (only plans awaiting approval are shown by default).",
     );
   });
 
@@ -234,7 +243,7 @@ describe("/recommendations", () => {
     expect(screen.getAllByText(XSS, { exact: false }).length).toBeGreaterThan(0);
   });
 
-  it("offers no mutating controls", async () => {
+  it("offers no mutating controls to a viewer", async () => {
     api.listLinkPlans.mockResolvedValue(ok(list([linkPlan()])));
     const { container } = await renderPage(RecommendationsPage({ searchParams: Promise.resolve({}) }));
     expect(screen.queryByRole("button", { name: /approve|reject|edit|deploy/i })).toBeNull();

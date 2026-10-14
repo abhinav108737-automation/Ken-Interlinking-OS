@@ -26,7 +26,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Final
 
-from sqlalchemy import ColumnElement, and_, delete, exists, func, or_, select, update
+from sqlalchemy import ColumnElement, and_, delete, exists, func, or_, select, union, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
@@ -47,6 +47,7 @@ from ken_contracts.recommendations import (
     RetrievalChannel,
     ScoreBreakdown,
 )
+from ken_contracts.review import ReviewAction
 from ken_core.db.models.intelligence import PageAnalysis as PageAnalysisRow
 from ken_core.db.models.intelligence import PageProtection
 from ken_core.db.models.inventory import ExistingLink, KnownUrl, Page, PageVersion
@@ -56,6 +57,7 @@ from ken_core.db.models.recommendations import (
     Opportunity,
 )
 from ken_core.db.models.recommendations import LinkPlan as LinkPlanRow
+from ken_core.db.models.review import ReviewActionRow
 from ken_core.db.repositories.intelligence import analysis_from_row
 
 OPEN_VALUES: Final = tuple(sorted(s.value for s in OPEN_STATUSES))
@@ -348,8 +350,11 @@ async def live_targets_at_or_after(
 async def rejected_targets_since(
     session: AsyncSession, *, source_page_id: uuid.UUID, since: datetime
 ) -> set[uuid.UUID]:
-    """Targets a reviewer REJECTED for this source at or after ``since`` (the cooldown)."""
-    rows = await session.scalars(
+    """Targets a reviewer turned down for this source at or after ``since`` (the cooldown):
+    REJECTED plans, and destinations a reviewer REPLACED (``review_actions.action =
+    'replace_target'``, ADR-0013 s7) -- otherwise the next run would re-propose the very
+    destination the reviewer just replaced."""
+    rejected = (
         select(LinkPlanRow.target_page_id)
         .join(LinkPlanTransition, LinkPlanTransition.plan_id == LinkPlanRow.id)
         .where(
@@ -358,6 +363,16 @@ async def rejected_targets_since(
             LinkPlanTransition.occurred_at >= since,
         )
     )
+    replaced = (
+        select(ReviewActionRow.target_before)
+        .join(LinkPlanRow, LinkPlanRow.id == ReviewActionRow.plan_id)
+        .where(
+            LinkPlanRow.source_page_id == source_page_id,
+            ReviewActionRow.action == ReviewAction.REPLACE_TARGET.value,
+            ReviewActionRow.created_at >= since,
+        )
+    )
+    rows = await session.scalars(union(rejected, replaced))
     return set(rows.all())
 
 
@@ -598,6 +613,32 @@ async def inbound_link_counts(session: AsyncSession) -> dict[uuid.UUID, int]:
             )
             .join(known, known.url == ExistingLink.resolved_url)
             .where(*conditions)
+            .group_by(known.page_id)
+        )
+    ).all()
+    return {r[0]: int(r[1]) for r in rows}
+
+
+async def inbound_counts_for(
+    session: AsyncSession, *, page_ids: Sequence[uuid.UUID]
+) -> dict[uuid.UUID, int]:
+    """:func:`inbound_link_counts` restricted to ``page_ids`` (pages without links are absent)."""
+    if not page_ids:
+        return {}
+    source, known, conditions = _counted_inbound()
+    rows = (
+        await session.execute(
+            select(known.page_id, func.count())
+            .select_from(ExistingLink)
+            .join(
+                source,
+                and_(
+                    source.id == ExistingLink.page_id,
+                    source.current_version == ExistingLink.page_version,
+                ),
+            )
+            .join(known, known.url == ExistingLink.resolved_url)
+            .where(*conditions, known.page_id.in_(list(page_ids)))
             .group_by(known.page_id)
         )
     ).all()

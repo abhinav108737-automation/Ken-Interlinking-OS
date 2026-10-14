@@ -6,8 +6,13 @@ import { FilterForm, NumberField, SelectField, TextField } from "@/components/in
 import { Pagination } from "@/components/inventory/Pagination";
 import { RecommendationSummaryPanel, totalPlans } from "@/components/recommendations/RecommendationSummaryPanel";
 import { RecommendationTable } from "@/components/recommendations/RecommendationTable";
-import { getRecommendationSummary, listLinkPlans } from "@/lib/api";
+import { BULK_FORM_ID, BulkReviewForm } from "@/components/review/BulkReviewForm";
+import { getRecommendationSummary, listLinkPlans, requireSessionUser } from "@/lib/api";
+import { can, permissionsOf } from "@/lib/auth";
 import { DEFAULT_PAGE_SIZE, type SearchParams, parseLimit, parseOffset } from "@/lib/inventory";
+import { BULK_STATUS } from "@/lib/review";
+
+import { bulkReviewAction } from "./actions";
 import {
   ALL_STATUSES,
   CANDIDATES_PATH,
@@ -27,7 +32,7 @@ import {
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Recommendations",
+  title: "Recommendation inbox",
 };
 
 const STATUS_OPTIONS = [
@@ -51,7 +56,7 @@ export default async function RecommendationsPage({ searchParams }: { readonly s
     target.kind === "invalid" ? "Target page id must be a page UUID." : null,
   ].filter((message): message is string => message !== null);
 
-  const [result, summaryResult] = await Promise.all([
+  const [result, summaryResult, me] = await Promise.all([
     listLinkPlans({
       status: status === ALL_STATUSES ? null : status,
       min_score: paramValue(minScore) ?? null,
@@ -61,7 +66,10 @@ export default async function RecommendationsPage({ searchParams }: { readonly s
       offset,
     }),
     getRecommendationSummary(),
+    requireSessionUser(),
   ]);
+  const canReview = can(permissionsOf(me.ok ? me.data : null), "review");
+  const bulkable = canReview && result.ok && result.data.items.some((plan) => plan.status === BULK_STATUS);
 
   // "Nothing yet" only when the engine has produced no plan at all; otherwise the filters exclude them.
   const noPlansAtAll = summaryResult.ok ? totalPlans(summaryResult.data) === 0 : !filtered;
@@ -76,16 +84,21 @@ export default async function RecommendationsPage({ searchParams }: { readonly s
   return (
     <div className="space-y-8">
       <header className="space-y-2">
-        <h1 className="text-2xl font-semibold">Recommendations</h1>
+        <h1 className="text-2xl font-semibold">Recommendation inbox</h1>
         <p className="max-w-prose text-slate-800">
-          Proposed contextual links from the deterministic recommendation engine, highest score first. This view is
-          read-only: nothing here approves, rejects, edits or publishes a link. Runs start from the command line (
-          <code>make recommend</code>) and are listed under{" "}
+          Proposed contextual links from the deterministic recommendation engine, highest score first. The inbox opens on
+          the plans awaiting a human decision. Approving records a decision only: nothing is deployed and the site is
+          unchanged. Runs start from the command line (<code>make recommend</code>) and are listed under{" "}
           <Link href="/jobs" className="text-blue-800 underline underline-offset-4">
             Jobs
           </Link>
           .
         </p>
+        {!canReview && (
+          <p className="max-w-prose rounded border border-slate-300 bg-slate-50 p-2 text-sm text-slate-800">
+            Your role can read recommendations but not review them.
+          </p>
+        )}
         <p className="flex flex-wrap gap-4">
           <Link href={OPPORTUNITIES_PATH} className="text-blue-800 underline underline-offset-4">
             Linking opportunities
@@ -161,12 +174,16 @@ export default async function RecommendationsPage({ searchParams }: { readonly s
             ) : (
               <p>
                 No recommendations match these filters
-                {status === DEFAULT_STATUS_FILTER ? " (only proposed plans are shown by default)" : ""}.
+                {status === DEFAULT_STATUS_FILTER
+                  ? ` (only plans ${describeLinkPlanStatus(DEFAULT_STATUS_FILTER).label.toLowerCase()} are shown by default)`
+                  : ""}
+                .
               </p>
             )}
           </div>
         ) : (
           <>
+            {bulkable && <BulkReviewForm action={bulkReviewAction} />}
             {result.data.items.length === 0 ? (
               <p role="status" className="text-slate-700">
                 No recommendations on this page of results.
@@ -175,6 +192,7 @@ export default async function RecommendationsPage({ searchParams }: { readonly s
               <RecommendationTable
                 plans={result.data.items}
                 total={result.data.page.total}
+                {...(bulkable ? { selectFormId: BULK_FORM_ID } : {})}
                 caption={
                   status === ALL_STATUSES
                     ? "Recommendations (any status)"

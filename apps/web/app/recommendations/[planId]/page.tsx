@@ -12,10 +12,21 @@ import { PlacementPreviewPanel, SourceBlockText } from "@/components/recommendat
 import { PlanScore } from "@/components/recommendations/PlanScore";
 import { ScoreBreakdownTable } from "@/components/recommendations/ScoreBreakdownTable";
 import { TransitionHistory } from "@/components/recommendations/TransitionHistory";
-import { type LinkPlanDetail, getLinkPlan, isMissingResourceError, listAgentPlanReviews } from "@/lib/api";
+import { ReviewActionTable } from "@/components/review/ReviewActionTable";
+import { ReviewPanel } from "@/components/review/ReviewPanel";
+import {
+  type LinkPlanDetail,
+  getLinkPlan,
+  isMissingResourceError,
+  listAgentPlanReviews,
+  listPlanReviewActions,
+  listPlanTargetOptions,
+  requireSessionUser,
+} from "@/lib/api";
+import { can, describeRole, permissionsOf } from "@/lib/auth";
 import { formatDateTime, shortHash } from "@/lib/format";
 import { describeRelationshipType, jobRunHref } from "@/lib/intelligence";
-import { buildHref, pageDisplayTitle } from "@/lib/inventory";
+import { type SearchParams, buildHref, firstParam, pageDisplayTitle } from "@/lib/inventory";
 import {
   CANDIDATES_PATH,
   RECOMMENDATIONS_PATH,
@@ -25,6 +36,16 @@ import {
   describeRetrievalChannel,
   planHref,
 } from "@/lib/recommendations";
+import { availableActions } from "@/lib/review";
+
+import { approveAction, editAnchorAction, rejectAction, replaceTargetAction } from "../actions";
+
+const REVIEW_ACTIONS = {
+  approve: approveAction,
+  reject: rejectAction,
+  editAnchor: editAnchorAction,
+  replaceTarget: replaceTargetAction,
+};
 
 export const dynamic = "force-dynamic";
 
@@ -92,12 +113,20 @@ function PageFacts({ plan }: { readonly plan: LinkPlanDetail }) {
 
 export default async function RecommendationDetailPage({
   params,
+  searchParams,
 }: {
   readonly params: Promise<{ planId: string }>;
+  readonly searchParams?: Promise<SearchParams>;
 }) {
   const { planId } = await params;
-  // The agent review is fetched alongside; its failure never hides the plan.
-  const [result, reviewsResult] = await Promise.all([getLinkPlan(planId), listAgentPlanReviews(planId)]);
+  const query = (await searchParams) ?? {};
+  // Agent reviews and review history are fetched alongside; their failure never hides the plan.
+  const [result, reviewsResult, historyResult, me] = await Promise.all([
+    getLinkPlan(planId),
+    listAgentPlanReviews(planId),
+    listPlanReviewActions(planId),
+    requireSessionUser(),
+  ]);
 
   if (!result.ok) {
     if (isMissingResourceError(result.error)) {
@@ -118,6 +147,12 @@ export default async function RecommendationDetailPage({
 
   const plan = result.data;
   const status = describeLinkPlanStatus(plan.status);
+  const user = me.ok ? me.data : null;
+  const canReview = can(permissionsOf(user), "review");
+  const available = availableActions(plan.status);
+  // Replacement destinations are only needed (and only permitted) for a reviewer who can edit this plan.
+  const targetsResult = canReview && available.edit ? await listPlanTargetOptions(plan.id) : null;
+  const justEdited = firstParam(query, "edited") === "1" && plan.anchor_source === "edited" && plan.supersedes !== null;
   const candidatesHref = buildHref(CANDIDATES_PATH, { source_page_id: plan.source_page_id, run_id: plan.run_id });
 
   return (
@@ -138,10 +173,12 @@ export default async function RecommendationDetailPage({
         <p className="text-sm">
           Score: <PlanScore plan={plan} />
         </p>
-        <p className="max-w-prose rounded border border-slate-300 bg-slate-50 p-2 text-sm text-slate-800">
-          Read-only. Approving, rejecting and editing recommendations arrive in a later phase; this screen changes
-          nothing.
-        </p>
+        {justEdited && (
+          <p role="status" className="max-w-prose rounded border border-emerald-700 bg-emerald-50 p-2 text-sm text-emerald-950">
+            <span aria-hidden="true">✓ </span>
+            Your edit created this recommendation. The earlier one is superseded and kept in its history.
+          </p>
+        )}
         {plan.supersedes !== null && (
           <p className="text-sm">
             This plan supersedes an earlier plan:{" "}
@@ -162,6 +199,47 @@ export default async function RecommendationDetailPage({
           is rendered.
         </p>
         <PlacementPreviewPanel plan={plan} />
+      </Section>
+
+      <Section id="agent-review" title="Agent review">
+        <AgentPlanReviewPanel result={reviewsResult} />
+      </Section>
+
+      <Section id="review" title="Your review">
+        {canReview ? (
+          <ReviewPanel
+            planId={plan.id}
+            status={plan.status}
+            statusLabel={status.label}
+            available={available}
+            blockText={plan.source_block_text}
+            contextHash={plan.locator.context_hash}
+            anchorStart={plan.locator.start}
+            anchorEnd={plan.locator.end}
+            targetOptions={targetsResult !== null && targetsResult.ok ? targetsResult.data : null}
+            actions={REVIEW_ACTIONS}
+          />
+        ) : (
+          <p className="max-w-prose rounded border border-slate-300 bg-slate-50 p-3 text-sm text-slate-800">
+            {user === null
+              ? "Review actions are unavailable because your session could not be confirmed."
+              : `Your role (${describeRole(user.role)}) can read recommendations but not review them.`}
+          </p>
+        )}
+      </Section>
+
+      <Section id="review-history" title="Review history">
+        {historyResult.ok ? (
+          <ReviewActionTable
+            actions={historyResult.data}
+            caption="Human review actions on this recommendation"
+            total={historyResult.data.length}
+            emptyMessage="No reviewer has acted on this recommendation yet."
+            showPlan={false}
+          />
+        ) : (
+          <ApiErrorNotice error={historyResult.error} what="Review history" />
+        )}
       </Section>
 
       <Section id="block" title="Source block">
@@ -229,10 +307,6 @@ export default async function RecommendationDetailPage({
             Why these targets? Candidates for this source page
           </Link>
         </p>
-      </Section>
-
-      <Section id="agent-review" title="Agent review">
-        <AgentPlanReviewPanel result={reviewsResult} />
       </Section>
 
       <Section id="provenance" title="Provenance">

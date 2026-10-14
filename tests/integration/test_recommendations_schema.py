@@ -675,6 +675,9 @@ def test_downgrade_to_0003_restores_exactly_the_intelligence_schema(
         "ken_reject_mutation",
         "ken_link_plan_content_guard",
         "ken_agent_run_guard",
+        "ken_user_guard",
+        "ken_auth_session_guard",
+        "ken_page_protection_guard",
     }
     assert {
         "link_plans_content_immutable",
@@ -682,4 +685,4 @@ def test_downgrade_to_0003_restores_exactly_the_intelligence_schema(
         "link_plan_transitions_immutable",
         "link_candidates_immutable",
     } <= state["triggers"]
-    assert state["revision"] == "0005_agent_runs"
+    assert state["revision"] == "0006_review_control_plane"

@@ -4,11 +4,14 @@ One run, through the generic job runner (advisory lock, counters, ``job.complete
 
     load policies + taxonomy; resolve the embedding identity (optional provider)
     live facts of every page (+ eligibility, inbound link counts)
-    for every source in scope, in canonical-URL order, in ONE transaction per source:
+    for every source in scope, in canonical-URL order, in ONE transaction per source
+    holding the per-source plan-writer lock (``validity.lock_source_plans``; review edits
+    take the same lock):
         every open plan of the source whose source or target is now DURABLY ineligible
             (protected, gone, unpublished, noindex, alias, thin, excluded type), or whose
             pair is now already linked -> EXPIRED ("invalid: ...", fail closed); analysis
-            lag and HTTP errors only pause generation
+            lag and HTTP errors only pause generation (``validity.plan_invalidity``, shared
+            with the review service)
         other open plans on an OLDER source version: check_plan_freshness
             stale     -> transition to EXPIRED (system:recommendation-engine)
             rebasable -> unchanged (still occupies its pair and span)
@@ -67,14 +70,13 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from ken_contracts.events import EventEnvelope, EventName
 from ken_contracts.intelligence import (
-    IneligibilityReason,
     Intent,
     LinkEligibility,
     PageAnalysis,
     TaxonomyPolicy,
     analysis_version,
 )
-from ken_contracts.inventory import CanonicalStatus, PublicationState, RunStatus
+from ken_contracts.inventory import RunStatus
 from ken_contracts.jobs import JobKind, JobRunDetail
 from ken_contracts.model import ModelProvider
 from ken_contracts.recommendations import (
@@ -95,7 +97,6 @@ from ken_core.config import REPO_ROOT, Settings
 from ken_core.db.repositories import recommendations as repo
 from ken_core.db.repositories.events import append_event
 from ken_core.logging import get_logger
-from ken_services.intelligence.eligibility import EligibilityState, compute_eligibility
 from ken_services.intelligence.embeddings import current_recipe_fingerprint, embedding_identity
 from ken_services.intelligence.taxonomy import load_taxonomy
 from ken_services.inventory.hashing import sha256_hex
@@ -130,8 +131,15 @@ from ken_services.recommendations.scoring import (
     with_placement,
 )
 from ken_services.recommendations.transitions import ENGINE_ACTOR, record_initial, transition
+from ken_services.recommendations.validity import (
+    DURABLE_INELIGIBILITY,
+    lock_source_plans,
+    page_eligibility,
+    plan_invalidity,
+)
 
 __all__ = [
+    "DURABLE_INELIGIBILITY",
     "EMITTED_BY",
     "RECOMMENDATION_COUNTERS",
     "RecommendationToolkit",
@@ -155,20 +163,6 @@ RECOMMENDATION_COUNTERS: Final = (
     "errors",
 )
 _R = CandidateRejection
-DURABLE_INELIGIBILITY: Final = frozenset(
-    {
-        IneligibilityReason.NOT_PUBLISHED,
-        IneligibilityReason.GONE,
-        IneligibilityReason.PROTECTED,
-        IneligibilityReason.NOINDEX,
-        IneligibilityReason.NOT_CANONICAL,
-        IneligibilityReason.THIN_CONTENT,
-        IneligibilityReason.PAGE_TYPE_EXCLUDED,
-    }
-)
-"""Ineligibility reasons that expire an OPEN plan. ``not_analyzed``, ``stale_analysis``
-(analysis lag) and ``http_not_ok`` (possibly a transient 5xx) do not: they only stop new
-plans being generated."""
 MAX_TARGET_TITLE_CHARS: Final = 300
 """A plan copies at most this much of the target title (QA: ingestion does not cap it)."""
 
@@ -267,24 +261,7 @@ class _Recommend:
         self.job.increment("errors")
 
     def _eligibility(self, facts: repo.PageFacts) -> LinkEligibility:
-        analysis = facts.analysis
-        return compute_eligibility(
-            EligibilityState(
-                publication_state=PublicationState(facts.publication_state),
-                gone=facts.gone,
-                protected=facts.protected,
-                robots_directives=facts.robots_directives,
-                canonical_status=CanonicalStatus(
-                    facts.canonical_status or CanonicalStatus.SELF.value
-                ),
-                http_status=facts.http_status,
-                word_count=facts.word_count,
-                page_type=None if analysis is None else analysis.page_type,
-                has_analysis=facts.has_any_analysis,
-                analysis_fresh=analysis is not None and analysis.analysis_version == self.av,
-            ),
-            taxonomy=self.taxonomy,
-        )
+        return page_eligibility(facts, taxonomy=self.taxonomy, analysis_version=self.av)
 
     async def _world(self) -> _World:
         async with self.job.sessionmaker() as session:
@@ -341,6 +318,9 @@ class _Recommend:
         outcome: _Outcome | None = None
         async with self.job.transaction() as tx:
             session = tx.session
+            # Serialise with review edits of this source (ADR-0013 s7): open-pair and
+            # open-span reads below and the inserts after them must not interleave.
+            await lock_source_plans(session, source_page_id=source.id)
             body = await repo.version_body(
                 session, page_id=source.id, version=source.current_version
             )
@@ -380,21 +360,13 @@ class _Recommend:
         Only DURABLE reasons expire a plan (``DURABLE_INELIGIBILITY``). Expiry is terminal,
         so lag (``stale_analysis`` / ``not_analyzed`` after a recrawl or a taxonomy bump,
         before ``make analyze``) and a possibly transient ``http_not_ok`` keep the plan open:
-        no new plans are generated meanwhile, and deployment re-validates (QA re-review)."""
-        source_reasons = DURABLE_INELIGIBILITY.intersection(
-            world.eligibility[source.id].source_reasons
+        no new plans are generated meanwhile, and deployment re-validates (QA re-review).
+        The rules are ``validity.plan_invalidity`` (shared with the review service)."""
+        return plan_invalidity(
+            source_eligibility=world.eligibility[source.id],
+            target_eligibility=world.eligibility.get(target_id),
+            already_linked=target_id in linked,
         )
-        if source_reasons:
-            return f"source_ineligible ({', '.join(sorted(r.value for r in source_reasons))})"
-        target_eligibility = world.eligibility.get(target_id)
-        if target_eligibility is None:
-            return "target_ineligible (unknown)"  # the page no longer exists in the inventory
-        target_reasons = DURABLE_INELIGIBILITY.intersection(target_eligibility.target_reasons)
-        if target_reasons:
-            return f"target_ineligible ({', '.join(sorted(r.value for r in target_reasons))})"
-        if target_id in linked:
-            return "already_linked"
-        return None
 
     async def _expire_invalid(
         self,

@@ -37,7 +37,7 @@ def test_405_is_error_response_and_keeps_allow_header() -> None:
     response = TestClient(make_app()).post("/health")
     assert response.status_code == 405
     body = ErrorResponse.model_validate(response.json())
-    assert body.code == "validation_failed"
+    assert body.code == "method_not_allowed"
     assert "GET" in response.headers["allow"]
 
 

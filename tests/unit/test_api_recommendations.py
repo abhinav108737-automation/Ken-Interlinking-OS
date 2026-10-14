@@ -324,15 +324,35 @@ def test_there_are_no_mutation_routes(client: TestClient, method: str, path: str
     ErrorResponse.model_validate(response.json())
 
 
-def test_every_recommendation_route_is_get_only() -> None:
+REVIEW_POSTS = {
+    "/recommendations/{plan_id}/approve",
+    "/recommendations/{plan_id}/reject",
+    "/recommendations/{plan_id}/edit-anchor",
+    "/recommendations/{plan_id}/replace-target",
+    "/recommendations/bulk-review",
+}
+"""The ONLY non-GET recommendation routes: the Phase 5 review actions (ADR-0013 s7)."""
+
+
+def test_every_recommendation_route_is_get_only_except_the_review_actions() -> None:
     paths = make_app().openapi()["paths"]
     ours = {
         path: set(operations)
         for path, operations in paths.items()
         if path.startswith("/recommendations")
     }
-    assert len(ours) == 5
-    assert all(methods == {"get"} for methods in ours.values()), ours
+    assert {p for p, m in ours.items() if m != {"get"}} == REVIEW_POSTS
+    assert all(ours[p] == {"post"} for p in REVIEW_POSTS), ours
+    gets = {p for p, m in ours.items() if m == {"get"}}
+    assert gets == {
+        "/recommendations",
+        "/recommendations/{plan_id}",
+        "/recommendations/candidates",
+        "/recommendations/opportunities",
+        "/recommendations/summary",
+        "/recommendations/{plan_id}/target-options",
+        "/recommendations/{plan_id}/review-actions",
+    }
 
 
 async def test_the_default_dependency_builds_the_sql_reader() -> None:

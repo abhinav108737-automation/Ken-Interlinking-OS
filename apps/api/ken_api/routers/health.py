@@ -13,9 +13,11 @@ import time
 from datetime import UTC, datetime
 from typing import Final
 
-from fastapi import APIRouter, Request, Response
+from fastapi import APIRouter, Depends, Request, Response
 
 from ken_api.deps import IdentityDep, ProbesDep, SettingsDep
+from ken_api.security import AUTH_RESPONSES, require
+from ken_contracts.auth import Permission
 from ken_contracts.health import (
     HealthResponse,
     MetaResponse,
@@ -87,6 +89,9 @@ async def get_ready(
     operation_id="getMeta",
     summary="Build and non-secret configuration facts.",
     response_model=MetaResponse,
+    # /health and /ready are the only public probes; /meta needs `read` (ADR-0013 s3).
+    dependencies=[Depends(require(Permission.READ))],
+    responses=AUTH_RESPONSES,
 )
 async def get_meta(settings: SettingsDep, identity: IdentityDep) -> MetaResponse:
     return MetaResponse(

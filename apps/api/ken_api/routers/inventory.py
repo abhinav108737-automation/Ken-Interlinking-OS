@@ -3,8 +3,8 @@
 READ-ONLY. Every route is a GET over :class:`ken_contracts.inventory.InventoryReader`;
 none writes to the database, and nothing here can reach a CMS. Runs are
 started from the command line (``make ingest-file`` / ``make crawl``), not over
-HTTP: there is no authentication before Phase 5, and an unauthenticated
-"start a crawl" endpoint would let any caller make this machine fetch URLs.
+HTTP: a "start a crawl" endpoint would let a caller make this machine fetch URLs.
+Every route needs a session with the ``read`` permission (ADR-0013, router-level).
 
 Route functions carry no docstrings on purpose: FastAPI would publish them as
 OpenAPI descriptions (see routers/health.py). The frozen contract is
@@ -16,9 +16,11 @@ from __future__ import annotations
 from typing import Annotated, Any, Final
 from uuid import UUID
 
-from fastapi import APIRouter, Path, Query
+from fastapi import APIRouter, Depends, Path, Query
 
 from ken_api.deps import InventoryReaderDep
+from ken_api.security import AUTH_RESPONSES, require
+from ken_contracts.auth import Permission
 from ken_contracts.errors import ErrorResponse, ListResponse
 from ken_contracts.inventory import (
     ExistingLinkView,
@@ -40,7 +42,11 @@ from ken_contracts.inventory import (
 DEFAULT_LIMIT: Final = 50
 MAX_LIMIT: Final = 200
 
-router = APIRouter(prefix="/inventory", tags=["inventory"])
+# Deny by default (ADR-0013 s7): every route here needs the `read` permission.
+_READ: Final = [Depends(require(Permission.READ))]
+router = APIRouter(
+    prefix="/inventory", tags=["inventory"], dependencies=_READ, responses=AUTH_RESPONSES
+)
 
 _ERRORS: Final[dict[int | str, dict[str, Any]]] = {
     422: {"model": ErrorResponse, "description": "A parameter is invalid."},

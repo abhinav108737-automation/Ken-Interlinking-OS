@@ -95,19 +95,59 @@ def test_operation_ids_and_tags(live: dict[str, Any]) -> None:
         "/agents/runs": ("listAgentRuns", ["agents"]),
         "/agents/runs/{run_id}": ("getAgentRun", ["agents"]),
         "/agents/plans/{plan_id}/reviews": ("listAgentPlanReviews", ["agents"]),
+        "/auth/login": ("login", ["auth"]),
+        "/auth/logout": ("logout", ["auth"]),
+        "/auth/me": ("getCurrentUser", ["auth"]),
+        "/recommendations/{plan_id}/approve": ("approvePlan", ["review"]),
+        "/recommendations/{plan_id}/reject": ("rejectPlan", ["review"]),
+        "/recommendations/{plan_id}/edit-anchor": ("editPlanAnchor", ["review"]),
+        "/recommendations/{plan_id}/replace-target": ("replacePlanTarget", ["review"]),
+        "/recommendations/bulk-review": ("bulkReviewPlans", ["review"]),
+        "/recommendations/{plan_id}/target-options": ("listPlanTargetOptions", ["review"]),
+        "/recommendations/{plan_id}/review-actions": ("listPlanReviewActions", ["review"]),
+        "/review/actions": ("listReviewActions", ["review"]),
+        "/dashboard": ("getDashboard", ["control-plane"]),
+        "/events": ("listEvents", ["control-plane"]),
+        "/settings/policies": ("getPolicies", ["control-plane"]),
     }
 
 
+MUTATIONS = {
+    ("post", "/auth/login"),
+    ("post", "/auth/logout"),
+    ("post", "/recommendations/{plan_id}/approve"),
+    ("post", "/recommendations/{plan_id}/reject"),
+    ("post", "/recommendations/{plan_id}/edit-anchor"),
+    ("post", "/recommendations/{plan_id}/replace-target"),
+    ("post", "/recommendations/bulk-review"),
+}
+"""The ONLY non-GET operations of the whole API (Phase 5, ADR-0013 s7)."""
+
+
 def test_inventory_api_is_read_only(live: dict[str, Any]) -> None:
-    """Inventory, intelligence, job, recommendation and agent routes are read-only: runs
-    start from the CLI (agents: ADR-0012 section 11)."""
+    """Inventory, intelligence, job and agent routes are read-only (runs start from the CLI;
+    agents: ADR-0012 section 11); recommendations are GET except the frozen review POSTs."""
     methods = {
         method
         for path, item in live["paths"].items()
         for method in item
-        if path.startswith(("/inventory", "/intelligence", "/jobs", "/recommendations", "/agents"))
+        if path.startswith(("/inventory", "/intelligence", "/jobs", "/agents"))
     }
     assert methods == {"get"}
+    recommendation_writes = {
+        (method, path)
+        for path, item in live["paths"].items()
+        for method in item
+        if path.startswith("/recommendations") and method != "get"
+    }
+    assert recommendation_writes == {m for m in MUTATIONS if m[1].startswith("/recommendations")}
+
+
+def test_the_only_mutations_are_review_actions_and_login_logout(live: dict[str, Any]) -> None:
+    writes = {
+        (method, path) for path, item in live["paths"].items() for method in item if method != "get"
+    }
+    assert writes == MUTATIONS
 
 
 def test_errors_are_always_error_response(live: dict[str, Any]) -> None:

@@ -21,7 +21,9 @@ export NEXT_TELEMETRY_DISABLED := 1
 .PHONY: help setup lock db-up db-down migrate dev dev-api dev-web \
         test test-integration test-all test-live web-test lint format types \
         compose-config compose-full-up compose-full-down doctor verify openapi \
-        ingest-file ingest-cms-mock crawl analyze recommend agents
+        ingest-file ingest-cms-mock crawl analyze recommend agents \
+        user-create user-list user-disable user-enable user-set-role user-set-password \
+        sessions-prune
 
 help: ## List targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "} {printf "  %-18s %s\n", $$1, $$2}'
@@ -111,6 +113,35 @@ recommend: ## Phase 3: propose contextual links for eligible sources (ARGS="--so
 
 agents: ## Phase 4: agents review proposed plans, hand off to the human queue (ARGS="--source PAGE_ID ...")
 	$(VENV)/python -m ken_agents.cli agents $(ARGS)
+
+# ---------------------------------------------------------------- users (Phase 5)
+# Accounts are created ONLY here (no HTTP endpoint, no default credentials). Passwords are
+# prompted for (or read from stdin with PASSWORD_STDIN=1), never passed as arguments.
+user-create: ## Create a user: make user-create USERNAME=… ROLE=viewer|reviewer|operator_admin DISPLAY_NAME="…"
+	@test -n "$(USERNAME)" && test -n "$(ROLE)" || (echo 'usage: make user-create USERNAME=… ROLE=… DISPLAY_NAME="…" [PASSWORD_STDIN=1]' >&2; exit 2)
+	$(VENV)/python -m ken_services.auth.cli user-create --username "$(USERNAME)" --role "$(ROLE)" --display-name "$(or $(DISPLAY_NAME),$(USERNAME))" $(if $(PASSWORD_STDIN),--password-stdin)
+
+user-list: ## List users (never password hashes)
+	$(VENV)/python -m ken_services.auth.cli user-list
+
+user-disable: ## Disable a user and revoke their sessions: make user-disable USERNAME=…
+	@test -n "$(USERNAME)" || (echo "usage: make user-disable USERNAME=…" >&2; exit 2)
+	$(VENV)/python -m ken_services.auth.cli user-disable --username "$(USERNAME)"
+
+user-enable: ## Re-enable a user and clear a lockout: make user-enable USERNAME=…
+	@test -n "$(USERNAME)" || (echo "usage: make user-enable USERNAME=…" >&2; exit 2)
+	$(VENV)/python -m ken_services.auth.cli user-enable --username "$(USERNAME)"
+
+user-set-role: ## Change a role and revoke sessions: make user-set-role USERNAME=… ROLE=…
+	@test -n "$(USERNAME)" && test -n "$(ROLE)" || (echo "usage: make user-set-role USERNAME=… ROLE=…" >&2; exit 2)
+	$(VENV)/python -m ken_services.auth.cli user-set-role --username "$(USERNAME)" --role "$(ROLE)"
+
+user-set-password: ## Set a password and revoke sessions: make user-set-password USERNAME=…
+	@test -n "$(USERNAME)" || (echo "usage: make user-set-password USERNAME=… [PASSWORD_STDIN=1]" >&2; exit 2)
+	$(VENV)/python -m ken_services.auth.cli user-set-password --username "$(USERNAME)" $(if $(PASSWORD_STDIN),--password-stdin)
+
+sessions-prune: ## Delete sessions that expired more than 30 days ago
+	$(VENV)/python -m ken_services.auth.cli sessions-prune
 
 crawl: ## Crawl the ONE site configured in KEN_CRAWL_BASE_URL (refuses if unset)
 	$(VENV)/python -m ken_services.inventory.cli crawl
