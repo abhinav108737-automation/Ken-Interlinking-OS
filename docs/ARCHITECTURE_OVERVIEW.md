@@ -132,6 +132,23 @@ policy_gate → finalize`.
 - **No egress.** LangSmith/LangChain tracing variables are refused, and a test runs the whole
   graph with sockets blocked.
 
+## What Phase 5 added: the reviewer control plane
+
+- **Auth.** An `AuthProvider` abstraction, implemented by a local provider: users in
+  PostgreSQL, stdlib `scrypt`, opaque revocable Bearer sessions. The API is Bearer-only; the
+  web app keeps the token in an HttpOnly cookie and forwards it server-side, which keeps
+  Electron portability (ADR-0008, option 1).
+- **RBAC.** Deny by default: every route except `/health`, `/ready` and `POST /auth/login`
+  needs a permission. Route-introspection and role-matrix tests enforce it.
+- **Human review.** A deterministic `ReviewService` over the transition service. Its actor
+  comes from the session. Actions are idempotent (`operation_id`), version-aware
+  (`expected_status`, freshness) and re-validated under the plan lock with the engine's shared
+  validity rules. Writers are serialised per source. Edits supersede the old plan.
+- **Feedback and audit.** Append-only `review_actions`, plus `link.approved` /
+  `link.rejected` / `link.proposed` events. These are the input to Phase 8 learning.
+- **UI.** A dashboard, the inbox with bulk review, plan review with a before/after preview and
+  a span picker, the audit log, policies, and role-aware controls.
+
 ## Boundaries that are enforced in code, not by convention
 
 | Boundary | Where enforced |
@@ -189,4 +206,5 @@ Proposing one requires stopping and asking the user (CLAUDE.md), with an ADR.
 | [0009](adr/ADR-0009-content-inventory.md) | Phase 1 content inventory: sources, identity, immutable versions, read-time link resolution, crawler politeness |
 | [0011](adr/ADR-0011-recommendation-engine.md) | Phase 3 recommendation engine: four retrieval channels, ordered filters, transparent policy-weighted score, verbatim context-supported placement, immutable LinkPlans with an allowed-transition lifecycle |
 | [0012](adr/ADR-0012-agent-orchestration.md) | Phase 4 agent orchestration: a LangGraph supervisor that reviews deterministic plans with optional, validated local-model slots, deterministic fallbacks, narrow tools and an atomic hand-off to the human queue |
+| [0013](adr/ADR-0013-reviewer-control-plane.md) | Phase 5 reviewer control plane: local auth provider abstraction (scrypt, opaque Bearer sessions, HttpOnly cookie in the web tier), deny-by-default RBAC, idempotent version-aware human review with structured feedback, supersede-on-edit |
 | [0010](adr/ADR-0010-content-intelligence.md) | Phase 2 content intelligence: pgvector required from 0003, taxonomy-policy analysis, provider-defined embeddings, version-stamped relationships, protections, read-time eligibility, generic job runs |

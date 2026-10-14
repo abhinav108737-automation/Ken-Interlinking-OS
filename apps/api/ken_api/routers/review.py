@@ -10,6 +10,7 @@ from fastapi import APIRouter, Path, Query
 
 from ken_api.deps import ReviewReaderDep, ReviewServiceDep
 from ken_api.security import Auditor, Reader, Reviewer
+from ken_contracts.common import STORABLE_QUERY_PATTERN
 from ken_contracts.errors import ErrorResponse, ListResponse
 from ken_contracts.review import (
     ApproveRequest,
@@ -151,7 +152,7 @@ async def list_actions(
     limit: Limit = 50,
     offset: Offset = 0,
     action: ReviewAction | None = None,
-    actor: Annotated[str | None, Query(max_length=210)] = None,
+    actor: Annotated[str | None, Query(max_length=210, pattern=STORABLE_QUERY_PATTERN)] = None,
     *,
     reader: ReviewReaderDep,
 ) -> ListResponse[ReviewActionView]:

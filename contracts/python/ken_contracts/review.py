@@ -39,7 +39,7 @@ from uuid import UUID
 from pydantic import AwareDatetime, Field, model_validator
 
 from ken_contracts.auth import Principal
-from ken_contracts.common import FrozenModel
+from ken_contracts.common import FrozenModel, reject_unstorable_text
 from ken_contracts.errors import ListResponse
 from ken_contracts.recommendations import LinkPlanStatus
 
@@ -134,8 +134,7 @@ class _ReviewRequest(FrozenModel):
             raise ValueError("reasons must be unique")
         if FeedbackReason.OTHER in self.reasons and not self.note.strip():
             raise ValueError("reason 'other' requires a note")
-        if "\x00" in self.note:
-            raise ValueError("note must not contain NUL")
+        reject_unstorable_text(self.note)
         return self
 
 
@@ -223,8 +222,7 @@ class BulkReviewRequest(FrozenModel):
             raise ValueError(f"reasons not valid for bulk {self.action.value}")
         if FeedbackReason.OTHER in self.reasons and not self.note.strip():
             raise ValueError("reason 'other' requires a note")
-        if "\x00" in self.note:
-            raise ValueError("note must not contain NUL")
+        reject_unstorable_text(self.note)
         return self
 
 

@@ -67,7 +67,7 @@ from typing import Any, Final
 from urllib.parse import urlsplit
 
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -238,6 +238,13 @@ def _intent(value: Any) -> Intent | None:
 # --------------------------------------------------------------------------- #
 # Internal records
 # --------------------------------------------------------------------------- #
+def _bulk_lock_key(operation_id: uuid.UUID) -> int:
+    """``pg_advisory_lock`` key of one bulk operation: the first 8 bytes of
+    sha256("ken.review.bulk:" + id), signed (the job-lock derivation)."""
+    digest = hashlib.sha256(f"ken.review.bulk:{operation_id}".encode()).digest()
+    return int.from_bytes(digest[:8], "big", signed=True)
+
+
 @dataclass(slots=True)
 class _Live:
     """Live facts read inside the action's transaction."""
@@ -441,6 +448,35 @@ class DatabaseReviewService:
         item_ops = {
             pid: bulk_item_operation_id(request.operation_id, pid) for pid in request.plan_ids
         }
+        # Serialise every bulk call with this operation id (QA L2): a concurrent call with the
+        # same id but another plan set would otherwise pass the reuse check, because its item
+        # operation ids differ. A session-level lock on its own connection, held for the call.
+        async with self._sessionmaker() as lock_session:
+            key = _bulk_lock_key(request.operation_id)
+            await lock_session.execute(text("SELECT pg_advisory_lock(:k)"), {"k": key})
+            try:
+                return await self._bulk_locked(
+                    request=request,
+                    principal=principal,
+                    actor=actor,
+                    fingerprint=fingerprint,
+                    kind=kind,
+                    item_ops=item_ops,
+                )
+            finally:
+                await lock_session.execute(text("SELECT pg_advisory_unlock(:k)"), {"k": key})
+                await lock_session.commit()
+
+    async def _bulk_locked(
+        self,
+        *,
+        request: BulkReviewRequest,
+        principal: Principal,
+        actor: str,
+        fingerprint: str,
+        kind: ReviewAction,
+        item_ops: dict[uuid.UUID, uuid.UUID],
+    ) -> BulkReviewResult:
         async with self._sessionmaker() as session:
             stored = await review_repo.actions_by_operations(
                 session, operation_ids=list(item_ops.values())

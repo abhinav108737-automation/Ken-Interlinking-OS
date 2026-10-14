@@ -9,6 +9,7 @@ from fastapi import APIRouter, Query
 
 from ken_api.deps import ControlPlaneReaderDep
 from ken_api.security import Auditor, Reader, SettingsReader
+from ken_contracts.common import STORABLE_QUERY_PATTERN
 from ken_contracts.controlplane import DashboardSummary, EventRecord, PoliciesView
 from ken_contracts.errors import ErrorResponse, ListResponse
 from ken_contracts.events import EventName
@@ -45,7 +46,7 @@ async def events(
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
     offset: Annotated[int, Query(ge=0, le=10_000_000)] = 0,
     event_name: EventName | None = None,
-    subject_id: Annotated[str | None, Query(max_length=200)] = None,
+    subject_id: Annotated[str | None, Query(max_length=200, pattern=STORABLE_QUERY_PATTERN)] = None,
     *,
     reader: ControlPlaneReaderDep,
 ) -> ListResponse[EventRecord]:

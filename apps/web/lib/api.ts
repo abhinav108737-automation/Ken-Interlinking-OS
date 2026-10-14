@@ -112,6 +112,11 @@ import {
   shouldUseSecureCookie,
 } from "./session";
 
+// SERVER-ONLY (QA L4): this module holds the session token. It imports `next/headers`, so
+// the Next.js build FAILS if any client component imports it -- the same guarantee as the
+// `server-only` package, with no new dependency. (A `typeof window` runtime check would also
+// trip the jsdom test environment.)
+
 export type {
   AgentErrorCode,
   AgentNode,
@@ -235,7 +240,11 @@ async function requestedPath(): Promise<string> {
 /** Whether this request's cookie must carry `Secure` (see `shouldUseSecureCookie`). */
 async function secureCookie(): Promise<boolean> {
   const requestHeaders = await headers();
-  return shouldUseSecureCookie(requestHeaders.get("host"), requestHeaders.get("x-forwarded-proto"));
+  return shouldUseSecureCookie(
+    requestHeaders.get("host"),
+    requestHeaders.get("x-forwarded-proto"),
+    process.env.NODE_ENV === "development",
+  );
 }
 
 /**

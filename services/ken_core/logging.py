@@ -83,7 +83,13 @@ def configure_logging(*, level: str = "INFO", fmt: str = "console") -> None:
         # formats exc_info itself and warns if this processor runs first.
         final_processors.append(structlog.processors.format_exc_info)
     else:
-        renderer = structlog.dev.ConsoleRenderer(colors=sys.stderr.isatty())
+        # Pin plain tracebacks (QA L7): a "rich" formatter -- picked automatically if that
+        # package ever arrives transitively -- renders frame LOCALS, which can include a
+        # plaintext password or token.
+        renderer = structlog.dev.ConsoleRenderer(
+            colors=sys.stderr.isatty(),
+            exception_formatter=structlog.dev.plain_traceback,
+        )
     final_processors.append(renderer)
 
     # Rendering happens in exactly ONE place: the stdlib handler's

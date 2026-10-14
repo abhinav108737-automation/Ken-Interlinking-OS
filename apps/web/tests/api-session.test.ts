@@ -134,15 +134,26 @@ describe("401 handling", () => {
 describe("startSession / endSession", () => {
   const now = Date.parse("2026-10-14T11:00:00Z");
 
-  it("stores the token HttpOnly, SameSite=Strict, Path=/ with Max-Age = remaining TTL (loopback: not Secure)", async () => {
+  it("stores the token HttpOnly, SameSite=Strict, Path=/, Secure, with Max-Age = remaining TTL", async () => {
+    // A non-development server is Secure even on a loopback Host (QA L3).
     expect(await startSession(sessionView({ expires_at: "2026-10-14T23:00:00Z" }), now)).toBe(true);
     expect(requestContext.writes).toEqual([
       {
         name: SESSION_COOKIE,
         value: TOKEN,
-        options: { httpOnly: true, sameSite: "strict", path: "/", secure: false, maxAge: 12 * 3600 },
+        options: { httpOnly: true, sameSite: "strict", path: "/", secure: true, maxAge: 12 * 3600 },
       },
     ]);
+  });
+
+  it("drops Secure only for a loopback DEVELOPMENT server", async () => {
+    vi.stubEnv("NODE_ENV", "development");
+    try {
+      await startSession(sessionView({ expires_at: "2026-10-14T23:00:00Z" }), now);
+      expect(requestContext.writes[0]?.options).toMatchObject({ secure: false });
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   it("marks the cookie Secure on a non-loopback host", async () => {
@@ -161,7 +172,7 @@ describe("startSession / endSession", () => {
     requestContext.cookies.set(SESSION_COOKIE, TOKEN);
     await endSession();
     expect(requestContext.writes).toEqual([
-      { name: SESSION_COOKIE, value: "", options: { httpOnly: true, sameSite: "strict", path: "/", secure: false, maxAge: 0 } },
+      { name: SESSION_COOKIE, value: "", options: { httpOnly: true, sameSite: "strict", path: "/", secure: true, maxAge: 0 } },
     ]);
     expect(requestContext.cookies.has(SESSION_COOKIE)).toBe(false);
   });

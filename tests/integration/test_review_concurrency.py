@@ -197,3 +197,37 @@ async def test_edit_and_recommend_together_keep_the_invariants(
         t=plan.target_page_id,
     )
     assert pairs[0].n == 1
+
+
+async def test_a_bulk_id_reused_concurrently_for_another_plan_set_is_refused(
+    sessionmaker: SM, plans: Any
+) -> None:
+    """QA (Phase 5) L2: two bulk calls with ONE operation id but DIFFERENT plan sets must not
+    both execute: the second waits on the bulk-id lock, then sees the first's rows -> 409."""
+    from ken_contracts.review import BulkAction, BulkReviewRequest, OperationConflictError
+    from tests.integration.review_support import queue
+
+    first, second = sorted(plans.values(), key=lambda p: str(p.id))[:2]
+    for plan in (first, second):
+        await queue(sessionmaker, plan.id)
+    alice = await principal(sessionmaker, "alice")
+    service = review_service(sessionmaker)
+    bulk_id = uuid.uuid4()
+
+    def request(plan_id: uuid.UUID) -> BulkReviewRequest:
+        return BulkReviewRequest(
+            operation_id=bulk_id,
+            action=BulkAction.REJECT,
+            plan_ids=[plan_id],
+            reasons=[FeedbackReason.OVER_LINKING],
+        )
+
+    results = await asyncio.gather(
+        service.bulk(request=request(first.id), principal=alice),
+        service.bulk(request=request(second.id), principal=alice),
+        return_exceptions=True,
+    )
+    refused = [r for r in results if isinstance(r, OperationConflictError)]
+    done = [r for r in results if not isinstance(r, BaseException)]
+    assert len(done) == 1 and len(refused) == 1, results
+    assert await scalar(sessionmaker, "SELECT count(*) FROM review_actions") == 1

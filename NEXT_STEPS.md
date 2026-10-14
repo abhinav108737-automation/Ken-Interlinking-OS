@@ -1,16 +1,16 @@
 # Next Steps
 
-**Current state:** Phase 4 (Agent Orchestration) is **complete**; see
-[PHASE_4_REPORT.md](PHASE_4_REPORT.md). The earlier phases are covered in
-[PHASE_3_REPORT.md](PHASE_3_REPORT.md), [PHASE_2_REPORT.md](PHASE_2_REPORT.md), [PHASE_1_REPORT.md](PHASE_1_REPORT.md) and
+**Current state:** Phase 5 (Reviewer Control Plane) is **complete**; see
+[PHASE_5_REPORT.md](PHASE_5_REPORT.md). The earlier phases are covered in
+[PHASE_4_REPORT.md](PHASE_4_REPORT.md), [PHASE_3_REPORT.md](PHASE_3_REPORT.md), [PHASE_2_REPORT.md](PHASE_2_REPORT.md), [PHASE_1_REPORT.md](PHASE_1_REPORT.md) and
 [PHASE_0_REPORT.md](PHASE_0_REPORT.md).
 
 **Execution mode:** the user has authorised autonomous, sequential execution of Phases 3–9, an
 end-to-end local demo and a final report. Each phase has internal gates and a local commit plus
 tag. Execution stops only for ASK/BLOCK actions.
 
-**Next phase:** Phase 5 (reviewer control plane, auth, feedback), proceeding under that
-authorisation.
+**Next phase:** Phase 6 (controlled deployment through the CMS adapter, verification,
+rollback), proceeding under that authorisation.
 
 ## Needed from you before real production ingestion
 
@@ -30,6 +30,7 @@ any governing document, so none was guessed.
 | 6 | Is the site multilingual? | Language comes only from markup and headers (no detection library) | decision |
 | 7 | **Ken's real taxonomy**: markets/industries with aliases, geographies, a company/product gazetteer, page-type URL patterns, and protected-page rules | `policies/taxonomy/taxonomy.v1.yaml` is an illustrative seed. Classification quality on the real site depends on this. | data |
 | 9 | **Self-describing anchors (ADR-0011 §9.1):** should a same-market, cross-country pair (India cold-chain report → UAE cold-chain report) be linkable on the plain market name ("cold chain")? Today: only when the block also names the target's country/region, or on an article → report hop. 45 eval pairs were relabelled ACCEPTABLE accordingly (rule R5). | Editorial policy; one policy switch either way | decision (orchestrator default in place) |
+| 11 | **Create your own accounts.** No user exists after install, and none was created for you: run `make user-create USERNAME=… ROLE=operator_admin`, then reviewers/viewers as needed. | The UI and API require a session from Phase 5 on | action (you) |
 | 10 | **Does a model critic's `reject` filter a plan out of the human queue, or only annotate it?** Today it filters: the plan stays `proposed`, with its reasons visible. The local qwen3 critic kept 23 % of plans out of the queue on the demo, including 1 of 20 GOOD plans (evals/agents/README.md). | Editorial trust in a local model; a one-line policy/graph change either way | decision (orchestrator default: filter) |
 | 8 | **PRD v1.1 §17.1 wording:** "a genuine native degraded mode" now holds only for schema ≤ 0002 (pgvector is required from Phase 2, ADR-0010) | A product-document revision, for your approval | decision |
 
@@ -37,10 +38,21 @@ any governing document, so none was guessed.
 
 | Gate | Phase |
 |---|---|
-| **Authenticated actors.** The transition service enforces actor CLASS authority (`TRANSITION_AUTHORITY`: only `user:` approves/rejects/supersedes), but trusts its caller about who the user is. Every mutating endpoint must derive `user:<id>` from the authenticated session, never from the request body. | 5 |
 | **Deploy-time re-validation.** Before any CMS mutation, re-check freshness (`check_plan_freshness`), active protections and live eligibility of source and target, and the existing-link state. The recommendation run already expires invalid open plans, but a deploy may happen between runs. | 6 |
 | **DB-level status integrity.** A direct `UPDATE link_plans SET status = …` by the app role is possible (the content trigger only guards content). Route status changes through a SECURITY DEFINER function or a transition-validating trigger, and use a least-privilege role. | 6 |
 | Inline `style="display:none"` is not detected by placement (the `hidden` / `aria-hidden` attributes are). Post-publish verification must render the page. | 6 |
+
+## Phase 5 known limitations (accepted, documented)
+
+| Item | When |
+|---|---|
+| Per-account lockout: anyone who knows a username can lock that account for 15 minutes (accepted for a few local users) | if exposed beyond a trusted network |
+| The CSP allows `'unsafe-inline'` scripts and styles (no nonces yet). A nonce-based CSP can be generated in `proxy.ts`. | before any shared deployment |
+| Review forms need JavaScript (they work around React 19's form reset); login and logout work without it | — |
+| `target-options` loads live facts for every page on each call: fine for thousands of pages | at scale |
+| Read-only DB path for GET handlers, least-privilege DB role, SECURITY DEFINER status integrity | 6 (one DB-role design) |
+| `identity_conflict` operator tooling | 6 |
+| User administration emits no event: adding an event name is a governed decision | 8 / when audit of user admin is needed |
 
 ## Phase 4 known limitations (accepted, documented)
 
@@ -51,7 +63,7 @@ any governing document, so none was guessed.
 | Critic verdicts are uncalibrated, and the deterministic threshold uses raw confidence. | 8 |
 | The recorded eval fixture pins confidences to ±0.001. A ranking change shows up as fixture drift: re-record, never edit expectations. | — |
 | `langgraph-sdk` caps `websockets` below 17 (16.1.1 is locked). | on LangGraph upgrades |
-| The agents API has no endpoint that starts a run (CLI only). An authenticated, operator-only trigger is a Phase 5 decision. | 5 |
+| The agents API has no endpoint that starts a run (CLI only); decided in Phase 5 to keep it so (ADR-0013 §7). | — |
 
 ## Phase 3 known limitations (accepted, documented)
 
@@ -70,9 +82,8 @@ any governing document, so none was guessed.
 | Similarity is an exact cosine KNN, O(pages) per query (12 ms at about 1k pages). Add an HNSW partial index per (model, dimensions) when latency is measured as a problem. | at scale |
 | `KEN_SIMILARITY_MIN_SCORE` is one global, model-specific value (0.78 for nomic). Bind it to the embedding identity, and re-calibrate per model with `evals/intelligence/benchmark.py`. | when the model changes |
 | Embedding identity is the model name; re-pulling the same tag with new weights is not detected. Consider adding the Ollama digest. | before a model upgrade |
-| The intelligence reader asks the provider for its identity on each request: fast normally, but a hung daemon adds the provider timeout. Add a short TTL cache and a request deadline. | 5 |
+| The intelligence reader asks the provider for its identity on each request: fast normally, but a hung daemon adds the provider timeout. Add a short TTL cache and a request deadline. | 6 |
 | `get_coverage` aggregates in Python, O(pages) per request (~300 ms at 1k pages). Aggregate in SQL or cache. | at scale |
-| `page_protections` "never deleted" is enforced by the application. Add a trigger rejecting DELETE and non-deactivating UPDATEs. | 5 (with RBAC) |
 | A job run whose finishing step itself fails stays `running` (no reaper). Losing the advisory-lock connection mid-run silently drops the lock. | 6 (scheduler) |
 | Analysis has no per-page time budget (linear, about 1.6 s/MB of hostile text). | optional |
 
@@ -90,7 +101,6 @@ any governing document, so none was guessed.
 | The inventory reader uses the app's write-capable DB role. It is read-only by code, not by role or `SET TRANSACTION READ ONLY`. | Phase 5 RBAC / least-privilege role |
 | httpx logs each fetched URL at INFO; a token in a crawled URL's query string would reach logs | lower httpx log level when real crawls start |
 | A raw `href` containing credentials is stored verbatim (typed `invalid`, never fetched) — it is the page's own public markup | informational |
-| The 422 for a malformed UUID echoes one offending character (pydantic's message; Phase 0 handler) | before auth (5) |
 | No automated test enforces the inward dependency direction; the API → services edge is a by-name import | optional AST import test |
 | **Desktop data-fetching decision** (ADR-0008) now covers the inventory screens too — they are server-rendered like `/system` | when Electron is scheduled |
 
@@ -106,18 +116,24 @@ any governing document, so none was guessed.
 | Starlette deprecation warning: `starlette.testclient` with `httpx` | when upgrading Starlette |
 | CI workflow authored but never run (no git remote; pushing is ASK) | when a remote exists |
 | Non-editable wheel build across the package roots (now five) not yet verified | before any distribution |
-| `GET /meta`, `/docs`, `/ready` and `/inventory/*` are unauthenticated: fine locally; RBAC (TRD §23) before any shared environment | 5 |
-| QA L1: unlisted 4xx map to `validation_failed` (e.g. 405); map 401/403 → `permission_denied`, add a 405 code | before auth (5) |
 | QA L5: append-only `events` not enforced in the DB (unlike `page_versions`/`existing_links`, which now are); app connects as superuser `ken` | 5 / 6 |
 | QA L6: `javascript:` hrefs and empty anchors must be rejected by the Phase 6 validator (links **to** protected pages are now rejected by Phase 3: `target_protected`, and open plans expire) | 6 |
 | QA L7: a second (no-op) rollback returns the first caller's `actor` | 6 |
 | QA L8: floating image tags; CI actions pinned by tag; three identical compose images | before any shared env |
-| QA L9: `/ready` unauthenticated, 3 DB sessions per call | 5 |
+| QA L9: `/ready` stays public by design (probes; ADR-0013), 3 DB sessions per call | before any shared env |
 | QA P1: the Phase 9 policy engine must read AUTO_APPROVE from a module-level `Final`, never a `Settings` instance | 9 |
 | Persist the CMS audit log to `events` (`link.deployed`, `link.rolled_back`) | 6 |
 | Re-verify the licence inventory of any packaged desktop bundle (`sharp` is LGPL) | before desktop distribution |
 | 5432 guard does not resolve DNS (`127.1`, decimal IPs) | optional |
 | Colima does not start at login: run `colima start` after a reboot | — |
+
+**Closed in Phase 5:**
+- Authenticated actors (Phase 3 QA H3 gate): actors come from the session.
+- RBAC (TRD §23), with deny-by-default routes. 401 maps to `unauthenticated`, 403 to
+  `permission_denied` and 405 to `method_not_allowed` (Phase 0 QA L1).
+- Validation errors no longer echo input values.
+- The `page_protections` trigger rejects DELETE and any UPDATE other than deactivation.
+- The review inbox and editorial feedback capture (PRD §7.9).
 
 **Closed in Phase 4:**
 - mypy `strict` covers `ken_agents`.

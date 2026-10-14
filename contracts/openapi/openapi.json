@@ -6183,6 +6183,7 @@
               "anyOf": [
                 {
                   "maxLength": 200,
+                  "pattern": "^[^\\x00-\\x1f\\x7f]*$",
                   "type": "string"
                 },
                 {
@@ -9119,6 +9120,7 @@
               "anyOf": [
                 {
                   "maxLength": 210,
+                  "pattern": "^[^\\x00-\\x1f\\x7f]*$",
                   "type": "string"
                 },
                 {

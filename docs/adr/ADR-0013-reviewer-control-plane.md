@@ -273,6 +273,28 @@ block is done by rejecting the plan with `wrong_placement`; the engine places by
 rules. This is a deliberate limit, so that the editing UI never builds a locator across
 blocks.
 
+### 8. QA review outcomes (Phase 5)
+
+- **Bulk id reuse under concurrency.** A bulk call holds a session-level advisory lock keyed
+  on its `operation_id` for the whole call. A concurrent call with the same id therefore
+  waits, then replays or gets a 409. Each bulk call uses two pool connections: the lock and
+  the work.
+- **Unstorable text.** NUL, other C0 controls (except tab, newline and carriage return), DEL
+  and lone surrogates are a 422 at the boundary, never a 500 from the database or the hasher.
+  This covers login fields, notes and the audit query parameters.
+- **`next` redirects** are re-checked AFTER URL normalisation, so `/..//evil.com` falls back
+  to `/`.
+- **Cookies.** The loopback non-Secure exception applies only to a development server.
+- **Logs.** Tracebacks are pinned to plain formatting: no frame locals.
+- **Token custody.** `lib/api.ts` throws if it ever runs in a browser.
+- **Idempotent retries in the web app.** Single-plan forms mint their `operation_id` once per
+  rendered form, so a retry after a timeout replays. A bulk submission mints a fresh id,
+  because its plan set changes between submissions.
+- **Accepted, documented:** malformed JSON reaches a 422 before authentication, because
+  FastAPI parses the body before resolving dependencies; nothing leaks beyond the route's
+  existence. The CSP still allows `'unsafe-inline'` (nonce CSP is a follow-up). Logging out
+  while the API is down clears the cookie, and the server session then expires at its TTL.
+
 ## Consequences
 
 - From Phase 5, every non-probe endpoint requires a session. Tests use an authenticated test

@@ -22,8 +22,11 @@ convention, not a freeze.
 | `errors.py` | `ErrorResponse`, `ErrorCode`, `ListResponse[T]`, `PageInfo` |
 | `intelligence.py` | Phase 2. Taxonomy policy schema (`TaxonomyPolicy`), `PageAnalysis`, embeddings/relationships/protections views, `LinkEligibility`, `IntelligenceReader` |
 | `jobs.py` | Phase 2. `JobKind`, `JobRunSummary` / `JobRunDetail`, `JobCompletedPayload`, `JobReader` — the run record of every batch job from Phase 2 on |
+| `auth.py` | Phase 5. `Role`, `Permission`, `ROLE_PERMISSIONS`, `Principal` (actor derived from the session), login/session views, `AuthProvider` |
+| `controlplane.py` | Phase 5. `DashboardSummary`, `EventRecord`, `PoliciesView` |
 | `agents.py` | Phase 4. Agent run/step/review views, nodes, outcomes, triage vocabulary, LLM boundary models (`PlannerSelection`, `CriticAssessment`), tool allowlist, actors, `AgentPolicy`, `AgentReader` |
 | `recommendations.py` | Phase 3. `LinkPlan` / `LinkCandidate` views, `CandidateRejection`, `LinkPlanStatus` + `ALLOWED_TRANSITIONS` / `TRANSITION_AUTHORITY`, `ACTOR_PATTERN`, `RecommendationPolicy` / `RankingPolicy`, `PlacementLocator`, `FreshnessCheck`, `ExperimentGuard`, `RecommendationReader` |
+| `review.py` | Phase 5. Review requests (approve / reject / edit anchor / replace target / bulk), `FeedbackReason` + `REASONS_BY_ACTION`, results, `ReviewActionView`, `TargetOption`, typed review errors, `ReviewService` / `ReviewReader` |
 | `inventory.py` | Phase 1. `ContentSourceProvider` + `CMSInventoryReader` protocols, `SourceDocument` / `SourceIssue`, `SiteScope`, `CrawlConfig`, `NormalizedPage`, the JSONL export format, inventory event payloads, API read models, `InventoryReader` (the API's only route to persistence) |
 
 ## Rules
@@ -303,3 +306,42 @@ the runtime/backend interface is `services/ken_services/agents/protocol.py` (orc
 
 No new event name: the hand-off is audited by `link_plan_transitions` and `agent_run_plans`;
 the batch emits `job.completed` (kind `agent`).
+
+### 17. Reviewer control plane (Phase 5)
+
+Design: [ADR-0013](adr/ADR-0013-reviewer-control-plane.md) (§7 is binding). Modules:
+`auth.py`, `review.py`, `controlplane.py`.
+
+- **Auth.**
+  - The API takes Bearer tokens only. Tokens are opaque, 256-bit and stored as SHA-256; they
+    last 12 h and can be revoked.
+  - Login is checked with `scrypt` (N = 2¹⁷).
+  - Every login failure, a locked account included, gets one identical 401 body.
+  - The web app keeps the token in an HttpOnly, SameSite=Strict cookie.
+  - No default account exists; users are managed through the CLI only.
+- **RBAC.** Deny by default. Public routes are `/health`, `/ready` and `POST /auth/login`;
+  every other route declares a `Permission` (see the route table in ADR-0013 §7). Tests
+  inject a principal only through `dependency_overrides`; no setting disables auth.
+- **Actors** come from the session (`Principal.actor = "user:<username>"`), never from a body.
+- **Review actions** are deterministic service calls over the transition service.
+  - **Idempotent:** a client `operation_id` plus a request fingerprint. A replay returns the
+    stored result; a reused id gets a 409; a refused action writes nothing.
+  - **Version-aware:** `expected_status` must match, stale plans are refused, and edits carry
+    `block_context_hash`.
+  - **Re-checked under lock:** freshness and durable invalidity
+    (`ken_services.recommendations.validity`, shared with the engine).
+  - **Serialised per source:** `pg_advisory_xact_lock`.
+- **Edits supersede.** The old plan becomes `superseded`. A new plan (`anchor_source =
+  "edited"`) gets its initial row from `system:review-service` and is then moved by the user.
+  Its anchor is a verbatim, whole-phrase, placement-safe span; its score is recomputed
+  deterministically.
+- **Feedback.** `review_actions` is append-only, one row per action. It records the action,
+  actor, user id, status before and after, structured reasons, note, anchor and target before
+  and after, and the new plan id and status. It is the Phase 8 learning input.
+- **Cool-down.** A destination replaced by a reviewer is not re-proposed within
+  `rejection_cooldown_days`.
+- **Events.** `link.approved`, `link.rejected`, and `link.proposed` for an edited plan
+  (`LinkPlanEvent.supersedes`, additive, `event_version` 1). Each carries the user as actor
+  and `correlation_id = operation_id` (or the bulk id). There are no new event names.
+- **Error codes** (additions): `unauthenticated` (401), `method_not_allowed` (405).
+  `ErrorResponse.message` never echoes input values.

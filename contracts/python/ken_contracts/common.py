@@ -51,6 +51,23 @@ type CorrelationId = UUID
 """Ties related events and log lines to one causing request or agent run."""
 
 
+STORABLE_QUERY_PATTERN = r"^[^\x00-\x1f\x7f]*$"
+"""For free-text query parameters: no NUL or other control characters (a 422, not a 500).
+A lone surrogate cannot arrive through a URL: percent-decoding invalid UTF-8 never yields
+one."""
+
+
+def reject_unstorable_text(value: str) -> str:
+    """PostgreSQL text rejects NUL, and a lone UTF-16 surrogate cannot be UTF-8 encoded: both
+    would surface as a 500 deep in the stack. Reject them -- and other C0 controls except tab,
+    newline and carriage return -- at the boundary (a 422), Phase 5 QA L1."""
+    for char in value:
+        code = ord(char)
+        if (code < 0x20 and char not in "\t\n\r") or code == 0x7F or 0xD800 <= code <= 0xDFFF:
+            raise ValueError("text contains a character that cannot be stored")
+    return value
+
+
 class ContractModel(BaseModel):
     """Base for mutable contract models.
 

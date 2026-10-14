@@ -24,9 +24,9 @@ from enum import StrEnum
 from typing import Final, Protocol, runtime_checkable
 from uuid import UUID
 
-from pydantic import AwareDatetime, Field, SecretStr
+from pydantic import AwareDatetime, Field, SecretStr, field_validator
 
-from ken_contracts.common import FrozenModel
+from ken_contracts.common import FrozenModel, reject_unstorable_text
 
 USERNAME_PATTERN: Final = r"^[a-z0-9][a-z0-9._-]{2,63}$"
 """Lower-case, 3-64 chars: also valid inside ``user:<username>``."""
@@ -92,6 +92,17 @@ class Principal(FrozenModel):
 class LoginRequest(FrozenModel):
     username: str = Field(min_length=3, max_length=64)
     password: SecretStr = Field(min_length=1, max_length=MAX_PASSWORD_CHARS)
+
+    @field_validator("username")
+    @classmethod
+    def _storable_username(cls, value: str) -> str:
+        return reject_unstorable_text(value)
+
+    @field_validator("password")
+    @classmethod
+    def _storable_password(cls, value: SecretStr) -> SecretStr:
+        reject_unstorable_text(value.get_secret_value())
+        return value
 
 
 class SessionView(FrozenModel):

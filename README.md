@@ -3,7 +3,18 @@
 A fully self-hosted, local-first system that will manage contextual internal body links across Ken Research
 pages: observe → understand → recommend → approve → publish → verify → measure → learn.
 
-**Current status: Phase 4 (agent review workflow) is complete**, built on Phases 1–3.
+**Current status: Phase 5 (reviewer control plane) is complete**, built on Phases 1–4.
+
+Phase 5 puts a human in charge:
+- local, self-hosted sign-in with roles (viewer, reviewer, operator-admin) and no default
+  accounts;
+- a dashboard and a review inbox;
+- plan detail with a before/after preview, where a reviewer can approve, reject, edit the
+  anchor or replace the destination, each with structured feedback, or bulk-review;
+- an audit log and read-only policy settings.
+
+Every action is idempotent, version-aware, re-validated under lock and recorded as editorial
+feedback. AUTO_APPROVE stays disabled. **Nothing is published yet:** that is Phase 6.
 
 Phase 4 adds a supervised LangGraph workflow that **reviews** the engine's proposals. For each
 page with unreviewed proposals it:
@@ -48,7 +59,7 @@ It normalises pages deterministically, stores them with an immutable, hash-based
 extracts the links they already contain, and makes all of it inspectable through a read-only API and
 web screens. The API is GET-only; crawls and imports start from the command line. There is no
 recommendation intelligence, publishing or learning yet. See
-[PHASE_4_REPORT.md](PHASE_4_REPORT.md), [PHASE_3_REPORT.md](PHASE_3_REPORT.md), [PHASE_2_REPORT.md](PHASE_2_REPORT.md), [PHASE_1_REPORT.md](PHASE_1_REPORT.md),
+[PHASE_5_REPORT.md](PHASE_5_REPORT.md), [PHASE_4_REPORT.md](PHASE_4_REPORT.md), [PHASE_3_REPORT.md](PHASE_3_REPORT.md), [PHASE_2_REPORT.md](PHASE_2_REPORT.md), [PHASE_1_REPORT.md](PHASE_1_REPORT.md),
 [PHASE_0_REPORT.md](PHASE_0_REPORT.md) and
 [NEXT_STEPS.md](NEXT_STEPS.md).
 
@@ -64,6 +75,7 @@ make ingest-file FILE=tests/fixtures/demo/research_site.jsonl   # load the synth
 make analyze      # Phase 2: classify, embed and relate (needs: ollama pull nomic-embed-text)
 make recommend    # Phase 3: propose contextual links (nothing is published)
 make agents       # Phase 4: agents review proposals → human queue (local model optional)
+make user-create USERNAME=you ROLE=operator_admin   # Phase 5: no account exists until you create one
 make verify       # the full quality gate
 ```
 

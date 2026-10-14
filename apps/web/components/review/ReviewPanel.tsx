@@ -145,10 +145,14 @@ interface FormProps {
 }
 
 function Hidden({ planId, status }: { readonly planId: string; readonly status: string }) {
+  // One idempotency key per rendered form (QA L6): a retry of the same submission (e.g. after
+  // a timeout) replays the stored result instead of being refused as a status mismatch.
+  const [operationId] = useState(() => crypto.randomUUID());
   return (
     <>
       <input type="hidden" name="plan_id" value={planId} />
       <input type="hidden" name="expected_status" value={status} />
+      <input type="hidden" name="operation_id" value={operationId} />
     </>
   );
 }

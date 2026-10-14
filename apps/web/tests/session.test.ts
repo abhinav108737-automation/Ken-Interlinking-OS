@@ -43,10 +43,14 @@ describe("session cookie attributes", () => {
 });
 
 describe("Secure flag", () => {
-  it("is off only for plain-HTTP loopback development", () => {
+  it("is off only for plain-HTTP loopback DEVELOPMENT", () => {
     for (const host of ["127.0.0.1:3000", "localhost:3000", "localhost", "[::1]:3000", "app.localhost:3000"]) {
       expect(isLoopbackHost(host)).toBe(true);
-      expect(shouldUseSecureCookie(host, null)).toBe(false);
+      expect(shouldUseSecureCookie(host, null, true)).toBe(false);
+      // QA L3: a production build stays Secure even when Host is loopback (e.g. a proxy
+      // that rewrites Host without sending X-Forwarded-Proto).
+      expect(shouldUseSecureCookie(host, null, false)).toBe(true);
+      expect(shouldUseSecureCookie(host, null)).toBe(true);
     }
   });
 
@@ -114,5 +118,20 @@ describe("login input and token format", () => {
     for (const bad of ["", "short", `${TOKEN}\r\nX-Evil: 1`, `${TOKEN} more`, `${TOKEN};Path=/`, "a".repeat(700), undefined, 5]) {
       expect(isWellFormedToken(bad)).toBe(false);
     }
+  });
+});
+
+
+describe("safeNextPath after URL normalisation (QA M1)", () => {
+  it("never returns a protocol-relative path built from dot segments", () => {
+    for (const raw of ["/..//evil.com", "/.//evil.com", "/%2e%2e//evil.com", "/a/../..//evil.com", "/./\\evil.com"]) {
+      const out = safeNextPath(raw);
+      expect(out.startsWith("//")).toBe(false);
+      expect(out).toBe("/");
+    }
+  });
+
+  it("still keeps an ordinary normalised path", () => {
+    expect(safeNextPath("/recommendations/../agents?x=1")).toBe("/agents?x=1");
   });
 });

@@ -7,7 +7,8 @@
  * Each call:
  * - re-validates its input with the same rules the forms use (lib/review.ts);
  *   the API validates again and is the authority;
- * - generates a FRESH `operation_id` (idempotency key) per submission;
+ * - sends the form's `operation_id` (idempotency key, minted once per rendered single-plan
+ *   form; a fresh one per bulk submission, whose plan set changes between submissions);
  * - sends `expected_status` = the status the reviewer saw, so a plan that
  *   changed meanwhile is refused (409) instead of acted on.
  *
@@ -35,6 +36,13 @@ import {
 } from "@/lib/review";
 
 const CONTEXT_HASH = /^[0-9a-f]{64}$/;
+
+/** The form's idempotency key (minted once per rendered form), or a fresh one if absent or
+ *  malformed. A retry of the same submission therefore replays instead of conflicting. */
+function operationIdFrom(form: FormData): string {
+  const id = formText(form, "operation_id");
+  return isUuid(id) ? id.toLowerCase() : crypto.randomUUID();
+}
 
 interface Common {
   readonly planId: string;
@@ -78,7 +86,7 @@ export async function approveAction(_previous: ReviewFormState, form: FormData):
   if (!parsed.ok) return parsed.state;
   const { planId, expectedStatus, reasons, note } = parsed.value;
   const result = await approvePlan(planId, {
-    operation_id: crypto.randomUUID(),
+    operation_id: operationIdFrom(form),
     expected_status: expectedStatus,
     reasons,
     note,
@@ -96,7 +104,7 @@ export async function rejectAction(_previous: ReviewFormState, form: FormData): 
   if (!parsed.ok) return parsed.state;
   const { planId, expectedStatus, reasons, note } = parsed.value;
   const result = await rejectPlan(planId, {
-    operation_id: crypto.randomUUID(),
+    operation_id: operationIdFrom(form),
     expected_status: expectedStatus,
     reasons,
     note,
@@ -122,7 +130,7 @@ export async function editAnchorAction(_previous: ReviewFormState, form: FormDat
   }
   if (!CONTEXT_HASH.test(hash)) return invalid("This form is out of date. Reload the page and try again.").state;
   const result = await editPlanAnchor(planId, {
-    operation_id: crypto.randomUUID(),
+    operation_id: operationIdFrom(form),
     expected_status: expectedStatus,
     reasons,
     note,
@@ -146,7 +154,7 @@ export async function replaceTargetAction(_previous: ReviewFormState, form: Form
     return { status: "invalid", message: "Correct the highlighted fields.", fieldErrors: { target: "Choose a new destination page." } };
   }
   const result = await replacePlanTarget(planId, {
-    operation_id: crypto.randomUUID(),
+    operation_id: operationIdFrom(form),
     expected_status: expectedStatus,
     reasons,
     note,

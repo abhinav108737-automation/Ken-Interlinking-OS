@@ -86,10 +86,17 @@ export function isLoopbackHost(host: string | null | undefined): boolean {
  * a loopback host (the compose file publishes the web app on 127.0.0.1 only).
  * Behind a TLS proxy (`X-Forwarded-Proto: https`) it is always Secure.
  */
-export function shouldUseSecureCookie(host: string | null | undefined, forwardedProto: string | null | undefined): boolean {
+export function shouldUseSecureCookie(
+  host: string | null | undefined,
+  forwardedProto: string | null | undefined,
+  development = false,
+): boolean {
   const proto = (forwardedProto ?? "").split(",")[0]?.trim().toLowerCase() ?? "";
   if (proto === "https") return true;
-  return !isLoopbackHost(host);
+  // The loopback exception applies ONLY to a development server (QA L3): a production build
+  // behind a proxy that rewrites Host to 127.0.0.1 still gets a Secure cookie. Browsers
+  // treat http://localhost and 127.0.0.1 as secure contexts, so Secure works there too.
+  return !(development && isLoopbackHost(host));
 }
 
 const NEXT_BASE = "http://ken.invalid";
@@ -114,6 +121,9 @@ export function safeNextPath(raw: unknown, fallback = "/"): string {
     return fallback;
   }
   if (url.origin !== NEXT_BASE) return fallback;
+  // Re-check AFTER normalisation: dot segments can turn "/..//evil.com" into "//evil.com",
+  // which a browser treats as protocol-relative (QA M1).
+  if (url.pathname.startsWith("//") || url.pathname.includes("\\")) return fallback;
   for (const name of INTERNAL_PARAMS) url.searchParams.delete(name);
   const path = `${url.pathname}${url.search}`;
   if (url.pathname === LOGIN_PATH || url.pathname.startsWith("/auth/")) return fallback;

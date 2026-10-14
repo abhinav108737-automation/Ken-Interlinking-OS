@@ -139,6 +139,39 @@ make recommend ARGS="--source <id>"    # one or more specific source pages
   `/recommendations/opportunities` and `/recommendations/summary`. Approve, reject and edit come
   in Phase 5.
 
+## Reviewer control plane (Phase 5)
+
+Every API endpoint except `/health`, `/ready` and `POST /auth/login` needs a session. The web
+app has a `/login` page. **No account exists after install; create one yourself:**
+
+```bash
+make user-create USERNAME=alice ROLE=operator_admin DISPLAY_NAME="Alice"   # prompts for a password (>= 12 chars)
+make user-list
+make user-set-role USERNAME=bob ROLE=reviewer      # revokes bob's sessions
+make user-disable USERNAME=bob                     # revokes; user-enable re-enables and clears a lockout
+make user-set-password USERNAME=alice              # revokes alice's sessions
+make sessions-prune                                # delete sessions expired > 30 days
+```
+
+- **Roles:**
+  - `viewer` reads;
+  - `reviewer` also approves, rejects, edits anchors, replaces destinations and bulk-reviews;
+  - `operator_admin` also sees the audit log (`/audit/*`) and the active policies
+    (`/settings/policies`).
+- **Review rules** (ADR-0013):
+  - every action needs the plan's current status and a fresh operation id;
+  - rejections and edits need structured reasons;
+  - a stale plan, or one whose source or target became protected or ineligible, is refused
+    with a 409;
+  - an approval can be reversed by a reject until deployment.
+- **API from a shell:**
+  1. `curl -X POST /auth/login -d '{"username":…,"password":…}'` returns a `token`;
+  2. then send `Authorization: Bearer <token>`.
+
+  Tokens last 12 h. Five failed logins lock an account for 15 minutes.
+- The web app keeps the token in an HttpOnly cookie (`ken_session`); it is never exposed to
+  browser JavaScript.
+
 ## Agent review workflow (Phase 4)
 
 ```bash
