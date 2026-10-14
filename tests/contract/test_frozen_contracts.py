@@ -355,3 +355,54 @@ def test_taxonomy_rejects_parent_cycles() -> None:
     cycle = [{"id": "a", "label": "A", "parent": "b"}, {"id": "b", "label": "B", "parent": "a"}]
     with pytest.raises(ValidationError, match="cycle"):
         intelligence.TaxonomyPolicy.model_validate({**base, "markets": cycle})
+
+
+def test_link_plan_transitions_are_total_and_terminal_states_are_final() -> None:
+    from ken_contracts.recommendations import ALLOWED_TRANSITIONS, LinkPlanStatus
+
+    assert set(ALLOWED_TRANSITIONS) == set(LinkPlanStatus)
+    for terminal in ("rejected", "superseded", "expired", "rolled_back"):
+        assert ALLOWED_TRANSITIONS[LinkPlanStatus(terminal)] == frozenset()
+    # An approval is never resurrected: nothing leads back to approved except awaiting_approval.
+    sources = {
+        s for s, targets in ALLOWED_TRANSITIONS.items() if LinkPlanStatus.APPROVED in targets
+    }
+    assert sources == {LinkPlanStatus.AWAITING_APPROVAL}
+
+
+def test_score_breakdown_identities_are_enforced() -> None:
+    from ken_contracts.recommendations import ScoreBreakdown, ScoreComponent
+
+    comp = ScoreComponent(name="semantic", value=0.5, weight=0.3, contribution=0.15)
+    ok = ScoreBreakdown(
+        components=(comp,), relevance=0.15, factors={"placement_quality": 0.8}, total=0.12,
+        policy_name="ranking", policy_version=1,
+    )  # fmt: skip
+    assert ok.total == 0.12
+    with pytest.raises(ValidationError):
+        ScoreComponent(name="vibes", value=0.5, weight=0.3, contribution=0.15)
+    with pytest.raises(ValidationError):
+        ScoreComponent(name="semantic", value=0.5, weight=0.3, contribution=0.2)
+    with pytest.raises(ValidationError):
+        ScoreBreakdown(
+            components=(comp,), relevance=0.15, factors={}, total=0.5,
+            policy_name="ranking", policy_version=1,
+        )  # fmt: skip
+
+
+def test_recommendation_policy_file_validates() -> None:
+    from pathlib import Path
+
+    import yaml
+
+    from ken_contracts.recommendations import RankingPolicy, RecommendationPolicy
+
+    root = Path(__file__).resolve().parents[2]
+    policy = RecommendationPolicy.model_validate(
+        yaml.safe_load((root / "policies/recommendation/recommendation.v1.yaml").read_text())
+    )
+    ranking = RankingPolicy.model_validate(
+        yaml.safe_load((root / policy.ranking_policy).read_text())
+    )
+    assert policy.selection.min_relevance <= policy.selection.min_score
+    assert ranking.version == 1

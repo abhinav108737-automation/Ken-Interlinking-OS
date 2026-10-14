@@ -4,6 +4,8 @@
 - **Date:** 2026-10-14
 - **Contracts:** `ken_contracts/recommendations.py`. **Schema:** migration 0004. **Policy:**
   `policies/recommendation/recommendation.v1.yaml` and `policies/ranking/ranking_weights.v1.yaml`.
+- **Revised before fan-out** after the architecture review: filter order, the split score threshold,
+  placement safety, the lifecycle and transitions, immutability and indexes.
 
 ## Context
 
@@ -43,89 +45,123 @@ Each channel can be switched off independently (`retrieval.channels_enabled`).
 
 Candidates are unioned. Each keeps the set of channels that found it.
 
-### 3. Eligibility filters
+### 3. Filters and stages, in this order (the first rejection is recorded)
 
-The filters run in this order; the first that matches is recorded.
-
-| Code | Rule |
-|---|---|
-| `self_link` | target == source (also a DB CHECK) |
-| `source_ineligible` / `target_ineligible` | `compute_eligibility` (live): published, not gone, not protected, not noindex, canonical, HTTP 200, thick enough, linkable page type, fresh analysis |
-| `target_protected` | an active protection on the target. Reported separately for safety evals, even though eligibility already implies it. |
-| `already_linked` | the source's **current** version already links to the target, via `existing_links` resolved through `known_urls` (redirects and aliases count) |
-| `duplicate_recommendation` | an **open** plan for (source, target) already exists (also a partial unique index) |
-| `page_type_incompatible` | the target's page type is not in `page_type_targets[source type]`, or intent compatibility is 0 |
-| `link_density_exceeded` | (existing internal body links + already-selected plans + 1) / words × 100 > `max_internal_links_per_100_words` |
-| `below_min_score` | the final score is below `selection.min_score` |
-| `per_source_limit` / `diversity_limit` | `max_plans_per_source` reached, or the target already has `max_plans_per_target_per_run` plans in this run |
-| `no_natural_anchor` | placement found no supported anchor (§5): **nothing is ever fabricated** |
+| Stage | Code | Rule |
+|---|---|---|
+| pair | `self_link` | target == source (also a DB CHECK) |
+| pair | `source_protected` / `target_protected` | an active protection on either page. Checked **first**, so safety evals see it. |
+| pair | `experiment_locked` | the `ExperimentGuard` says an active experiment forbids the pair (PRD 7.5). **Never fires before Phase 7**; the hook exists now. |
+| pair | `source_ineligible` / `target_ineligible` | `compute_eligibility` (live): published, not gone, not noindex, canonical, HTTP 200, thick enough, linkable page type, fresh analysis |
+| pair | `already_linked` | the source's **current** version already links to the target, via `existing_links` → `known_urls` (redirects and aliases count) |
+| pair | `duplicate_recommendation` | an **open** plan exists for the pair, **or** a **live** plan (deployed / verified / measured / learning_captured) whose `source_page_version` ≥ the source's current version, meaning the inventory has not yet re-read the page that contains the link |
+| pair | `previously_rejected` | a reviewer rejected this pair within `selection.rejection_cooldown_days` |
+| pair | `page_type_incompatible` | the target type is not in `page_type_targets[source type]`, or intent compatibility is 0 |
+| score | `below_min_relevance` | relevance below `selection.min_relevance` (cheap pruning, **before** placement) |
+| place | `no_natural_anchor` | placement, attempted in rank order, found no supported anchor (§5): **nothing is ever fabricated** |
+| place | `below_min_score` | the **final** score (relevance × placement quality) is below `selection.min_score` |
+| select | `link_density_exceeded` | (existing internal body links + selected plans + 1) / words × 100 > `max_internal_links_per_100_words` |
+| select | `per_source_limit` / `diversity_limit` | `max_plans_per_source` reached, or the target already has `max_plans_per_target_per_run` plans in this run |
 
 ### 4. Score
 
-The score is transparent, with every component in [0, 1]:
+The score is transparent, every component is in [0, 1], and it can be checked from the record
+alone:
 
 ```
-relevance = Σ weight[c] × component[c]      (weights = ranking policy, Σ = 1)
-final     = relevance × placement_quality    (placement_quality ∈ [0.5, 1], recorded as a penalty factor)
+relevance = Σ weight[c] × component[c]          (weights = ranking policy; Σ weights = 1)
+total     = relevance × Π factors               (factors ∈ (0, 1]; today: placement_quality)
 ```
+
+`ScoreBreakdown` validators enforce both identities. It also records the `semantic_floor` used.
 
 | Component | Definition |
 |---|---|
-| `semantic` | clamp((cosine − `KEN_SIMILARITY_MIN_SCORE`) / (1 − that)): reuses the model-calibrated threshold, 0 without an embedding |
+| `semantic` | clamp((cosine − floor) / (1 − floor)), where floor = `KEN_SIMILARITY_MIN_SCORE` (model-calibrated, recorded as `semantic_floor`). 0 without an embedding. |
 | `taxonomy` | the maximum weight over the market-structure relationship types between source and target (`taxonomy_relationships`, live) |
 | `intent` | `intent_compatibility[source intent][target intent]` |
-| `graph` | source–target **complementarity**: 1 / (1 + existing links from the source into the target's market) |
+| `graph` | source–target **complementarity** (PRD v1.1 §12.3): 1 / (1 + existing links from the source into the target's market) |
 | `geography` | `geography_scores`: same country 1.0, target region contains a source country 0.6, same region 0.5, target global 0.3, else 0 |
 | `commercial` | target `commercial_importance` / 3 |
 | `underlinked` | max(0, 1 − inbound / `underlinked_inbound_threshold`), where inbound counts current internal links to the target |
-| `historical` | 0 until Phase 8 provides calibrated outcome evidence |
+| `historical` | 0 until Phase 8 provides calibrated outcome evidence. Until then relevance tops out at 0.97. |
 
-`confidence` is the raw `final` in Phase 3. Phase 8 calibrates it. `reason_codes` are derived from
-the components and evidence (for example `same_market`, `semantically_similar`,
-`underlinked_target`, `anchor_matches_target_topic`). `rationale` is rendered from those codes
-deterministically and never contains free text.
+**Interpretation, flagged for the user.** TRD §12 names the weight keys but does not define them.
+The definitions of `graph` (complementarity) and `underlinked` (inbound scarcity) above are this
+ADR's interpretation. `graph` is near-constant on sparse link graphs, so an ablation eval checks
+its value.
+
+`confidence` is the raw `total`, with `calibration_version = None`. **No threshold may treat raw
+confidence as calibrated.** Phase 8 sets the calibration.
+
+`reason_codes` are derived from the components and evidence. `rationale` is rendered from those
+codes deterministically and never contains free text.
 
 ### 5. Placement (deterministic, never fabricated)
 
 Blocks are the source version's `extract_blocks(body_html)` (Phase 1). Block ids equal the
-normaliser's, so locators line up with `existing_links` and `LinkLocator`.
+normaliser's.
 
-1. **Anchor candidates for target T:**
-   - the aliases and label of T's `market_id` node (`anchor_source = "target_topic"`);
+**Every block exposes its text RUNS:** the character spans of the block text, each with the tag
+names of its ancestors (`ContentBlock.runs`). Placement depends on this.
+
+1. **Anchor candidates for target T, in rank order:**
+   - the aliases and label of T's `market_id` node (`target_topic`, at least `min_anchor_words`
+     words);
    - then the aliases of T's other top topics at depth ≥ 1;
-   - then T's title core, which is the title minus a trailing "Market…/Report…/Outlook…" tail, only
-     if it is 2 to 8 words (`"target_title"`);
-   - then two-word keyword bigrams of T (`"target_keyword"`).
-2. **Search:** every eligible block (`placement.block_kinds`, default `p`/`li`) of the source, for
-   case-insensitive whole-phrase occurrences. A block is skipped if:
-   - its existing links already reach `max_links_per_block`;
-   - it already links to T;
-   - the span overlaps an already selected plan's span.
+   - then T's title core (`target_title`) and two-word keyword bigrams (`target_keyword`). These
+     two need at least `min_anchor_words_non_topic` (2) words.
+
+   **Geography aliases are never anchors:** "India" must not link to a market page.
+2. **Search:** blocks of an allowed kind (`placement.block_kinds`) for case-insensitive
+   whole-phrase occurrences. The span must:
+   - lie inside **one** text run;
+   - have **no** ancestor in `placement.excluded_ancestors` (links, tables, quotes, figures, code,
+     citations, sup/sub, headings), which also makes nested links impossible;
+   - not overlap a span already selected for this source.
+
+   A block is skipped if its existing links already reach `max_links_per_block`, or if it already
+   links to T.
 3. **Anchor rules:**
-   - word count between `min_anchor_words` and `max_anchor_words`;
-   - at least `min_anchor_chars` characters;
+   - word count and minimum characters as configured;
    - never one of `forbidden_anchors`;
-   - the anchor text is copied **verbatim** from the block (original case).
+   - the text is copied **verbatim** from the block, in its original case.
 4. **Choice:** the best (anchor source rank, phrase length descending, block salience descending,
    block order, occurrence). `placement_quality` is 1.0 for a topic alias, 0.9 for a title core and
-   0.75 for a keyword bigram, minus 0.1 if the block is the opening block.
+   0.75 for a keyword bigram, minus 0.1 for the opening block.
 5. **Locator:**
-   - `block_id`, `block_kind`, `occurrence_index` (of this phrase in the block), and character
-     `start`/`end` in the block text;
+   - `block_id` (a **hint** only), `block_kind`, `occurrence_index`, and `start`/`end` in the
+     **normalised** block text;
    - `context_hash` = sha256 of the full block text;
    - `preview` = up to 200 characters either side.
 
+   **Phase 6 finds the block by (`context_hash`, anchor text, `occurrence_index`)**, because ordinal
+   ids shift when blocks are inserted above.
+
 ### 6. Plans: immutable content, append-only history, freshness
 
-- `link_plans` content is **immutable**. A trigger rejects any UPDATE that changes anything except
-  `status` and `updated_at`. An edit (Phase 5) creates a new plan that `supersedes` the old one, so
-  what was approved is exactly what gets deployed.
+- `link_plans` content is **immutable**. The trigger is **generic**: it rejects an UPDATE when
+  `to_jsonb(NEW) - 'status' - 'updated_at'` differs from the same expression on OLD, so any column
+  added later is immutable automatically. It also rejects DELETE.
 - `link_plan_transitions` is append-only. It records every status change, with actor and time.
-- **At most one open plan per (source, target), and per anchor span,** enforced by partial unique
-  indexes.
-- **Re-runs are idempotent.** Unchanged sources produce no new plans (duplicates are filtered).
-  When a source gains a new version, its open plans move to **`expired`** (with a transition) and
-  fresh ones are generated against the new version.
+- **At most one open plan per (source, target)**, and per (source, block `context_hash`, anchor
+  start) across versions. Both are partial unique indexes; overlapping spans are rejected in code.
+- **The target version is pinned** by a composite foreign key to `page_versions`, as the source is.
+- **`plan.id` is the stable identifier of the link.** It becomes `LinkChange.change_id` (Phase 6)
+  and the analytics link id (Phase 7).
+- **Status moves only along `ALLOWED_TRANSITIONS`**, through one transition service (tested).
+  Terminal states are rejected, superseded, expired and rolled_back. An approval is never
+  resurrected.
+- **Re-runs are idempotent:** unchanged sources produce no new plans.
+- **When a source gains a new version,** each open plan is checked with `check_plan_freshness`:
+  - **stale** plans move to `expired`, and fresh plans are generated;
+  - **rebasable** plans keep their status, including human approvals, and are rebased at deploy
+    time.
+
+  A CMS version conflict (409) also means `expired`.
+- **An edit (Phase 5)** moves the old plan to `superseded` and inserts the new plan in the **same
+  transaction**. `anchor_source = "edited"` must still be copied verbatim from the block text. A
+  partial unique index on `supersedes` allows at most one successor.
 - **`check_plan_freshness(plan, current version, current blocks)`** returns one of:
   - `fresh`: same version;
   - `rebasable`: new version, but the same block text (context hash) and the anchor still at its
@@ -135,6 +171,17 @@ normaliser's, so locators line up with `existing_links` and `LinkLocator`.
   Phase 6 refuses to mutate a stale plan (PRD §13 "version awareness").
 - **Events:** `link.proposed` per new plan (`LinkPlanEvent`, `subject_type = link_plan`) and
   `job.completed` per run.
+
+### 6a. Full-text column
+
+`page_versions.search_vector` is a STORED generated `tsvector` built from:
+- the title (first 2,000 characters);
+- the description (first 5,000);
+- the body (first 100,000).
+
+The caps keep inserts under PostgreSQL's 1 MB tsvector limit. The column is deferred in the ORM,
+because it is queried in SQL only. Adding it rewrites the table, which fires no row trigger, so it
+is compatible with the append-only rule.
 
 ### 7. Opportunities
 

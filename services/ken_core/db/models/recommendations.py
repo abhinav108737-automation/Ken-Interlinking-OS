@@ -1,10 +1,11 @@
 """Recommendation engine tables (Phase 3, migration 0004). FROZEN (orchestrator).
 
-``link_plans``             a proposed contextual link. CONTENT IMMUTABLE: a trigger rejects any
-                           UPDATE that changes a column other than ``status`` / ``updated_at``.
-                           At most one OPEN plan per (source page, target page), and per
-                           (source page version, block, anchor start): enforced by partial
-                           unique indexes, so a re-run can never duplicate a recommendation.
+``link_plans``             a proposed contextual link. CONTENT IMMUTABLE: a GENERIC trigger
+                           compares ``to_jsonb(NEW) - 'status' - 'updated_at'`` with OLD and
+                           rejects any difference (so future columns are immutable too), and
+                           rejects DELETE. At most one OPEN plan per (source, target) and per
+                           (source, block context hash, anchor start) -- partial unique
+                           indexes -- and a plan can be superseded at most once.
 ``link_plan_transitions``  APPEND-ONLY status history (PRD v1.1 Appendix C lifecycle).
 ``link_candidates``        APPEND-ONLY audit of every retrieved candidate of a run, kept or
                            rejected (with the rejection code), for explainability and evals.
@@ -42,6 +43,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ken_contracts.recommendations import (
+    OPEN_STATUSES,
     CandidateRejection,
     LinkPlanStatus,
     OpportunityKind,
@@ -49,20 +51,14 @@ from ken_contracts.recommendations import (
 from ken_core.db.base import Base
 from ken_core.db.models.inventory import _one_of
 
-OPEN_PLAN_STATUSES: Final = (
-    LinkPlanStatus.PROPOSED,
-    LinkPlanStatus.CRITIQUED,
-    LinkPlanStatus.POLICY_CHECKED,
-    LinkPlanStatus.AWAITING_APPROVAL,
-    LinkPlanStatus.APPROVED,
-    LinkPlanStatus.VALIDATED,
-)
+OPEN_PLAN_STATUSES: Final = tuple(s for s in LinkPlanStatus if s in OPEN_STATUSES)
 """Statuses in which a plan still occupies its (source, target) and its anchor span."""
 
 PLAN_MUTABLE_COLUMNS: Final = ("status", "updated_at")
 """The ONLY link_plans columns an UPDATE may change (enforced by trigger in 0004)."""
 
 APPEND_ONLY_RECOMMENDATION_TABLES: Final = ("link_plan_transitions", "link_candidates")
+"""Rows these tables hold may never be UPDATEd or DELETEd (``ken_reject_mutation``)."""
 
 _OPEN: Final = ", ".join(f"'{status.value}'" for status in OPEN_PLAN_STATUSES)
 
@@ -89,9 +85,7 @@ class LinkPlan(Base):
     source_page_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
     source_page_version: Mapped[int] = mapped_column(Integer, nullable=False)
     source_url: Mapped[str] = mapped_column(Text, nullable=False)
-    target_page_id: Mapped[uuid.UUID] = mapped_column(
-        Uuid(as_uuid=True), ForeignKey("pages.id", ondelete="RESTRICT"), nullable=False
-    )
+    target_page_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
     target_page_version: Mapped[int] = mapped_column(Integer, nullable=False)
     target_url: Mapped[str] = mapped_column(Text, nullable=False)
     target_title: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -109,12 +103,14 @@ class LinkPlan(Base):
     score: Mapped[dict[str, Any]] = _jsonb("{}")
     total_score: Mapped[float] = mapped_column(Float, nullable=False)
     confidence: Mapped[float] = mapped_column(Float, nullable=False)
+    calibration_version: Mapped[str | None] = mapped_column(Text, nullable=True)
     reason_codes: Mapped[list[str]] = _jsonb("[]")
     rationale: Mapped[str] = mapped_column(Text, nullable=False)
     engine_version: Mapped[str] = mapped_column(Text, nullable=False)
     policy_version: Mapped[int] = mapped_column(Integer, nullable=False)
     ranking_policy_version: Mapped[int] = mapped_column(Integer, nullable=False)
     embedding_model: Mapped[str | None] = mapped_column(Text, nullable=True)
+    reasoning_model: Mapped[str | None] = mapped_column(Text, nullable=True)
     analysis_version: Mapped[str] = mapped_column(Text, nullable=False)
     supersedes: Mapped[uuid.UUID | None] = mapped_column(
         Uuid(as_uuid=True), ForeignKey("link_plans.id", ondelete="RESTRICT"), nullable=True
@@ -126,6 +122,11 @@ class LinkPlan(Base):
     __table_args__ = (
         ForeignKeyConstraint(
             ["source_page_id", "source_page_version"],
+            ["page_versions.page_id", "page_versions.version"],
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["target_page_id", "target_page_version"],
             ["page_versions.page_id", "page_versions.version"],
             ondelete="RESTRICT",
         ),
@@ -145,15 +146,23 @@ class LinkPlan(Base):
             unique=True,
             postgresql_where=text(f"status IN ({_OPEN})"),
         ),
-        # ...nor two open plans competing for the same anchor span.
+        # ...nor two open plans competing for the same anchor start in the same block TEXT
+        # (keyed by context hash, so it holds across source versions). Overlapping spans
+        # are additionally rejected in code.
         Index(
             "uq_link_plans_open_span",
             "source_page_id",
-            "source_page_version",
-            "block_id",
+            "context_hash",
             "start_offset",
             unique=True,
             postgresql_where=text(f"status IN ({_OPEN})"),
+        ),
+        # A plan is superseded by at most one edit.
+        Index(
+            "uq_link_plans_supersedes",
+            "supersedes",
+            unique=True,
+            postgresql_where=text("supersedes IS NOT NULL"),
         ),
         Index("ix_link_plans_status_total_score", "status", text("total_score DESC")),
         Index("ix_link_plans_target_page_id", "target_page_id"),

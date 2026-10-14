@@ -25,7 +25,9 @@ retrieval:
   channels_enabled: [semantic, lexical, taxonomy, graph]
 
 selection:
-  min_score: 0.35                        # final score below this is never proposed
+  min_relevance: 0.30                    # pruned BEFORE placement
+  min_score: 0.35                        # FINAL score (after placement) below this is never proposed
+  rejection_cooldown_days: 90            # a reviewer-rejected pair is not re-proposed for this long
   max_plans_per_source: 3                # per run
   max_plans_per_target_per_run: 5        # destination diversity
   max_internal_links_per_100_words: 2.0  # existing + proposed (over-linking guard)
@@ -33,11 +35,16 @@ selection:
 
 placement:
   block_kinds: [p, li]                   # never headings, tables, captions, quotes, code
-  min_anchor_words: 1
+  min_anchor_words: 1                    # topic-alias anchors (curated taxonomy phrases)
+  min_anchor_words_non_topic: 2          # title-core and keyword anchors
   max_anchor_words: 8
   min_anchor_chars: 4
   forbidden_anchors: [click here, here, read more, learn more, this page, this report, this article]
   skip_first_block: false
+  # The anchor span may not sit under any of these (PRD v1.1 12.4): links, tables,
+  # quotes, figures, code, citations, footnote markers, headings.
+  excluded_ancestors: [a, table, thead, tbody, tr, td, th, blockquote, figure, figcaption,
+                       pre, code, kbd, samp, cite, q, sup, sub, h1, h2, h3, h4, h5, h6, caption]
 
 # source intent -> target intent -> compatibility in [0, 1] (missing = 0 = reject).
 intent_compatibility:

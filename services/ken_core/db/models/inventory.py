@@ -259,12 +259,14 @@ class PageVersion(Base):
     search_vector: Mapped[Any] = mapped_column(
         TSVECTOR,
         Computed(
-            "setweight(to_tsvector('english'::regconfig, coalesce(title, '')), 'A') || "
-            "setweight(to_tsvector('english'::regconfig, coalesce(meta_description, '')), 'B') || "
+            "setweight(to_tsvector('english'::regconfig, left(coalesce(title, ''), 2000)), 'A') || "
+            "setweight(to_tsvector('english'::regconfig, "
+            "left(coalesce(meta_description, ''), 5000)), 'B') || "
             "setweight(to_tsvector('english'::regconfig, left(body_text, 100000)), 'C')",
             persisted=True,
         ),
         nullable=True,
+        deferred=True,  # never loaded with a version; queried in SQL only
     )
 
     __table_args__ = (

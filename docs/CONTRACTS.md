@@ -221,3 +221,29 @@ Design: [ADR-0010](adr/ADR-0010-content-intelligence.md). Modules: `intelligence
 - **The intelligence and jobs APIs are GET-only.** `/intelligence/search` returns 503
   `model_unavailable` when the embedding model is unreachable; it never falls back silently to
   another model.
+
+### 15. Recommendations (Phase 3)
+
+Design: [ADR-0011](adr/ADR-0011-recommendation-engine.md). Module: `recommendations.py`.
+
+- **Deterministic engine.** Recommendations come from retrieval, filters, a transparent score and
+  deterministic placement. No LLM is involved, and anchors are copied verbatim from the source;
+  nothing is fabricated.
+- **`LinkPlan` content is immutable,** enforced by a DB trigger on every non-status column, with
+  DELETE rejected. Status moves only along `ALLOWED_TRANSITIONS`, and every move is an append-only
+  `link_plan_transitions` row. An edit supersedes the plan; it never mutates it.
+- **One open plan per pair and per anchor span** (partial unique indexes). Rejected pairs cool down
+  for `rejection_cooldown_days`.
+- **`plan.id` is the stable link identifier.** It becomes `LinkChange.change_id` (Phase 6) and the
+  analytics link id (Phase 7).
+- **Confidence is raw** (`calibration_version = None`) until Phase 8. No threshold may treat raw
+  confidence as calibrated.
+- **Actors** on transitions and events are `user:<id>`, `agent:<name>@<version>` or
+  `system:<component>` (`ACTOR_PATTERN`).
+- **The recommendations API is GET-only in Phase 3.** Approve, reject and edit arrive in Phase 5,
+  behind authentication.
+
+| Event | `subject_type` / `subject_id` | Payload |
+|---|---|---|
+| `link.proposed` | `link_plan` / `str(plan_id)` | `LinkPlanEvent` |
+| `job.completed` | `job_run` / `str(run_id)` | `JobCompletedPayload` (kind `recommendation`) |

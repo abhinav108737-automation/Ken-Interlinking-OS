@@ -454,10 +454,14 @@ export interface components {
         AnchorSource: "text" | "img_alt" | "aria_label" | "title" | "none";
         /**
          * CandidateRejection
-         * @description Deterministic eligibility filters (FR-006). Ordered; first match is recorded.
+         * @description Deterministic filters (FR-006), in EVALUATION ORDER; the first match is recorded.
+         *
+         *     Pair filters run first (self .. page type), then scoring (``below_min_relevance``),
+         *     then placement in rank order (``no_natural_anchor``, ``below_min_score`` on the
+         *     FINAL score), then selection caps (density, per-source, diversity).
          * @enum {string}
          */
-        CandidateRejection: "self_link" | "source_ineligible" | "target_ineligible" | "target_protected" | "already_linked" | "duplicate_recommendation" | "page_type_incompatible" | "link_density_exceeded" | "below_min_score" | "diversity_limit" | "per_source_limit" | "no_natural_anchor";
+        CandidateRejection: "self_link" | "source_protected" | "target_protected" | "experiment_locked" | "source_ineligible" | "target_ineligible" | "already_linked" | "duplicate_recommendation" | "previously_rejected" | "page_type_incompatible" | "below_min_relevance" | "no_natural_anchor" | "below_min_score" | "link_density_exceeded" | "per_source_limit" | "diversity_limit";
         /**
          * CandidateView
          * @description A retrieved candidate, kept or rejected, for explainability and evals.
@@ -950,16 +954,22 @@ export interface components {
             analysis_version: string;
             /**
              * Anchor Source
+             * @description 'edited' (Phase 5) must still be copied verbatim from the block text.
              * @enum {string}
              */
             anchor_source: "target_topic" | "target_title" | "target_keyword" | "edited";
             /** Anchor Text */
             anchor_text: string;
+            /**
+             * Calibration Version
+             * @description None = RAW confidence. No threshold may treat raw as calibrated.
+             */
+            calibration_version: string | null;
             /** Channels */
             channels: components["schemas"]["RetrievalChannel"][];
             /**
              * Confidence
-             * @description Raw in Phase 3; calibrated from Phase 8.
+             * @description Raw in Phase 3; calibrated later.
              */
             confidence: number;
             /**
@@ -969,7 +979,7 @@ export interface components {
             created_at: string;
             /**
              * Embedding Model
-             * @description Provider-reported identity used.
+             * @description Provider-reported model.
              */
             embedding_model: string | null;
             /** Engine Version */
@@ -995,6 +1005,11 @@ export interface components {
             rationale: string;
             /** Reason Codes */
             reason_codes: components["schemas"]["ReasonCode"][];
+            /**
+             * Reasoning Model
+             * @description Phase 4: the model (by role) that critiqued or planned, if any.
+             */
+            reasoning_model: string | null;
             relationship_type: components["schemas"]["RelationshipType"] | null;
             /** Run Id */
             run_id: string | null;
@@ -1034,16 +1049,22 @@ export interface components {
             analysis_version: string;
             /**
              * Anchor Source
+             * @description 'edited' (Phase 5) must still be copied verbatim from the block text.
              * @enum {string}
              */
             anchor_source: "target_topic" | "target_title" | "target_keyword" | "edited";
             /** Anchor Text */
             anchor_text: string;
+            /**
+             * Calibration Version
+             * @description None = RAW confidence. No threshold may treat raw as calibrated.
+             */
+            calibration_version: string | null;
             /** Channels */
             channels: components["schemas"]["RetrievalChannel"][];
             /**
              * Confidence
-             * @description Raw in Phase 3; calibrated from Phase 8.
+             * @description Raw in Phase 3; calibrated later.
              */
             confidence: number;
             /**
@@ -1053,7 +1074,7 @@ export interface components {
             created_at: string;
             /**
              * Embedding Model
-             * @description Provider-reported identity used.
+             * @description Provider-reported model.
              */
             embedding_model: string | null;
             /** Engine Version */
@@ -1079,6 +1100,11 @@ export interface components {
             rationale: string;
             /** Reason Codes */
             reason_codes: components["schemas"]["ReasonCode"][];
+            /**
+             * Reasoning Model
+             * @description Phase 4: the model (by role) that critiqued or planned, if any.
+             */
+            reasoning_model: string | null;
             relationship_type: components["schemas"]["RelationshipType"] | null;
             /** Run Id */
             run_id: string | null;
@@ -1123,10 +1149,10 @@ export interface components {
         };
         /**
          * LinkPlanStatus
-         * @description PRD v1.1 Appendix C recommendation lifecycle.
+         * @description PRD v1.1 Appendix C recommendation lifecycle. Moves only along ``ALLOWED_TRANSITIONS``.
          * @enum {string}
          */
-        LinkPlanStatus: "proposed" | "critiqued" | "policy_checked" | "awaiting_approval" | "approved" | "rejected" | "superseded" | "validated" | "deployed" | "verified" | "failed" | "rolled_back" | "expired";
+        LinkPlanStatus: "proposed" | "critiqued" | "policy_checked" | "awaiting_approval" | "approved" | "rejected" | "superseded" | "validated" | "deployed" | "verified" | "failed" | "rolled_back" | "expired" | "measured" | "learning_captured";
         /**
          * LinkResolution
          * @description Whether an internal link's destination is known (computed at read time).
@@ -1979,18 +2005,33 @@ export interface components {
             /** Text */
             text: string;
         };
-        /** ScoreBreakdown */
+        /**
+         * ScoreBreakdown
+         * @description ``total = relevance x prod(factors)``, where ``relevance = sum(contributions)``.
+         *
+         *     Checkable from the record alone: validators enforce both identities.
+         */
         ScoreBreakdown: {
             /** Components */
             components: components["schemas"]["ScoreComponent"][];
-            /** Penalties */
-            penalties: {
+            /**
+             * Factors
+             * @description Multipliers in (0, 1], e.g. placement_quality.
+             */
+            factors: {
                 [key: string]: number;
             };
             /** Policy Name */
             policy_name: string;
             /** Policy Version */
             policy_version: number;
+            /** Relevance */
+            relevance: number;
+            /**
+             * Semantic Floor
+             * @description The cosine floor used for the semantic component (recorded).
+             */
+            semantic_floor: number | null;
             /** Total */
             total: number;
         };
@@ -2006,7 +2047,7 @@ export interface components {
             contribution: number;
             /**
              * Name
-             * @description Ranking-policy weight key, e.g. 'semantic'.
+             * @description A ranking-policy weight key (RANKING_COMPONENTS).
              */
             name: string;
             /**

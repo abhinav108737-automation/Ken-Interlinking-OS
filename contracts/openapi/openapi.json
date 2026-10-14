@@ -12,20 +12,24 @@
         "type": "string"
       },
       "CandidateRejection": {
-        "description": "Deterministic eligibility filters (FR-006). Ordered; first match is recorded.",
+        "description": "Deterministic filters (FR-006), in EVALUATION ORDER; the first match is recorded.\n\nPair filters run first (self .. page type), then scoring (``below_min_relevance``),\nthen placement in rank order (``no_natural_anchor``, ``below_min_score`` on the\nFINAL score), then selection caps (density, per-source, diversity).",
         "enum": [
           "self_link",
+          "source_protected",
+          "target_protected",
+          "experiment_locked",
           "source_ineligible",
           "target_ineligible",
-          "target_protected",
           "already_linked",
           "duplicate_recommendation",
+          "previously_rejected",
           "page_type_incompatible",
-          "link_density_exceeded",
+          "below_min_relevance",
+          "no_natural_anchor",
           "below_min_score",
-          "diversity_limit",
+          "link_density_exceeded",
           "per_source_limit",
-          "no_natural_anchor"
+          "diversity_limit"
         ],
         "title": "CandidateRejection",
         "type": "string"
@@ -1113,6 +1117,7 @@
             "type": "string"
           },
           "anchor_source": {
+            "description": "'edited' (Phase 5) must still be copied verbatim from the block text.",
             "enum": [
               "target_topic",
               "target_title",
@@ -1128,6 +1133,18 @@
             "title": "Anchor Text",
             "type": "string"
           },
+          "calibration_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "None = RAW confidence. No threshold may treat raw as calibrated.",
+            "title": "Calibration Version"
+          },
           "channels": {
             "items": {
               "$ref": "#/components/schemas/RetrievalChannel"
@@ -1136,7 +1153,7 @@
             "type": "array"
           },
           "confidence": {
-            "description": "Raw in Phase 3; calibrated from Phase 8.",
+            "description": "Raw in Phase 3; calibrated later.",
             "maximum": 1.0,
             "minimum": 0.0,
             "title": "Confidence",
@@ -1156,7 +1173,7 @@
                 "type": "null"
               }
             ],
-            "description": "Provider-reported identity used.",
+            "description": "Provider-reported model.",
             "title": "Embedding Model"
           },
           "engine_version": {
@@ -1196,6 +1213,18 @@
             },
             "title": "Reason Codes",
             "type": "array"
+          },
+          "reasoning_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Phase 4: the model (by role) that critiqued or planned, if any.",
+            "title": "Reasoning Model"
           },
           "relationship_type": {
             "anyOf": [
@@ -1300,12 +1329,14 @@
           "preview",
           "score",
           "confidence",
+          "calibration_version",
           "reason_codes",
           "rationale",
           "engine_version",
           "policy_version",
           "ranking_policy_version",
           "embedding_model",
+          "reasoning_model",
           "analysis_version",
           "supersedes",
           "status",
@@ -1323,6 +1354,7 @@
             "type": "string"
           },
           "anchor_source": {
+            "description": "'edited' (Phase 5) must still be copied verbatim from the block text.",
             "enum": [
               "target_topic",
               "target_title",
@@ -1338,6 +1370,18 @@
             "title": "Anchor Text",
             "type": "string"
           },
+          "calibration_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "None = RAW confidence. No threshold may treat raw as calibrated.",
+            "title": "Calibration Version"
+          },
           "channels": {
             "items": {
               "$ref": "#/components/schemas/RetrievalChannel"
@@ -1346,7 +1390,7 @@
             "type": "array"
           },
           "confidence": {
-            "description": "Raw in Phase 3; calibrated from Phase 8.",
+            "description": "Raw in Phase 3; calibrated later.",
             "maximum": 1.0,
             "minimum": 0.0,
             "title": "Confidence",
@@ -1366,7 +1410,7 @@
                 "type": "null"
               }
             ],
-            "description": "Provider-reported identity used.",
+            "description": "Provider-reported model.",
             "title": "Embedding Model"
           },
           "engine_version": {
@@ -1406,6 +1450,18 @@
             },
             "title": "Reason Codes",
             "type": "array"
+          },
+          "reasoning_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Phase 4: the model (by role) that critiqued or planned, if any.",
+            "title": "Reasoning Model"
           },
           "relationship_type": {
             "anyOf": [
@@ -1533,12 +1589,14 @@
           "preview",
           "score",
           "confidence",
+          "calibration_version",
           "reason_codes",
           "rationale",
           "engine_version",
           "policy_version",
           "ranking_policy_version",
           "embedding_model",
+          "reasoning_model",
           "analysis_version",
           "supersedes",
           "status",
@@ -1552,7 +1610,7 @@
         "type": "object"
       },
       "LinkPlanStatus": {
-        "description": "PRD v1.1 Appendix C recommendation lifecycle.",
+        "description": "PRD v1.1 Appendix C recommendation lifecycle. Moves only along ``ALLOWED_TRANSITIONS``.",
         "enum": [
           "proposed",
           "critiqued",
@@ -1566,7 +1624,9 @@
           "verified",
           "failed",
           "rolled_back",
-          "expired"
+          "expired",
+          "measured",
+          "learning_captured"
         ],
         "title": "LinkPlanStatus",
         "type": "string"
@@ -3514,6 +3574,7 @@
       },
       "ScoreBreakdown": {
         "additionalProperties": false,
+        "description": "``total = relevance x prod(factors)``, where ``relevance = sum(contributions)``.\n\nCheckable from the record alone: validators enforce both identities.",
         "properties": {
           "components": {
             "items": {
@@ -3522,11 +3583,12 @@
             "title": "Components",
             "type": "array"
           },
-          "penalties": {
+          "factors": {
             "additionalProperties": {
               "type": "number"
             },
-            "title": "Penalties",
+            "description": "Multipliers in (0, 1], e.g. placement_quality.",
+            "title": "Factors",
             "type": "object"
           },
           "policy_name": {
@@ -3537,6 +3599,24 @@
             "title": "Policy Version",
             "type": "integer"
           },
+          "relevance": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Relevance",
+            "type": "number"
+          },
+          "semantic_floor": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The cosine floor used for the semantic component (recorded).",
+            "title": "Semantic Floor"
+          },
           "total": {
             "maximum": 1.0,
             "minimum": 0.0,
@@ -3546,8 +3626,10 @@
         },
         "required": [
           "components",
-          "penalties",
+          "relevance",
+          "factors",
           "total",
+          "semantic_floor",
           "policy_name",
           "policy_version"
         ],
@@ -3565,7 +3647,7 @@
             "type": "number"
           },
           "name": {
-            "description": "Ranking-policy weight key, e.g. 'semantic'.",
+            "description": "A ranking-policy weight key (RANKING_COMPONENTS).",
             "title": "Name",
             "type": "string"
           },
