@@ -20,9 +20,18 @@ convention, not a freeze.
 | `analytics.py` | `AnalyticsProvider` protocol (read-only, **no implementation until Phase 7**) |
 | `events.py` | `EventName` (TRD §15 vocabulary + governed additions), `EventEnvelope`, `PromotionAuditPayload` |
 | `errors.py` | `ErrorResponse`, `ErrorCode`, `ListResponse[T]`, `PageInfo` |
+| `intelligence.py` | Phase 2. Taxonomy policy schema (`TaxonomyPolicy`), `PageAnalysis`, embeddings/relationships/protections views, `LinkEligibility`, `IntelligenceReader` |
+| `jobs.py` | Phase 2. `JobKind`, `JobRunSummary` / `JobRunDetail`, `JobCompletedPayload`, `JobReader` — the run record of every batch job from Phase 2 on |
 | `inventory.py` | Phase 1. `ContentSourceProvider` + `CMSInventoryReader` protocols, `SourceDocument` / `SourceIssue`, `SiteScope`, `CrawlConfig`, `NormalizedPage`, the JSONL export format, inventory event payloads, API read models, `InventoryReader` (the API's only route to persistence) |
 
 ## Rules
+
+**Base-model note (Phase 1):** `json_schema_serialization_defaults_required` on the contract bases marks every
+always-present response field as required in OpenAPI. `PageInfo` also accepts and drops an incoming
+`has_more` (a computed field), so a serialised `ListResponse` can be validated back by a typed client.
+TypeScript clients therefore no longer treat `detail`, `error`, `title` and similar fields as
+possibly absent. The wire format is unchanged.
+
 
 ### 1. Every model forbids unknown keys
 
@@ -144,12 +153,6 @@ recorded decision — never by a specialist on its own. Current additions:
 | `job.completed` | operational, Phase 2 ([ADR-0010](adr/ADR-0010-content-intelligence.md)) — every finished generic job run (analysis, recommendation, verification, analytics import, evaluation, autonomy shadow), including failed ones |
 
 `EventName` is a Pydantic enum, not a database enum, so additions need no migration.
-
-Phase 1 additions: `json_schema_serialization_defaults_required` on the contract bases marks every
-always-present response field as required in OpenAPI. `PageInfo` also accepts and drops an incoming
-`has_more` (a computed field), so a serialised `ListResponse` can be validated back by a typed client.
-The wire format is unchanged. TypeScript clients therefore no longer treat
-`detail`, `error`, `title` and similar fields as possibly absent. The wire format is unchanged.
 
 ### 13. Content inventory (Phase 1)
 

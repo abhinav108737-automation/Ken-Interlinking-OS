@@ -19,6 +19,7 @@ from pydantic import ValidationError
 
 from ken_contracts.cms import CMSError, CMSNotFoundError, CMSPage
 from ken_contracts.inventory import (
+    CMS_PROTECTED_KEY,
     CMSInventoryReader,
     CMSPageRef,
     CMSPageRefPage,
@@ -66,13 +67,6 @@ def _metadata(values: dict[str, Any]) -> dict[str, str]:
         elif isinstance(value, str | int | float):
             out[str(key)] = str(value)
     return out
-
-
-CMS_PROTECTED_KEY: Final = "cms_protected"
-"""Assertion metadata set when the CMS flags a page protected (``CMSPage.protected``).
-
-The taxonomy policy's ``cms-protected`` rule matches ``{cms_protected: "true"}``,
-so a CMS-protected page becomes a POLICY protection in Phase 2 (ADR-0010 s.5)."""
 
 
 def _assertion_metadata(page: CMSPage) -> dict[str, str]:

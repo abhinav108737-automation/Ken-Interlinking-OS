@@ -15,7 +15,6 @@ import math
 import uuid
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from types import SimpleNamespace
 from typing import Any
 
 from sqlalchemy import text
@@ -44,8 +43,11 @@ from ken_contracts.model import (
     ProviderHealth,
     StructuredResult,
 )
+from ken_services.intelligence.analyze import AnalysisInput
 from ken_services.intelligence.embeddings import EmbeddingRecipe
 from ken_services.intelligence.pipeline import AnalysisToolkit, run_analysis
+from ken_services.intelligence.protection import ProtectionMatch
+from ken_services.intelligence.relationships import RelationshipCandidate
 from tests.conftest import make_settings
 from tests.integration.conftest import TickClock, ingest, make_page
 
@@ -139,18 +141,9 @@ class FakeAnalyzer:
         )
 
 
-@dataclass(frozen=True)
-class Candidate:
-    relationship_type: RelationshipType
-    weight: float
-    evidence: dict[str, Any]
-
-
-@dataclass(frozen=True)
-class Match:
-    rule_id: str
-    reason: str
-    source: ProtectionSource
+# The real result types: the toolkit is statically typed (Phase 2 review R4).
+Candidate = RelationshipCandidate
+Match = ProtectionMatch
 
 
 def fake_match_protections(
@@ -205,7 +198,7 @@ def everything_relates(
 def fake_toolkit(analyzer: FakeAnalyzer | None = None) -> AnalysisToolkit:
     return AnalysisToolkit(
         analyze=analyzer or FakeAnalyzer(),
-        make_input=lambda **fields: SimpleNamespace(**fields),
+        make_input=AnalysisInput,
         match_protections=fake_match_protections,
         taxonomy_relationships=fake_taxonomy_relationships,
         semantic_relationship=fake_semantic_relationship,

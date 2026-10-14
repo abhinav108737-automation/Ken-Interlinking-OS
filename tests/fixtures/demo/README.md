@@ -9,7 +9,7 @@ recommendation fixtures (Phase 3), and by the planned end-to-end demo (`make dem
 - External links point only at `*.example.org` / `*.example.net`.
 - Every company comes from the fixture taxonomy gazetteer (`policies/taxonomy/taxonomy.v1.yaml`):
   Voltara Motors, Sunvale Energy, Corecell Batteries, Nimbus Semiconductors, MedAxis Devices,
-  PayLane and ColdPath Logistics. All of them are fictional.
+  Zorvex Pay and ColdPath Logistics. All of them are fictional.
 - Market figures and forecasts are illustrative prose, not research findings.
 - There is no production data and there are no secrets.
 

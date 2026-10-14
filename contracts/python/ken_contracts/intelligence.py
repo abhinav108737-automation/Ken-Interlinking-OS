@@ -28,10 +28,13 @@ protection, robots, canonical, analysis), never stored, so it cannot go stale.
 
 Embedding identity (freshness and similarity key) is the PROVIDER-REPORTED
 model -- ``ProviderCapabilities.roles[EMBEDDING].model`` /
-``EmbeddingResult.model`` -- together with ``provider``, ``dimensions`` and
-``recipe_version``; never the raw ``KEN_MODEL_EMBEDDING`` setting string. Every
-provider must report the same model string in both places (a contract test
-checks the mock and Ollama providers), and one shared helper
+``EmbeddingResult.model`` -- together with ``provider``, ``dimensions``,
+``recipe_version`` and ``recipe_fingerprint`` (a hash of the recipe version and
+the settings that shape the embedded text, document prefix and max chars, so
+changing either makes every stored embedding stale); never the raw
+``KEN_MODEL_EMBEDDING`` setting string. Every provider must report the same
+model string in both places (a contract test checks the mock and Ollama
+providers), and one shared helper
 (``ken_services.intelligence.embeddings.embedding_identity``) resolves it.
 """
 
@@ -335,6 +338,13 @@ class PageEmbeddingInfo(FrozenModel):
     provider: str
     dimensions: int = Field(gt=0, description="As reported by the provider, never assumed.")
     recipe_version: int = Field(ge=1)
+    recipe_fingerprint: str = Field(
+        min_length=1,
+        description=(
+            "Recipe version + the settings that shape the embedded text (document prefix, "
+            "max chars), hashed. Part of the embedding identity."
+        ),
+    )
     input_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
     created_at: AwareDatetime
 

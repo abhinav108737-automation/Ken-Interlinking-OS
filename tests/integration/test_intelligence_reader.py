@@ -20,6 +20,7 @@ from ken_contracts.intelligence import (
 )
 from ken_contracts.inventory import CanonicalStatus, IssueCode, PublicationState
 from ken_contracts.model import ModelTimeoutError
+from ken_services.intelligence.embeddings import current_recipe_fingerprint
 from ken_services.intelligence.reader import NO_EMBEDDING_MODEL, SqlIntelligenceReader
 from tests.conftest import make_settings
 from tests.integration.conftest import make_issue, url
@@ -31,6 +32,7 @@ from tests.integration.intelligence_support import (
     analyse,
     page,
     page_ids,
+    scalar,
     seed,
 )
 
@@ -76,11 +78,12 @@ def reader(
     sessionmaker: SM,
     provider: Any = None,
     eligibility: RecordingEligibility | None = None,
+    settings: Any = None,
 ) -> SqlIntelligenceReader:
     return SqlIntelligenceReader(
         sessionmaker=sessionmaker,
         model_provider=provider if provider is not None else FakeEmbedder(),
-        settings=SETTINGS,
+        settings=settings or SETTINGS,
         taxonomy=TAXONOMY,
         eligibility=eligibility if eligibility is not None else RecordingEligibility(),
     )
@@ -117,11 +120,9 @@ async def test_page_intelligence_full_view(sessionmaker: SM) -> None:
     assert [(p.source, p.rule_id, p.active) for p in view.protections] == [
         (ProtectionSource.POLICY, "locked", True)
     ]
-    assert view.relationship_counts == {
-        "same_geography": 1,
-        "same_market": 1,
-        "semantic_similar": 1,
-    }
+    # same_geography is a coarse type: proposed by the fake toolkit, never stored.
+    assert view.relationship_counts == {"same_market": 1, "semantic_similar": 1}
+    assert view.embedding.recipe_fingerprint == current_recipe_fingerprint(SETTINGS)
     [state] = eligibility.states
     assert state == {
         "publication_state": PublicationState.PUBLISHED,
@@ -303,7 +304,7 @@ async def test_relationships_are_strongest_first_filterable_and_paged(sessionmak
     ]
     weights = [e.weight for e in edges.items]
     assert weights == sorted(weights, reverse=True)
-    assert edges.page.total == 3
+    assert edges.page.total == 2
     first = edges.items[0]
     assert (first.target_canonical_url, first.target_title) == (url("/reports/b"), "Title")
     assert (first.source_page_version, first.target_page_version) == (1, 1)
@@ -312,14 +313,93 @@ async def test_relationships_are_strongest_first_filterable_and_paged(sessionmak
         page_id=ids["/reports/a"],
         limit=50,
         offset=0,
+        relationship_type=RelationshipType.SEMANTIC_SIMILAR,
+    )
+    assert [e.relationship_type for e in only.items] == [RelationshipType.SEMANTIC_SIMILAR]
+    # A derived-only coarse type is never stored, so filtering by it finds nothing.
+    coarse = await r.list_relationships(
+        page_id=ids["/reports/a"],
+        limit=50,
+        offset=0,
         relationship_type=RelationshipType.SAME_GEOGRAPHY,
     )
-    assert [e.relationship_type for e in only.items] == [RelationshipType.SAME_GEOGRAPHY]
+    assert coarse.items == [] and coarse.page.total == 0
     page_two = await r.list_relationships(page_id=ids["/reports/a"], limit=1, offset=1)
-    assert len(page_two.items) == 1 and page_two.page.total == 3
+    assert len(page_two.items) == 1 and page_two.page.total == 2
     assert page_two.items[0] == edges.items[1]
     with pytest.raises(ValueError):
         await r.list_relationships(page_id=ids["/reports/a"], limit=0, offset=0)
+
+
+async def test_a_legacy_coarse_edge_is_never_served(sessionmaker: SM) -> None:
+    """A coarse row left by an older build is ignored by counts, lists and coverage."""
+    ids = await _seeded(sessionmaker)
+    r = reader(sessionmaker)
+    before = await r.get_coverage()
+    async with sessionmaker() as session, session.begin():
+        from sqlalchemy import text
+
+        await session.execute(
+            text(
+                "INSERT INTO page_relationships (source_page_id, source_page_version, "
+                "target_page_id, target_page_version, relationship_type, weight, "
+                "analysis_version, computed_at) "
+                "VALUES (:a, 1, :c, 1, 'industry_adjacency', 0.3, :av, now())"
+            ),
+            {"a": ids["/reports/a"], "c": ids["/reports/c"], "av": AV},
+        )
+    assert (
+        await scalar(
+            sessionmaker,
+            "SELECT count(*) FROM page_relationships "
+            "WHERE relationship_type = 'industry_adjacency'",
+        )
+        == 1
+    )
+    view = await r.get_page_intelligence(page_id=ids["/reports/a"])
+    assert "industry_adjacency" not in view.relationship_counts
+    listed = await r.list_relationships(page_id=ids["/reports/a"], limit=50, offset=0)
+    assert ids["/reports/c"] not in {e.target_page_id for e in listed.items}
+    assert (await r.get_coverage()).relationships == before.relationships
+
+
+# --------------------------------------------------------------------------- #
+# Recipe fingerprint (QA M1)
+# --------------------------------------------------------------------------- #
+@pytest.mark.parametrize(
+    "change", [{"embedding_document_prefix": "passage: "}, {"embedding_max_chars": 5000}]
+)
+async def test_another_recipe_fingerprint_is_stale_and_never_compared(
+    sessionmaker: SM, change: dict[str, Any]
+) -> None:
+    ids = await _seeded(sessionmaker)
+    other = make_settings(
+        similarity_top_k=3, similarity_min_score=0.5, embedding_batch_size=2, **change
+    )
+    r = reader(sessionmaker, settings=other)
+    view = await r.get_page_intelligence(page_id=ids["/reports/a"])
+    assert view.embedding is not None and not view.embedding_fresh
+    assert view.embedding.recipe_fingerprint == current_recipe_fingerprint(SETTINGS)
+    assert (await r.list_similar(page_id=ids["/reports/a"], limit=5)).items == []
+    assert (await r.semantic_search(query="alpha alpha", limit=5)).items == []
+    assert (await r.get_coverage()).embedded_fresh == 0
+
+    # Re-embedding under the new recipe: only the new vectors are compared.
+    await analyse(sessionmaker, settings=other)
+    view = await r.get_page_intelligence(page_id=ids["/reports/a"])
+    assert view.embedding_fresh
+    assert view.embedding is not None
+    assert view.embedding.recipe_fingerprint == current_recipe_fingerprint(other)
+    similar = await r.list_similar(page_id=ids["/reports/a"], limit=10)
+    assert [s.page_id for s in similar.items] == [ids["/reports/b"], ids["/reports/c"]]
+    found = await r.semantic_search(query="alpha alpha", limit=10)
+    assert len(found.items) == 3  # one hit per page: the old recipe's rows never appear
+    assert (await r.get_coverage()).embedded_fresh == 3
+    # The original settings still see their own (older) rows, not the new ones.
+    original = await reader(sessionmaker).get_page_intelligence(page_id=ids["/reports/a"])
+    assert original.embedding_fresh
+    assert original.embedding is not None
+    assert original.embedding.recipe_fingerprint == current_recipe_fingerprint(SETTINGS)
 
 
 # --------------------------------------------------------------------------- #

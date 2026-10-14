@@ -1536,6 +1536,12 @@
             "title": "Provider",
             "type": "string"
           },
+          "recipe_fingerprint": {
+            "description": "Recipe version + the settings that shape the embedded text (document prefix, max chars), hashed. Part of the embedding identity.",
+            "minLength": 1,
+            "title": "Recipe Fingerprint",
+            "type": "string"
+          },
           "recipe_version": {
             "minimum": 1.0,
             "title": "Recipe Version",
@@ -1549,6 +1555,7 @@
           "provider",
           "dimensions",
           "recipe_version",
+          "recipe_fingerprint",
           "input_hash",
           "created_at"
         ],

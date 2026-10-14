@@ -36,10 +36,9 @@ def test_other_paths_are_not_protected(path: str) -> None:
 
 def test_cms_protected_metadata() -> None:
     url = "https://site.test/reports/x"
-    hit = match_protections(url=url, metadata={"cms_protected": "true"}, taxonomy=v1())
-    assert [m.rule_id for m in hit] == ["cms-protected"]
-    for value in ("True", "false", "1", ""):
-        assert match_protections(url=url, metadata={"cms_protected": value}, taxonomy=v1()) == ()
+    # The CMS flag is mirrored by INGESTION as a source=cms protection, never a policy rule
+    # (a rule over immutable version metadata would stay sticky after the CMS clears it).
+    assert match_protections(url=url, metadata={"cms_protected": "true"}, taxonomy=v1()) == ()
     assert match_protections(url=url, metadata={"other": "true"}, taxonomy=v1()) == ()
 
 
@@ -47,7 +46,7 @@ def test_both_rules_in_declaration_order() -> None:
     matches = match_protections(
         url="https://site.test/terms", metadata={"cms_protected": "true"}, taxonomy=v1()
     )
-    assert [m.rule_id for m in matches] == ["legal-pages", "cms-protected"]
+    assert [m.rule_id for m in matches] == ["legal-pages"]
 
 
 def test_rule_with_path_and_metadata_matches_either_and_needs_all_pairs() -> None:
@@ -177,3 +176,34 @@ def test_every_reason_at_once_in_declaration_order() -> None:
 def test_not_analyzed_wins_over_stale() -> None:
     # analysis_fresh=True without an analysis is contradictory; not_analyzed still applies.
     assert _reasons(replace(OK, has_analysis=False)) == ([R.NOT_ANALYZED], [R.NOT_ANALYZED])
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/privacy",
+        "/Privacy",
+        "/PRIVACY/",
+        "/privacy-policy",
+        "/terms.html",
+        "/Terms-Of-Use",
+        "/en/privacy",
+        "/en-gb/cookie-policy",
+        "/privacy;jsessionid=1",
+        "/%70rivacy",
+        "/legal/notices",
+        "//privacy",
+        "/en//terms",
+    ],
+)
+def test_legal_page_variants_are_protected(path: str) -> None:
+    """QA H2: protection must not fail open on case, suffix, locale or ;params variants."""
+    hits = match_protections(url=f"https://site.test{path}", metadata={}, taxonomy=v1())
+    assert [m.rule_id for m in hits] == ["legal-pages"], path
+
+
+@pytest.mark.parametrize(
+    "path", ["/privacy-research-report", "/reports/terms-of-trade", "/terminal"]
+)
+def test_lookalike_paths_are_not_protected(path: str) -> None:
+    assert match_protections(url=f"https://site.test{path}", metadata={}, taxonomy=v1()) == ()

@@ -206,6 +206,12 @@ class Settings(BaseSettings):
     # At 0.55 almost every pair qualified. Re-calibrate when the model changes;
     # the deterministic mock produces lower cosines (set ~0.3 for it).
     similarity_min_score: float = Field(default=0.78, ge=-1.0, le=1.0)
+    # Cap on materialised taxonomy edges per (source page, relationship type);
+    # the top edges by (weight, shared geographies, target id) are kept. The
+    # coarse types same_geography / regional_parent / industry_adjacency are
+    # never materialised (Phase 3 derives them per candidate pair), so the
+    # stored graph is bounded by pages x materialised types x this cap.
+    relationship_max_per_type: int = Field(default=25, ge=1, le=500)
 
     # -------------------------------------------------------------- readiness
     require_pgvector: bool = Field(

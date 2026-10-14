@@ -1,6 +1,6 @@
 # Architecture Overview
 
-How the Ken Research Agentic Interlinking OS is put together, and what Phases 0 and 1 actually built.
+How the Ken Research Agentic Interlinking OS is put together, and what Phases 0–2 actually built.
 The governing specification is TRD.md; this page maps it onto the repository.
 
 ## The target architecture (TRD §3)
@@ -31,7 +31,7 @@ LLM → structured decision → policy → deterministic validation → approval
                        ├ OllamaProvider    └ MockCMSProvider        │
                        └ MockModelProvider                          ▼
                               │                          PostgreSQL 16 (container, :5433)
-                              ▼                          pgvector provisioned, not enabled
+                              ▼                          pgvector (enabled by migration 0003)
                      host Ollama :11434                  table: events
                                              ▲
                          worker (agents/ken_agents) — tick loop: heartbeat log every tick;
@@ -40,9 +40,9 @@ LLM → structured decision → policy → deterministic validation → approval
 
 | Layer | Package | Contents |
 |---|---|---|
-| Contracts | `ken_contracts` | Frozen Pydantic models + protocols. Imports nothing internal. Phase 1 adds `inventory.py`. |
+| Contracts | `ken_contracts` | Frozen Pydantic models + protocols. Imports nothing internal. Phase 1 adds `inventory.py`; Phase 2 adds `intelligence.py` and `jobs.py`. |
 | Platform | `ken_core` | Settings, structured logging, DB engine/session, ORM models (`events` + the six inventory tables), repositories, readiness probes, provider implementations |
-| Deterministic services | `ken_services` | **Phase 1.** `inventory/`: URL normalisation, HTML discovery, normaliser + content hash, robots.txt, the three content sources, ingestion, the SQL inventory reader, the CLI. No LLM anywhere. |
+| Deterministic services | `ken_services` | `inventory/` (Phase 1): URL normalisation, HTML discovery, normaliser + content hash, robots.txt, the three content sources, ingestion, reader, CLI. `intelligence/` (Phase 2): taxonomy, analysis, protection, eligibility, relationships, embedding recipe, pipeline, reader, CLI. `jobs/` (Phase 2): the generic job runner and reader. No LLM in any of them. |
 | Control API | `ken_api` | App factory, request-id middleware, error envelope, health/ready/meta, **read-only `/inventory/*`** |
 | Agent runtime | `ken_agents` | Worker tick loop only. No LangGraph, no reasoning. |
 | UI | `apps/web` | System status; **inventory, page detail and run screens** (read-only); typed platform bridge; environment-agnostic API client core |
@@ -70,6 +70,25 @@ Dependencies point **inward** only:
 
 Runs start from the CLI only (`make ingest-file`, `make ingest-cms-mock`, `make crawl`); the API cannot
 start one. Design and rules: [ADR-0009](adr/ADR-0009-content-inventory.md).
+
+## What Phase 2 added: content intelligence
+
+```
+ page_versions (current) ──▶ analyze_page (pure; taxonomy policy v1)  ──▶ page_analyses*
+                         ──▶ embedding_text ─▶ ModelProvider.embed(EMBEDDING) ─▶ page_embeddings* (pgvector)
+                         ──▶ match_protections / ingestion CMS sync ─▶ page_protections
+ fresh analyses + embeddings ──▶ taxonomy + top-k cosine edges ──▶ page_relationships (version-stamped)
+ read time: compute_eligibility(live state) ─▶ LinkEligibility (never stored)
+                                                                   * immutable (trigger)
+ make analyze ─▶ job_runs (one per kind, advisory lock) ─▶ job.completed
+ GET /intelligence/* · GET /jobs/runs*  ◀── SqlIntelligenceReader / SqlJobReader
+ apps/web: /intelligence · /intelligence/topics/[id] · /intelligence/search · /jobs · page-detail panel
+```
+
+- The embedding dimension is the provider's: the column is dimension-less, and queries filter on
+  the provider-reported (model, dimensions).
+- Similarity is an exact cosine KNN; an ANN index is deferred until latency is measured.
+- Design: [ADR-0010](adr/ADR-0010-content-intelligence.md).
 
 ## Boundaries that are enforced in code, not by convention
 
@@ -119,10 +138,11 @@ Proposing one requires stopping and asking the user (CLAUDE.md), with an ADR.
 |---|---|
 | [0001](adr/ADR-0001.md) | Monorepo with one multi-root Python distribution |
 | [0002](adr/ADR-0002.md) | Colima as the container runtime |
-| [0003](adr/ADR-0003.md) | pgvector provisioned, not enabled, in Phase 0 |
+| [0003](adr/ADR-0003.md) | pgvector provisioned, not enabled, in Phase 0 (amended by ADR-0010) |
 | [0004](adr/ADR-0004.md) | asyncpg as the single driver (Apache-2.0; replaced LGPL psycopg 3) |
 | [0005](adr/ADR-0005.md) | Worker is a tick loop; heavy dependencies deferred |
 | [0006](adr/ADR-0006.md) | Minimal Phase 0 schema: `events` only (extended by migration 0002, ADR-0009) |
 | [0007](adr/ADR-0007.md) | Hybrid local topology; host Ollama preferred |
 | [0008](adr/ADR-0008-electron-readiness.md) | Electron readiness: web UI canonical, typed bridge, Electron deferred |
 | [0009](adr/ADR-0009-content-inventory.md) | Phase 1 content inventory: sources, identity, immutable versions, read-time link resolution, crawler politeness |
+| [0010](adr/ADR-0010-content-intelligence.md) | Phase 2 content intelligence: pgvector required from 0003, taxonomy-policy analysis, provider-defined embeddings, version-stamped relationships, protections, read-time eligibility, generic job runs |

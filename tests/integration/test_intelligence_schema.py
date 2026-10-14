@@ -97,14 +97,16 @@ def _analysis(c: Connection, **overrides: Any) -> None:
     )
 
 
-def _embedding(c: Connection, *, vector: str = "[1,0,0]", dimensions: int = 3) -> None:
+def _embedding(
+    c: Connection, *, vector: str = "[1,0,0]", dimensions: int = 3, fingerprint: str = "r1-a"
+) -> None:
     c.execute(
         text(
             "INSERT INTO page_embeddings (id, page_id, page_version, model, provider, dimensions, "
-            "recipe_version, input_hash, embedding) "
-            "VALUES (:id, :p, 1, 'm', 'mock', :d, 1, :h, CAST(:v AS vector))"
+            "recipe_version, recipe_fingerprint, input_hash, embedding) "
+            "VALUES (:id, :p, 1, 'm', 'mock', :d, 1, :f, :h, CAST(:v AS vector))"
         ),
-        {"id": uuid.uuid4(), "p": PAGE, "d": dimensions, "h": HASH, "v": vector},
+        {"id": uuid.uuid4(), "p": PAGE, "d": dimensions, "f": fingerprint, "h": HASH, "v": vector},
     )
 
 
@@ -250,13 +252,35 @@ def test_embedding_input_hash_and_dimensions_checks(db: SyncDb) -> None:
         lambda c: c.execute(
             text(
                 "INSERT INTO page_embeddings (id, page_id, page_version, model, provider, "
-                "dimensions, recipe_version, input_hash, embedding) VALUES "
-                "(:id, :p, 1, 'm', 'x', 3, 1, 'not-a-hash', '[1,0,0]')"
+                "dimensions, recipe_version, recipe_fingerprint, input_hash, embedding) VALUES "
+                "(:id, :p, 1, 'm', 'x', 3, 1, 'r1-a', 'not-a-hash', '[1,0,0]')"
             ),
             {"id": uuid.uuid4(), "p": PAGE},
         ),
     )
     assert "ck_page_embeddings_input_hash_sha256" in str(error.orig)
+
+
+def test_one_embedding_per_version_model_recipe_and_fingerprint(db: SyncDb) -> None:
+    db.run(_page)
+    db.run(_embedding)
+    # Another recipe fingerprint is another embedding of the same version and model.
+    db.run(lambda c: _embedding(c, fingerprint="r1-b"))
+    error = _fails(db, _embedding)
+    assert isinstance(error, IntegrityError)
+    assert "uq_page_embeddings_page_id_page_version_model_recipe_ve_f72e" in str(error.orig)
+    missing = _fails(
+        db,
+        lambda c: c.execute(
+            text(
+                "INSERT INTO page_embeddings (id, page_id, page_version, model, provider, "
+                "dimensions, recipe_version, input_hash, embedding) VALUES "
+                "(:id, :p, 1, 'm', 'x', 3, 1, :h, '[1,0,0]')"
+            ),
+            {"id": uuid.uuid4(), "p": PAGE, "h": HASH},
+        ),
+    )
+    assert isinstance(missing, IntegrityError)  # recipe_fingerprint is NOT NULL
 
 
 def test_one_analysis_per_version_and_analysis_version(db: SyncDb) -> None:

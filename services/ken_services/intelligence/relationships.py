@@ -10,6 +10,13 @@ Market relationships use each page's ``market_id``; geography relationships
 use the page's listed geographies; industry adjacency uses ``industry_id``.
 Ids unknown to ``taxonomy`` (an analysis from another taxonomy version) produce
 no market or industry relationship.
+
+**Materialised vs derived-only.** :func:`taxonomy_relationships` returns every
+type. The analysis job STORES only :data:`MATERIALISED_RELATIONSHIP_TYPES`
+(plus ``semantic_similar``), capped per (source page, type). The coarse types in
+:data:`DERIVED_ONLY_RELATIONSHIP_TYPES` (same geography, regional parent,
+industry adjacency) relate a page to a large share of the site, so storing them
+grows quadratically; Phase 3 computes them per candidate pair with this module.
 """
 
 from __future__ import annotations
@@ -22,7 +29,10 @@ from ken_contracts.intelligence import PageAnalysis, RelationshipType, TaxonomyP
 from ken_services.intelligence.taxonomy import TaxonomyIndex, taxonomy_index
 
 __all__ = [
+    "DERIVED_ONLY_RELATIONSHIP_TYPES",
+    "MATERIALISED_RELATIONSHIP_TYPES",
     "RELATIONSHIP_WEIGHTS",
+    "STORED_RELATIONSHIP_TYPES",
     "RelationshipCandidate",
     "semantic_relationship",
     "taxonomy_relationships",
@@ -41,6 +51,28 @@ RELATIONSHIP_WEIGHTS: Final[dict[RelationshipType, float]] = {
     RelationshipType.INDUSTRY_ADJACENCY: 0.3,
 }
 """Fixed weight per taxonomy relationship type, in [0, 1]."""
+
+DERIVED_ONLY_RELATIONSHIP_TYPES: Final[frozenset[RelationshipType]] = frozenset(
+    {
+        RelationshipType.SAME_GEOGRAPHY,
+        RelationshipType.REGIONAL_PARENT,
+        RelationshipType.INDUSTRY_ADJACENCY,
+    }
+)
+"""Coarse taxonomy types that are never stored in ``page_relationships``."""
+
+MATERIALISED_RELATIONSHIP_TYPES: Final[tuple[RelationshipType, ...]] = tuple(
+    kind
+    for kind in RelationshipType
+    if kind is not RelationshipType.SEMANTIC_SIMILAR and kind not in DERIVED_ONLY_RELATIONSHIP_TYPES
+)
+"""Taxonomy types the analysis job stores (capped per source page and type), enum order."""
+
+STORED_RELATIONSHIP_TYPES: Final[tuple[RelationshipType, ...]] = (
+    *MATERIALISED_RELATIONSHIP_TYPES,
+    RelationshipType.SEMANTIC_SIMILAR,
+)
+"""Every type that may appear in ``page_relationships`` (what readers serve)."""
 
 
 @dataclass(frozen=True, slots=True)

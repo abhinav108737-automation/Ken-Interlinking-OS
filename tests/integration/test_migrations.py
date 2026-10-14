@@ -177,3 +177,32 @@ def test_unknown_x_argument_is_refused() -> None:
     )
     assert result.returncode != 0
     assert "unknown -x argument" in result.stderr + result.stdout
+
+
+@pytest.mark.parametrize("value", ["", " "])
+def test_empty_dburl_is_refused(value: str) -> None:
+    """QA B1: '-x dburl=' with an empty value (e.g. an unset shell variable) must not fall back."""
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[2]
+    result = subprocess.run(  # noqa: S603 -- fixed argv, no shell
+        [
+            sys.executable,
+            "-m",
+            "alembic",
+            "-c",
+            str(root / "alembic.ini"),
+            "-x",
+            f"dburl={value}",
+            "current",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=60,
+        check=False,
+        cwd=root,
+    )
+    assert result.returncode != 0
+    assert "dburl= is empty" in result.stderr + result.stdout

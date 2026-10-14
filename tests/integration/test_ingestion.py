@@ -734,3 +734,30 @@ async def test_a_public_web_document_never_touches_cms_protection(
             await session.scalars(select(PageProtection).where(PageProtection.active.is_(True)))
         )
     assert [row.source for row in rows] == ["cms"]
+
+
+async def test_only_an_authoritative_cms_read_may_clear_a_cms_protection(
+    sessionmaker: async_sessionmaker[AsyncSession],
+) -> None:
+    """Review R1: a stale/partial export (or an alias) may ADD but never CLEAR it."""
+    from ken_core.db.models import PageProtection
+    from tests.integration.conftest import ingest, make_page
+
+    async def active_cms() -> int:
+        async with sessionmaker() as session:
+            rows = await session.scalars(
+                select(PageProtection).where(
+                    PageProtection.source == "cms", PageProtection.active.is_(True)
+                )
+            )
+            return len(list(rows))
+
+    flagged = {"cms_protected": "true"}
+    await ingest(
+        sessionmaker, make_page("/g", source_type=SourceType.FILE_EXPORT, metadata=flagged)
+    )
+    assert await active_cms() == 1  # an export may add
+    await ingest(sessionmaker, make_page("/g", source_type=SourceType.FILE_EXPORT))
+    assert await active_cms() == 1  # but never clear
+    await ingest(sessionmaker, make_page("/g", source_type=SourceType.CMS))
+    assert await active_cms() == 0  # only the live CMS clears

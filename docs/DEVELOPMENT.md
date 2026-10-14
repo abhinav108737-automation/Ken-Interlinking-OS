@@ -10,7 +10,7 @@ Everything runs locally; nothing calls a paid service.
 | Python | **3.12** at `/opt/homebrew/bin/python3.12` | The system `python3` is 3.9 and **will not work**. Always use `.venv/bin/...`. |
 | Node / npm | `^22.22.2 \|\| ^24.15.0 \|\| >=26` (developed on 26) | Floor set by jsdom 30 / vitest 5, stricter than `next@16`'s ≥ 20.9 |
 | Colima + Docker CLI + Compose | Colima 0.10, Docker 29, Compose 5 | Free and open source (ADR-0002). Run `colima start` after a reboot. |
-| Ollama | your existing host install | Listening on `127.0.0.1:11434`. Optional in Phases 0–1. |
+| Ollama | your existing host install | Listening on `127.0.0.1:11434`. Needed for real embeddings: `ollama pull nomic-embed-text` (Apache-2.0). Without it, `/ready` is degraded and analysis runs with `--no-embeddings`. |
 
 ## First-time setup
 
@@ -85,9 +85,41 @@ make crawl                                                            # the ONE 
 - **Exit codes:** 0 succeeded · 1 completed with errors or failed · 2 usage/config error · 3 another run
   is active.
 
-Expected `/ready` in Mode A (Phases 0–1): postgres `ok`, migrations `ok`, pgvector `ok` (provisioned, not
-enabled), model_provider `degraded` (the embedding model is intentionally not pulled), cms `ok` →
-aggregate **`degraded`, HTTP 200**. That is the correct, healthy state until Phase 2 pulls an embedding model.
+Expected `/ready` in Mode A from Phase 2 on, with `nomic-embed-text` pulled:
+- postgres `ok`;
+- migrations `ok` (head is 0003);
+- pgvector `ok` (the extension is enabled by migration 0003, and it is **required**);
+- model_provider `ok`;
+- cms `ok`.
+
+The aggregate is **`ready`, HTTP 200**. Without the embedding model, model_provider is `degraded`
+and the aggregate is `degraded` (still 200).
+
+## Content intelligence (Phase 2)
+
+```bash
+make analyze                       # classify, embed and relate every page whose current version is stale
+make analyze ARGS="--no-embeddings"   # deterministic analysis only (no model server needed)
+make analyze ARGS="--force"        # recompute relationships/protections for every fresh page
+```
+
+- **Re-running is free:** pages whose current version already has a fresh analysis and embedding
+  are skipped.
+- **Classification comes from `policies/taxonomy/taxonomy.v1.yaml`,** a versioned policy file. v1 is
+  an illustrative seed until Ken supplies its real taxonomy.
+- **Read-only endpoints:**
+  - `GET /intelligence/coverage`;
+  - `/intelligence/taxonomy` and `/intelligence/taxonomy/{node_id}/pages`;
+  - `/intelligence/pages/{page_id}`, plus its `/similar` and `/relationships`;
+  - `/intelligence/search?q=` (503 `model_unavailable` when the embedding model is down);
+  - `/jobs/runs` and `/jobs/runs/{run_id}`.
+- **Screens:** `/intelligence`, `/intelligence/topics/[nodeId]`, `/intelligence/search`, `/jobs`, and
+  an Intelligence panel on every page detail.
+- **The similarity threshold is model-specific:** `KEN_SIMILARITY_MIN_SCORE=0.78` is calibrated for
+  `nomic-embed-text`. With `KEN_MODEL_PROVIDER=mock`, use about `0.3`. Re-calibrate with
+  `evals/intelligence/benchmark.py` after changing models.
+- **Evals:** `.venv/bin/pytest tests/unit/intelligence_evals`. Benchmark:
+  `.venv/bin/python evals/intelligence/benchmark.py --provider ollama`.
 
 ## Quality gates
 
@@ -126,18 +158,31 @@ All settings use the `KEN_` prefix; see `.env.example` for every variable and it
 | `KEN_DATABASE_URL` | `postgresql+asyncpg://ken:ken@localhost:5433/ken_interlink` | Must use `postgresql+asyncpg://` (ADR-0004). Port **5432 on this machine is refused** for migrations. |
 | `KEN_MODEL_PROVIDER` | `ollama` in `.env.example`, `mock` in code and tests | |
 | `KEN_MODEL_FAST` / `_REASONING` / `_EMBEDDING` | `qwen3:8b-q4_K_M` / same / `nomic-embed-text` | Models are chosen by role, never named in code |
-| `KEN_REQUIRE_PGVECTOR` | `false` | true ⇒ missing pgvector makes `/ready` 503 |
+| `KEN_REQUIRE_PGVECTOR` | `true` (from Phase 2) | missing pgvector makes `/ready` 503 |
+| `KEN_TAXONOMY_PATH` | `policies/taxonomy/taxonomy.v1.yaml` | versioned taxonomy policy driving analysis |
+| `KEN_EMBEDDING_DOCUMENT_PREFIX` / `_QUERY_PREFIX` / `_MAX_CHARS` / `_BATCH_SIZE` | `search_document: ` / `search_query: ` / `6000` / `16` | embedding recipe (prefixes are the default model's convention) |
+| `KEN_SIMILARITY_TOP_K` / `KEN_SIMILARITY_MIN_SCORE` | `10` / `0.78` | `semantic_similar` edges; the threshold is model-specific |
+| `KEN_RELATIONSHIP_MAX_PER_TYPE` | `25` | cap on stored taxonomy edges per (source page, relationship type) |
 | `KEN_REQUIRE_OLLAMA` | `false` | true ⇒ missing model server makes `/ready` 503 |
 | `KEN_AUTO_APPROVE_ENABLED` | `false` | **Must stay false.** The process refuses to start otherwise (TRD §20). |
 | `KEN_CRAWL_BASE_URL` | *unset* | The one site the crawler may visit. **No default, by design.** |
 | `KEN_CRAWL_ALLOWED_HOSTS` | empty | Extra in-scope hosts, comma-separated (subdomains are not implied) |
 | `KEN_CRAWL_DELAY_S` / `_CONCURRENCY` / `_MAX_PAGES` / `_MAX_DEPTH` | `1.0` / `2` / `500` / `10` | Politeness and limits; robots.txt cannot be disabled. Also `KEN_CRAWL_TIMEOUT_S`, `_MAX_BYTES`, `_MAX_REDIRECTS`, `KEN_INGEST_MAX_FILE_BYTES` — see `.env.example` |
 
-## Native degraded mode (no pgvector)
+## A PostgreSQL without pgvector
 
-The API also runs against a PostgreSQL **without** pgvector, such as a plain Homebrew PG 16: point
-`KEN_DATABASE_URL` at it and keep `KEN_REQUIRE_PGVECTOR=false`. Migrations succeed, because migration
-0001 creates no extension (ADR-0003), and `/ready` reports pgvector `unavailable` with HTTP 200.
+From Phase 2, pgvector is required: migration 0003 creates the extension and the first vector column
+(ADR-0010). A server without it, such as a plain Homebrew PG 16, can still apply migrations **up to
+0002**:
+
+```bash
+.venv/bin/alembic upgrade 0002_content_inventory
+```
+
+0003 then fails with pgvector's own error, and the current build reports `/ready` **503**, because
+the migrations are behind head. Always pass Alembic targets as `-x dburl=...`: two shell words, or
+one quoted word. An unknown or empty `-x` key is refused rather than falling back to
+`KEN_DATABASE_URL`.
 
 ## Troubleshooting
 
@@ -147,7 +192,7 @@ The API also runs against a PostgreSQL **without** pgvector, such as a plain Hom
 | `docker: unknown command: docker compose` | Compose plugin not registered: add `"cliPluginsExtraDirs": ["/opt/homebrew/lib/docker/cli-plugins"]` to `~/.docker/config.json`. |
 | `Cannot connect to the Docker daemon` | `colima start` |
 | `make test-all` fails with `KEN_REQUIRE_INTEGRATION_DB` | Postgres not running on :5433 — `make db-up`. (A bare `pytest` run auto-skips instead; the gate never does.) |
-| `/ready` shows model_provider `unavailable` | Host Ollama is not running. Optional in Phases 0–1; `/ready` still returns 200. |
+| `/ready` shows model_provider `unavailable` | Host Ollama is not running, or the embedding model is not pulled. `/ready` still returns 200 (degraded); `make analyze ARGS=--no-embeddings` still works. |
 | Startup fails mentioning `AUTO_APPROVE` | `KEN_AUTO_APPROVE_ENABLED=true` somewhere. It must be false in v1. |
 | One query fails with `InvalidCachedStatementError` right after a migration | asyncpg caches prepared statements per pooled connection; a schema change invalidates them. It fails safe and the next query succeeds. Restart the API/worker after migrating to avoid it. |
 | Requests stall when the database is unreachable | Connection attempts give up after `KEN_DATABASE_CONNECT_TIMEOUT_S` (default 5 s; asyncpg's own default is 60 s). |

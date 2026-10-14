@@ -13,7 +13,7 @@ Everything is synthetic and fictional:
 * external links point only at ``*.example.org`` / ``*.example.net``;
 * companies come from the fixture taxonomy gazetteer
   (``policies/taxonomy/taxonomy.v1.yaml``: Voltara Motors, Sunvale Energy,
-  Corecell Batteries, Nimbus Semiconductors, MedAxis Devices, PayLane,
+  Corecell Batteries, Nimbus Semiconductors, MedAxis Devices, Zorvex Pay,
   ColdPath Logistics); figures are illustrative, not research findings.
 
 No randomness: the page list, text, dates and ids are literals, so the output
@@ -1049,7 +1049,7 @@ REPORTS: Final[tuple[Page, ...]] = (
             (
                 "Digital payments and e-wallets",
                 (
-                    "Two e-wallets dominate consumer payments, with PayLane and smaller "
+                    "Two e-wallets dominate consumer payments, with Zorvex Pay and smaller "
                     "challengers competing for merchant acceptance. The central bank's national "
                     "QR standard allows any wallet to pay at any participating merchant, which "
                     "lowered acceptance costs for small shops.",
@@ -1850,7 +1850,7 @@ REPORTS: Final[tuple[Page, ...]] = (
                 "Co-lending and partnerships",
                 (
                     "Fintech lenders increasingly originate loans that are funded by banks under "
-                    "co-lending arrangements. PayLane added a credit line product for merchants "
+                    "co-lending arrangements. Zorvex Pay added a credit line product for merchants "
                     "that accept its digital payments terminals.",
                 ),
             ),
@@ -2947,7 +2947,7 @@ INSIGHTS: Final[tuple[Page, ...]] = (
                 (
                     "Person-to-person and small merchant payments on UPI carry no fees, which "
                     "drove adoption but leaves payment apps without direct revenue. Fintech "
-                    "firms such as PayLane monetise through digital lending, insurance "
+                    "firms such as Zorvex Pay monetise through digital lending, insurance "
                     "distribution and merchant services instead.",
                 ),
             ),

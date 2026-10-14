@@ -1,6 +1,6 @@
 """Phase 2: a CMS-protected page carries ``cms_protected: "true"`` assertion metadata.
 
-That is what the taxonomy policy's ``cms-protected`` rule matches (ADR-0010 s.5).
+Ingestion mirrors it as a ``source: cms`` protection row on every document (ADR-0010 s.5).
 """
 
 from __future__ import annotations
@@ -11,9 +11,8 @@ from pathlib import Path
 import yaml
 
 from ken_contracts.cms import CMSPage
-from ken_contracts.inventory import SourceDocument
+from ken_contracts.inventory import CMS_PROTECTED_KEY, SourceDocument
 from ken_services.inventory.sources.cms import (
-    CMS_PROTECTED_KEY,
     CMSContentSource,
     MockCMSInventoryReader,
 )
@@ -63,7 +62,8 @@ async def test_cms_flag_wins_over_a_conflicting_metadata_key() -> None:
     assert metadata["locked"][CMS_PROTECTED_KEY] == "true"
 
 
-def test_key_and_value_match_the_taxonomy_cms_protected_rule() -> None:
+def test_no_policy_rule_duplicates_the_cms_flag() -> None:
     policy = yaml.safe_load(TAXONOMY.read_text(encoding="utf-8"))
     rules = {rule["id"]: rule for rule in policy["protections"]}
-    assert rules["cms-protected"]["metadata_equals"] == {CMS_PROTECTED_KEY: "true"}
+    # No policy rule duplicates the CMS's own flag (one mechanism; review R2).
+    assert all(CMS_PROTECTED_KEY not in rule.get("metadata_equals", {}) for rule in rules.values())

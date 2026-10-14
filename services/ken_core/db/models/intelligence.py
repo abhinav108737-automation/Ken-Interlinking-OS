@@ -2,7 +2,8 @@
 
 ``job_runs``           generic run record for every batch job from Phase 2 on
 ``page_analyses``      IMMUTABLE deterministic analysis per (page version, analysis version)
-``page_embeddings``    IMMUTABLE page vector per (page version, model, recipe version)
+``page_embeddings``    IMMUTABLE page vector per (page version, model, recipe version,
+                       recipe fingerprint)
 ``page_relationships`` derived typed page-to-page edges; REPLACED by each analysis run for every
                        edge touching an analysed page (as source OR target). Each edge records
                        both endpoint versions; readers treat an edge whose endpoint version is not
@@ -17,7 +18,10 @@ the Phase 1 append-only trigger to ``page_analyses`` and ``page_embeddings``.
 ``page_embeddings.embedding`` is a dimension-less ``vector``: the dimension is
 the provider's, stored in ``dimensions`` and enforced by a CHECK against
 ``vector_dims(embedding)``. Similarity queries always filter on (model,
-dimensions), so vectors from two models are never compared.
+dimensions, recipe version, recipe fingerprint), so vectors from two models or
+two text recipes are never compared. ``recipe_fingerprint`` hashes the settings
+that shape the embedded text (document prefix, max chars) with the recipe
+version (``ken_services.intelligence.embeddings.recipe_fingerprint``).
 """
 
 from __future__ import annotations
@@ -164,6 +168,7 @@ class PageEmbedding(Base):
     provider: Mapped[str] = mapped_column(Text, nullable=False)
     dimensions: Mapped[int] = mapped_column(Integer, nullable=False)
     recipe_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    recipe_fingerprint: Mapped[str] = mapped_column(Text, nullable=False)
     input_hash: Mapped[str] = mapped_column(Text, nullable=False)
     embedding: Mapped[list[float]] = mapped_column(Vector(), nullable=False)
     run_id: Mapped[uuid.UUID | None] = mapped_column(
@@ -177,11 +182,18 @@ class PageEmbedding(Base):
             ["page_versions.page_id", "page_versions.version"],
             ondelete="RESTRICT",
         ),
-        UniqueConstraint("page_id", "page_version", "model", "recipe_version"),
+        UniqueConstraint(
+            "page_id", "page_version", "model", "recipe_version", "recipe_fingerprint"
+        ),
         CheckConstraint("dimensions > 0", name="dimensions_positive"),
         CheckConstraint("vector_dims(embedding) = dimensions", name="dimensions_match"),
         CheckConstraint("input_hash ~ '^[0-9a-f]{64}$'", name="input_hash_sha256"),
-        Index("ix_page_embeddings_model_dimensions", "model", "dimensions"),
+        Index(
+            "ix_page_embeddings_model_dimensions_recipe_fingerprint",
+            "model",
+            "dimensions",
+            "recipe_fingerprint",
+        ),
     )
 
 

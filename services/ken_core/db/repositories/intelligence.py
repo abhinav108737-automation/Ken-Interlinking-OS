@@ -8,8 +8,9 @@ never deleted. ``page_relationships`` is derived data and is replaced per run.
 
 "Fresh" always means: for the page's CURRENT version (``pages.current_version``)
 and, for analyses, the current ``analysis_version``; for embeddings, the current
-(model, recipe version) identity. Similarity queries additionally filter on
-``dimensions``, so vectors of two models are never compared.
+(model, recipe version, recipe fingerprint) identity. Similarity queries
+additionally filter on ``dimensions``, so vectors of two models or two text
+recipes are never compared.
 """
 
 from __future__ import annotations
@@ -48,13 +49,27 @@ def fresh_analysis_join(analysis_version: str) -> ColumnElement[bool]:
     )
 
 
-def current_embedding_join(model: str, recipe_version: int) -> ColumnElement[bool]:
-    """``page_embeddings`` row of the page's CURRENT version for (model, recipe)."""
+def embedding_identity_filter(
+    *, model: str, recipe_version: int, recipe_fingerprint: str
+) -> ColumnElement[bool]:
+    """``page_embeddings`` rows of one (model, recipe version, recipe fingerprint)."""
+    return and_(
+        PageEmbedding.model == model,
+        PageEmbedding.recipe_version == recipe_version,
+        PageEmbedding.recipe_fingerprint == recipe_fingerprint,
+    )
+
+
+def current_embedding_join(
+    model: str, recipe_version: int, recipe_fingerprint: str
+) -> ColumnElement[bool]:
+    """``page_embeddings`` row of the page's CURRENT version for (model, recipe, fingerprint)."""
     return and_(
         PageEmbedding.page_id == Page.id,
         PageEmbedding.page_version == Page.current_version,
-        PageEmbedding.model == model,
-        PageEmbedding.recipe_version == recipe_version,
+        embedding_identity_filter(
+            model=model, recipe_version=recipe_version, recipe_fingerprint=recipe_fingerprint
+        ),
     )
 
 
@@ -339,17 +354,21 @@ async def embedded_versions(
     *,
     model: str,
     recipe_version: int,
+    recipe_fingerprint: str,
     pages: Iterable[tuple[uuid.UUID, int]],
 ) -> set[tuple[uuid.UUID, int]]:
-    """Which of the (page id, version) pairs already have an embedding for (model, recipe)."""
+    """Which (page id, version) pairs already have an embedding for (model, recipe, fingerprint)."""
     wanted = list(pages)
     if not wanted:
         return set()
     rows = (
         await session.execute(
             select(PageEmbedding.page_id, PageEmbedding.page_version).where(
-                PageEmbedding.model == model,
-                PageEmbedding.recipe_version == recipe_version,
+                embedding_identity_filter(
+                    model=model,
+                    recipe_version=recipe_version,
+                    recipe_fingerprint=recipe_fingerprint,
+                ),
                 PageEmbedding.page_id.in_([page_id for page_id, _ in wanted]),
             )
         )
@@ -365,6 +384,7 @@ class NewEmbedding:
     provider: str
     dimensions: int
     recipe_version: int
+    recipe_fingerprint: str
     input_hash: str
     vector: list[float]
 
@@ -389,6 +409,7 @@ async def insert_embeddings(
                 provider=item.provider,
                 dimensions=item.dimensions,
                 recipe_version=item.recipe_version,
+                recipe_fingerprint=item.recipe_fingerprint,
                 input_hash=item.input_hash,
                 embedding=item.vector,
                 run_id=run_id,
@@ -400,6 +421,7 @@ async def insert_embeddings(
                     PageEmbedding.page_version,
                     PageEmbedding.model,
                     PageEmbedding.recipe_version,
+                    PageEmbedding.recipe_fingerprint,
                 ]
             )
             .returning(PageEmbedding.page_id)
@@ -419,7 +441,12 @@ class EmbeddedPage:
 
 
 async def similarity_candidates(
-    session: AsyncSession, *, model: str, recipe_version: int, analysis_version: str
+    session: AsyncSession,
+    *,
+    model: str,
+    recipe_version: int,
+    recipe_fingerprint: str,
+    analysis_version: str,
 ) -> dict[uuid.UUID, EmbeddedPage]:
     """Pages eligible for ``semantic_similar`` edges: a fresh analysis AND a current embedding."""
     rows = (
@@ -430,7 +457,7 @@ async def similarity_candidates(
                 PageEmbedding.id,
                 PageEmbedding.dimensions,
             )
-            .join(Page, current_embedding_join(model, recipe_version))
+            .join(Page, current_embedding_join(model, recipe_version, recipe_fingerprint))
             .join(PageAnalysisRow, fresh_analysis_join(analysis_version))
             .order_by(PageEmbedding.page_id)
         )
@@ -454,6 +481,7 @@ async def nearest_candidates(
     model: str,
     dimensions: int,
     recipe_version: int,
+    recipe_fingerprint: str,
     analysis_version: str,
     limit: int | None,
     min_score: float | None = None,
@@ -461,7 +489,7 @@ async def nearest_candidates(
     """(page id, version, cosine) of the nearest similarity candidates, best first.
 
     Exact KNN (no index): O(candidates) per call. Candidates are current-version
-    embeddings of the same (model, dimensions, recipe) whose page also has a
+    embeddings of the same (model, dimensions, recipe, fingerprint) whose page also has a
     fresh analysis; the source page itself is excluded.
     """
     source = (
@@ -472,7 +500,7 @@ async def nearest_candidates(
     distance = cosine_distance(PageEmbedding.embedding, source)
     statement = (
         select(PageEmbedding.page_id, PageEmbedding.page_version, (1.0 - distance).label("score"))
-        .join(Page, current_embedding_join(model, recipe_version))
+        .join(Page, current_embedding_join(model, recipe_version, recipe_fingerprint))
         .join(PageAnalysisRow, fresh_analysis_join(analysis_version))
         .where(PageEmbedding.dimensions == dimensions, PageEmbedding.page_id != source_page_id)
         .order_by(distance, PageEmbedding.page_id)
@@ -520,14 +548,50 @@ async def delete_relationships_touching(
     return touched - set(ids)
 
 
-async def delete_outgoing_semantic(session: AsyncSession, *, page_ids: Iterable[uuid.UUID]) -> None:
+async def delete_outgoing_relationships(
+    session: AsyncSession, *, page_ids: Iterable[uuid.UUID], semantic: bool
+) -> int:
+    """Delete every taxonomy (or semantic) edge whose SOURCE is in ``page_ids``."""
     ids = list(page_ids)
-    if ids:
+    if not ids:
+        return 0
+    result = await session.execute(
+        delete(PageRelationship)
+        .where(_type_filter(semantic=semantic), PageRelationship.source_page_id.in_(ids))
+        .returning(PageRelationship.id)
+    )
+    return len(result.all())
+
+
+async def delete_outgoing_semantic(session: AsyncSession, *, page_ids: Iterable[uuid.UUID]) -> None:
+    await delete_outgoing_relationships(session, page_ids=page_ids, semantic=True)
+
+
+async def semantic_sources_from_other_embeddings(
+    session: AsyncSession, *, model: str, recipe_fingerprint: str
+) -> set[uuid.UUID]:
+    """Sources whose stored ``semantic_similar`` edges came from another model or recipe.
+
+    Each semantic edge records the embedding identity that produced it in its
+    evidence (``model``, ``recipe_fingerprint``); an edge without them predates
+    that rule and counts as foreign too.
+    """
+    rows = (
         await session.execute(
-            delete(PageRelationship).where(
-                _type_filter(semantic=True), PageRelationship.source_page_id.in_(ids)
+            select(PageRelationship.source_page_id)
+            .where(
+                PageRelationship.relationship_type == RelationshipType.SEMANTIC_SIMILAR.value,
+                or_(
+                    PageRelationship.evidence["model"].astext.is_distinct_from(model),
+                    PageRelationship.evidence["recipe_fingerprint"].astext.is_distinct_from(
+                        recipe_fingerprint
+                    ),
+                ),
             )
+            .distinct()
         )
+    ).all()
+    return {row[0] for row in rows}
 
 
 async def semantic_out_stats(

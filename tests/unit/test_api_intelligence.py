@@ -105,6 +105,7 @@ class FakeIntelligenceReader:
                 provider="mock",
                 dimensions=8,
                 recipe_version=1,
+                recipe_fingerprint="r1-0123456789abcdef",
                 input_hash=sha256(b"x").hexdigest(),
                 created_at=NOW,
             ),

@@ -198,7 +198,7 @@ entities:
   - {id: corecell, label: Corecell Batteries, type: company, aliases: [corecell batteries, corecell], markets: [lithium-ion-batteries]}
   - {id: nimbus-semi, label: Nimbus Semiconductors, type: company, aliases: [nimbus semiconductors, nimbus semi], markets: [semiconductors]}
   - {id: medaxis, label: MedAxis Devices, type: company, aliases: [medaxis devices, medaxis], markets: [medical-devices]}
-  - {id: paylane, label: PayLane, type: company, aliases: [paylane], markets: [fintech]}
+  - {id: zorvex-pay, label: Zorvex Pay, type: company, aliases: [zorvex pay], markets: [fintech]}
   - {id: coldpath, label: ColdPath Logistics, type: company, aliases: [coldpath logistics, coldpath], markets: [cold-chain]}
   - {id: solid-state-batteries, label: Solid-state Batteries, type: technology, aliases: [solid-state batteries, solid-state battery], markets: [lithium-ion-batteries]}
   - {id: battery-swapping, label: Battery Swapping, type: technology, aliases: [battery swapping, battery-swapping, swap stations], markets: [electric-two-wheelers, ev-charging]}
@@ -251,13 +251,21 @@ default_page_type: other
 # --------------------------------------------------------------------------- protections
 # Any match makes a page PROTECTED: no link may ever be inserted into or point
 # at it, whatever a model or reviewer says. Operators can add manual protections.
+#
+# The CMS's OWN protection flag is NOT a policy rule: ingestion mirrors it as a
+# `source: cms` protection on every document (ADR-0010 section 5). A policy rule
+# reading the (immutable) version metadata would stay "sticky" after the CMS
+# clears the flag. (v1 was edited once, before any production use, to remove
+# that rule -- recorded in ADR-0010's revision note.)
 protections:
   - id: legal-pages
     reason: Legal and policy pages are never modified.
-    path_patterns: ['^/(privacy|terms|cookie-policy|legal)(/|$)']
-  - id: cms-protected
-    reason: The CMS marks this page protected.
-    metadata_equals: {cms_protected: "true"}
+    # Matched against the canonical path: percent-decoded, ;params removed,
+    # case-folded. An optional locale prefix (/en/, /en-gb/) and .html/.htm/.php
+    # suffixes are covered.
+    path_patterns:
+      - '^/([a-z]{2}(-[a-z]{2})?/)?(privacy|privacy-policy|privacy-notice|terms|terms-of-use|terms-of-service|terms-and-conditions|cookie-policy|cookies|cookie-notice|legal|disclaimer|gdpr)(\.(html?|php))?(/|$)'
+
 
 # --------------------------------------------------------------------------- eligibility
 eligibility:

@@ -372,7 +372,7 @@
         "india"
       ],
       "entities_include": [
-        "paylane",
+        "zorvex-pay",
         "upi-payments"
       ],
       "protection_rule_ids": [],
@@ -544,9 +544,7 @@
       "entities_include": [
         "medaxis"
       ],
-      "protection_rule_ids": [
-        "cms-protected"
-      ],
+      "protection_rule_ids": [],
       "eligibility": {
         "as_source": false,
         "as_target": false,
@@ -557,7 +555,7 @@
           "protected"
         ]
       },
-      "note": "metadata cms_protected='true' matches protection rule cms-protected; any active protection blocks source and target."
+      "note": "metadata cms_protected='true': ingestion mirrors the CMS flag as a source=cms protection (no policy rule); any active protection blocks source and target."
     },
     "https://research.example.com/industry-reports/indonesia-ecommerce-market": {
       "page_type": "report",
@@ -602,7 +600,7 @@
         "india"
       ],
       "entities_include": [
-        "paylane"
+        "zorvex-pay"
       ],
       "protection_rule_ids": [],
       "eligibility": {
@@ -979,7 +977,7 @@
       ],
       "entities_include": [
         "upi-payments",
-        "paylane"
+        "zorvex-pay"
       ],
       "protection_rule_ids": [],
       "eligibility": {

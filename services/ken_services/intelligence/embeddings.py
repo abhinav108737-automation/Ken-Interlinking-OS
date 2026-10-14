@@ -2,12 +2,21 @@
 
 **Identity.** An embedding is keyed by the PROVIDER-REPORTED model of the
 EMBEDDING role (``ProviderCapabilities.roles[EMBEDDING].model``), together with
-the provider name, the dimensions the provider returns and
-``EMBEDDING_RECIPE_VERSION``. :func:`embedding_identity` is the one place that
-resolves it; nothing uses the raw ``KEN_MODEL_EMBEDDING`` setting string.
+the provider name, the dimensions the provider returns,
+``EMBEDDING_RECIPE_VERSION`` and the RECIPE FINGERPRINT. :func:`embedding_identity`
+is the one place that resolves the model; nothing uses the raw
+``KEN_MODEL_EMBEDDING`` setting string.
+
+**Recipe fingerprint.** The recipe's text depends on settings as well as code:
+``KEN_EMBEDDING_DOCUMENT_PREFIX`` and ``KEN_EMBEDDING_MAX_CHARS``.
+:func:`recipe_fingerprint` hashes them with the recipe version, and every
+freshness / similarity query filters on the CURRENT fingerprint
+(:func:`current_recipe_fingerprint`). Changing either setting therefore makes
+every stored embedding stale; the next run re-embeds (new rows; the old rows
+are immutable and stay), and vectors of two recipes are never compared.
 
 **Batching.** :func:`embed_stale_pages` embeds every page whose CURRENT version
-has no row for (identity.model, recipe version), ``settings.embedding_batch_size``
+has no row for (identity.model, recipe version, fingerprint), ``settings.embedding_batch_size``
 texts per call. Each batch is written in ONE transaction, so a batch is either
 fully stored or not at all. A batch is refused (counted in
 ``embedding_failures``, nothing written) when the provider fails, reports a
@@ -17,12 +26,12 @@ does not match. Vectors of two models are therefore never mixed.
 
 from __future__ import annotations
 
-import importlib
+import hashlib
 import math
 import uuid
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from typing import Any, Final
+from typing import Final
 
 from ken_contracts.intelligence import EMBEDDING_RECIPE_VERSION
 from ken_contracts.model import (
@@ -34,20 +43,41 @@ from ken_contracts.model import (
 from ken_core.config import Settings
 from ken_core.db.repositories import intelligence as repo
 from ken_core.logging import get_logger
+from ken_services.intelligence.embedding_text import embedding_text, input_hash
 from ken_services.jobs.runner import JobContext
 
 __all__ = [
     "EMBEDDING_COUNTERS",
     "EmbeddingIdentity",
     "EmbeddingRecipe",
+    "current_recipe_fingerprint",
     "default_recipe",
     "embed_stale_pages",
     "embedding_identity",
+    "recipe_fingerprint",
 ]
 
 logger = get_logger("ken_services.intelligence.embeddings")
 
 EMBEDDING_COUNTERS: Final = ("embeddings_written", "embeddings_fresh_skipped", "embedding_failures")
+
+
+def recipe_fingerprint(*, document_prefix: str, max_chars: int) -> str:
+    """Identity of the embedded-text recipe: version + the settings that shape the text.
+
+    ``r<version>-`` + the first 16 hex digits of
+    ``sha256("<version>|<document_prefix>|<max_chars>")``. Deterministic.
+    """
+    material = f"{EMBEDDING_RECIPE_VERSION}|{document_prefix}|{max_chars}".encode()
+    return f"r{EMBEDDING_RECIPE_VERSION}-" + hashlib.sha256(material).hexdigest()[:16]
+
+
+def current_recipe_fingerprint(settings: Settings) -> str:
+    """The fingerprint of the recipe the CURRENT settings produce."""
+    return recipe_fingerprint(
+        document_prefix=settings.embedding_document_prefix,
+        max_chars=settings.embedding_max_chars,
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -83,8 +113,7 @@ class EmbeddingRecipe:
 
 
 def default_recipe() -> EmbeddingRecipe:
-    module: Any = importlib.import_module("ken_services.intelligence.embedding_text")
-    return EmbeddingRecipe(text=module.embedding_text, digest=module.input_hash)
+    return EmbeddingRecipe(text=embedding_text, digest=input_hash)
 
 
 def _valid_result(result: EmbeddingResult, *, identity: EmbeddingIdentity, count: int) -> bool:
@@ -110,6 +139,7 @@ async def embed_stale_pages(
     Updates ``embeddings_written``, ``embeddings_fresh_skipped`` and
     ``embedding_failures`` on ``job``. Returns the ids of the pages embedded.
     """
+    fingerprint = current_recipe_fingerprint(settings)
     async with job.sessionmaker() as session:
         pages = await repo.list_pages(session, page_ids=page_ids)
         current = [(page.id, page.current_version) for page in pages]
@@ -117,6 +147,7 @@ async def embed_stale_pages(
             session,
             model=identity.model,
             recipe_version=EMBEDDING_RECIPE_VERSION,
+            recipe_fingerprint=fingerprint,
             pages=current,
         )
     stale = [pair for pair in current if pair not in done]
@@ -212,6 +243,7 @@ async def _embed_batch(
             provider=identity.provider,
             dimensions=result.dimensions,
             recipe_version=EMBEDDING_RECIPE_VERSION,
+            recipe_fingerprint=current_recipe_fingerprint(settings),
             input_hash=recipe.digest(text),
             vector=list(vector),
         )

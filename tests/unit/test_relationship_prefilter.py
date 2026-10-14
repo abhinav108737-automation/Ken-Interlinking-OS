@@ -1,9 +1,11 @@
-"""The analysis job's pair prefilter never drops a pair the relationship rules would relate.
+"""The analysis job's pair prefilter never drops a pair a MATERIALISED type would relate.
 
 ``ken_services.intelligence.pipeline.taxonomy_relationship_keys`` mirrors the
-rules in ``ken_services.intelligence.relationships``. This guard evaluates the
-REAL rules exhaustively over synthetic analyses spanning the real taxonomy
-policy, and checks every related ordered pair passes the prefilter.
+materialised rules in ``ken_services.intelligence.relationships`` (the coarse
+derived-only types are never stored, so the prefilter ignores them). This guard
+evaluates the REAL rules exhaustively over synthetic analyses spanning the real
+taxonomy policy, and checks every ordered pair related by a materialised type
+passes the prefilter, while pairs related ONLY by coarse types are pruned.
 """
 
 from __future__ import annotations
@@ -65,20 +67,42 @@ def _analyses(taxonomy: TaxonomyPolicy) -> list[PageAnalysis]:
     return out
 
 
-def test_every_related_pair_passes_the_prefilter(taxonomy: TaxonomyPolicy) -> None:
-    from ken_services.intelligence.relationships import taxonomy_relationships
+def test_the_prefilter_pairs_exactly_the_materialised_relations(
+    taxonomy: TaxonomyPolicy,
+) -> None:
+    from ken_services.intelligence.relationships import (
+        DERIVED_ONLY_RELATIONSHIP_TYPES,
+        MATERIALISED_RELATIONSHIP_TYPES,
+        taxonomy_relationships,
+    )
 
+    materialised = set(MATERIALISED_RELATIONSHIP_TYPES)
     analyses = _analyses(taxonomy)
     keys = {a.page_id: taxonomy_relationship_keys(a, taxonomy) for a in analyses}
-    related = skipped = 0
+    related = skipped = coarse_only = 0
+    seen: set[str] = set()
     for source, target in itertools.permutations(analyses, 2):
         is_s, relates_s = keys[source.page_id]
         is_t, relates_t = keys[target.page_id]
         candidate = bool(relates_s & is_t or relates_t & is_s)
-        if taxonomy_relationships(source, target, taxonomy=taxonomy):
+        found = taxonomy_relationships(source, target, taxonomy=taxonomy)
+        back = taxonomy_relationships(target, source, taxonomy=taxonomy)
+        kinds = {c.relationship_type for c in (*found, *back)}
+        where = (source.market_id, source.geographies, target.market_id, target.geographies)
+        if kinds & materialised:
             related += 1
-            assert candidate, (source.market_id, source.geographies, target.market_id)
-        elif not candidate:
+            seen |= {k.value for k in kinds & materialised}
+            assert candidate, where  # never drops a pair a stored type relates
+        else:
+            # Never pairs pages that only geography / industry adjacency relate:
+            # those types are not stored, so evaluating the pair would be waste.
+            assert not candidate, where
             skipped += 1
+            if kinds:
+                assert kinds <= DERIVED_ONLY_RELATIONSHIP_TYPES
+                coarse_only += 1
     assert related > 0
-    assert skipped > 0  # the prefilter actually prunes
+    assert skipped > 0
+    assert coarse_only > 0  # the policy really has pairs related only by coarse types
+    # Every market-tree type was exercised against the real policy.
+    assert seen >= {"same_market", "parent_market", "submarket", "related_market"}

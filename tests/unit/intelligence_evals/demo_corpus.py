@@ -129,7 +129,8 @@ def eligibility_state(page: NormalizedPage, analysis: PageAnalysis) -> Eligibili
     return EligibilityState(
         publication_state=page.publication_state,
         gone=False,
-        protected=bool(protection_rule_ids(page)),
+        # Policy rules OR the CMS's own flag, which ingestion mirrors as a source=cms row.
+        protected=bool(protection_rule_ids(page)) or page.metadata.get("cms_protected") == "true",
         robots_directives=page.robots_directives,
         canonical_status=page.canonical_status,
         http_status=page.http_status,

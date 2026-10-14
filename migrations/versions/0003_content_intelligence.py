@@ -14,6 +14,10 @@ Column-for-column with ``ken_core.db.models.intelligence``
 * ``page_embeddings.embedding`` is a DIMENSION-LESS ``vector``. The dimension is
   the provider's, stored per row in ``dimensions`` and tied to the vector by the
   CHECK ``vector_dims(embedding) = dimensions``. Nothing here names a dimension.
+* ``page_embeddings.recipe_fingerprint`` (sha256-derived, of the recipe version
+  and the settings that shape the embedded text) is part of the embedding's
+  identity: the unique key and the similarity index include it, so vectors of
+  two text recipes are never mixed.
 * ``page_analyses`` and ``page_embeddings`` are IMMUTABLE: they join the Phase 1
   append-only trigger (``ken_reject_mutation()``, created by 0002).
 * ``page_relationships`` is derived data and deliberately mutable (replaced per
@@ -189,6 +193,7 @@ def upgrade() -> None:
         sa.Column("provider", sa.Text(), nullable=False),
         sa.Column("dimensions", sa.Integer(), nullable=False),
         sa.Column("recipe_version", sa.Integer(), nullable=False),
+        sa.Column("recipe_fingerprint", sa.Text(), nullable=False),
         sa.Column("input_hash", sa.Text(), nullable=False),
         sa.Column("embedding", _Vector(), nullable=False),
         sa.Column("run_id", sa.Uuid(), nullable=True),
@@ -206,12 +211,15 @@ def upgrade() -> None:
             name=op.f("fk_page_embeddings_run_id_job_runs"),
             ondelete="RESTRICT",
         ),
+        # The naming convention's name exceeds 63 characters; this is SQLAlchemy's
+        # deterministic truncation of it, exactly as the ORM metadata renders it.
         sa.UniqueConstraint(
             "page_id",
             "page_version",
             "model",
             "recipe_version",
-            name=op.f("uq_page_embeddings_page_id_page_version_model_recipe_version"),
+            "recipe_fingerprint",
+            name=op.f("uq_page_embeddings_page_id_page_version_model_recipe_ve_f72e"),
         ),
         sa.CheckConstraint("dimensions > 0", name=op.f("ck_page_embeddings_dimensions_positive")),
         sa.CheckConstraint(
@@ -223,7 +231,9 @@ def upgrade() -> None:
         ),
     )
     op.create_index(
-        op.f("ix_page_embeddings_model_dimensions"), "page_embeddings", ["model", "dimensions"]
+        op.f("ix_page_embeddings_model_dimensions_recipe_fingerprint"),
+        "page_embeddings",
+        ["model", "dimensions", "recipe_fingerprint"],
     )
 
     op.create_table(

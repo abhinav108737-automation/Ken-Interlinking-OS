@@ -98,7 +98,7 @@ Observations:
     should tune channel weights on held-out labels, not assume equal weights.
 - **nomic separates strong from weak far better than the mock** (embedding R@5 0.928 vs 0.788).
   Its cosine range is compressed, though: the mean is 0.85 for strong partners and 0.75 for
-  unrelated ones. Calibrate `KEN_SIMILARITY_MIN_SCORE` (default 0.55) per model. At 0.55,
+  unrelated ones. Calibrate `KEN_SIMILARITY_MIN_SCORE` per model (the default is now 0.78, set from this benchmark). At the original 0.55,
   98.9% of all nomic page pairs on this corpus clear the threshold (the minimum is 0.511).
 
 ## Regression floors (mock)
@@ -119,20 +119,17 @@ The test also asserts two orderings:
 
 Lowering a floor is a reviewed decision.
 
-## Known spec conflict (recorded, not gated)
+## Resolved: the market rule
 
-`test_market_rule_matches_adr_wording` checks ADR-0010 §3 literally: "`market_id` is the **most
-specific** node whose score clears the confidence threshold". `analyze.py` picks the
-**highest-scoring** confident node instead, preferring the deeper node only on a tie. The two rules
-disagree on two pages, both strict `xfail`:
+The eval originally checked ADR-0010 §3 literally: "the most specific node whose score clears the
+confidence threshold". That disagreed with the analyser on two hub pages:
+- `/industries/automotive`: the literal rule gives `ev-charging`, the analyser `automotive`;
+- `/industries/healthcare`: the literal rule gives `diagnostics`, the analyser `healthcare`.
 
-| Page | ADR wording gives | Implementation gives |
-|---|---|---|
-| `/industries/automotive` | `ev-charging` (8.0) | `automotive` (21.0) |
-| `/industries/healthcare` | `diagnostics` (5.0) | `healthcare` (12.0) |
-
-Verdict: the implementation's choice is editorially better (an industry hub is about the industry),
-so the ADR wording needs a fix. The goldens deliberately do not assert `market_id` for hubs.
+The orchestrator adopted the analyser's rule (the highest-scoring confident node; ties go to the
+deeper node, then the id), because an industry hub is about its industry. The ADR is amended. Both
+pages are now gated as normal tests (`test_hubs_take_their_industry_as_market`), and the
+whole-corpus property test asserts the adopted rule.
 
 ## Caveats
 

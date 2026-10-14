@@ -94,6 +94,7 @@ export function embedding(overrides: Partial<PageEmbeddingInfo> = {}): PageEmbed
     provider: "ollama",
     dimensions: 768,
     recipe_version: 1,
+    recipe_fingerprint: "r1-0123456789abcdef",
     input_hash: "ab".repeat(32),
     created_at: "2026-10-14T08:00:00Z",
     ...overrides,

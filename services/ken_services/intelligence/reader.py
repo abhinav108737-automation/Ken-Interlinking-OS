@@ -10,21 +10,25 @@ Read-time rules (ADR-0010):
 * **Fresh analysis** = a row for the page's CURRENT version and the current
   ``analysis_version`` (from the configured taxonomy policy).
 * **Fresh embedding** = a row for the current version and the CURRENT embedding
-  identity (``embedding_identity``: the provider-reported model) and recipe.
+  identity (``embedding_identity``: the provider-reported model), recipe version
+  and recipe fingerprint (``current_recipe_fingerprint``: from the settings).
   When the provider cannot be asked, nothing is fresh and similarity lists are
   empty; ``semantic_search`` raises :class:`EmbeddingUnavailableError` (503).
 * **Similarity** is exact cosine KNN (``<=>``; score = 1 - distance) over
-  current-version embeddings of the same (model, dimensions, recipe), gone
-  pages excluded. Vectors of two models are never compared.
+  current-version embeddings of the same (model, dimensions, recipe version,
+  recipe fingerprint), gone pages excluded. Vectors of two models or two text
+  recipes are never compared.
 * **Relationships** are served only when NOT stale: both endpoint versions
-  recorded on the edge equal the endpoints' current versions.
+  recorded on the edge equal the endpoints' current versions. Only STORED types
+  are served (``STORED_RELATIONSHIP_TYPES``): the coarse derived-only types
+  (same_geography, regional_parent, industry_adjacency) are never materialised,
+  so filtering by one returns nothing, and any legacy row of one is ignored.
 * **Eligibility** is computed now, from live state, by the shared
   ``compute_eligibility`` (never stored).
 """
 
 from __future__ import annotations
 
-import importlib
 import math
 import uuid
 from collections.abc import Callable, Mapping, Sequence
@@ -76,11 +80,19 @@ from ken_core.db.models.inventory import Page, PageVersion
 from ken_core.db.repositories.intelligence import (
     analysis_from_row,
     cosine_distance,
+    embedding_identity_filter,
     fresh_analysis_join,
 )
 from ken_core.db.types import Vector
 from ken_core.logging import get_logger
-from ken_services.intelligence.embeddings import EmbeddingIdentity, embedding_identity
+from ken_services.intelligence.eligibility import EligibilityState, compute_eligibility
+from ken_services.intelligence.embeddings import (
+    EmbeddingIdentity,
+    current_recipe_fingerprint,
+    embedding_identity,
+)
+from ken_services.intelligence.relationships import STORED_RELATIONSHIP_TYPES
+from ken_services.intelligence.taxonomy import load_taxonomy
 
 __all__ = ["EligibilityFn", "SqlIntelligenceReader"]
 
@@ -101,26 +113,44 @@ _NODE_COUNT_SQL: Final = {
 }
 """Pages per node id over FRESH analyses (column names are constants, never input)."""
 
+_STORED_TYPES: Final = tuple(kind.value for kind in STORED_RELATIONSHIP_TYPES)
+
+
+def _stored_type() -> ColumnElement[bool]:
+    """Edges of a type the analysis job stores (legacy coarse rows are never served)."""
+    return PageRelationship.relationship_type.in_(_STORED_TYPES)
+
+
+def _semantic_matches(identity: EmbeddingIdentity | None, fingerprint: str) -> ColumnElement[bool]:
+    """Serve a ``semantic_similar`` edge only if it came from the CURRENT embedding identity.
+
+    Fails closed: with no resolvable identity, no semantic edge is served.
+    """
+    is_semantic = PageRelationship.relationship_type == RelationshipType.SEMANTIC_SIMILAR.value
+    if identity is None:
+        return ~is_semantic
+    return or_(
+        ~is_semantic,
+        and_(
+            PageRelationship.evidence["model"].astext == identity.model,
+            PageRelationship.evidence["recipe_fingerprint"].astext == fingerprint,
+        ),
+    )
+
+
 EligibilityFn = Callable[[Mapping[str, Any], TaxonomyPolicy], LinkEligibility]
 """``(EligibilityState fields, taxonomy) -> LinkEligibility``."""
 
 
 def _default_eligibility() -> EligibilityFn:
-    module: Any = importlib.import_module("ken_services.intelligence.eligibility")
-
     def evaluate(fields: Mapping[str, Any], taxonomy: TaxonomyPolicy) -> LinkEligibility:
-        result: LinkEligibility = module.compute_eligibility(
-            module.EligibilityState(**fields), taxonomy=taxonomy
-        )
-        return result
+        return compute_eligibility(EligibilityState(**fields), taxonomy=taxonomy)
 
     return evaluate
 
 
 def _load_taxonomy(path: str) -> TaxonomyPolicy:
-    module: Any = importlib.import_module("ken_services.intelligence.taxonomy")
-    policy: TaxonomyPolicy = module.load_taxonomy(path)
-    return policy
+    return load_taxonomy(path)
 
 
 def _check_paging(limit: int, offset: int) -> None:
@@ -204,6 +234,17 @@ class SqlIntelligenceReader:
         evaluate = self._eligibility_override or _default_eligibility()
         return evaluate(fields, taxonomy)
 
+    @property
+    def _fingerprint(self) -> str:
+        return current_recipe_fingerprint(self._settings)
+
+    def _fresh_embedding(self, model: str) -> ColumnElement[bool]:
+        return embedding_identity_filter(
+            model=model,
+            recipe_version=EMBEDDING_RECIPE_VERSION,
+            recipe_fingerprint=self._fingerprint,
+        )
+
     async def _identity(self) -> EmbeddingIdentity | None:
         try:
             return await embedding_identity(self._provider)
@@ -281,9 +322,8 @@ class SqlIntelligenceReader:
                 ),
             )
             .where(
-                PageEmbedding.model == model,
+                self._fresh_embedding(model),
                 PageEmbedding.dimensions == dimensions,
-                PageEmbedding.recipe_version == EMBEDDING_RECIPE_VERSION,
                 Page.gone_at.is_(None),
             )
             .order_by(distance, Page.id)
@@ -371,6 +411,7 @@ class SqlIntelligenceReader:
             and identity is not None
             and embedding_row.model == identity.model
             and embedding_row.recipe_version == EMBEDDING_RECIPE_VERSION
+            and embedding_row.recipe_fingerprint == self._fingerprint
         )
         protection_views = [
             PageProtectionView(
@@ -416,6 +457,7 @@ class SqlIntelligenceReader:
                 provider=embedding_row.provider,
                 dimensions=embedding_row.dimensions,
                 recipe_version=embedding_row.recipe_version,
+                recipe_fingerprint=embedding_row.recipe_fingerprint,
                 input_hash=embedding_row.input_hash,
                 created_at=embedding_row.created_at,
             ),
@@ -431,18 +473,7 @@ class SqlIntelligenceReader:
         """The current version's embedding: the fresh identity's first, else the newest."""
         preferred: list[Any] = []
         if identity is not None:
-            preferred.append(
-                case(
-                    (
-                        and_(
-                            PageEmbedding.model == identity.model,
-                            PageEmbedding.recipe_version == EMBEDDING_RECIPE_VERSION,
-                        ),
-                        0,
-                    ),
-                    else_=1,
-                )
-            )
+            preferred.append(case((self._fresh_embedding(identity.model), 0), else_=1))
         return (
             await session.scalars(
                 select(PageEmbedding)
@@ -470,6 +501,8 @@ class SqlIntelligenceReader:
                 .where(
                     PageRelationship.source_page_id == page.id,
                     PageRelationship.source_page_version == page.current_version,
+                    _stored_type(),
+                    _semantic_matches(await self._identity(), self._fingerprint),
                 )
                 .group_by(PageRelationship.relationship_type)
                 .order_by(PageRelationship.relationship_type)
@@ -494,8 +527,7 @@ class SqlIntelligenceReader:
                     select(PageEmbedding.id, PageEmbedding.dimensions).where(
                         PageEmbedding.page_id == page.id,
                         PageEmbedding.page_version == page.current_version,
-                        PageEmbedding.model == identity.model,
-                        PageEmbedding.recipe_version == EMBEDDING_RECIPE_VERSION,
+                        self._fresh_embedding(identity.model),
                     )
                 )
             ).one_or_none()
@@ -566,6 +598,8 @@ class SqlIntelligenceReader:
             conditions: list[ColumnElement[bool]] = [
                 PageRelationship.source_page_id == page.id,
                 PageRelationship.source_page_version == page.current_version,
+                _stored_type(),
+                _semantic_matches(await self._identity(), self._fingerprint),
             ]
             if relationship_type is not None:
                 conditions.append(
@@ -790,10 +824,7 @@ class SqlIntelligenceReader:
                                 Page.current_version == PageEmbedding.page_version,
                             ),
                         )
-                        .where(
-                            PageEmbedding.model == identity.model,
-                            PageEmbedding.recipe_version == EMBEDDING_RECIPE_VERSION,
-                        )
+                        .where(self._fresh_embedding(identity.model))
                     )
                     or 0
                 )
@@ -802,6 +833,7 @@ class SqlIntelligenceReader:
                 await session.scalar(
                     select(func.count())
                     .select_from(PageRelationship)
+                    .where(_stored_type())
                     .join(
                         source,
                         and_(

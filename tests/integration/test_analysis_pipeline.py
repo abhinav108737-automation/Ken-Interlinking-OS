@@ -12,6 +12,7 @@ from ken_contracts.inventory import RunStatus
 from ken_contracts.jobs import JobCompletedPayload, JobKind
 from ken_contracts.model import ModelUnavailableError
 from ken_core.db.repositories.events import list_events
+from ken_services.intelligence.embeddings import current_recipe_fingerprint
 from ken_services.intelligence.pipeline import ANALYSIS_COUNTERS
 from tests.conftest import make_settings
 from tests.integration.intelligence_support import (
@@ -32,6 +33,8 @@ pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("migrated")]
 
 SM = async_sessionmaker[AsyncSession]
 SEMANTIC = "semantic_similar"
+COARSE = {"same_geography", "regional_parent", "industry_adjacency"}
+FINGERPRINT = current_recipe_fingerprint(make_settings())
 
 # Three pages: A and B share a market (ev) and a geography; C is batteries.
 # Embeddings: A ~ B (alpha-heavy), C is gamma-heavy.
@@ -60,17 +63,16 @@ async def test_first_run_analyses_embeds_and_relates(sessionmaker: SM) -> None:
     assert [(av, run) for av, run in analyses] == [(AV, detail.id)] * 3
     embedded = await rows(
         sessionmaker,
-        "SELECT model, provider, dimensions, recipe_version, vector_dims(embedding) "
-        "FROM page_embeddings",
+        "SELECT model, provider, dimensions, recipe_version, recipe_fingerprint, "
+        "vector_dims(embedding) FROM page_embeddings",
     )
-    assert set(embedded) == {(EMBED_MODEL, "fake-embedder", 4, 1, 4)}
+    assert set(embedded) == {(EMBED_MODEL, "fake-embedder", 4, 1, FINGERPRINT, 4)}
 
-    # Taxonomy edges in BOTH directions; none across markets/geographies.
+    # Taxonomy edges in BOTH directions; none across markets. The fake toolkit also
+    # proposes same_geography for A <-> B: a coarse type, never materialised.
     assert {e for e in await edges(sessionmaker) if e[2] != SEMANTIC} == {
         ("/reports/a", "/reports/b", "same_market"),
         ("/reports/b", "/reports/a", "same_market"),
-        ("/reports/a", "/reports/b", "same_geography"),
-        ("/reports/b", "/reports/a", "same_geography"),
     }
     # Semantic: A <-> B are similar, C is not similar to either above 0.5.
     assert await edges(sessionmaker, SEMANTIC) == {
@@ -199,7 +201,7 @@ async def test_unavailable_embedding_model_is_isolated(sessionmaker: SM) -> None
     assert await scalar(sessionmaker, "SELECT count(*) FROM page_embeddings") == 0
     # Taxonomy edges still exist; no semantic ones could be computed.
     assert await edges(sessionmaker, SEMANTIC) == set()
-    assert len(await edges(sessionmaker)) == 4
+    assert len(await edges(sessionmaker)) == 2
     assert "secret-host" not in json.dumps(detail.model_dump(mode="json"))
 
     healed = await analyse(sessionmaker)
@@ -328,6 +330,19 @@ async def test_snapshot_and_event_are_secret_free_and_governed(sessionmaker: SM)
     snapshot = json.dumps(detail.config_snapshot)
     assert "postgresql" not in snapshot and "ken:ken" not in snapshot
     assert detail.config_snapshot["analysis_version"] == AV
+    assert detail.config_snapshot["embedding"]["recipe_fingerprint"] == FINGERPRINT
+    assert detail.config_snapshot["relationships"] == {
+        "max_per_type": 25,
+        "materialised_types": [
+            "complementary_market",
+            "parent_market",
+            "related_market",
+            "same_market",
+            "submarket",
+            "supply_chain_downstream",
+            "supply_chain_upstream",
+        ],
+    }
     events = await _job_events(sessionmaker)
     assert len(events) == 1
     event = events[0]
@@ -385,3 +400,221 @@ async def test_smoke_with_the_real_toolkit_policy_and_mock_provider(sessionmaker
     )
     assert (again.counters["pages_analyzed"], again.counters["embeddings_written"]) == (0, 0)
     assert again.counters["protections_added"] == again.counters["protections_deactivated"] == 0
+
+
+# --------------------------------------------------------------------------- #
+# Embedding recipe fingerprint (QA M1)
+# --------------------------------------------------------------------------- #
+@pytest.mark.parametrize(
+    "change", [{"embedding_document_prefix": "passage: "}, {"embedding_max_chars": 5000}]
+)
+async def test_a_recipe_setting_change_makes_embeddings_stale(
+    sessionmaker: SM, change: dict[str, object]
+) -> None:
+    base = {"similarity_top_k": 3, "similarity_min_score": 0.5, "embedding_batch_size": 2}
+    await seed(sessionmaker, A, B, C)
+    await analyse(sessionmaker, settings=make_settings(**base))
+    changed = make_settings(**base, **change)
+    new_fingerprint = current_recipe_fingerprint(changed)
+    assert new_fingerprint != FINGERPRINT
+
+    provider = FakeEmbedder()
+    detail = await analyse(sessionmaker, provider, settings=changed)
+    assert detail.status is RunStatus.SUCCEEDED, detail.counters
+    c = detail.counters
+    assert (c["pages_analyzed"], c["embeddings_written"], c["embeddings_fresh_skipped"]) == (
+        0,
+        3,
+        0,
+    )
+    assert detail.config_snapshot["embedding"]["recipe_fingerprint"] == new_fingerprint
+    if "embedding_document_prefix" in change:
+        assert all(t.startswith("passage: ") for call in provider.embed_calls for t in call)
+    # A NEW row per page; the old rows are immutable and stay.
+    stored = await rows(
+        sessionmaker,
+        "SELECT recipe_fingerprint, count(*) FROM page_embeddings GROUP BY 1 ORDER BY 1",
+    )
+    assert {str(f): int(n) for f, n in stored} == {FINGERPRINT: 3, new_fingerprint: 3}
+    # Semantic edges were recomputed over the new recipe's vectors only.
+    assert await edges(sessionmaker, SEMANTIC) == {
+        ("/reports/a", "/reports/b", SEMANTIC),
+        ("/reports/b", "/reports/a", SEMANTIC),
+    }
+    assert {
+        r[0]
+        for r in await rows(
+            sessionmaker,
+            "SELECT DISTINCT run_id FROM page_relationships "
+            "WHERE relationship_type = 'semantic_similar'",
+        )
+    } == {detail.id}
+
+    again = await analyse(sessionmaker, settings=changed)
+    assert (again.counters["embeddings_written"], again.counters["embeddings_fresh_skipped"]) == (
+        0,
+        3,
+    )
+    # Going back to the original recipe finds its rows fresh again: nothing re-embedded.
+    back = await analyse(sessionmaker, settings=make_settings(**base))
+    assert (back.counters["embeddings_written"], back.counters["embeddings_fresh_skipped"]) == (
+        0,
+        3,
+    )
+
+
+async def test_semantic_edges_never_join_two_recipes(sessionmaker: SM) -> None:
+    base = {"similarity_top_k": 3, "similarity_min_score": 0.5, "embedding_batch_size": 2}
+    await seed(sessionmaker, A, B, page("/reports/d", "alpha alpha alpha beta beta"))
+    await analyse(sessionmaker, settings=make_settings(**base))
+    assert len(await edges(sessionmaker, SEMANTIC)) == 6  # A, B, D are all alike
+    # The recipe changes, and the first batch (two pages, by id) fails to re-embed:
+    # only ONE page has a vector of the new recipe.
+    provider = FakeEmbedder()
+    provider.fail_on_calls = {1}
+    changed = make_settings(**base, embedding_document_prefix="passage: ")
+    detail = await analyse(sessionmaker, provider, settings=changed)
+    assert (detail.counters["embeddings_written"], detail.counters["embedding_failures"]) == (1, 2)
+    [moved] = await rows(
+        sessionmaker,
+        "SELECT p.canonical_url FROM page_embeddings e JOIN pages p ON p.id = e.page_id "
+        "WHERE e.recipe_fingerprint = :f",
+        f=current_recipe_fingerprint(changed),
+    )
+    path = str(moved[0]).removeprefix("https://site.test")
+    # It is never compared with the old recipe's vectors: no semantic edge touches it.
+    semantic = await edges(sessionmaker, SEMANTIC)
+    assert all(path not in (source, target) for source, target, _ in semantic)
+    # Its old neighbours were recomputed under the CURRENT recipe, where they have
+    # no vector yet: they get no edges until re-embedded (never an old-recipe edge).
+    assert semantic == set()
+    healed = await analyse(sessionmaker, settings=changed)
+    assert healed.counters["embeddings_written"] == 2
+    assert len(await edges(sessionmaker, SEMANTIC)) == 6
+
+
+async def test_switching_back_to_an_old_recipe_recomputes_semantic_edges(sessionmaker: SM) -> None:
+    """QA re-review: re-using stored vectors (0 embeddings written) must still rebuild the edges.
+
+    Every semantic edge records the (model, recipe fingerprint) that produced it; edges from
+    another identity are recomputed, and readers never serve them.
+    """
+    base = {"similarity_top_k": 3, "similarity_min_score": 0.5, "embedding_batch_size": 2}
+    await seed(sessionmaker, A, B, C)
+    await analyse(sessionmaker, settings=make_settings(**base))
+    other = make_settings(**base, embedding_max_chars=3000)
+    await analyse(sessionmaker, settings=other)
+    back = await analyse(sessionmaker, settings=make_settings(**base))
+    assert back.counters["embeddings_written"] == 0  # the original vectors are reused
+    fingerprints = {
+        str(r[0])
+        for r in await rows(
+            sessionmaker,
+            "SELECT DISTINCT evidence->>'recipe_fingerprint' FROM page_relationships "
+            "WHERE relationship_type = 'semantic_similar'",
+        )
+    }
+    assert fingerprints == {FINGERPRINT}
+    assert await edges(sessionmaker, SEMANTIC) == {
+        ("/reports/a", "/reports/b", SEMANTIC),
+        ("/reports/b", "/reports/a", SEMANTIC),
+    }
+
+
+# --------------------------------------------------------------------------- #
+# Bounded taxonomy graph (QA B2)
+# --------------------------------------------------------------------------- #
+MATERIALISED_COUNT = 7  # relationships.MATERIALISED_RELATIONSHIP_TYPES
+
+
+def _many(n: int, *, market: str = "ev", prefix: str = "p") -> list[object]:
+    """``n`` pages in ONE market (the worst case); every third page also names India."""
+    return [
+        page(
+            f"/reports/{prefix}{i:03d}",
+            f"alpha market:{market}" + (" geo:india" if i % 3 == 0 else ""),
+        )
+        for i in range(n)
+    ]
+
+
+async def _per_source_type(sessionmaker: SM) -> dict[tuple[str, str], int]:
+    found = await rows(
+        sessionmaker,
+        "SELECT source_page_id::text, relationship_type, count(*) FROM page_relationships "
+        "GROUP BY 1, 2",
+    )
+    return {(s, k): int(n) for s, k, n in found}
+
+
+async def test_taxonomy_edges_are_capped_per_source_and_type_at_scale(sessionmaker: SM) -> None:
+    pages = 300
+    cap = 5
+    settings = make_settings(relationship_max_per_type=cap)
+    await seed(sessionmaker, *_many(pages))
+    detail = await analyse(sessionmaker, settings=settings, embeddings=False)
+    assert detail.status is RunStatus.SUCCEEDED, detail.counters
+    assert detail.counters["pages_analyzed"] == pages
+
+    total = await scalar(sessionmaker, "SELECT count(*) FROM page_relationships")
+    assert total == detail.counters["relationships_written"]
+    # Uncapped this would be 300 x 299 same_market + 100 x 99 same_geography edges.
+    assert total <= pages * MATERIALISED_COUNT * cap
+    assert total == pages * cap  # every page has >= cap same_market candidates
+    kinds = {
+        r[0]
+        for r in await rows(
+            sessionmaker, "SELECT DISTINCT relationship_type FROM page_relationships"
+        )
+    }
+    assert kinds == {"same_market"} and not kinds & COARSE
+    assert max((await _per_source_type(sessionmaker)).values()) <= cap
+
+    # The kept edges are the top ones: weight (all 1.0 here), then shared
+    # geographies, then target page id.
+    ids = await page_ids(sessionmaker)
+    india = {ids[f"/reports/p{i:03d}"] for i in range(pages) if i % 3 == 0}
+    everyone = sorted(ids.values())
+    stored = await rows(
+        sessionmaker, "SELECT source_page_id, target_page_id FROM page_relationships"
+    )
+    targets: dict[object, set[object]] = {}
+    for source, target in stored:
+        targets.setdefault(source, set()).add(target)
+    for source in everyone:
+        if source in india:
+            expected = [p for p in everyone if p in india and p != source][:cap]
+        else:
+            expected = [p for p in everyone if p != source][:cap]
+        assert targets[source] == set(expected)
+
+
+async def test_an_incremental_run_keeps_the_capped_graph_exact(sessionmaker: SM) -> None:
+    """After a page changes, the incremental result equals a full recomputation."""
+    cap = 3
+    settings = make_settings(relationship_max_per_type=cap)
+    corpus = _many(24) + _many(6, market="batteries", prefix="b")
+    await seed(sessionmaker, *corpus)
+    await analyse(sessionmaker, settings=settings, embeddings=False)
+    ids = await page_ids(sessionmaker)
+    assert len(ids) == 30
+    # The page with the LOWEST id was in many top-3 lists; it leaves the market, so
+    # pages that never touched it in this run must be recomputed to refill their caps.
+    lowest = min(ids.items(), key=lambda kv: kv[1])[0]
+    await seed(sessionmaker, page(lowest, "alpha market:batteries geo:india"))
+    incremental = await analyse(sessionmaker, settings=settings, embeddings=False)
+    assert incremental.counters["pages_analyzed"] == 1
+    after_incremental = await edges(sessionmaker)
+    assert max((await _per_source_type(sessionmaker)).values()) <= cap
+
+    forced = await analyse(sessionmaker, settings=settings, embeddings=False, force=True)
+    assert forced.status is RunStatus.SUCCEEDED
+    assert await edges(sessionmaker) == after_incremental
+    stale = await scalar(
+        sessionmaker,
+        "SELECT count(*) FROM page_relationships r JOIN pages s ON s.id = r.source_page_id "
+        "JOIN pages t ON t.id = r.target_page_id "
+        "WHERE r.source_page_version <> s.current_version "
+        "OR r.target_page_version <> t.current_version",
+    )
+    assert stale == 0

@@ -4,6 +4,17 @@
 - **Date:** 2026-10-14
 - **Phase:** 2
 - **Contracts:** `ken_contracts/intelligence.py`, `ken_contracts/jobs.py`. **Schema:** migration 0003.
+- **Revised 2026-10-14 (during integration, after the fixture evals and the final architecture
+  review):**
+  - (a) `market_id` is the highest-scoring confident node (§3).
+  - (b) The `semantic_similar` threshold is model-specific; the default is 0.78 (§4).
+  - (c) CMS protection is mirrored by ingestion on every document, and the `cms-protected` policy
+    rule was removed from taxonomy v1 before any production use (§5).
+  - (d) Static, typed imports between the intelligence modules.
+  - (e) After the QA review: the coarse relationship types are derived, not stored, and stored
+    taxonomy edges are capped per (source, type) (§4).
+  - (f) The embedding recipe fingerprint is part of embedding identity (§2).
+  - (g) Protection paths are matched in canonical form (§5).
 
 ## Context
 
@@ -56,7 +67,14 @@ and is never hard-coded; no paid API; no new infrastructure.
     dimensions and recipe version, and resolved by one helper (`embedding_identity`). It is never
     the raw setting string, which can differ, as with `nomic-embed-text` vs `:latest` or the mock's
     own name.
-  - An embedding is **fresh** when a row exists for (current version, that identity).
+  - **The recipe settings are part of identity too.** `recipe_fingerprint` is
+    `r{EMBEDDING_RECIPE_VERSION}-` plus the first 16 hex characters of the sha256 of
+    (recipe version | document prefix | max chars).
+    - It is stored per row, included in the unique key, and filtered on by every similarity query.
+    - Changing `KEN_EMBEDDING_DOCUMENT_PREFIX` or `KEN_EMBEDDING_MAX_CHARS` therefore makes existing
+      vectors stale. They are re-embedded as new rows and never mixed with the old ones (QA M1).
+  - An embedding is **fresh** when a row exists for (current version, provider-reported model,
+    dimensions, recipe version, current fingerprint).
   - `input_hash` detects whether the recipe text itself changed.
 - **Mock embeddings** (tests, CI, Mode B without Ollama) switch from hash-seeded random vectors to
   **feature hashing**: token uni- and bigrams hashed into the configured dimension, then
@@ -113,17 +131,54 @@ computed only between pages with fresh analyses, from:
 - the top-k embedding neighbours above `KEN_SIMILARITY_MIN_SCORE`.
 
 They are derived data, so this table, unlike the immutable history tables, is mutable by design.
+- **Only specific relationships are stored.** The QA review measured unbounded growth:
+  - about 1 million edges and 347 MB for 1,072 synthetic pages;
+  - 1,897 out-edges for a single page;
+  - most of them pure-geography edges.
+
+  Two rules follow:
+  - **`same_geography`, `regional_parent` and `industry_adjacency` are never stored.** They remain
+    relationship types, and Phase 3 computes them per candidate pair with
+    `taxonomy_relationships()`.
+  - **Every stored taxonomy type is capped per (source page, type)** at
+    `KEN_RELATIONSHIP_MAX_PER_TYPE` (default 25). The kept edges are ranked by weight, then the
+    number of shared geographies, then target id. Under a cap, a page's kept set depends on all of
+    its candidates, so a run recomputes the full out-edge set of every affected source. A test
+    proves an incremental run yields exactly the graph a forced run would.
+  - The 65-page demo now stores 514 taxonomy edges, down from 3,531, with a maximum out-degree
+    of 19.
 - **Each edge records both endpoint versions** (`source_page_version`, `target_page_version`).
 - **A run replaces every edge touching a page it analysed, as source *or* target.** Without that,
   edges from unchanged pages would keep pointing at a stale analysis.
 - **For `semantic_similar`,** the run also re-evaluates the existing neighbours' top-k against newly
   analysed pages, so a new page can enter an old page's neighbour list.
+- **The cosine threshold `KEN_SIMILARITY_MIN_SCORE` is model-specific, not universal.**
+  - On the demo corpus, `nomic-embed-text` gives related pairs about 0.85 and unrelated pairs about
+    0.75. At the original 0.55, 99% of all pairs qualified. The default is therefore **0.78**.
+  - The deterministic mock's cosines are lower; use about 0.3 with it.
+  - The value is recorded in every run's configuration snapshot. It must be re-calibrated
+    (`evals/intelligence/benchmark.py`) whenever the embedding model changes.
+  - Binding the threshold to the embedding identity automatically is a later improvement.
 - **Readers treat an edge whose endpoint version is no longer current as stale** and exclude it.
 - **No table may foreign-key `page_relationships.id`.** Phase 3 copies the evidence values it
   relies on into its own immutable records.
 
 ### 5. Protection and eligibility
 
+- **The CMS's own flag is mirrored at ingestion, not by a policy rule.** On EVERY document,
+  changed or not, ingestion syncs a `source: cms` protection from the `cms_protected` assertion.
+  Protection must never lag, and metadata is outside the content hash, so a CMS switching
+  protection on for unchanged content creates no new version. The sync is asymmetric:
+  - any CMS-derived record (a CMS read or a CMS export) may **add** the protection;
+  - only an **authoritative live CMS read** may **clear** it;
+  - a stale or partial export, or an alias record, never removes it.
+
+  The original `cms-protected` policy rule read the immutable version metadata, which made it
+  "sticky" after the CMS cleared the flag. It was removed so that each fact has one mechanism.
+- **Protection path rules match a canonical path:** percent-decoded, `;params` removed and
+  case-folded. `/Privacy`, `/privacy;jsessionid=1` and `/%70rivacy` therefore cannot fail open
+  (QA H2). The v1 legal-pages pattern also covers locale prefixes, `-policy`, `-of-use` and
+  `.html` variants.
 - **`page_protections`:** protections come from three sources:
   - policy rules (path or metadata, for example the CMS adapter's `cms_protected` metadata);
   - the CMS itself;

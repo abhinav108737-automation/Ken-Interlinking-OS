@@ -1060,6 +1060,11 @@ export interface components {
             page_version: number;
             /** Provider */
             provider: string;
+            /**
+             * Recipe Fingerprint
+             * @description Recipe version + the settings that shape the embedded text (document prefix, max chars), hashed. Part of the embedding identity.
+             */
+            recipe_fingerprint: string;
             /** Recipe Version */
             recipe_version: number;
         };

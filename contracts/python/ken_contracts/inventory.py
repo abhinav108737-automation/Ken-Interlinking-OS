@@ -66,6 +66,11 @@ SUBJECT_INGESTION_RUN: Final = "ingestion_run"
 """``subject_type`` of crawl.completed; ``subject_id`` is ``str(run_id)``."""
 EMITTED_BY_INGEST: Final = "ken-ingest"
 """``emitted_by`` of every inventory event. ``correlation_id`` is the run id."""
+CMS_PROTECTED_KEY: Final = "cms_protected"
+"""Assertion metadata key: ``"true"`` when the CMS itself protects the page.
+
+Set by the CMS source (and by a CMS export); ingestion mirrors it as a
+``source: cms`` protection row on every document (ADR-0010 section 5)."""
 MAX_URL_LENGTH: Final = 2048
 """URLs longer than this are rejected by normalisation (and never stored)."""
 

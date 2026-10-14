@@ -1,18 +1,24 @@
 """Policy protection rules (ADR-0010 section 5).
 
 A rule protects a page when ANY of its ``path_patterns`` matches the URL path
-(``urlsplit(url).path``, ``re.search``) OR -- when it declares
+OR -- when it declares
 ``metadata_equals`` -- EVERY declared key is present in the page metadata with
 exactly that value. Matches come back in policy declaration order and always
 carry :attr:`ProtectionSource.POLICY`; CMS and manual protections are recorded
 elsewhere. Pure and deterministic.
+
+The path is matched in a CANONICAL form (percent-decoded, ``;params`` removed,
+case-folded), so ``/Privacy``, ``/PRIVACY/``, ``/privacy;jsessionid=1`` and
+``/%70rivacy`` cannot slip past a rule written as ``^/privacy`` (Phase 2 QA H2).
+Protection fails closed: patterns are written in lower case against this form.
 """
 
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass
-from urllib.parse import urlsplit
+from urllib.parse import unquote, urlsplit
 
 from ken_contracts.intelligence import ProtectionRule, ProtectionSource, TaxonomyPolicy
 from ken_services.intelligence.taxonomy import taxonomy_index
@@ -33,11 +39,18 @@ def _metadata_matches(rule: ProtectionRule, metadata: Mapping[str, str]) -> bool
     return all(metadata.get(key) == value for key, value in rule.metadata_equals.items())
 
 
-def _path_of(url: str) -> str:
+def protection_path(url: str) -> str:
+    """The canonical path protection rules are matched against."""
     try:
-        return urlsplit(url).path or "/"
+        path = urlsplit(url).path or "/"
     except ValueError:
         return "/"
+    path = unquote(path).split(";", 1)[0]
+    path = re.sub(r"/{2,}", "/", path)  # "//privacy" is "/privacy" to a server
+    return path.casefold() or "/"
+
+
+_path_of = protection_path
 
 
 def match_protections(

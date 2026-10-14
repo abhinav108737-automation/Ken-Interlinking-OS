@@ -755,6 +755,7 @@ export function isPageEmbeddingInfo(value: unknown): value is PageEmbeddingInfo 
     typeof value["provider"] === "string" &&
     typeof value["dimensions"] === "number" &&
     typeof value["recipe_version"] === "number" &&
+    typeof value["recipe_fingerprint"] === "string" &&
     typeof value["input_hash"] === "string" &&
     typeof value["created_at"] === "string"
   );

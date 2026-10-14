@@ -1,10 +1,14 @@
 # Next Steps
 
-**Current state:** Phase 1 — Content Inventory is **complete**. See [PHASE_1_REPORT.md](PHASE_1_REPORT.md).
-Phases 0 and 0.5 (cleanup) are described in [PHASE_0_REPORT.md](PHASE_0_REPORT.md).
+**Current state:** Phase 2 (Content Intelligence) is **complete**; see
+[PHASE_2_REPORT.md](PHASE_2_REPORT.md). The earlier phases are covered in
+[PHASE_1_REPORT.md](PHASE_1_REPORT.md) and [PHASE_0_REPORT.md](PHASE_0_REPORT.md).
 
-**Next phase:** Phase 2 — Content Intelligence. **Not started.** It begins only on explicit user
-instruction.
+**Execution mode:** the user has authorised autonomous, sequential execution of Phases 3–9, an
+end-to-end local demo and a final report. Each phase has internal gates and a local commit plus
+tag. Execution stops only for ASK/BLOCK actions.
+
+**Next phase:** Phase 3 (Recommendation Engine), in progress under that authorisation.
 
 ## Needed from you before real production ingestion
 
@@ -22,18 +26,22 @@ any governing document, so none was guessed.
 | 4 | *If an export:* a sample export, so it can be mapped to the documented JSONL format (`docs/CONTRACTS.md`) or given its own adapter | Offline bootstrap with no load on the live site | — |
 | 5 | **Scope:** which sections are in scope (e.g. only `/industry-reports/…`), which are excluded, and which pages are **protected** (never to be modified later) | Phase 3 eligibility and Phase 6 safety depend on it | decision |
 | 6 | Is the site multilingual? | Language comes only from markup and headers (no detection library) | decision |
+| 7 | **Ken's real taxonomy**: markets/industries with aliases, geographies, a company/product gazetteer, page-type URL patterns, and protected-page rules | `policies/taxonomy/taxonomy.v1.yaml` is an illustrative seed. Classification quality on the real site depends on this. | data |
+| 8 | **PRD v1.1 §17.1 wording:** "a genuine native degraded mode" now holds only for schema ≤ 0002 (pgvector is required from Phase 2, ADR-0010) | A product-document revision, for your approval | decision |
 
-## Phase 2 — Content Intelligence (from IMPLEMENTATION_PLAN.md)
+## Phase 2 known limitations (accepted, documented)
 
-Taxonomy, entity extraction, embeddings, pgvector and graph relationships, built on `page_versions`:
-
-- Migration 0003: `CREATE EXTENSION vector` together with the first vector column (ADR-0003), with
-  the dimension read from `ModelProvider.embed()`, never hard-coded.
-- Pull a local embedding model (e.g. `nomic-embed-text`). Until then `/ready` reports
-  `model_provider` degraded, which is expected.
-- Classification and entities go through `complete_structured` (Pydantic-validated), keyed to a
-  page **version**, so results are reproducible and re-run only when content changes.
-- `known_urls` plus `existing_links` already provide the link graph to extend into `graph_edges`.
+| Item | When |
+|---|---|
+| Similarity is an exact cosine KNN, O(pages) per query (12 ms at about 1k pages). Add an HNSW partial index per (model, dimensions) when latency is measured as a problem. | at scale |
+| `KEN_SIMILARITY_MIN_SCORE` is one global, model-specific value (0.78 for nomic). Bind it to the embedding identity, and re-calibrate per model with `evals/intelligence/benchmark.py`. | when the model changes |
+| Embedding identity is the model name; re-pulling the same tag with new weights is not detected. Consider adding the Ollama digest. | before a model upgrade |
+| The intelligence reader asks the provider for its identity on each request: fast normally, but a hung daemon adds the provider timeout. Add a short TTL cache and a request deadline. | 5 |
+| `get_coverage` aggregates in Python, O(pages) per request (~300 ms at 1k pages). Aggregate in SQL or cache. | at scale |
+| `page_protections` "never deleted" is enforced by the application. Add a trigger rejecting DELETE and non-deactivating UPDATEs. | 5 (with RBAC) |
+| A job run whose finishing step itself fails stays `running` (no reaper). Losing the advisory-lock connection mid-run silently drops the lock. | 6 (scheduler) |
+| Analysis has no per-page time budget (linear, about 1.6 s/MB of hostile text). | optional |
+| Relationships do not filter gone targets or old `analysis_version` edges at read time. Phase 3 eligibility applies. | 3 |
 
 ## Phase 1 known limitations (accepted, documented)
 
@@ -62,6 +70,7 @@ Taxonomy, entity extraction, embeddings, pgvector and graph relationships, built
 | Extend mypy `strict` to `ken_agents` before LLM-boundary code lands there | before 4 |
 | **Version-aware event reads** (cleanup QA M1): `list_events` re-validates stored rows against today's rules | before 8 |
 | Bump `asyncpg` 0.31.0 → 0.32.x after soak; record in ADR-0004 | when convenient |
+| An ANN index; tuning channel weights on real labelled data | 3 / 8 |
 | Starlette deprecation warning: `starlette.testclient` with `httpx` | when upgrading Starlette |
 | CI workflow authored but never run (no git remote; pushing is ASK) | when a remote exists |
 | Non-editable wheel build across the package roots (now five) not yet verified | before any distribution |
@@ -77,6 +86,12 @@ Taxonomy, entity extraction, embeddings, pgvector and graph relationships, built
 | Re-verify the licence inventory of any packaged desktop bundle (`sharp` is LGPL) | before desktop distribution |
 | 5432 guard does not resolve DNS (`127.1`, decimal IPs) | optional |
 | Colima does not start at login: run `colima start` after a reboot | — |
+
+**Closed in Phase 2:**
+- The embedding model is pulled and used (`nomic-embed-text`, Apache-2.0), with the dimension
+  read at runtime.
+- Alembic `-x` parsing is strict: unknown or empty keys are refused. This follows a Phase 1
+  incident in which a one-word `-x dburl=...` fell back to the dev DB.
 
 **Closed in Phase 1:**
 - QA L3: the mock provider's call log is bounded.

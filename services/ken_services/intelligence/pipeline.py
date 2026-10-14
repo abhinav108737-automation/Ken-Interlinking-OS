@@ -6,8 +6,8 @@ One run, through the generic job runner (``ken_services.jobs.runner``)::
     for every page in scope (gone ones too; eligibility handles gone):
         sync POLICY protections                              (own transaction)
         analyse the CURRENT version unless (version, av) exists  (own transaction)
-    embed every current version lacking (identity.model, recipe)  (one tx per batch)
-    replace taxonomy edges touching S                        (one transaction)
+    embed every current version lacking (model, recipe, fingerprint)  (one tx per batch)
+    replace the capped taxonomy out-edges of every affected page  (one transaction)
     replace / re-evaluate semantic_similar edges             (one transaction)
     -> succeeded | completed_with_errors, job.completed
 
@@ -15,14 +15,25 @@ One run, through the generic job runner (``ken_services.jobs.runner``)::
 scope with a fresh analysis). ``force`` never mutates an existing analysis or
 embedding: it inserts only missing rows and recomputes protections and edges.
 
-**Relationship replacement (ADR-0010 section 4).** Taxonomy edges: every edge
-with source OR target in ``S`` is deleted, then every pair (s, t) with s in
-``S`` and t any page with a fresh analysis is evaluated in BOTH directions. A
-key-based prefilter (:func:`taxonomy_relationship_keys`) skips pairs that
-cannot relate: same industry root, declared supply-chain / complementary /
-adjacency links, shared countries and country-to-region containment. Cost is
-O(|S| x |candidates|) evaluations; O(n^2) only on a forced run over pages that
-all share keys.
+**Relationship replacement (ADR-0010 section 4).** Only the MATERIALISED
+taxonomy types are stored (``relationships.MATERIALISED_RELATIONSHIP_TYPES``:
+same / parent / sub / related market, supply chain, complementary). The coarse
+types same_geography, regional_parent and industry_adjacency are skipped:
+Phase 3 derives them per candidate pair. Each source page keeps at most
+``settings.relationship_max_per_type`` edges per type: the top ones by
+(weight desc, number of shared geographies desc, target page id asc).
+
+Because of the cap, a page's out-edges depend on ALL its candidates, so a run
+recomputes the full out-edge set of every AFFECTED source ``R``: ``S``, every
+prefilter candidate of a page in ``S`` (its new relations), and every other
+endpoint of a stored edge touching ``S`` (its old relations). Every taxonomy
+edge touching ``S`` and every taxonomy out-edge of ``R`` is deleted, then each
+fresh page in ``R`` is evaluated against its prefilter candidates.
+
+The key-based prefilter (:func:`taxonomy_relationship_keys`) only pairs pages
+that can produce a materialised type: the same market, parent / child markets,
+sibling markets and declared supply-chain / complementary links. Cost is
+O(|R| x |candidates|) evaluations and O(|R| x types x cap) stored edges.
 
 **semantic_similar** edges (only when an embedding identity was resolved this
 run; otherwise they are left untouched, and readers drop stale ones). Let
@@ -33,8 +44,8 @@ run; otherwise they are left untouched, and readers drop stale ones). Let
    top-k of (score above the threshold and p has fewer than k edges or c beats
    p's weakest edge) joins ``R``;
 3. every page in ``R`` gets its top-k recomputed by exact cosine KNN over
-   current-version embeddings of the same (model, dimensions, recipe) whose
-   pages have a fresh analysis.
+   current-version embeddings of the same (model, dimensions, recipe version,
+   recipe fingerprint) whose pages have a fresh analysis.
 
 That is O((|C| + |R|) x candidates) vector comparisons, done in PostgreSQL.
 
@@ -49,14 +60,13 @@ Counters: ``pages_considered``, ``pages_analyzed``, ``pages_fresh_skipped``,
 
 from __future__ import annotations
 
-import importlib
 import math
 import uuid
 from collections import defaultdict
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Final
+from typing import Any, Final, Protocol
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -74,13 +84,23 @@ from ken_contracts.model import ModelProvider
 from ken_core.config import Settings
 from ken_core.db.repositories import intelligence as repo
 from ken_core.logging import get_logger
+from ken_services.intelligence.analyze import AnalysisInput, analyze_page
 from ken_services.intelligence.embeddings import (
     EmbeddingIdentity,
     EmbeddingRecipe,
+    current_recipe_fingerprint,
     default_recipe,
     embed_stale_pages,
     embedding_identity,
 )
+from ken_services.intelligence.protection import ProtectionMatch, match_protections
+from ken_services.intelligence.relationships import (
+    MATERIALISED_RELATIONSHIP_TYPES,
+    RelationshipCandidate,
+    semantic_relationship,
+    taxonomy_relationships,
+)
+from ken_services.intelligence.taxonomy import load_taxonomy
 from ken_services.jobs.runner import JobContext, run_job, utc_now
 
 __all__ = [
@@ -111,6 +131,7 @@ POLICY_ACTOR: Final = "policy"
 """``created_by`` / ``deactivated_by`` of every protection this job manages."""
 
 _SEMANTIC: Final = RelationshipType.SEMANTIC_SIMILAR.value
+_MATERIALISED: Final = frozenset(kind.value for kind in MATERIALISED_RELATIONSHIP_TYPES)
 
 KeysFn = Callable[[PageAnalysis, TaxonomyPolicy], tuple[frozenset[str], frozenset[str]]]
 
@@ -120,10 +141,8 @@ KeysFn = Callable[[PageAnalysis, TaxonomyPolicy], tuple[frozenset[str], frozense
 # --------------------------------------------------------------------------- #
 @dataclass(frozen=True, slots=True)
 class _Tree:
-    market_root: dict[str, str]
+    parent: dict[str, str | None]
     declared: dict[str, frozenset[str]]
-    adjacent: dict[str, frozenset[str]]
-    geo_ancestors: dict[str, tuple[str, ...]]
 
 
 _TREE_CACHE: list[tuple[TaxonomyPolicy, _Tree]] = []
@@ -133,31 +152,12 @@ def _tree(taxonomy: TaxonomyPolicy) -> _Tree:
     for policy, tree in _TREE_CACHE:
         if policy is taxonomy:
             return tree
-    parents = {m.id: m.parent for m in taxonomy.markets}
-    roots: dict[str, str] = {}
-    for market in taxonomy.markets:
-        node, seen = market.id, set()
-        while parents.get(node) is not None and node not in seen:
-            seen.add(node)
-            node = parents[node] or node
-        roots[market.id] = node
-    geo_parents = {g.id: g.parent for g in taxonomy.geographies}
-    ancestors: dict[str, tuple[str, ...]] = {}
-    for geo in taxonomy.geographies:
-        chain: list[str] = []
-        parent = geo.parent
-        while parent is not None and parent not in chain:
-            chain.append(parent)
-            parent = geo_parents.get(parent)
-        ancestors[geo.id] = tuple(chain)
     tree = _Tree(
-        market_root=roots,
+        parent={m.id: m.parent for m in taxonomy.markets},
         declared={
             m.id: frozenset((*m.upstream, *m.downstream, *m.complementary))
             for m in taxonomy.markets
         },
-        adjacent={m.id: frozenset(m.adjacent) for m in taxonomy.markets},
-        geo_ancestors=ancestors,
     )
     _TREE_CACHE[:] = [*_TREE_CACHE[-3:], (taxonomy, tree)]
     return tree
@@ -169,79 +169,94 @@ def taxonomy_relationship_keys(
     """(what the page IS, what it RELATES TO) keys for the pair prefilter.
 
     Pair (s, t) is evaluated iff ``Q(s) & E(t)`` or ``Q(t) & E(s)``. The keys
-    mirror ``ken_services.intelligence.relationships``: market relationships
-    need a shared industry root; supply-chain / complementary links a declared
-    market link; industry adjacency a declared industry link; geography a
-    shared country or a country inside a listed region. A unit test checks the
-    prefilter against the exhaustive pairing on the real taxonomy.
+    cover exactly the MATERIALISED types of
+    ``ken_services.intelligence.relationships`` (all need both markets known):
+    ``m:<market>`` pairs the same market, a parent with its children and
+    declared supply-chain / complementary links; ``c:<parent>`` pairs siblings.
+    Geography and industry adjacency are deliberately absent: those types are
+    never stored. A unit test checks the prefilter against the exhaustive
+    pairing on the real taxonomy.
     """
     tree = _tree(taxonomy)
-    is_keys: set[str] = set()
-    relates: set[str] = set()
     market = analysis.market_id
-    if market is not None and market in tree.market_root:
-        root = tree.market_root[market]
-        is_keys |= {f"root:{root}", f"m:{market}"}
-        relates.add(f"root:{root}")
-        relates |= {f"m:{other}" for other in tree.declared[market]}
-    industry = analysis.industry_id
-    if industry is not None and industry in tree.adjacent:
-        is_keys.add(f"i:{industry}")
-        relates |= {f"i:{other}" for other in tree.adjacent[industry]}
-    for geo in analysis.geographies:
-        if geo.kind == "country":
-            is_keys.add(f"c:{geo.geo_id}")
-            relates.add(f"c:{geo.geo_id}")
-            relates |= {f"r:{a}" for a in tree.geo_ancestors.get(geo.geo_id, ())}
-        elif geo.kind == "region":
-            is_keys.add(f"r:{geo.geo_id}")
+    if market is None or market not in tree.parent:
+        return frozenset(), frozenset()
+    is_keys = {f"m:{market}"}
+    relates = {f"m:{market}"}  # same_market
+    relates |= {f"m:{other}" for other in tree.declared[market]}  # supply chain, complementary
+    parent = tree.parent[market]
+    if parent is not None:
+        relates.add(f"m:{parent}")  # parent_market (submarket, from the other side)
+        is_keys.add(f"c:{parent}")  # related_market: siblings share a parent
+        relates.add(f"c:{parent}")
     return frozenset(is_keys), frozenset(relates)
+
+
+def _top_edges(
+    edges: Sequence[repo.NewRelationship],
+    geographies: Mapping[uuid.UUID, frozenset[str]],
+    *,
+    cap: int,
+) -> list[repo.NewRelationship]:
+    """The ``cap`` best edges of ONE (source, type): weight desc, shared geographies desc,
+    target page id asc. Deterministic (a total order)."""
+
+    def rank(edge: repo.NewRelationship) -> tuple[float, int, uuid.UUID]:
+        shared = geographies[edge.source_page_id] & geographies[edge.target_page_id]
+        return (-edge.weight, -len(shared), edge.target_page_id)
+
+    return sorted(edges, key=rank)[:cap]
 
 
 # --------------------------------------------------------------------------- #
 # Injectable analysis functions (workstream A's modules by default)
 # --------------------------------------------------------------------------- #
+class AnalyzeFn(Protocol):
+    def __call__(self, item: AnalysisInput, *, taxonomy: TaxonomyPolicy) -> PageAnalysis: ...
+
+
+class MatchProtectionsFn(Protocol):
+    def __call__(
+        self, *, url: str, metadata: Mapping[str, str], taxonomy: TaxonomyPolicy
+    ) -> Sequence[ProtectionMatch]: ...
+
+
+class TaxonomyRelationshipsFn(Protocol):
+    def __call__(
+        self, source: PageAnalysis, target: PageAnalysis, *, taxonomy: TaxonomyPolicy
+    ) -> Sequence[RelationshipCandidate]: ...
+
+
+class SemanticRelationshipFn(Protocol):
+    def __call__(self, score: float, *, min_score: float) -> RelationshipCandidate | None: ...
+
+
 @dataclass(frozen=True, slots=True)
 class AnalysisToolkit:
-    """The deterministic functions the job calls. Tests inject fakes."""
+    """The deterministic functions the job calls (statically typed). Tests inject fakes."""
 
-    analyze: Callable[..., PageAnalysis]
-    """``analyze(item, *, taxonomy) -> PageAnalysis``."""
-    make_input: Callable[..., Any]
-    """``make_input(page_id=, page_version=, url=, title=, ...) -> AnalysisInput``."""
-    match_protections: Callable[..., Sequence[Any]]
-    """``match_protections(*, url, metadata, taxonomy) -> (ProtectionMatch, ...)``."""
-    taxonomy_relationships: Callable[..., Sequence[Any]]
-    """``taxonomy_relationships(src, tgt, *, taxonomy) -> (RelationshipCandidate, ...)``."""
-    semantic_relationship: Callable[..., Any]
-    """``semantic_relationship(score, *, min_score) -> RelationshipCandidate | None``."""
+    analyze: AnalyzeFn
+    make_input: type[AnalysisInput]
+    match_protections: MatchProtectionsFn
+    taxonomy_relationships: TaxonomyRelationshipsFn
+    semantic_relationship: SemanticRelationshipFn
     recipe: EmbeddingRecipe
     relationship_keys: KeysFn = field(default=taxonomy_relationship_keys)
 
 
 def default_toolkit() -> AnalysisToolkit:
-    def module(name: str) -> Any:
-        return importlib.import_module(f"ken_services.intelligence.{name}")
-
-    analyze, protection, relationships = (
-        module("analyze"),
-        module("protection"),
-        module("relationships"),
-    )
     return AnalysisToolkit(
-        analyze=analyze.analyze_page,
-        make_input=analyze.AnalysisInput,
-        match_protections=protection.match_protections,
-        taxonomy_relationships=relationships.taxonomy_relationships,
-        semantic_relationship=relationships.semantic_relationship,
+        analyze=analyze_page,
+        make_input=AnalysisInput,
+        match_protections=match_protections,
+        taxonomy_relationships=taxonomy_relationships,
+        semantic_relationship=semantic_relationship,
         recipe=default_recipe(),
     )
 
 
 def load_policy(path: str) -> TaxonomyPolicy:
-    module: Any = importlib.import_module("ken_services.intelligence.taxonomy")
-    policy: TaxonomyPolicy = module.load_taxonomy(path)
-    return policy
+    return load_taxonomy(path)
 
 
 # --------------------------------------------------------------------------- #
@@ -269,6 +284,7 @@ class _Analysis:
         self.embeddings = embeddings
         self.page_ids = page_ids
         self.av = analysis_version(taxonomy.version)
+        self.fingerprint = current_recipe_fingerprint(settings)
 
     def _error(self, event: str, exc: BaseException, **fields: Any) -> None:
         logger.error(event, run_id=str(self.job.run_id), error_class=type(exc).__name__, **fields)
@@ -410,17 +426,23 @@ class _Analysis:
 
     # ----------------------------------------------------- relationships
     async def _taxonomy_edges(self, pages: set[uuid.UUID]) -> None:
-        """Replace every taxonomy edge touching ``pages`` (those with a fresh analysis)."""
+        """Recompute the capped taxonomy out-edges of every page affected by ``pages``."""
         try:
             async with self.job.transaction() as tx:
                 fresh = await repo.fresh_analyses(tx.session, analysis_version=self.av)
                 changed = pages & fresh.keys()
                 if not changed:
                     return
-                await repo.delete_relationships_touching(
+                related = self._prefilter(fresh)
+                sources = set(changed) | await repo.delete_relationships_touching(
                     tx.session, page_ids=changed, semantic=False
                 )
-                edges = self._taxonomy_pairs(changed, fresh)
+                for page_id in changed:
+                    sources |= related(page_id)
+                await repo.delete_outgoing_relationships(
+                    tx.session, page_ids=sources - changed, semantic=False
+                )
+                edges = self._taxonomy_pairs(sources & fresh.keys(), fresh, related)
                 tx.increment(
                     "relationships_written",
                     await repo.insert_relationships(
@@ -434,9 +456,10 @@ class _Analysis:
         except Exception as exc:
             self._error("taxonomy_relationships_failed", exc)
 
-    def _taxonomy_pairs(
-        self, changed: set[uuid.UUID], fresh: dict[uuid.UUID, repo.FreshAnalysis]
-    ) -> list[repo.NewRelationship]:
+    def _prefilter(
+        self, fresh: dict[uuid.UUID, repo.FreshAnalysis]
+    ) -> Callable[[uuid.UUID], set[uuid.UUID]]:
+        """page id -> the fresh pages the prefilter pairs it with (never itself)."""
         keys = {
             pid: self.toolkit.relationship_keys(item.analysis, self.taxonomy)
             for pid, item in fresh.items()
@@ -448,26 +471,42 @@ class _Analysis:
                 is_index[key].add(pid)
             for key in relates:
                 relates_index[key].add(pid)
-        pairs: set[tuple[uuid.UUID, uuid.UUID]] = set()
-        for source in changed:
-            is_keys, relates = keys[source]
+
+        def related(page_id: uuid.UUID) -> set[uuid.UUID]:
+            is_keys, relates = keys[page_id]
             others: set[uuid.UUID] = set()
             for key in relates:
                 others |= is_index.get(key, set())
             for key in is_keys:
                 others |= relates_index.get(key, set())
-            others.discard(source)
-            pairs |= {(min(source, other), max(source, other)) for other in others}
-        best: dict[tuple[uuid.UUID, uuid.UUID, str], repo.NewRelationship] = {}
-        for first, second in sorted(pairs):
-            for src, tgt in ((first, second), (second, first)):
+            others.discard(page_id)
+            return others
+
+        return related
+
+    def _taxonomy_pairs(
+        self,
+        sources: set[uuid.UUID],
+        fresh: dict[uuid.UUID, repo.FreshAnalysis],
+        related: Callable[[uuid.UUID], set[uuid.UUID]],
+    ) -> list[repo.NewRelationship]:
+        """The full, capped set of materialised out-edges of each page in ``sources``."""
+        cap = self.settings.relationship_max_per_type
+        geographies = {
+            pid: frozenset(g.geo_id for g in item.analysis.geographies)
+            for pid, item in fresh.items()
+        }
+        out: list[repo.NewRelationship] = []
+        for src in sorted(sources):
+            best: dict[tuple[str, uuid.UUID], repo.NewRelationship] = {}
+            for tgt in sorted(related(src)):
                 for candidate in self.toolkit.taxonomy_relationships(
                     fresh[src].analysis, fresh[tgt].analysis, taxonomy=self.taxonomy
                 ):
                     kind = RelationshipType(candidate.relationship_type).value
-                    if kind == _SEMANTIC:
-                        continue
-                    edge = (src, tgt, kind)
+                    if kind not in _MATERIALISED:
+                        continue  # semantic and the derived-only coarse types
+                    edge = (kind, tgt)
                     if edge in best and best[edge].weight >= candidate.weight:
                         continue
                     best[edge] = repo.NewRelationship(
@@ -479,20 +518,33 @@ class _Analysis:
                         weight=float(candidate.weight),
                         evidence=dict(candidate.evidence),
                     )
-        return [best[edge] for edge in sorted(best)]
+            by_kind: dict[str, list[repo.NewRelationship]] = defaultdict(list)
+            for (kind, _), item in best.items():
+                by_kind[kind].append(item)
+            for items in by_kind.values():
+                out.extend(_top_edges(items, geographies, cap=cap))
+        out.sort(key=lambda e: (e.source_page_id, e.target_page_id, e.relationship_type))
+        return out
 
     async def _semantic_edges(self, identity: EmbeddingIdentity, changed: set[uuid.UUID]) -> None:
-        if not changed:
-            return
         top_k = self.settings.similarity_top_k
         min_score = self.settings.similarity_min_score
         try:
             async with self.job.transaction() as tx:
                 session = tx.session
+                # Edges made by another model or recipe are stale even when no page
+                # changed (e.g. switching back to a previous recipe re-embeds nothing):
+                # their sources are recomputed under the current identity (QA re-review).
+                changed = set(changed) | await repo.semantic_sources_from_other_embeddings(
+                    session, model=identity.model, recipe_fingerprint=self.fingerprint
+                )
+                if not changed:
+                    return
                 candidates = await repo.similarity_candidates(
                     session,
                     model=identity.model,
                     recipe_version=EMBEDDING_RECIPE_VERSION,
+                    recipe_fingerprint=self.fingerprint,
                     analysis_version=self.av,
                 )
                 recompute = set(changed) | await repo.delete_relationships_touching(
@@ -532,7 +584,11 @@ class _Analysis:
                                 target_page_version=version,
                                 relationship_type=_SEMANTIC,
                                 weight=float(candidate.weight),
-                                evidence=dict(candidate.evidence),
+                                evidence={
+                                    **candidate.evidence,
+                                    "model": identity.model,
+                                    "recipe_fingerprint": self.fingerprint,
+                                },
                             )
                         )
                 tx.increment(
@@ -564,6 +620,7 @@ class _Analysis:
             model=identity.model,
             dimensions=entry.dimensions,
             recipe_version=EMBEDDING_RECIPE_VERSION,
+            recipe_fingerprint=self.fingerprint,
             analysis_version=self.av,
             limit=limit,
             min_score=min_score,
@@ -593,12 +650,17 @@ def _snapshot(
         "embedding": {
             "provider": provider.name,
             "recipe_version": EMBEDDING_RECIPE_VERSION,
+            "recipe_fingerprint": current_recipe_fingerprint(settings),
             "batch_size": settings.embedding_batch_size,
             "max_chars": settings.embedding_max_chars,
         },
         "similarity": {
             "top_k": settings.similarity_top_k,
             "min_score": settings.similarity_min_score,
+        },
+        "relationships": {
+            "max_per_type": settings.relationship_max_per_type,
+            "materialised_types": sorted(_MATERIALISED),
         },
     }
 

@@ -55,6 +55,8 @@ def _x_arguments() -> dict[str, str]:
             f"unknown -x argument(s) {unknown}; supported: {sorted(KNOWN_X_ARGS)}. "
             "Refusing to fall back to KEN_DATABASE_URL."
         )
+    if "dburl" in parsed and not parsed["dburl"]:
+        raise SystemExit("-x dburl= is empty; refusing to fall back to KEN_DATABASE_URL.")
     return parsed
 
 
