@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Final
 
 from ken_agents import prompts
 from ken_agents.llm import RoleModel
@@ -309,6 +309,19 @@ async def check_invariants(
     )
 
 
+_CONCURRENT_CODES: Final = frozenset({"not_proposed", "already_reviewed"})
+
+
+def _conflict_note(plan_id: Any, code: str) -> str:
+    """A reviewer-facing note that says WHY the hand-off refused the plan."""
+    if code in _CONCURRENT_CODES:
+        return f"Plan {plan_id} changed concurrently ({code}); it was not handed off."
+    return (
+        f"Plan {plan_id} failed an invariant re-checked at hand-off ({code}); "
+        "it was not handed off."
+    )
+
+
 async def policy_gate(state: AgentState, ctx: NodeContext, step: StepScratch) -> PolicyGateUpdate:
     """ONE hand-off call with every review whose plan passed its checks (rejects included:
     they are recorded, not handed off). There is no edge to ``approved``."""
@@ -334,10 +347,7 @@ async def policy_gate(state: AgentState, ctx: NodeContext, step: StepScratch) ->
     sent = {r.plan_id for r in reviews}
     handed_off = [i for i in result.handed_off if i in sent]
     conflicts = {k: v for k, v in result.conflicts.items() if k in sent}
-    notes = [
-        f"Plan {plan_id} changed status concurrently ({code}); it was not handed off."
-        for plan_id, code in conflicts.items()
-    ]
+    notes = [_conflict_note(plan_id, code) for plan_id, code in conflicts.items()]
     step.output = {
         "sent": len(reviews),
         "handed_off": [str(i) for i in handed_off],

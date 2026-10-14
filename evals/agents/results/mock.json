@@ -1,0 +1,662 @@
+{
+  "benchmark": "ken-phase4-agent-critic",
+  "generated_at": "2026-10-14T10:32:20+00:00",
+  "host": {
+    "python": "3.12.14",
+    "machine": "arm64"
+  },
+  "provider": "mock",
+  "critic": "deterministic rule (critic model disabled)",
+  "reasoning_model": null,
+  "agent_policy": {
+    "version": 1,
+    "accept_min_confidence": 0.5,
+    "max_plans_per_run": 3,
+    "critic_timeout_seconds": 90.0,
+    "planner_model": false,
+    "critic_model": false
+  },
+  "corpus": "tests/fixtures/demo/research_site.jsonl (MockModelProvider embeddings)",
+  "timing_ms": {
+    "setup": 6584.7,
+    "agent_batch": 3129.9
+  },
+  "summary": {
+    "sources": 30,
+    "plans_reviewed": 48,
+    "plans_handed_off": 48,
+    "outcomes": {
+      "recommend": 29,
+      "needs_human_review": 1
+    },
+    "verdicts": {
+      "accept": 43,
+      "uncertain": 5
+    },
+    "critique_steps": 30,
+    "step_fallback_reasons": {
+      "model_disabled": 30
+    },
+    "step_fallback_rate": 0.0,
+    "step_schema_violation_rate": 0.0,
+    "plan_fallback_reasons": {
+      "model_disabled": 48
+    },
+    "plans_answered_by_model": 0,
+    "critic_latency_ms": {
+      "mean": 0.0,
+      "p50": 0.0,
+      "p95": 0.0,
+      "max": 0.0
+    },
+    "agreement_with_rule": 1.0,
+    "agreement_with_rule_model_answered": null,
+    "agreement_with_judgments": 0.9792,
+    "good_or_acceptable_handed_off_rate": 1.0,
+    "bad_rejected": "0/1",
+    "good_accepted_rate": 1.0,
+    "confusion_label_x_verdict": {
+      "acceptable": {
+        "accept": 21,
+        "uncertain": 5
+      },
+      "bad": {
+        "accept": 1
+      },
+      "good": {
+        "accept": 21
+      }
+    },
+    "gate_violations": 0,
+    "runs_failed": 0
+  },
+  "gates": [],
+  "plans": [
+    {
+      "source": "/industry-reports/gcc-energy-storage-market",
+      "target": "/industry-reports/saudi-arabia-solar-power-market",
+      "anchor": "photovoltaic",
+      "confidence": 0.6994,
+      "label": "good",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [],
+      "fallback": "model_disabled",
+      "explanation": "Deterministic rule: raw confidence 0.70 >= 0.50."
+    },
+    {
+      "source": "/industry-reports/gcc-energy-storage-market",
+      "target": "/industry-reports/india-lithium-ion-battery-manufacturing-market",
+      "anchor": "battery manufacturing",
+      "confidence": 0.5466,
+      "label": "acceptable",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [],
+      "fallback": "model_disabled",
+      "explanation": "Deterministic rule: raw confidence 0.55 >= 0.50."
+    },
+    {
+      "source": "/industry-reports/india-auto-components-market",
+      "target": "/industry-reports/india-electric-vehicle-market",
+      "anchor": "electric vehicles",
+      "confidence": 0.6344,
+      "label": "good",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [],
+      "fallback": "model_disabled",
+      "explanation": "Deterministic rule: raw confidence 0.63 >= 0.50."
+    },
+    {
+      "source": "/industry-reports/india-battery-energy-storage-market",
+      "target": "/industry-reports/india-lithium-ion-battery-manufacturing-market",
+      "anchor": "lithium-ion battery manufacturing",
+      "confidence": 0.6105,
+      "label": "good",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [],
+      "fallback": "model_disabled",
+      "explanation": "Deterministic rule: raw confidence 0.61 >= 0.50."
+    },
+    {
+      "source": "/industry-reports/india-cold-chain-market",
+      "target": "/industry-reports/qatar-logistics-market",
+      "anchor": "Logistics",
+      "confidence": 0.5866,
+      "label": "acceptable",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [],
+      "fallback": "model_disabled",
+      "explanation": "Deterministic rule: raw confidence 0.59 >= 0.50."
+    },
+    {
+      "source": "/industry-reports/india-cold-chain-market",
+      "target": "/industry-reports/saudi-arabia-solar-power-market",
+      "anchor": "solar panels",
+      "confidence": 0.5087,
+      "label": "bad",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [],
+      "fallback": "model_disabled",
+      "explanation": "Deterministic rule: raw confidence 0.51 >= 0.50."
+    },
+    {
+      "source": "/industry-reports/india-electric-two-wheeler-market",
+      "target": "/industry-reports/india-lithium-ion-battery-manufacturing-market",
+      "anchor": "lithium-ion battery",
+      "confidence": 0.5291,
+      "label": "good",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [],
+      "fallback": "model_disabled",
+      "explanation": "Deterministic rule: raw confidence 0.53 >= 0.50."
+    },
+    {
+      "source": "/industry-reports/india-electric-two-wheeler-market",
+      "target": "/insights/battery-swapping-electric-two-wheelers-india",
+      "anchor": "Battery swapping",
+      "confidence": 0.5282,
+      "label": "acceptable",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [],
+      "fallback": "model_disabled",
+      "explanation": "Deterministic rule: raw confidence 0.53 >= 0.50."
+    },
+    {
+      "source": "/industry-reports/india-electric-vehicle-market",
+      "target": "/industry-reports/india-lithium-ion-battery-manufacturing-market",
+      "anchor": "lithium-ion battery",
+      "confidence": 0.6609,
+      "label": "good",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [],
+      "fallback": "model_disabled",
+      "explanation": "Deterministic rule: raw confidence 0.66 >= 0.50."
+    },
+    {
+      "source": "/industry-reports/india-electric-vehicle-market",
+      "target": "/industry-reports/india-ev-charging-infrastructure-market",
+      "anchor": "charging infrastructure",
+      "confidence": 0.6412,
+      "label": "good",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [],
+      "fallback": "model_disabled",
+      "explanation": "Deterministic rule: raw confidence 0.64 >= 0.50."
+    },
+    {
+      "source": "/industry-reports/india-ev-charging-infrastructure-market",
+      "target": "/industry-reports/india-rooftop-solar-market",
+      "anchor": "rooftop solar",
+      "confidence": 0.5393,
+      "label": "good",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [],
+      "fallback": "model_disabled",
+      "explanation": "Deterministic rule: raw confidence 0.54 >= 0.50."
+    },
+    {
+      "source": "/industry-reports/india-lithium-ion-battery-manufacturing-market",
+      "target": "/industry-reports/india-battery-energy-storage-market",
+      "anchor": "grid storage",
+      "confidence": 0.5865,
+      "label": "good",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [],
+      "fallback": "model_disabled",
+      "explanation": "Deterministic rule: raw confidence 0.59 >= 0.50."
+    },
+    {
+      "source": "/industry-reports/india-lithium-ion-battery-manufacturing-market",
+      "target": "/industry-reports/india-electric-two-wheeler-market",
+      "anchor": "electric two-wheelers",
+      "confidence": 0.5025,
+      "label": "good",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [],
+      "fallback": "model_disabled",
+      "explanation": "Deterministic rule: raw confidence 0.50 >= 0.50."
+    },
+    {
+      "source": "/industry-reports/india-pharmaceutical-market",
+      "target": "/industry-reports/india-cold-chain-market",
+      "anchor": "cold chain",
+      "confidence": 0.674,
+      "label": "good",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [],
+      "fallback": "model_disabled",
+      "explanation": "Deterministic rule: raw confidence 0.67 >= 0.50."
+    },
+    {
+      "source": "/industry-reports/indonesia-ev-charging-infrastructure-market",
+      "target": "/industry-reports/thailand-electric-vehicle-market",
+      "anchor": "electric vehicles",
+      "confidence": 0.648,
+      "label": "acceptable",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [],
+      "fallback": "model_disabled",
+      "explanation": "Deterministic rule: raw confidence 0.65 >= 0.50."
+    },
+    {
+      "source": "/industry-reports/indonesia-ev-charging-infrastructure-market",
+      "target": "/industry-reports/southeast-asia-battery-materials-market",
+      "anchor": "battery materials",
+      "confidence": 0.4811,
+      "label": "acceptable",
+      "rule": "uncertain",
+      "verdict": "uncertain",
+      "reasons": [
+        "low_confidence"
+      ],
+      "fallback": "model_disabled",
+      "explanation": "Deterministic rule: raw confidence 0.48 < 0.50."
+    },
+    {
+      "source": "/industry-reports/indonesia-ev-charging-infrastructure-market",
+      "target": "/insights/battery-swapping-electric-two-wheelers-india",
+      "anchor": "battery swapping",
+      "confidence": 0.3706,
+      "label": "acceptable",
+      "rule": "uncertain",
+      "verdict": "uncertain",
+      "reasons": [
+        "low_confidence"
+      ],
+      "fallback": "model_disabled",
+      "explanation": "Deterministic rule: raw confidence 0.37 < 0.50."
+    },
+    {
+      "source": "/industry-reports/malaysia-data-center-market",
+      "target": "/industry-reports/singapore-cloud-computing-market",
+      "anchor": "cloud services",
+      "confidence": 0.615,
+      "label": "acceptable",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [],
+      "fallback": "model_disabled",
+      "explanation": "Deterministic rule: raw confidence 0.62 >= 0.50."
+    },
+    {
+      "source": "/industry-reports/malaysia-data-center-market",
+      "target": "/insights/gcc-data-center-power-demand",
+      "anchor": "power demand",
+      "confidence": 0.4483,
+      "label": "acceptable",
+      "rule": "uncertain",
+      "verdict": "uncertain",
+      "reasons": [
+        "low_confidence"
+      ],
+      "fallback": "model_disabled",
+      "explanation": "Deterministic rule: raw confidence 0.45 < 0.50."
+    },
+    {
+      "source": "/industry-reports/philippines-cold-chain-market",
+      "target": "/industry-reports/qatar-logistics-market",
+      "anchor": "Logistics",
+      "confidence": 0.6122,
+      "label": "acceptable",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [],
+      "fallback": "model_disabled",
+      "explanation": "Deterministic rule: raw confidence 0.61 >= 0.50."
+    },
+    {
+      "source": "/industry-reports/southeast-asia-battery-materials-market",
+      "target": "/industry-reports/india-lithium-ion-battery-manufacturing-market",
+      "anchor": "lithium-ion battery",
+      "confidence": 0.6399,
+      "label": "acceptable",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [],
+      "fallback": "model_disabled",
+      "explanation": "Deterministic rule: raw confidence 0.64 >= 0.50."
+    },
+    {
+      "source": "/industry-reports/thailand-ecommerce-logistics-market",
+      "target": "/industry-reports/qatar-logistics-market",
+      "anchor": "logistics",
+      "confidence": 0.5302,
+      "label": "acceptable",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [],
+      "fallback": "model_disabled",
+      "explanation": "Deterministic rule: raw confidence 0.53 >= 0.50."
+    },
+    {
+      "source": "/industry-reports/thailand-ecommerce-logistics-market",
+      "target": "/industry-reports/philippines-fintech-market",
+      "anchor": "digital payments",
+      "confidence": 0.4572,
+      "label": "acceptable",
+      "rule": "uncertain",
+      "verdict": "uncertain",
+      "reasons": [
+        "low_confidence"
+      ],
+      "fallback": "model_disabled",
+      "explanation": "Deterministic rule: raw confidence 0.46 < 0.50."
+    },
+    {
+      "source": "/industry-reports/thailand-electric-vehicle-market",
+      "target": "/insights/charging-infrastructure-gaps-southeast-asia",
+      "anchor": "fast chargers",
+      "confidence": 0.6418,
+      "label": "good",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [],
+      "fallback": "model_disabled",
+      "explanation": "Deterministic rule: raw confidence 0.64 >= 0.50."
+    },
+    {
+      "source": "/industry-reports/thailand-electric-vehicle-market",
+      "target": "/industries/automotive",
+      "anchor": "auto industry",
+      "confidence": 0.5215,
+      "label": "acceptable",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [],
+      "fallback": "model_disabled",
+      "explanation": "Deterministic rule: raw confidence 0.52 >= 0.50."
+    },
+    {
+      "source": "/industry-reports/uae-cold-chain-market",
+      "target": "/industry-reports/qatar-logistics-market",
+      "anchor": "Logistics",
+      "confidence": 0.6207,
+      "label": "acceptable",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [],
+      "fallback": "model_disabled",
+      "explanation": "Deterministic rule: raw confidence 0.62 >= 0.50."
+    },
+    {
+      "source": "/industry-reports/uae-cold-chain-market",
+      "target": "/industry-reports/bangladesh-pharmaceutical-market",
+      "anchor": "pharmaceutical",
+      "confidence": 0.5363,
+      "label": "acceptable",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [],
+      "fallback": "model_disabled",
+      "explanation": "Deterministic rule: raw confidence 0.54 >= 0.50."
+    },
+    {
+      "source": "/industry-reports/uae-data-center-market",
+      "target": "/industry-reports/singapore-cloud-computing-market",
+      "anchor": "cloud services",
+      "confidence": 0.5224,
+      "label": "acceptable",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [],
+      "fallback": "model_disabled",
+      "explanation": "Deterministic rule: raw confidence 0.52 >= 0.50."
+    },
+    {
+      "source": "/industry-reports/vietnam-ecommerce-logistics-market",
+      "target": "/industry-reports/qatar-logistics-market",
+      "anchor": "logistics",
+      "confidence": 0.5313,
+      "label": "acceptable",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [],
+      "fallback": "model_disabled",
+      "explanation": "Deterministic rule: raw confidence 0.53 >= 0.50."
+    },
+    {
+      "source": "/industry-reports/vietnam-solar-power-market",
+      "target": "/insights/perovskite-solar-cells-commercialisation",
+      "anchor": "perovskite solar cells",
+      "confidence": 0.6122,
+      "label": "good",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [],
+      "fallback": "model_disabled",
+      "explanation": "Deterministic rule: raw confidence 0.61 >= 0.50."
+    },
+    {
+      "source": "/industry-reports/vietnam-solar-power-market",
+      "target": "/industry-reports/gcc-energy-storage-market",
+      "anchor": "energy storage",
+      "confidence": 0.5497,
+      "label": "acceptable",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [],
+      "fallback": "model_disabled",
+      "explanation": "Deterministic rule: raw confidence 0.55 >= 0.50."
+    },
+    {
+      "source": "/industry-reports/vietnam-wind-power-market",
+      "target": "/industry-reports/gcc-energy-storage-market",
+      "anchor": "battery storage",
+      "confidence": 0.5092,
+      "label": "acceptable",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [],
+      "fallback": "model_disabled",
+      "explanation": "Deterministic rule: raw confidence 0.51 >= 0.50."
+    },
+    {
+      "source": "/insights/battery-swapping-electric-two-wheelers-india",
+      "target": "/industry-reports/india-electric-vehicle-market",
+      "anchor": "electric cars",
+      "confidence": 0.6933,
+      "label": "acceptable",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [],
+      "fallback": "model_disabled",
+      "explanation": "Deterministic rule: raw confidence 0.69 >= 0.50."
+    },
+    {
+      "source": "/insights/battery-swapping-electric-two-wheelers-india",
+      "target": "/industry-reports/india-ev-charging-infrastructure-market",
+      "anchor": "charging stations",
+      "confidence": 0.614,
+      "label": "good",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [],
+      "fallback": "model_disabled",
+      "explanation": "Deterministic rule: raw confidence 0.61 >= 0.50."
+    },
+    {
+      "source": "/insights/charging-infrastructure-gaps-southeast-asia",
+      "target": "/industry-reports/thailand-electric-vehicle-market",
+      "anchor": "electric vehicles",
+      "confidence": 0.6902,
+      "label": "good",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [],
+      "fallback": "model_disabled",
+      "explanation": "Deterministic rule: raw confidence 0.69 >= 0.50."
+    },
+    {
+      "source": "/insights/charging-infrastructure-gaps-southeast-asia",
+      "target": "/industry-reports/india-electric-vehicle-market",
+      "anchor": "Electric vehicle",
+      "confidence": 0.5172,
+      "label": "acceptable",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [],
+      "fallback": "model_disabled",
+      "explanation": "Deterministic rule: raw confidence 0.52 >= 0.50."
+    },
+    {
+      "source": "/insights/charging-infrastructure-gaps-southeast-asia",
+      "target": "/insights/fame-scheme-electric-vehicle-adoption-india",
+      "anchor": "electric vehicle",
+      "confidence": 0.5135,
+      "label": "acceptable",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [],
+      "fallback": "model_disabled",
+      "explanation": "Deterministic rule: raw confidence 0.51 >= 0.50."
+    },
+    {
+      "source": "/insights/cold-chain-vaccine-distribution-india",
+      "target": "/industry-reports/india-cold-chain-market",
+      "anchor": "temperature-controlled logistics",
+      "confidence": 0.7056,
+      "label": "good",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [],
+      "fallback": "model_disabled",
+      "explanation": "Deterministic rule: raw confidence 0.71 >= 0.50."
+    },
+    {
+      "source": "/insights/cold-chain-vaccine-distribution-india",
+      "target": "/industry-reports/bangladesh-pharmaceutical-market",
+      "anchor": "pharmaceutical",
+      "confidence": 0.5182,
+      "label": "acceptable",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [],
+      "fallback": "model_disabled",
+      "explanation": "Deterministic rule: raw confidence 0.52 >= 0.50."
+    },
+    {
+      "source": "/insights/digital-payments-lessons-southeast-asia",
+      "target": "/industry-reports/india-health-insurance-market",
+      "anchor": "insurance",
+      "confidence": 0.5767,
+      "label": "acceptable",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [],
+      "fallback": "model_disabled",
+      "explanation": "Deterministic rule: raw confidence 0.58 >= 0.50."
+    },
+    {
+      "source": "/insights/digital-payments-lessons-southeast-asia",
+      "target": "/industry-reports/india-digital-lending-market",
+      "anchor": "digital payments",
+      "confidence": 0.5619,
+      "label": "good",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [],
+      "fallback": "model_disabled",
+      "explanation": "Deterministic rule: raw confidence 0.56 >= 0.50."
+    },
+    {
+      "source": "/insights/fame-scheme-electric-vehicle-adoption-india",
+      "target": "/industry-reports/india-ev-charging-infrastructure-market",
+      "anchor": "charging stations",
+      "confidence": 0.6203,
+      "label": "good",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [],
+      "fallback": "model_disabled",
+      "explanation": "Deterministic rule: raw confidence 0.62 >= 0.50."
+    },
+    {
+      "source": "/insights/gcc-data-center-power-demand",
+      "target": "/industry-reports/saudi-arabia-data-center-market",
+      "anchor": "data centers",
+      "confidence": 0.598,
+      "label": "good",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [],
+      "fallback": "model_disabled",
+      "explanation": "Deterministic rule: raw confidence 0.60 >= 0.50."
+    },
+    {
+      "source": "/insights/gcc-data-center-power-demand",
+      "target": "/industry-reports/saudi-arabia-solar-power-market",
+      "anchor": "solar power",
+      "confidence": 0.5107,
+      "label": "acceptable",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [],
+      "fallback": "model_disabled",
+      "explanation": "Deterministic rule: raw confidence 0.51 >= 0.50."
+    },
+    {
+      "source": "/insights/indonesia-nickel-battery-materials",
+      "target": "/industry-reports/indonesia-electric-two-wheeler-market",
+      "anchor": "electric motorcycles",
+      "confidence": 0.4953,
+      "label": "acceptable",
+      "rule": "uncertain",
+      "verdict": "uncertain",
+      "reasons": [
+        "low_confidence"
+      ],
+      "fallback": "model_disabled",
+      "explanation": "Deterministic rule: raw confidence 0.50 < 0.50."
+    },
+    {
+      "source": "/insights/last-mile-delivery-economics-thailand-vietnam",
+      "target": "/industry-reports/vietnam-ecommerce-logistics-market",
+      "anchor": "Last-mile delivery",
+      "confidence": 0.5949,
+      "label": "good",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [],
+      "fallback": "model_disabled",
+      "explanation": "Deterministic rule: raw confidence 0.59 >= 0.50."
+    },
+    {
+      "source": "/insights/perovskite-solar-cells-commercialisation",
+      "target": "/industry-reports/vietnam-solar-power-market",
+      "anchor": "rooftop solar",
+      "confidence": 0.7285,
+      "label": "good",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [],
+      "fallback": "model_disabled",
+      "explanation": "Deterministic rule: raw confidence 0.73 >= 0.50."
+    },
+    {
+      "source": "/insights/semiconductor-supply-chain-shift-malaysia",
+      "target": "/industry-reports/india-semiconductor-market",
+      "anchor": "wafer fabrication",
+      "confidence": 0.651,
+      "label": "good",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [],
+      "fallback": "model_disabled",
+      "explanation": "Deterministic rule: raw confidence 0.65 >= 0.50."
+    }
+  ]
+}

@@ -1,0 +1,827 @@
+{
+  "benchmark": "ken-phase4-agent-critic",
+  "generated_at": "2026-10-14T10:37:13+00:00",
+  "host": {
+    "python": "3.12.14",
+    "machine": "arm64"
+  },
+  "provider": "ollama",
+  "critic": "model",
+  "reasoning_model": "qwen3:8b-q4_K_M",
+  "agent_policy": {
+    "version": 1,
+    "accept_min_confidence": 0.5,
+    "max_plans_per_run": 3,
+    "critic_timeout_seconds": 90.0,
+    "planner_model": false,
+    "critic_model": true
+  },
+  "corpus": "tests/fixtures/demo/research_site.jsonl (MockModelProvider embeddings)",
+  "timing_ms": {
+    "setup": 5838.6,
+    "agent_batch": 285963.3
+  },
+  "summary": {
+    "sources": 30,
+    "plans_reviewed": 48,
+    "plans_handed_off": 37,
+    "outcomes": {
+      "recommend": 27,
+      "no_action": 3
+    },
+    "verdicts": {
+      "accept": 37,
+      "reject": 11
+    },
+    "critique_steps": 30,
+    "step_fallback_reasons": {
+      "none": 30
+    },
+    "step_fallback_rate": 0.0,
+    "step_schema_violation_rate": 0.0,
+    "plan_fallback_reasons": {
+      "model": 48
+    },
+    "plans_answered_by_model": 48,
+    "critic_latency_ms": {
+      "mean": 9400.7,
+      "p50": 9051.0,
+      "p95": 15370.0,
+      "max": 17672.0
+    },
+    "agreement_with_rule": 0.7292,
+    "agreement_with_rule_model_answered": 0.7292,
+    "agreement_with_judgments": 0.7917,
+    "good_or_acceptable_handed_off_rate": 0.7872,
+    "bad_rejected": "1/1",
+    "good_accepted_rate": 0.9524,
+    "confusion_label_x_verdict": {
+      "acceptable": {
+        "accept": 17,
+        "reject": 9
+      },
+      "bad": {
+        "reject": 1
+      },
+      "good": {
+        "accept": 20,
+        "reject": 1
+      }
+    },
+    "gate_violations": 0,
+    "runs_failed": 0
+  },
+  "gates": [],
+  "plans": [
+    {
+      "source": "/industry-reports/gcc-energy-storage-market",
+      "target": "/industry-reports/saudi-arabia-solar-power-market",
+      "anchor": "photovoltaic",
+      "confidence": 0.6994,
+      "label": "good",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [
+        "natural_anchor",
+        "relevant_destination",
+        "reader_journey_mismatch"
+      ],
+      "fallback": null,
+      "explanation": "The anchor 'photovoltaic' is natural and relevant to the context of solar-plus-storage tenders. The destination about Saudi Arabia's solar power market is relevant to the reader's journey."
+    },
+    {
+      "source": "/industry-reports/gcc-energy-storage-market",
+      "target": "/industry-reports/india-lithium-ion-battery-manufacturing-market",
+      "anchor": "battery manufacturing",
+      "confidence": 0.5466,
+      "label": "acceptable",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [
+        "natural_anchor",
+        "relevant_destination",
+        "reader_journey_mismatch"
+      ],
+      "fallback": null,
+      "explanation": "The anchor 'battery manufacturing' is natural and relevant to the context of sourcing cells and supply chains. The destination about India's battery manufacturing market is relevant to the reader's journey."
+    },
+    {
+      "source": "/industry-reports/india-auto-components-market",
+      "target": "/industry-reports/india-electric-vehicle-market",
+      "anchor": "electric vehicles",
+      "confidence": 0.6344,
+      "label": "good",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [
+        "natural_anchor",
+        "relevant_destination",
+        "reader_journey_mismatch"
+      ],
+      "fallback": null,
+      "explanation": "The anchor 'electric vehicles' is natural and relevant to the context of auto components. The destination matches the reader's journey from auto components to electric vehicles."
+    },
+    {
+      "source": "/industry-reports/india-battery-energy-storage-market",
+      "target": "/industry-reports/india-lithium-ion-battery-manufacturing-market",
+      "anchor": "lithium-ion battery manufacturing",
+      "confidence": 0.6105,
+      "label": "good",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [
+        "natural_anchor",
+        "relevant_destination",
+        "reader_journey_mismatch"
+      ],
+      "fallback": null,
+      "explanation": "The anchor text is natural and relevant to the context of battery manufacturing. The destination is closely related to the topic, and the link supports the reader's journey by providing additional market insights."
+    },
+    {
+      "source": "/industry-reports/india-cold-chain-market",
+      "target": "/industry-reports/qatar-logistics-market",
+      "anchor": "Logistics",
+      "confidence": 0.5866,
+      "label": "acceptable",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [
+        "natural_anchor",
+        "relevant_destination"
+      ],
+      "fallback": null,
+      "explanation": "The anchor 'Logistics' is natural and relevant to the context of cold chain expansion, and the destination is a relevant market report."
+    },
+    {
+      "source": "/industry-reports/india-cold-chain-market",
+      "target": "/industry-reports/saudi-arabia-solar-power-market",
+      "anchor": "solar panels",
+      "confidence": 0.5087,
+      "label": "bad",
+      "rule": "accept",
+      "verdict": "reject",
+      "reasons": [
+        "misleading_anchor",
+        "weak_relevance"
+      ],
+      "fallback": null,
+      "explanation": "The anchor 'solar panels' is misleading and weakly relevant to the context of cold chain market discussion."
+    },
+    {
+      "source": "/industry-reports/india-electric-two-wheeler-market",
+      "target": "/industry-reports/india-lithium-ion-battery-manufacturing-market",
+      "anchor": "lithium-ion battery",
+      "confidence": 0.5291,
+      "label": "good",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [
+        "natural_anchor",
+        "relevant_destination"
+      ],
+      "fallback": null,
+      "explanation": "The anchor 'lithium-ion battery' is natural and relevant to the context of discussing electric motorcycles and battery imports."
+    },
+    {
+      "source": "/industry-reports/india-electric-two-wheeler-market",
+      "target": "/insights/battery-swapping-electric-two-wheelers-india",
+      "anchor": "Battery swapping",
+      "confidence": 0.5282,
+      "label": "acceptable",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [
+        "natural_anchor",
+        "relevant_destination"
+      ],
+      "fallback": null,
+      "explanation": "The anchor 'Battery swapping' is natural and relevant to the context of discussing charging infrastructure and alternatives for commercial riders."
+    },
+    {
+      "source": "/industry-reports/india-electric-vehicle-market",
+      "target": "/industry-reports/india-lithium-ion-battery-manufacturing-market",
+      "anchor": "lithium-ion battery",
+      "confidence": 0.6609,
+      "label": "good",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [
+        "natural_anchor",
+        "relevant_destination",
+        "reader_journey_mismatch"
+      ],
+      "fallback": null,
+      "explanation": "The anchor 'lithium-ion battery' is natural and relevant to the context of electric vehicle components. The destination matches the reader's journey by focusing on manufacturing in India."
+    },
+    {
+      "source": "/industry-reports/india-electric-vehicle-market",
+      "target": "/industry-reports/india-ev-charging-infrastructure-market",
+      "anchor": "charging infrastructure",
+      "confidence": 0.6412,
+      "label": "good",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [
+        "natural_anchor",
+        "relevant_destination",
+        "reader_journey_mismatch"
+      ],
+      "fallback": null,
+      "explanation": "The anchor 'charging infrastructure' is natural and relevant to the context of EV market challenges. The destination aligns with the reader's journey by addressing infrastructure development."
+    },
+    {
+      "source": "/industry-reports/india-ev-charging-infrastructure-market",
+      "target": "/industry-reports/india-rooftop-solar-market",
+      "anchor": "rooftop solar",
+      "confidence": 0.5393,
+      "label": "good",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [
+        "natural_anchor",
+        "relevant_destination",
+        "reader_journey_mismatch"
+      ],
+      "fallback": null,
+      "explanation": "The anchor 'rooftop solar' is natural and relevant to the context of EV charging infrastructure. The destination about India's rooftop solar market aligns with the discussion on managing peak demand with solar and storage."
+    },
+    {
+      "source": "/industry-reports/india-lithium-ion-battery-manufacturing-market",
+      "target": "/industry-reports/india-battery-energy-storage-market",
+      "anchor": "grid storage",
+      "confidence": 0.5865,
+      "label": "good",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [
+        "natural_anchor",
+        "relevant_destination"
+      ],
+      "fallback": null,
+      "explanation": "The anchor 'grid storage' is natural and relevant to the context of battery demand in India, and the destination matches the topic."
+    },
+    {
+      "source": "/industry-reports/india-lithium-ion-battery-manufacturing-market",
+      "target": "/industry-reports/india-electric-two-wheeler-market",
+      "anchor": "electric two-wheelers",
+      "confidence": 0.5025,
+      "label": "good",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [
+        "natural_anchor",
+        "relevant_destination"
+      ],
+      "fallback": null,
+      "explanation": "The anchor 'electric two-wheelers' is natural and relevant to the context of battery assembly and testing standards in India."
+    },
+    {
+      "source": "/industry-reports/india-pharmaceutical-market",
+      "target": "/industry-reports/india-cold-chain-market",
+      "anchor": "cold chain",
+      "confidence": 0.674,
+      "label": "good",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [
+        "natural_anchor",
+        "relevant_destination",
+        "reader_journey_mismatch"
+      ],
+      "fallback": null,
+      "explanation": "The anchor 'cold chain' is natural and relevant to the context of pharmaceutical distribution. The destination matches the reader's journey by providing market insights related to cold chain logistics."
+    },
+    {
+      "source": "/industry-reports/indonesia-ev-charging-infrastructure-market",
+      "target": "/industry-reports/thailand-electric-vehicle-market",
+      "anchor": "electric vehicles",
+      "confidence": 0.648,
+      "label": "acceptable",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [
+        "natural_anchor",
+        "relevant_destination",
+        "reader_journey_mismatch"
+      ],
+      "fallback": null,
+      "explanation": "The anchor 'electric vehicles' is natural and relevant to the context of EV charging infrastructure. The destination about Thailand's EV market is relevant to the reader's journey."
+    },
+    {
+      "source": "/industry-reports/indonesia-ev-charging-infrastructure-market",
+      "target": "/industry-reports/southeast-asia-battery-materials-market",
+      "anchor": "battery materials",
+      "confidence": 0.4811,
+      "label": "acceptable",
+      "rule": "uncertain",
+      "verdict": "reject",
+      "reasons": [
+        "misleading_anchor",
+        "weak_relevance"
+      ],
+      "fallback": null,
+      "explanation": "The anchor 'battery materials' is misleading as it shifts focus from EV charging to battery materials, which is less relevant to the current context."
+    },
+    {
+      "source": "/industry-reports/indonesia-ev-charging-infrastructure-market",
+      "target": "/insights/battery-swapping-electric-two-wheelers-india",
+      "anchor": "battery swapping",
+      "confidence": 0.3706,
+      "label": "acceptable",
+      "rule": "uncertain",
+      "verdict": "reject",
+      "reasons": [
+        "misleading_anchor",
+        "weak_relevance"
+      ],
+      "fallback": null,
+      "explanation": "The anchor 'battery swapping' is misleading and less relevant to the context of EV charging infrastructure in Indonesia."
+    },
+    {
+      "source": "/industry-reports/malaysia-data-center-market",
+      "target": "/industry-reports/singapore-cloud-computing-market",
+      "anchor": "cloud services",
+      "confidence": 0.615,
+      "label": "acceptable",
+      "rule": "accept",
+      "verdict": "reject",
+      "reasons": [
+        "reader_journey_mismatch",
+        "over_linking"
+      ],
+      "fallback": null,
+      "explanation": "The anchor 'cloud services' is natural, but the destination about Singapore's market is geographically mismatched with the source on Malaysia's market. Over-linking to unrelated regions disrupts reader journey."
+    },
+    {
+      "source": "/industry-reports/malaysia-data-center-market",
+      "target": "/insights/gcc-data-center-power-demand",
+      "anchor": "power demand",
+      "confidence": 0.4483,
+      "label": "acceptable",
+      "rule": "uncertain",
+      "verdict": "accept",
+      "reasons": [
+        "natural_anchor",
+        "relevant_destination"
+      ],
+      "fallback": null,
+      "explanation": "The anchor 'power demand' is natural and the destination about GCC data center power demand is relevant to the context of data center power demand in the source."
+    },
+    {
+      "source": "/industry-reports/philippines-cold-chain-market",
+      "target": "/industry-reports/qatar-logistics-market",
+      "anchor": "Logistics",
+      "confidence": 0.6122,
+      "label": "acceptable",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [
+        "natural_anchor",
+        "relevant_destination",
+        "reader_journey_mismatch"
+      ],
+      "fallback": null,
+      "explanation": "The anchor 'Logistics' is natural and relevant to the context of the Philippines Cold Chain Market. The destination about Qatar Logistics aligns with the reader's journey of understanding related markets."
+    },
+    {
+      "source": "/industry-reports/southeast-asia-battery-materials-market",
+      "target": "/industry-reports/india-lithium-ion-battery-manufacturing-market",
+      "anchor": "lithium-ion battery",
+      "confidence": 0.6399,
+      "label": "acceptable",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [
+        "natural_anchor",
+        "relevant_destination",
+        "reader_journey_mismatch"
+      ],
+      "fallback": null,
+      "explanation": "The anchor 'lithium-ion battery' is natural and relevant to the context of battery materials. The destination matches the topic and supports the reader's journey."
+    },
+    {
+      "source": "/industry-reports/thailand-ecommerce-logistics-market",
+      "target": "/industry-reports/qatar-logistics-market",
+      "anchor": "logistics",
+      "confidence": 0.5302,
+      "label": "acceptable",
+      "rule": "accept",
+      "verdict": "reject",
+      "reasons": [
+        "reader_journey_mismatch",
+        "misleading_anchor"
+      ],
+      "fallback": null,
+      "explanation": "The anchor 'logistics' is misleading as it refers to Qatar, not Thailand, disrupting the reader's journey on Thailand's market."
+    },
+    {
+      "source": "/industry-reports/thailand-ecommerce-logistics-market",
+      "target": "/industry-reports/philippines-fintech-market",
+      "anchor": "digital payments",
+      "confidence": 0.4572,
+      "label": "acceptable",
+      "rule": "uncertain",
+      "verdict": "reject",
+      "reasons": [
+        "reader_journey_mismatch",
+        "weak_relevance"
+      ],
+      "fallback": null,
+      "explanation": "The anchor 'digital payments' is weakly relevant to the context of Thailand's logistics market, and the target is about the Philippines, not Thailand."
+    },
+    {
+      "source": "/industry-reports/thailand-electric-vehicle-market",
+      "target": "/insights/charging-infrastructure-gaps-southeast-asia",
+      "anchor": "fast chargers",
+      "confidence": 0.6418,
+      "label": "good",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [
+        "natural_anchor",
+        "relevant_destination",
+        "reader_journey_mismatch"
+      ],
+      "fallback": null,
+      "explanation": "The anchor 'fast chargers' is natural and relevant to the context of charging infrastructure. The destination matches the reader's journey by discussing gaps in charging infrastructure."
+    },
+    {
+      "source": "/industry-reports/thailand-electric-vehicle-market",
+      "target": "/industries/automotive",
+      "anchor": "auto industry",
+      "confidence": 0.5215,
+      "label": "acceptable",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [
+        "natural_anchor",
+        "relevant_destination",
+        "reader_journey_mismatch"
+      ],
+      "fallback": null,
+      "explanation": "The anchor 'auto industry' is natural and relevant to the context of vehicle manufacturing. The destination aligns with the reader's journey by discussing the automotive industry's shift."
+    },
+    {
+      "source": "/industry-reports/uae-cold-chain-market",
+      "target": "/industry-reports/qatar-logistics-market",
+      "anchor": "Logistics",
+      "confidence": 0.6207,
+      "label": "acceptable",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [
+        "natural_anchor",
+        "relevant_destination",
+        "reader_journey_mismatch"
+      ],
+      "fallback": null,
+      "explanation": "The anchor 'Logistics' is natural and relevant to the context of cold chain markets. The destination is a relevant report on Qatar's logistics market, which aligns with the reader's journey."
+    },
+    {
+      "source": "/industry-reports/uae-cold-chain-market",
+      "target": "/industry-reports/bangladesh-pharmaceutical-market",
+      "anchor": "pharmaceutical",
+      "confidence": 0.5363,
+      "label": "acceptable",
+      "rule": "accept",
+      "verdict": "reject",
+      "reasons": [
+        "misleading_anchor",
+        "weak_relevance",
+        "low_confidence"
+      ],
+      "fallback": null,
+      "explanation": "The anchor 'pharmaceutical' is misleading in the context of cold chain logistics. The destination report on Bangladesh's pharmaceutical market is weakly relevant and lacks confidence."
+    },
+    {
+      "source": "/industry-reports/uae-data-center-market",
+      "target": "/industry-reports/singapore-cloud-computing-market",
+      "anchor": "cloud services",
+      "confidence": 0.5224,
+      "label": "acceptable",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [
+        "natural_anchor",
+        "relevant_destination",
+        "reader_journey_mismatch"
+      ],
+      "fallback": null,
+      "explanation": "The anchor 'cloud services' is natural and relevant to the context of data centers. The destination about Singapore's cloud market aligns with the reader's journey from UAE data centers to cloud services."
+    },
+    {
+      "source": "/industry-reports/vietnam-ecommerce-logistics-market",
+      "target": "/industry-reports/qatar-logistics-market",
+      "anchor": "logistics",
+      "confidence": 0.5313,
+      "label": "acceptable",
+      "rule": "accept",
+      "verdict": "reject",
+      "reasons": [
+        "reader_journey_mismatch",
+        "misleading_anchor"
+      ],
+      "fallback": null,
+      "explanation": "The anchor 'logistics' is misleading as it refers to Qatar, not Vietnam. The reader's context is Vietnam e-commerce logistics, so the link mismatches the journey."
+    },
+    {
+      "source": "/industry-reports/vietnam-solar-power-market",
+      "target": "/insights/perovskite-solar-cells-commercialisation",
+      "anchor": "perovskite solar cells",
+      "confidence": 0.6122,
+      "label": "good",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [
+        "natural_anchor",
+        "relevant_destination",
+        "reader_journey_mismatch"
+      ],
+      "fallback": null,
+      "explanation": "The anchor 'perovskite solar cells' is natural and relevant to the context of next-generation solar technology. The destination matches the topic and is relevant to the reader's journey."
+    },
+    {
+      "source": "/industry-reports/vietnam-solar-power-market",
+      "target": "/industry-reports/gcc-energy-storage-market",
+      "anchor": "energy storage",
+      "confidence": 0.5497,
+      "label": "acceptable",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [
+        "natural_anchor",
+        "relevant_destination",
+        "reader_journey_mismatch"
+      ],
+      "fallback": null,
+      "explanation": "The anchor 'energy storage' is natural and relevant to the context of grid planning. The destination is relevant to the reader's journey as it discusses energy storage in the GCC market."
+    },
+    {
+      "source": "/industry-reports/vietnam-wind-power-market",
+      "target": "/industry-reports/gcc-energy-storage-market",
+      "anchor": "battery storage",
+      "confidence": 0.5092,
+      "label": "acceptable",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [
+        "natural_anchor",
+        "relevant_destination",
+        "reader_journey_mismatch"
+      ],
+      "fallback": null,
+      "explanation": "The anchor 'battery storage' is natural and relevant to the context of grid constraints and integrating renewables. The destination matches the complementary market topic."
+    },
+    {
+      "source": "/insights/battery-swapping-electric-two-wheelers-india",
+      "target": "/industry-reports/india-electric-vehicle-market",
+      "anchor": "electric cars",
+      "confidence": 0.6933,
+      "label": "acceptable",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [
+        "natural_anchor",
+        "relevant_destination"
+      ],
+      "fallback": null,
+      "explanation": "The anchor 'electric cars' is natural and the destination is relevant to the reader's context about battery swapping."
+    },
+    {
+      "source": "/insights/battery-swapping-electric-two-wheelers-india",
+      "target": "/industry-reports/india-ev-charging-infrastructure-market",
+      "anchor": "charging stations",
+      "confidence": 0.614,
+      "label": "good",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [
+        "natural_anchor",
+        "relevant_destination"
+      ],
+      "fallback": null,
+      "explanation": "The anchor 'charging stations' is natural and the destination is relevant to the reader's context about infrastructure."
+    },
+    {
+      "source": "/insights/charging-infrastructure-gaps-southeast-asia",
+      "target": "/industry-reports/thailand-electric-vehicle-market",
+      "anchor": "electric vehicles",
+      "confidence": 0.6902,
+      "label": "good",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [
+        "natural_anchor",
+        "relevant_destination",
+        "reader_journey_mismatch"
+      ],
+      "fallback": null,
+      "explanation": "The anchor 'electric vehicles' is natural and relevant to the context of charging infrastructure in Southeast Asia. The destination matches the reader's journey by focusing on Thailand's market."
+    },
+    {
+      "source": "/insights/charging-infrastructure-gaps-southeast-asia",
+      "target": "/industry-reports/india-electric-vehicle-market",
+      "anchor": "Electric vehicle",
+      "confidence": 0.5172,
+      "label": "acceptable",
+      "rule": "accept",
+      "verdict": "reject",
+      "reasons": [
+        "misleading_anchor",
+        "weak_relevance",
+        "reader_journey_mismatch"
+      ],
+      "fallback": null,
+      "explanation": "The anchor 'Electric vehicle' is misleading as it refers to India, which is not the focus of the current context about Southeast Asia. The destination is weakly relevant and mismatches the reader's journey."
+    },
+    {
+      "source": "/insights/charging-infrastructure-gaps-southeast-asia",
+      "target": "/insights/fame-scheme-electric-vehicle-adoption-india",
+      "anchor": "electric vehicle",
+      "confidence": 0.5135,
+      "label": "acceptable",
+      "rule": "accept",
+      "verdict": "reject",
+      "reasons": [
+        "misleading_anchor",
+        "weak_relevance",
+        "reader_journey_mismatch"
+      ],
+      "fallback": null,
+      "explanation": "The anchor 'electric vehicle' is misleading as it refers to India, which is not the focus of the current context about Southeast Asia. The destination is weakly relevant and mismatches the reader's journey."
+    },
+    {
+      "source": "/insights/cold-chain-vaccine-distribution-india",
+      "target": "/industry-reports/india-cold-chain-market",
+      "anchor": "temperature-controlled logistics",
+      "confidence": 0.7056,
+      "label": "good",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [
+        "natural_anchor",
+        "relevant_destination"
+      ],
+      "fallback": null,
+      "explanation": "The anchor text 'temperature-controlled logistics' is natural and directly relevant to the context of cold chain operations discussed."
+    },
+    {
+      "source": "/insights/cold-chain-vaccine-distribution-india",
+      "target": "/industry-reports/bangladesh-pharmaceutical-market",
+      "anchor": "pharmaceutical",
+      "confidence": 0.5182,
+      "label": "acceptable",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [
+        "natural_anchor",
+        "relevant_destination"
+      ],
+      "fallback": null,
+      "explanation": "The anchor 'pharmaceutical' is natural and relevant given the context of cold chain operations for pharmaceutical companies."
+    },
+    {
+      "source": "/insights/digital-payments-lessons-southeast-asia",
+      "target": "/industry-reports/india-health-insurance-market",
+      "anchor": "insurance",
+      "confidence": 0.5767,
+      "label": "acceptable",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [
+        "natural_anchor",
+        "relevant_destination",
+        "reader_journey_mismatch"
+      ],
+      "fallback": null,
+      "explanation": "The anchor 'insurance' is natural and relevant to the context of fintech monetization strategies. The destination about the India health insurance market is relevant to the reader's journey of understanding market monetization strategies."
+    },
+    {
+      "source": "/insights/digital-payments-lessons-southeast-asia",
+      "target": "/industry-reports/india-digital-lending-market",
+      "anchor": "digital payments",
+      "confidence": 0.5619,
+      "label": "good",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [
+        "natural_anchor",
+        "relevant_destination",
+        "reader_journey_mismatch"
+      ],
+      "fallback": null,
+      "explanation": "The anchor 'digital payments' is natural and relevant to the context of India's digital payments model. The destination about the India digital lending market is relevant to the reader's journey of understanding digital payment systems."
+    },
+    {
+      "source": "/insights/fame-scheme-electric-vehicle-adoption-india",
+      "target": "/industry-reports/india-ev-charging-infrastructure-market",
+      "anchor": "charging stations",
+      "confidence": 0.6203,
+      "label": "good",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [
+        "natural_anchor",
+        "relevant_destination",
+        "reader_journey_mismatch"
+      ],
+      "fallback": null,
+      "explanation": "The anchor 'charging stations' is natural and relevant to the context of EV adoption. The destination matches the topic and supports the reader's journey."
+    },
+    {
+      "source": "/insights/gcc-data-center-power-demand",
+      "target": "/industry-reports/saudi-arabia-data-center-market",
+      "anchor": "data centers",
+      "confidence": 0.598,
+      "label": "good",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [
+        "natural_anchor",
+        "relevant_destination",
+        "reader_journey_mismatch"
+      ],
+      "fallback": null,
+      "explanation": "The anchor 'data centers' is natural and relevant to the context of power demand in the GCC. The destination matches the topic and provides value to the reader."
+    },
+    {
+      "source": "/insights/gcc-data-center-power-demand",
+      "target": "/industry-reports/saudi-arabia-solar-power-market",
+      "anchor": "solar power",
+      "confidence": 0.5107,
+      "label": "acceptable",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [
+        "natural_anchor",
+        "relevant_destination",
+        "reader_journey_mismatch"
+      ],
+      "fallback": null,
+      "explanation": "The anchor 'solar power' is natural and relevant to the context of clean electricity and power demand. The destination provides relevant market insights."
+    },
+    {
+      "source": "/insights/indonesia-nickel-battery-materials",
+      "target": "/industry-reports/indonesia-electric-two-wheeler-market",
+      "anchor": "electric motorcycles",
+      "confidence": 0.4953,
+      "label": "acceptable",
+      "rule": "uncertain",
+      "verdict": "accept",
+      "reasons": [
+        "natural_anchor",
+        "relevant_destination",
+        "reader_journey_mismatch"
+      ],
+      "fallback": null,
+      "explanation": "The anchor 'electric motorcycles' is natural and relevant to the context of Indonesia's battery industry. The destination matches the topic, though it may slightly mismatch the reader's journey if they were expecting more on nickel."
+    },
+    {
+      "source": "/insights/last-mile-delivery-economics-thailand-vietnam",
+      "target": "/industry-reports/vietnam-ecommerce-logistics-market",
+      "anchor": "Last-mile delivery",
+      "confidence": 0.5949,
+      "label": "good",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [
+        "natural_anchor",
+        "relevant_destination",
+        "reader_journey_mismatch"
+      ],
+      "fallback": null,
+      "explanation": "The anchor 'Last-mile delivery' is natural and matches the context. The destination is relevant as it provides a market report on the topic. The link supports the reader's journey by offering deeper insights."
+    },
+    {
+      "source": "/insights/perovskite-solar-cells-commercialisation",
+      "target": "/industry-reports/vietnam-solar-power-market",
+      "anchor": "rooftop solar",
+      "confidence": 0.7285,
+      "label": "good",
+      "rule": "accept",
+      "verdict": "reject",
+      "reasons": [
+        "reader_journey_mismatch",
+        "misleading_anchor"
+      ],
+      "fallback": null,
+      "explanation": "The anchor 'rooftop solar' is misleading as it refers to a specific market (Vietnam) while the context discusses perovskite solar cells, which are not directly related to rooftop solar adoption."
+    },
+    {
+      "source": "/insights/semiconductor-supply-chain-shift-malaysia",
+      "target": "/industry-reports/india-semiconductor-market",
+      "anchor": "wafer fabrication",
+      "confidence": 0.651,
+      "label": "good",
+      "rule": "accept",
+      "verdict": "accept",
+      "reasons": [
+        "natural_anchor",
+        "relevant_destination",
+        "reader_journey_mismatch"
+      ],
+      "fallback": null,
+      "explanation": "The anchor 'wafer fabrication' is natural and relevant to the context of semiconductor supply chain shifts. The destination matches the topic and provides value to the reader."
+    }
+  ]
+}

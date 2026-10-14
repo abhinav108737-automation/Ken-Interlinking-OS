@@ -85,6 +85,11 @@ pairs and a retrieval/embedding benchmark (mock and local Ollama):
 Phase 3 adds recommendation judgments, must-not gates, freshness fixtures and a channel/component
 ablation benchmark (mock and local Ollama): [recommendations/README.md](recommendations/README.md).
 
+Phase 4 adds recorded agent fixtures (candidate selection, critic, no-action, malformed and hostile
+model output, protected-content and stale-page-version through the agent graph), hard safety
+gates over every run, and a live critic benchmark (mock rule baseline and local Ollama):
+[agents/README.md](agents/README.md).
+
 Phase 8 ("Evaluation datasets … offline evals") is when these suites become
 formal, versioned datasets with a runner. Before Phase 8, the phases above may
 add recorded fixtures as they build the corresponding nodes.
