@@ -68,7 +68,13 @@ from ken_services.inventory.hashing import content_hash, sha256_hex
 from ken_services.inventory.html import discover_soup, make_soup
 from ken_services.inventory.urls import InvalidUrlError, in_scope, normalize_url, try_normalize_url
 
-__all__ = ["ContentBlock", "NormalizationError", "extract_blocks", "normalize_document"]
+__all__ = [
+    "ContentBlock",
+    "NormalizationError",
+    "TextRun",
+    "extract_blocks",
+    "normalize_document",
+]
 
 BLOCK_TAGS: Final = frozenset(
     {
@@ -383,10 +389,18 @@ def _strip_boilerplate(root: Tag) -> None:
 # --------------------------------------------------------------------------- #
 # Block walk
 # --------------------------------------------------------------------------- #
+type _Label = frozenset[str] | None
+"""Ancestor tag names of a text part inside its block; ``None`` for a walk separator."""
+
+
 @dataclass(slots=True)
 class _Block:
     kind: str
     parts: list[str] = field(default_factory=list)
+    labels: list[_Label] = field(default_factory=list)
+    """Parallel to ``parts``: the run label of each part (text runs, ADR-0011 section 5)."""
+    enclosing: frozenset[str] = frozenset()
+    """Tag names of the elements enclosing the block element, below the content root."""
     has_anchor: bool = False
     first: int | None = None
     """Walk position of the block's first non-blank text or first link."""
@@ -413,25 +427,34 @@ def _walk(root: Tag) -> _Walk:
     root_block = _Block(kind=root_kind)
     blocks: list[_Block] = [root_block]
     anchors: list[tuple[Tag, _Block]] = []
-    # id(element) -> (owning block, whether a real block tag encloses it)
-    context: dict[int, tuple[_Block, bool]] = {id(root): (root_block, root_kind in BLOCK_TAGS)}
+    empty: frozenset[str] = frozenset()
+    # id(element) -> (owning block, whether a real block tag encloses it,
+    #                 tag names from the owning block element (exclusive) down to it,
+    #                 tag names from the content root (exclusive) down to it)
+    context: dict[int, tuple[_Block, bool, frozenset[str], frozenset[str]]] = {
+        id(root): (root_block, root_kind in BLOCK_TAGS, empty, empty)
+    }
 
     for position, node in enumerate(root.descendants):  # pre-order: parents come first
         parent = node.parent
         if parent is None:
             continue
-        owner, in_block = context[id(parent)]
+        owner, in_block, inner, path = context[id(parent)]
         if isinstance(node, Tag):
             name = node.name
             if name in _BREAKING_TAGS or name in BLOCK_TAGS or name in CONTAINER_TAGS:
                 # Rendering breaks here: keep the text runs on either side apart
                 # ("a<div>b</div>" -> "a b", "Intro<p>X</p>Outro" -> "Intro Outro").
                 owner.parts.append(" ")
+                owner.labels.append(None)
             if name in BLOCK_TAGS or (name in CONTAINER_TAGS and not in_block):
-                owner = _Block(kind=name)
+                owner = _Block(kind=name, enclosing=path)
                 blocks.append(owner)
                 in_block = in_block or name in BLOCK_TAGS
-            context[id(node)] = (owner, in_block)
+                inner = empty  # the block element itself is not an ancestor of its runs
+            else:
+                inner = inner | {name}
+            context[id(node)] = (owner, in_block, inner, path | {name})
             if name == "a" and node.has_attr("href"):
                 owner.has_anchor = True
                 if owner.first is None:
@@ -440,6 +463,7 @@ def _walk(root: Tag) -> _Walk:
         elif _is_text(node):
             text = str(node)
             owner.parts.append(text)
+            owner.labels.append(inner)
             if owner.first is None and text.strip():
                 owner.first = position
 
@@ -457,8 +481,26 @@ def _walk(root: Tag) -> _Walk:
 
 
 @dataclass(frozen=True, slots=True)
+class TextRun:
+    """A maximal span of a block's FINAL text whose characters share one ancestor set.
+
+    ``block.text[start:end]`` is the run's text. ``ancestors`` are the tag names of the
+    elements between the block element (exclusive) and the text (``<p>see <a>x</a></p>``
+    has the runs ``"see "`` with ``frozenset()`` and ``"x"`` with ``{"a"}``).
+    """
+
+    start: int
+    end: int
+    ancestors: frozenset[str]
+
+
+@dataclass(frozen=True, slots=True)
 class ContentBlock:
-    """One text block of a stored page body, as :func:`normalize_document` saw it."""
+    """One text block of a stored page body, as :func:`normalize_document` saw it.
+
+    ``runs`` and ``enclosing`` (ADR-0011 section 5, placement safety) are derived data
+    and excluded from equality, so a block still compares by ``(block_id, kind, text)``.
+    """
 
     block_id: str
     """``b<N>``: identical to ``ExtractedLink.block_id`` / ``Heading.block_id``."""
@@ -466,6 +508,81 @@ class ContentBlock:
     """The block's tag name (``p``, ``h2``, ``li``, ``div``...) or ``document``."""
     text: str
     """Collapsed, NFC-normalised block text (may be empty for a link-only block)."""
+    runs: tuple[TextRun, ...] = field(default=(), compare=False)
+    """The text runs, in order, partitioning ``text`` except walk separators (spaces
+    inserted where rendering breaks, e.g. at ``<br>``), which belong to no run. Text whose
+    Unicode normalisation crosses two different ancestor sets also belongs to no run."""
+    enclosing: frozenset[str] = field(default=frozenset(), compare=False)
+    """Tag names of the elements enclosing the block element below the content root
+    (``<td><p>x</p></td>``: the ``p`` block is enclosed by ``{"td", "tr", "table"}``)."""
+
+
+def _segments(parts: list[str], labels: list[_Label]) -> list[tuple[_Label, str]]:
+    """NFC-normalised ``(label, text)`` segments, merging equal neighbouring labels.
+
+    The concatenation always equals ``NFC("".join(parts))``. Where NFC composes or
+    reorders across a label boundary, the two segments merge and, if their labels
+    differ, the merged text belongs to no run (``None``); in the worst case the whole
+    block becomes one segment.
+    """
+    raw: list[tuple[_Label, str]] = []
+    for part, label in zip(parts, labels, strict=True):
+        if not part:
+            continue
+        if raw and raw[-1][0] == label:
+            raw[-1] = (label, raw[-1][1] + part)
+        else:
+            raw.append((label, part))
+    whole = unicodedata.normalize("NFC", "".join(text for _label, text in raw))
+    while True:
+        normalised = [(label, unicodedata.normalize("NFC", text)) for label, text in raw]
+        if "".join(text for _label, text in normalised) == whole:
+            return normalised
+        for i in range(len(raw) - 1):
+            (a_label, a), (b_label, b) = raw[i], raw[i + 1]
+            if unicodedata.normalize("NFC", a + b) != (
+                unicodedata.normalize("NFC", a) + unicodedata.normalize("NFC", b)
+            ):
+                merged = a_label if a_label == b_label else None
+                raw[i : i + 2] = [(merged, a + b)]
+                break
+        else:  # pragma: no cover - a non-local effect: give up on runs for this block
+            return [(None, whole)]
+
+
+def _text_runs(parts: list[str], labels: list[_Label], text: str) -> tuple[TextRun, ...]:
+    """Runs of the final block ``text`` (= ``_collapse("".join(parts))``).
+
+    Collapsing mirrors :func:`_collapse`: leading and trailing whitespace is dropped and
+    every inner whitespace run becomes one space, which keeps the label of its
+    characters when they all share one (else it belongs to no run).
+    """
+    out_chars: list[str] = []
+    out_labels: list[_Label] = []
+    pending: set[_Label] | None = None  # labels of the whitespace run being collapsed
+    for label, segment in _segments(parts, labels):
+        for char in segment:
+            if char.isspace():
+                if out_chars:
+                    pending = (pending or set()) | {label}
+                continue
+            if pending is not None:
+                out_chars.append(" ")
+                out_labels.append(next(iter(pending)) if len(pending) == 1 else None)
+                pending = None
+            out_chars.append(char)
+            out_labels.append(label)
+    if "".join(out_chars) != text:  # pragma: no cover - defensive; never observed
+        return ()
+    runs: list[TextRun] = []
+    start = 0
+    for i in range(1, len(out_labels) + 1):
+        if i == len(out_labels) or out_labels[i] != out_labels[start]:
+            label = out_labels[start]
+            if label is not None:
+                runs.append(TextRun(start=start, end=i, ancestors=label))
+            start = i
+    return tuple(runs)
 
 
 def extract_blocks(body_html: str) -> tuple[ContentBlock, ...]:
@@ -484,7 +601,13 @@ def extract_blocks(body_html: str) -> tuple[ContentBlock, ...]:
     _strip_boilerplate(root)
     walk = _walk(root)
     return tuple(
-        ContentBlock(block_id=block.block_id, kind=block.kind, text=block.text)
+        ContentBlock(
+            block_id=block.block_id,
+            kind=block.kind,
+            text=block.text,
+            runs=_text_runs(block.parts, block.labels, block.text),
+            enclosing=block.enclosing,
+        )
         for block in walk.blocks
         if block.block_id is not None
     )

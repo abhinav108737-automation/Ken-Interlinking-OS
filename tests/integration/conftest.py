@@ -46,7 +46,8 @@ from tests.conftest import make_settings
 ALEMBIC_INI = Path(__file__).resolve().parents[2] / "alembic.ini"
 
 TRUNCATE_ALL = (
-    "TRUNCATE page_relationships, page_protections, page_embeddings, page_analyses, job_runs, "
+    "TRUNCATE link_candidates, link_plan_transitions, link_plans, opportunities, "
+    "page_relationships, page_protections, page_embeddings, page_analyses, job_runs, "
     "existing_links, known_urls, page_versions, pages, ingestion_issues, "
     "ingestion_runs, events RESTART IDENTITY CASCADE"
 )
@@ -107,8 +108,9 @@ def migrated(alembic_config: Config, sync_db: SyncDb) -> Iterator[None]:
     """Test database at head, with every application table empty.
 
     TRUNCATE, not DELETE: the immutability triggers on page_versions,
-    existing_links, page_analyses and page_embeddings are row triggers, which
-    TRUNCATE does not fire.
+    existing_links, page_analyses, page_embeddings, link_plans,
+    link_plan_transitions and link_candidates are row triggers, which TRUNCATE
+    does not fire.
     """
     command.upgrade(alembic_config, "head")
     sync_db.run(lambda connection: connection.execute(text(TRUNCATE_ALL)))

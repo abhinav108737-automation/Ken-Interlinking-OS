@@ -21,6 +21,7 @@ import ken_core.db.models  # noqa: F401 -- registers every model
 from ken_core.db.base import Base
 from ken_core.db.models.intelligence import IMMUTABLE_INTELLIGENCE_TABLES
 from ken_core.db.models.inventory import IMMUTABLE_TABLES
+from ken_core.db.models.recommendations import APPEND_ONLY_RECOMMENDATION_TABLES
 from tests.integration.conftest import TRUNCATE_ALL, SyncDb
 
 pytestmark = pytest.mark.integration
@@ -220,8 +221,12 @@ def test_trigger_set_matches_the_orm_declaration(empty: SyncDb) -> None:
             ).scalars()
         )
     )
-    # Migration 0003 extends the same function to the Phase 2 history tables.
-    assert set(rows) == set(IMMUTABLE_TABLES) | set(IMMUTABLE_INTELLIGENCE_TABLES)
+    # Migrations 0003 and 0004 extend the same function to later history tables.
+    assert set(rows) == (
+        set(IMMUTABLE_TABLES)
+        | set(IMMUTABLE_INTELLIGENCE_TABLES)
+        | set(APPEND_ONLY_RECOMMENDATION_TABLES)
+    )
 
 
 def test_pages_remain_updatable(empty: SyncDb) -> None:

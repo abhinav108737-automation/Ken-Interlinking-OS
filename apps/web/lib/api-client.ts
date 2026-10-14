@@ -110,6 +110,33 @@ export type ListSimilarPagesQuery = NonNullable<operations["listSimilarPages"]["
 export type SemanticSearchQuery = operations["semanticSearch"]["parameters"]["query"];
 export type ListJobRunsQuery = NonNullable<operations["listJobRuns"]["parameters"]["query"]>;
 
+// Phase 3 recommendation engine (ADR-0011 section 8). Read-only.
+export type LinkPlan = Schemas["LinkPlan"];
+export type LinkPlanDetail = Schemas["LinkPlanDetail"];
+export type LinkPlanStatus = Schemas["LinkPlanStatus"];
+/** How the anchor text was chosen (distinct from the Phase 1 `AnchorSource` of existing links). */
+export type PlanAnchorSource = LinkPlan["anchor_source"];
+export type ScoreBreakdown = Schemas["ScoreBreakdown"];
+export type ScoreComponent = Schemas["ScoreComponent"];
+export type PlacementLocator = Schemas["PlacementLocator"];
+export type PlacementPreview = Schemas["PlacementPreview"];
+export type PlanTransitionView = Schemas["PlanTransitionView"];
+export type ReasonCode = Schemas["ReasonCode"];
+export type RetrievalChannel = Schemas["RetrievalChannel"];
+export type CandidateRejection = Schemas["CandidateRejection"];
+export type CandidateView = Schemas["CandidateView"];
+export type OpportunityKind = Schemas["OpportunityKind"];
+export type OpportunityView = Schemas["OpportunityView"];
+export type RecommendationSummary = Schemas["RecommendationSummary"];
+
+export type LinkPlanList = Schemas["ListResponse_LinkPlan_"];
+export type CandidateList = Schemas["ListResponse_CandidateView_"];
+export type OpportunityList = Schemas["ListResponse_OpportunityView_"];
+
+export type ListLinkPlansQuery = NonNullable<operations["listLinkPlans"]["parameters"]["query"]>;
+export type ListLinkCandidatesQuery = NonNullable<operations["listLinkCandidates"]["parameters"]["query"]>;
+export type ListOpportunitiesQuery = NonNullable<operations["listOpportunities"]["parameters"]["query"]>;
+
 export type ApiPath = keyof paths;
 
 export const DEFAULT_API_BASE_URL = "http://127.0.0.1:8000";
@@ -282,6 +309,25 @@ export interface ApiClient {
   listJobRuns(query?: ListJobRunsQuery, options?: RequestOptions): Promise<ApiResult<JobRunList>>;
   /** `GET /jobs/runs/{run_id}` — one job run with its configuration snapshot. Contract: 200, 404, 422. */
   getJobRun(runId: string, options?: RequestOptions): Promise<ApiResult<JobRunDetail>>;
+
+  // --- Phase 3 recommendations (ADR-0011 section 8): read-only ---------------
+
+  /** `GET /recommendations` — link plans, highest score first. Contract: 200, 422. */
+  listLinkPlans(query?: ListLinkPlansQuery, options?: RequestOptions): Promise<ApiResult<LinkPlanList>>;
+  /** `GET /recommendations/{plan_id}` — one plan with block text and status history. Contract: 200, 404, 422. */
+  getLinkPlan(planId: string, options?: RequestOptions): Promise<ApiResult<LinkPlanDetail>>;
+  /** `GET /recommendations/candidates` — retrieved candidates, kept or rejected. Contract: 200, 422. */
+  listLinkCandidates(
+    query?: ListLinkCandidatesQuery,
+    options?: RequestOptions,
+  ): Promise<ApiResult<CandidateList>>;
+  /** `GET /recommendations/opportunities` — orphan, under-linked and capacity pages. Contract: 200, 422. */
+  listOpportunities(
+    query?: ListOpportunitiesQuery,
+    options?: RequestOptions,
+  ): Promise<ApiResult<OpportunityList>>;
+  /** `GET /recommendations/summary` — dashboard counts. Contract: 200 only. */
+  getRecommendationSummary(options?: RequestOptions): Promise<ApiResult<RecommendationSummary>>;
 }
 
 // ---------------------------------------------------------------------------
@@ -833,6 +879,174 @@ export const isRelationshipList = (value: unknown): value is RelationshipList =>
   isListResponse(value, isPageRelationshipView);
 export const isJobRunList = (value: unknown): value is JobRunList => isListResponse(value, isJobRunSummary);
 
+// --- Recommendation guards (Phase 3) -----------------------------------------
+// Same policy: every field the recommendation screens read is checked,
+// including the nested score breakdown, locator and preview; enum membership
+// is left to lib/recommendations.ts presentations.
+
+function isNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
+export function isScoreComponent(value: unknown): value is ScoreComponent {
+  return (
+    isObject(value) &&
+    typeof value["name"] === "string" &&
+    isNumber(value["value"]) &&
+    isNumber(value["weight"]) &&
+    isNumber(value["contribution"])
+  );
+}
+
+export function isScoreBreakdown(value: unknown): value is ScoreBreakdown {
+  return (
+    isObject(value) &&
+    everyItem(value["components"], isScoreComponent) &&
+    isObject(value["factors"]) &&
+    Object.values(value["factors"]).every(isNumber) &&
+    typeof value["policy_name"] === "string" &&
+    isNumber(value["policy_version"]) &&
+    isNumber(value["relevance"]) &&
+    (value["semantic_floor"] === null || isNumber(value["semantic_floor"])) &&
+    isNumber(value["total"])
+  );
+}
+
+function isNonNegativeInteger(value: unknown): value is number {
+  return Number.isSafeInteger(value) && (value as number) >= 0;
+}
+
+export function isPlacementLocator(value: unknown): value is PlacementLocator {
+  return (
+    isObject(value) &&
+    typeof value["block_id"] === "string" &&
+    typeof value["block_kind"] === "string" &&
+    typeof value["context_hash"] === "string" &&
+    isNonNegativeInteger(value["occurrence_index"]) &&
+    isNonNegativeInteger(value["start"]) &&
+    isNonNegativeInteger(value["end"]) &&
+    (value["end"] as number) > (value["start"] as number)
+  );
+}
+
+export function isPlacementPreview(value: unknown): value is PlacementPreview {
+  return (
+    isObject(value) &&
+    typeof value["before"] === "string" &&
+    typeof value["anchor"] === "string" &&
+    typeof value["after"] === "string"
+  );
+}
+
+export function isPlanTransitionView(value: unknown): value is PlanTransitionView {
+  return (
+    isObject(value) &&
+    typeof value["id"] === "number" &&
+    typeof value["plan_id"] === "string" &&
+    isNullableString(value["from_status"]) &&
+    typeof value["to_status"] === "string" &&
+    typeof value["actor"] === "string" &&
+    isNullableString(value["note"]) &&
+    typeof value["occurred_at"] === "string"
+  );
+}
+
+function hasLinkPlanFields(value: JsonObject): boolean {
+  return (
+    typeof value["id"] === "string" &&
+    typeof value["status"] === "string" &&
+    typeof value["source_page_id"] === "string" &&
+    typeof value["source_page_version"] === "number" &&
+    typeof value["source_url"] === "string" &&
+    typeof value["target_page_id"] === "string" &&
+    typeof value["target_page_version"] === "number" &&
+    typeof value["target_url"] === "string" &&
+    isNullableString(value["target_title"]) &&
+    typeof value["anchor_text"] === "string" &&
+    typeof value["anchor_source"] === "string" &&
+    isNullableString(value["relationship_type"]) &&
+    isStringArray(value["channels"]) &&
+    isStringArray(value["reason_codes"]) &&
+    typeof value["rationale"] === "string" &&
+    isNumber(value["confidence"]) &&
+    isNullableString(value["calibration_version"]) &&
+    isScoreBreakdown(value["score"]) &&
+    isPlacementLocator(value["locator"]) &&
+    isPlacementPreview(value["preview"]) &&
+    typeof value["engine_version"] === "string" &&
+    typeof value["policy_version"] === "number" &&
+    typeof value["ranking_policy_version"] === "number" &&
+    typeof value["analysis_version"] === "string" &&
+    isNullableString(value["embedding_model"]) &&
+    isNullableString(value["reasoning_model"]) &&
+    isNullableString(value["run_id"]) &&
+    isNullableString(value["supersedes"]) &&
+    typeof value["created_at"] === "string" &&
+    typeof value["updated_at"] === "string"
+  );
+}
+
+export function isLinkPlan(value: unknown): value is LinkPlan {
+  return isObject(value) && hasLinkPlanFields(value);
+}
+
+export function isLinkPlanDetail(value: unknown): value is LinkPlanDetail {
+  return (
+    isObject(value) &&
+    hasLinkPlanFields(value) &&
+    typeof value["source_block_text"] === "string" &&
+    isNullableString(value["source_title"]) &&
+    everyItem(value["transitions"], isPlanTransitionView)
+  );
+}
+
+export function isCandidateView(value: unknown): value is CandidateView {
+  return (
+    isObject(value) &&
+    typeof value["run_id"] === "string" &&
+    typeof value["source_page_id"] === "string" &&
+    typeof value["target_page_id"] === "string" &&
+    typeof value["target_url"] === "string" &&
+    isStringArray(value["channels"]) &&
+    isNumberRecord(value["channel_scores"]) &&
+    (value["total_score"] === null || isNumber(value["total_score"])) &&
+    isNullableString(value["rejection"]) &&
+    isNullableString(value["plan_id"])
+  );
+}
+
+export function isOpportunityView(value: unknown): value is OpportunityView {
+  return (
+    isObject(value) &&
+    typeof value["page_id"] === "string" &&
+    typeof value["canonical_url"] === "string" &&
+    isNullableString(value["title"]) &&
+    typeof value["kind"] === "string" &&
+    isNumber(value["score"]) &&
+    isObject(value["evidence"]) &&
+    typeof value["run_id"] === "string" &&
+    typeof value["computed_at"] === "string"
+  );
+}
+
+export function isRecommendationSummary(value: unknown): value is RecommendationSummary {
+  return (
+    isObject(value) &&
+    isNumberRecord(value["plans_by_status"]) &&
+    isNumberRecord(value["opportunities_by_kind"]) &&
+    typeof value["sources_with_plans"] === "number" &&
+    typeof value["targets_with_plans"] === "number" &&
+    isNullableString(value["last_run_id"]) &&
+    typeof value["policy_version"] === "number" &&
+    typeof value["ranking_policy_version"] === "number"
+  );
+}
+
+export const isLinkPlanList = (value: unknown): value is LinkPlanList => isListResponse(value, isLinkPlan);
+export const isCandidateList = (value: unknown): value is CandidateList => isListResponse(value, isCandidateView);
+export const isOpportunityList = (value: unknown): value is OpportunityList =>
+  isListResponse(value, isOpportunityView);
+
 /** The contract's only error body. `details` may be absent from older servers. */
 export function isErrorResponse(value: unknown): value is ErrorResponse {
   return (
@@ -1218,5 +1432,44 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
       if (!isSafePathId(runId)) return invalidArgument(path, "run id");
       return inventory(path, `/jobs/runs/${id(runId)}`, isJobRunDetail, undefined, callOptions);
     },
+
+    listLinkPlans: (query, callOptions = {}) =>
+      inventory("/recommendations", "/recommendations", isLinkPlanList, query, callOptions, [422]),
+
+    getLinkPlan: (planId, callOptions = {}) => {
+      const path = "/recommendations/{plan_id}";
+      if (!isSafePathId(planId)) return invalidArgument(path, "recommendation id");
+      return inventory(path, `/recommendations/${id(planId)}`, isLinkPlanDetail, undefined, callOptions);
+    },
+
+    listLinkCandidates: (query, callOptions = {}) =>
+      inventory(
+        "/recommendations/candidates",
+        "/recommendations/candidates",
+        isCandidateList,
+        query,
+        callOptions,
+        [422],
+      ),
+
+    listOpportunities: (query, callOptions = {}) =>
+      inventory(
+        "/recommendations/opportunities",
+        "/recommendations/opportunities",
+        isOpportunityList,
+        query,
+        callOptions,
+        [422],
+      ),
+
+    getRecommendationSummary: (callOptions = {}) =>
+      inventory(
+        "/recommendations/summary",
+        "/recommendations/summary",
+        isRecommendationSummary,
+        undefined,
+        callOptions,
+        [],
+      ),
   };
 }

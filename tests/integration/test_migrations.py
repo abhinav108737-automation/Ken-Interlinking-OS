@@ -1,4 +1,4 @@
-"""Migrations 0001-0003 against a real PostgreSQL (the ``*_test`` database)."""
+"""Migrations 0001-0004 against a real PostgreSQL (the ``*_test`` database)."""
 
 from __future__ import annotations
 
@@ -32,6 +32,10 @@ APP_TABLES = frozenset(
         "page_embeddings",
         "page_relationships",
         "page_protections",
+        "link_plans",
+        "link_plan_transitions",
+        "link_candidates",
+        "opportunities",
     }
 )
 
@@ -50,7 +54,7 @@ def _revision(db: SyncDb) -> str | None:
 
 def test_upgrade_downgrade_upgrade_round_trip(alembic_config: Config, sync_db: SyncDb) -> None:
     head = ScriptDirectory.from_config(alembic_config).get_current_head()
-    assert head == "0003_content_intelligence"
+    assert head == "0004_recommendations"
 
     command.upgrade(alembic_config, "head")
     assert _tables(sync_db) >= APP_TABLES
@@ -70,6 +74,10 @@ def test_upgrade_downgrade_upgrade_round_trip(alembic_config: Config, sync_db: S
     assert "vector" in _extensions(sync_db)
 
 
+# Alembic compares a Computed column's expression only as crude TEXT (PostgreSQL
+# re-renders it as "left"(COALESCE(title, ''::text), 2000) ...) and can only warn.
+# test_recommendations_schema checks page_versions.search_vector SEMANTICALLY.
+@pytest.mark.filterwarnings("ignore:Computed default on page_versions.search_vector")
 def test_orm_matches_migration(
     alembic_config: Config, sync_db: SyncDb, monkeypatch: pytest.MonkeyPatch
 ) -> None:

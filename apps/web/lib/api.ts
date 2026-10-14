@@ -19,6 +19,7 @@ import {
   type ApiClient,
   type ApiPath,
   type ApiResult,
+  type CandidateList,
   type HealthResponse,
   type IngestionRunDetail,
   type IntelligenceCoverage,
@@ -26,6 +27,8 @@ import {
   type JobRunDetail,
   type JobRunList,
   type LinkList,
+  type LinkPlanDetail,
+  type LinkPlanList,
   type ListIngestionRunIssuesQuery,
   type ListIngestionRunsQuery,
   type ListInventoryLinksQuery,
@@ -33,16 +36,21 @@ import {
   type ListInventoryPageVersionsQuery,
   type ListInventoryPagesQuery,
   type ListJobRunsQuery,
+  type ListLinkCandidatesQuery,
+  type ListLinkPlansQuery,
+  type ListOpportunitiesQuery,
   type ListPageRelationshipsQuery,
   type ListSimilarPagesQuery,
   type ListTaxonomyNodePagesQuery,
   type MetaResponse,
+  type OpportunityList,
   type PageDetail,
   type PageIntelligenceView,
   type PageList,
   type PageVersionDetail,
   type PageVersionList,
   type ReadinessResponse,
+  type RecommendationSummary,
   type RelationshipList,
   type RequestOptions,
   type RunList,
@@ -62,6 +70,8 @@ export type {
   ApiErrorKind,
   ApiPath,
   ApiResult,
+  CandidateList,
+  CandidateView,
   DependencyCheck,
   ErrorCode,
   ExistingLinkView,
@@ -76,7 +86,14 @@ export type {
   JobRunList,
   JobRunSummary,
   LinkList,
+  LinkPlan,
+  LinkPlanDetail,
+  LinkPlanList,
+  LinkPlanStatus,
   MetaResponse,
+  OpportunityKind,
+  OpportunityList,
+  OpportunityView,
   PageDetail,
   PageInfo,
   PageIntelligenceView,
@@ -87,6 +104,7 @@ export type {
   PageVersionList,
   PageVersionSummary,
   ReadinessResponse,
+  RecommendationSummary,
   RelationshipList,
   RequestOptions,
   RunList,
@@ -308,4 +326,43 @@ export function listJobRuns(query: ListJobRunsQuery = {}, options: RequestOption
 /** `GET /jobs/runs/{run_id}` — one job run. Contract: 200, 404, 422. */
 export function getJobRun(runId: string, options: RequestOptions = {}): Promise<ApiResult<JobRunDetail>> {
   return withServerClient("/jobs/runs/{run_id}", (client) => client.getJobRun(runId, options));
+}
+
+// ---------------------------------------------------------------------------
+// Phase 3 recommendations (ADR-0011 section 8). All read-only GETs; the engine
+// runs from the CLI (`make recommend`), and review actions arrive in Phase 5.
+// ---------------------------------------------------------------------------
+
+/** `GET /recommendations` — link plans, highest score first. Contract: 200, 422. */
+export function listLinkPlans(
+  query: ListLinkPlansQuery = {},
+  options: RequestOptions = {},
+): Promise<ApiResult<LinkPlanList>> {
+  return withServerClient("/recommendations", (client) => client.listLinkPlans(query, options));
+}
+
+/** `GET /recommendations/{plan_id}` — one plan with its block text and history. Contract: 200, 404, 422. */
+export function getLinkPlan(planId: string, options: RequestOptions = {}): Promise<ApiResult<LinkPlanDetail>> {
+  return withServerClient("/recommendations/{plan_id}", (client) => client.getLinkPlan(planId, options));
+}
+
+/** `GET /recommendations/candidates` — retrieved candidates, kept or rejected. Contract: 200, 422. */
+export function listLinkCandidates(
+  query: ListLinkCandidatesQuery = {},
+  options: RequestOptions = {},
+): Promise<ApiResult<CandidateList>> {
+  return withServerClient("/recommendations/candidates", (client) => client.listLinkCandidates(query, options));
+}
+
+/** `GET /recommendations/opportunities` — orphan, under-linked and capacity pages. Contract: 200, 422. */
+export function listOpportunities(
+  query: ListOpportunitiesQuery = {},
+  options: RequestOptions = {},
+): Promise<ApiResult<OpportunityList>> {
+  return withServerClient("/recommendations/opportunities", (client) => client.listOpportunities(query, options));
+}
+
+/** `GET /recommendations/summary` — dashboard counts. Contract: 200 only. */
+export function getRecommendationSummary(options: RequestOptions = {}): Promise<ApiResult<RecommendationSummary>> {
+  return withServerClient("/recommendations/summary", (client) => client.getRecommendationSummary(options));
 }

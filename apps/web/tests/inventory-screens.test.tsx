@@ -38,6 +38,8 @@ const api = vi.hoisted(() => ({
   listPageRelationships: vi.fn(),
   listSimilarPages: vi.fn(),
   getTaxonomy: vi.fn(),
+  // Phase 3: the page detail screen also lists recommendations from/to the page.
+  listLinkPlans: vi.fn(),
 }));
 
 vi.mock("@/lib/api", async (importOriginal) => ({
@@ -61,6 +63,7 @@ beforeEach(() => {
   api.listPageRelationships.mockResolvedValue(ok(list([])));
   api.listSimilarPages.mockResolvedValue(ok(list([])));
   api.getTaxonomy.mockResolvedValue(ok(taxonomy()));
+  api.listLinkPlans.mockResolvedValue(ok(list([])));
 });
 
 async function renderPage(element: Promise<React.ReactElement>) {

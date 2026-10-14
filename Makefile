@@ -21,7 +21,7 @@ export NEXT_TELEMETRY_DISABLED := 1
 .PHONY: help setup lock db-up db-down migrate dev dev-api dev-web \
         test test-integration test-all test-live web-test lint format types \
         compose-config compose-full-up compose-full-down doctor verify openapi \
-        ingest-file ingest-cms-mock crawl analyze
+        ingest-file ingest-cms-mock crawl analyze recommend
 
 help: ## List targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "} {printf "  %-18s %s\n", $$1, $$2}'
@@ -105,6 +105,9 @@ ingest-cms-mock: ## Import the mock CMS seed pages (no real CMS): make ingest-cm
 
 analyze: ## Phase 2: analyse, embed and relate stale pages (ARGS="--force" | "--no-embeddings")
 	$(VENV)/python -m ken_services.intelligence.cli analyze $(ARGS)
+
+recommend: ## Phase 3: propose contextual links for eligible sources (ARGS="--source PAGE_ID ...")
+	$(VENV)/python -m ken_services.recommendations.cli recommend $(ARGS)
 
 crawl: ## Crawl the ONE site configured in KEN_CRAWL_BASE_URL (refuses if unset)
 	$(VENV)/python -m ken_services.inventory.cli crawl

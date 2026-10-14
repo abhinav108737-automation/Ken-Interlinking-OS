@@ -1,0 +1,371 @@
+{
+  "description": "Fixtures for check_plan_freshness (ADR-0011 s6). Each case: a plan proposed on plan_html at source version 1, checked against current_html at current_version. Blocks come from the Phase 1 extract_blocks; the test builds the plan locator from plan_html (block found by anchor + occurrence_index; context_hash = sha256 of that block's text) and cross-checks plan_locator below.",
+  "plan_version": 1,
+  "reason_vocabulary": [
+    "version_changed",
+    "block_missing",
+    "context_changed",
+    "anchor_moved"
+  ],
+  "conventions": {
+    "expected": "fresh | rebasable | stale",
+    "reasons_include": "every listed reason must be reported",
+    "reasons_include_any": "at least one of these must be reported (spec-ambiguous cases)",
+    "reasons_exclude": "none of these may be reported",
+    "expect_block_id_changed": "the anchor block's ordinal id differs in current_html (block_id is only a hint)"
+  },
+  "cases": [
+    {
+      "id": "fresh-same-version",
+      "plan_html": "<main><article><h1>India EV Charging Freshness Fixture</h1><p>Public charging stations are clustered in a handful of large cities.</p><h2>Business models</h2><p>Charge point operators partner with property owners and fuel retailers.</p><h2>Grid integration</h2><p>Operators are pairing chargers with battery storage to manage peak demand charges.</p></article></main>",
+      "anchor": "battery storage",
+      "occurrence_index": 0,
+      "current_version": 1,
+      "current_html": "<main><article><h1>India EV Charging Freshness Fixture</h1><p>Public charging stations are clustered in a handful of large cities.</p><h2>Business models</h2><p>Charge point operators partner with property owners and fuel retailers.</p><h2>Grid integration</h2><p>Operators are pairing chargers with battery storage to manage peak demand charges.</p></article></main>",
+      "expected": "fresh",
+      "reasons_include": [],
+      "reasons_exclude": [
+        "block_missing",
+        "context_changed",
+        "anchor_moved",
+        "version_changed"
+      ],
+      "why": "Same source version: nothing to check.",
+      "plan_locator": {
+        "block_id": "b5",
+        "block_kind": "p",
+        "start": 36,
+        "end": 51,
+        "anchor_text_verbatim": "battery storage"
+      },
+      "text_unchanged": false,
+      "reasons_include_any": [],
+      "expect_block_id_changed": false
+    },
+    {
+      "id": "rebasable-identical-body",
+      "plan_html": "<main><article><h1>India EV Charging Freshness Fixture</h1><p>Public charging stations are clustered in a handful of large cities.</p><h2>Business models</h2><p>Charge point operators partner with property owners and fuel retailers.</p><h2>Grid integration</h2><p>Operators are pairing chargers with battery storage to manage peak demand charges.</p></article></main>",
+      "anchor": "battery storage",
+      "occurrence_index": 0,
+      "current_version": 2,
+      "current_html": "<main><article><h1>India EV Charging Freshness Fixture</h1><p>Public charging stations are clustered in a handful of large cities.</p><h2>Business models</h2><p>Charge point operators partner with property owners and fuel retailers.</p><h2>Grid integration</h2><p>Operators are pairing chargers with battery storage to manage peak demand charges.</p></article></main>",
+      "expected": "rebasable",
+      "reasons_include": [
+        "version_changed"
+      ],
+      "reasons_exclude": [
+        "block_missing",
+        "context_changed",
+        "anchor_moved"
+      ],
+      "why": "New version (e.g. metadata-only change), same body: same context hash, anchor at its offsets.",
+      "plan_locator": {
+        "block_id": "b5",
+        "block_kind": "p",
+        "start": 36,
+        "end": 51,
+        "anchor_text_verbatim": "battery storage"
+      },
+      "current_block_id": "b5",
+      "text_unchanged": false,
+      "reasons_include_any": [],
+      "expect_block_id_changed": false
+    },
+    {
+      "id": "rebasable-block-moved-down",
+      "plan_html": "<main><article><h1>India EV Charging Freshness Fixture</h1><p>Public charging stations are clustered in a handful of large cities.</p><h2>Business models</h2><p>Charge point operators partner with property owners and fuel retailers.</p><h2>Grid integration</h2><p>Operators are pairing chargers with battery storage to manage peak demand charges.</p></article></main>",
+      "anchor": "battery storage",
+      "occurrence_index": 0,
+      "current_version": 2,
+      "current_html": "<main><article><h1>India EV Charging Freshness Fixture</h1><p>Public charging stations are clustered in a handful of large cities.</p><p>A new paragraph was inserted near the top of the page.</p><h2>Business models</h2><p>Charge point operators partner with property owners and fuel retailers.</p><h2>Grid integration</h2><p>Operators are pairing chargers with battery storage to manage peak demand charges.</p></article></main>",
+      "expected": "rebasable",
+      "reasons_include": [
+        "version_changed"
+      ],
+      "reasons_exclude": [
+        "block_missing",
+        "context_changed",
+        "anchor_moved"
+      ],
+      "expect_block_id_changed": true,
+      "why": "A paragraph inserted above shifts the ordinal id (b5 -> b6); the block is found by context hash (block_id is only a hint).",
+      "plan_locator": {
+        "block_id": "b5",
+        "block_kind": "p",
+        "start": 36,
+        "end": 51,
+        "anchor_text_verbatim": "battery storage"
+      },
+      "current_block_id": "b6",
+      "text_unchanged": false,
+      "reasons_include_any": []
+    },
+    {
+      "id": "rebasable-block-moved-up",
+      "plan_html": "<main><article><h1>India EV Charging Freshness Fixture</h1><p>Public charging stations are clustered in a handful of large cities.</p><h2>Business models</h2><p>Charge point operators partner with property owners and fuel retailers.</p><h2>Grid integration</h2><p>Operators are pairing chargers with battery storage to manage peak demand charges.</p></article></main>",
+      "anchor": "battery storage",
+      "occurrence_index": 0,
+      "current_version": 3,
+      "current_html": "<main><article><h1>India EV Charging Freshness Fixture</h1><h2>Business models</h2><p>Charge point operators partner with property owners and fuel retailers.</p><h2>Grid integration</h2><p>Operators are pairing chargers with battery storage to manage peak demand charges.</p></article></main>",
+      "expected": "rebasable",
+      "reasons_include": [
+        "version_changed"
+      ],
+      "reasons_exclude": [
+        "block_missing",
+        "context_changed",
+        "anchor_moved"
+      ],
+      "expect_block_id_changed": true,
+      "why": "The intro paragraph was deleted: the anchor block's id shifts b5 -> b4, text unchanged.",
+      "plan_locator": {
+        "block_id": "b5",
+        "block_kind": "p",
+        "start": 36,
+        "end": 51,
+        "anchor_text_verbatim": "battery storage"
+      },
+      "current_block_id": "b4",
+      "text_unchanged": false,
+      "reasons_include_any": []
+    },
+    {
+      "id": "rebasable-other-block-edited",
+      "plan_html": "<main><article><h1>India EV Charging Freshness Fixture</h1><p>Public charging stations are clustered in a handful of large cities.</p><h2>Business models</h2><p>Charge point operators partner with property owners and fuel retailers.</p><h2>Grid integration</h2><p>Operators are pairing chargers with battery storage to manage peak demand charges.</p><h2>Outlook</h2><p>We expect public charging points to grow quickly through 2030.</p></article></main>",
+      "anchor": "battery storage",
+      "occurrence_index": 0,
+      "current_version": 2,
+      "current_html": "<main><article><h1>India EV Charging Freshness Fixture</h1><p>Public charging stations are clustered in a handful of large cities.</p><h2>Business models</h2><p>Charge point operators partner with property owners and fuel retailers.</p><h2>Grid integration</h2><p>Operators are pairing chargers with battery storage to manage peak demand charges.</p><h2>Outlook</h2><p>We now expect public charging points to double by 2028.</p></article></main>",
+      "expected": "rebasable",
+      "reasons_include": [
+        "version_changed"
+      ],
+      "reasons_exclude": [
+        "block_missing",
+        "context_changed",
+        "anchor_moved"
+      ],
+      "why": "Only a different block changed; the anchor block is byte-identical.",
+      "plan_locator": {
+        "block_id": "b5",
+        "block_kind": "p",
+        "start": 36,
+        "end": 51,
+        "anchor_text_verbatim": "battery storage"
+      },
+      "current_block_id": "b5",
+      "text_unchanged": false,
+      "reasons_include_any": [],
+      "expect_block_id_changed": false
+    },
+    {
+      "id": "rebasable-second-occurrence",
+      "plan_html": "<main><article><h1>India EV Charging Freshness Fixture</h1><p>Battery storage at depots differs from battery storage at highway sites.</p><h2>Outlook</h2><p>We expect public charging points to grow quickly through 2030.</p></article></main>",
+      "anchor": "battery storage",
+      "occurrence_index": 1,
+      "current_version": 2,
+      "current_html": "<main><article><h1>India EV Charging Freshness Fixture</h1><p>Inserted lead paragraph.</p><p>Battery storage at depots differs from battery storage at highway sites.</p><h2>Outlook</h2><p>We expect public charging points to grow quickly through 2030.</p></article></main>",
+      "expected": "rebasable",
+      "reasons_include": [
+        "version_changed"
+      ],
+      "reasons_exclude": [
+        "block_missing",
+        "context_changed",
+        "anchor_moved"
+      ],
+      "expect_block_id_changed": true,
+      "why": "The plan targets the SECOND occurrence (occurrence_index 1, lower-case); the block moved but its text is intact.",
+      "plan_locator": {
+        "block_id": "b1",
+        "block_kind": "p",
+        "start": 39,
+        "end": 54,
+        "anchor_text_verbatim": "battery storage"
+      },
+      "current_block_id": "b2",
+      "text_unchanged": false,
+      "reasons_include_any": []
+    },
+    {
+      "id": "stale-context-changed",
+      "plan_html": "<main><article><h1>India EV Charging Freshness Fixture</h1><p>Public charging stations are clustered in a handful of large cities.</p><h2>Business models</h2><p>Charge point operators partner with property owners and fuel retailers.</p><h2>Grid integration</h2><p>Operators are pairing chargers with battery storage to manage peak demand charges.</p><h2>Outlook</h2><p>We expect public charging points to grow quickly through 2030.</p></article></main>",
+      "anchor": "battery storage",
+      "occurrence_index": 0,
+      "current_version": 2,
+      "current_html": "<main><article><h1>India EV Charging Freshness Fixture</h1><p>Public charging stations are clustered in a handful of large cities.</p><h2>Business models</h2><p>Charge point operators partner with property owners and fuel retailers.</p><h2>Grid integration</h2><p>Operators are pairing chargers with battery storage to manage peak demand charges at depots.</p><h2>Outlook</h2><p>We expect public charging points to grow quickly through 2030.</p></article></main>",
+      "expected": "stale",
+      "reasons_include": [
+        "context_changed"
+      ],
+      "reasons_exclude": [
+        "block_missing",
+        "anchor_moved"
+      ],
+      "why": "The anchor block was edited AFTER the anchor: the context hash differs, the anchor is still at its offsets in the block at the same id.",
+      "plan_locator": {
+        "block_id": "b5",
+        "block_kind": "p",
+        "start": 36,
+        "end": 51,
+        "anchor_text_verbatim": "battery storage"
+      },
+      "text_unchanged": false,
+      "reasons_include_any": [],
+      "expect_block_id_changed": false
+    },
+    {
+      "id": "stale-block-missing",
+      "plan_html": "<main><article><h1>India EV Charging Freshness Fixture</h1><p>Public charging stations are clustered in a handful of large cities.</p><h2>Business models</h2><p>Charge point operators partner with property owners and fuel retailers.</p><h2>Grid integration</h2><p>Operators are pairing chargers with battery storage to manage peak demand charges.</p></article></main>",
+      "anchor": "battery storage",
+      "occurrence_index": 0,
+      "current_version": 2,
+      "current_html": "<main><article><h1>India EV Charging Freshness Fixture</h1><p>Public charging stations are clustered in a handful of large cities.</p><h2>Business models</h2><p>Charge point operators partner with property owners and fuel retailers.</p></article></main>",
+      "expected": "stale",
+      "reasons_include": [
+        "block_missing"
+      ],
+      "reasons_exclude": [],
+      "why": "The grid-integration section (heading and anchor paragraph) was deleted: no block has the hash and the hinted id b5 no longer exists.",
+      "plan_locator": {
+        "block_id": "b5",
+        "block_kind": "p",
+        "start": 36,
+        "end": 51,
+        "anchor_text_verbatim": "battery storage"
+      },
+      "text_unchanged": false,
+      "reasons_include_any": [],
+      "expect_block_id_changed": false
+    },
+    {
+      "id": "stale-block-deleted-id-reused",
+      "plan_html": "<main><article><h1>India EV Charging Freshness Fixture</h1><p>Public charging stations are clustered in a handful of large cities.</p><h2>Business models</h2><p>Charge point operators partner with property owners and fuel retailers.</p><h2>Grid integration</h2><p>Operators are pairing chargers with battery storage to manage peak demand charges.</p><h2>Outlook</h2><p>We expect public charging points to grow quickly through 2030.</p></article></main>",
+      "anchor": "battery storage",
+      "occurrence_index": 0,
+      "current_version": 2,
+      "current_html": "<main><article><h1>India EV Charging Freshness Fixture</h1><p>Public charging stations are clustered in a handful of large cities.</p><h2>Business models</h2><p>Charge point operators partner with property owners and fuel retailers.</p><h2>Grid integration</h2><h2>Outlook</h2><p>We expect public charging points to grow quickly through 2030.</p></article></main>",
+      "expected": "stale",
+      "reasons_include_any": [
+        "block_missing",
+        "context_changed"
+      ],
+      "reasons_exclude": [],
+      "why": "The anchor paragraph was deleted but later blocks shift into its id (b5 is now the Outlook heading). The spec does not say whether this is block_missing or context_changed; either is accepted.",
+      "plan_locator": {
+        "block_id": "b5",
+        "block_kind": "p",
+        "start": 36,
+        "end": 51,
+        "anchor_text_verbatim": "battery storage"
+      },
+      "text_unchanged": false,
+      "reasons_include": [],
+      "expect_block_id_changed": false
+    },
+    {
+      "id": "stale-anchor-now-inside-link",
+      "plan_html": "<main><article><h1>India EV Charging Freshness Fixture</h1><p>Public charging stations are clustered in a handful of large cities.</p><h2>Business models</h2><p>Charge point operators partner with property owners and fuel retailers.</p><h2>Grid integration</h2><p>Operators are pairing chargers with battery storage to manage peak demand charges.</p><h2>Outlook</h2><p>We expect public charging points to grow quickly through 2030.</p></article></main>",
+      "anchor": "battery storage",
+      "occurrence_index": 0,
+      "current_version": 2,
+      "current_html": "<main><article><h1>India EV Charging Freshness Fixture</h1><p>Public charging stations are clustered in a handful of large cities.</p><h2>Business models</h2><p>Charge point operators partner with property owners and fuel retailers.</p><h2>Grid integration</h2><p>Operators are pairing chargers with <a href=\"https://data.example.org/bess\">battery storage</a> to manage peak demand charges.</p><h2>Outlook</h2><p>We expect public charging points to grow quickly through 2030.</p></article></main>",
+      "expected": "stale",
+      "reasons_include": [
+        "context_changed"
+      ],
+      "reasons_exclude": [
+        "block_missing"
+      ],
+      "text_unchanged": true,
+      "why": "An editor wrapped the anchor phrase in a link: the block TEXT (and hash) is identical, but the span now sits under <a>. Rebasing would nest links, so the plan must be stale (placement safety is re-checked).",
+      "plan_locator": {
+        "block_id": "b5",
+        "block_kind": "p",
+        "start": 36,
+        "end": 51,
+        "anchor_text_verbatim": "battery storage"
+      },
+      "reasons_include_any": [],
+      "expect_block_id_changed": false
+    },
+    {
+      "id": "stale-block-moved-into-table",
+      "plan_html": "<main><article><h1>India EV Charging Freshness Fixture</h1><p>Public charging stations are clustered in a handful of large cities.</p><h2>Business models</h2><p>Charge point operators partner with property owners and fuel retailers.</p><h2>Grid integration</h2><p>Operators are pairing chargers with battery storage to manage peak demand charges.</p><h2>Outlook</h2><p>We expect public charging points to grow quickly through 2030.</p></article></main>",
+      "anchor": "battery storage",
+      "occurrence_index": 0,
+      "current_version": 2,
+      "current_html": "<main><article><h1>India EV Charging Freshness Fixture</h1><p>Public charging stations are clustered in a handful of large cities.</p><h2>Business models</h2><p>Charge point operators partner with property owners and fuel retailers.</p><h2>Grid integration</h2><table><tr><td><p>Operators are pairing chargers with battery storage to manage peak demand charges.</p></td></tr></table><h2>Outlook</h2><p>We expect public charging points to grow quickly through 2030.</p></article></main>",
+      "expected": "stale",
+      "reasons_include": [
+        "context_changed"
+      ],
+      "reasons_exclude": [
+        "block_missing"
+      ],
+      "text_unchanged": true,
+      "why": "The anchor paragraph was moved into a table cell: same text and kind, but now enclosed by an excluded ancestor.",
+      "plan_locator": {
+        "block_id": "b5",
+        "block_kind": "p",
+        "start": 36,
+        "end": 51,
+        "anchor_text_verbatim": "battery storage"
+      },
+      "reasons_include_any": [],
+      "expect_block_id_changed": false
+    },
+    {
+      "id": "stale-anchor-moved",
+      "plan_html": "<main><article><h1>India EV Charging Freshness Fixture</h1><p>Public charging stations are clustered in a handful of large cities.</p><h2>Business models</h2><p>Charge point operators partner with property owners and fuel retailers.</p><h2>Grid integration</h2><p>Operators are pairing chargers with battery storage to manage peak demand charges.</p><h2>Outlook</h2><p>We expect public charging points to grow quickly through 2030.</p></article></main>",
+      "anchor": "battery storage",
+      "occurrence_index": 0,
+      "current_version": 2,
+      "current_html": "<main><article><h1>India EV Charging Freshness Fixture</h1><p>Public charging stations are clustered in a handful of large cities.</p><h2>Business models</h2><p>Charge point operators partner with property owners and fuel retailers.</p><h2>Grid integration</h2><p>In large cities, operators are pairing chargers with battery storage to manage peak demand charges.</p><h2>Outlook</h2><p>We expect public charging points to grow quickly through 2030.</p></article></main>",
+      "expected": "stale",
+      "reasons_include": [
+        "anchor_moved"
+      ],
+      "reasons_exclude": [
+        "block_missing"
+      ],
+      "why": "Words inserted before the anchor: the phrase is still in the block, at a different offset.",
+      "plan_locator": {
+        "block_id": "b5",
+        "block_kind": "p",
+        "start": 36,
+        "end": 51,
+        "anchor_text_verbatim": "battery storage"
+      },
+      "text_unchanged": false,
+      "reasons_include_any": [],
+      "expect_block_id_changed": false
+    },
+    {
+      "id": "stale-anchor-removed",
+      "plan_html": "<main><article><h1>India EV Charging Freshness Fixture</h1><p>Public charging stations are clustered in a handful of large cities.</p><h2>Business models</h2><p>Charge point operators partner with property owners and fuel retailers.</p><h2>Grid integration</h2><p>Operators are pairing chargers with battery storage to manage peak demand charges.</p><h2>Outlook</h2><p>We expect public charging points to grow quickly through 2030.</p></article></main>",
+      "anchor": "battery storage",
+      "occurrence_index": 0,
+      "current_version": 2,
+      "current_html": "<main><article><h1>India EV Charging Freshness Fixture</h1><p>Public charging stations are clustered in a handful of large cities.</p><h2>Business models</h2><p>Charge point operators partner with property owners and fuel retailers.</p><h2>Grid integration</h2><p>Operators are pairing chargers with stationary batteries to manage peak demand charges.</p><h2>Outlook</h2><p>We expect public charging points to grow quickly through 2030.</p></article></main>",
+      "expected": "stale",
+      "reasons_include": [
+        "anchor_moved"
+      ],
+      "reasons_exclude": [
+        "block_missing"
+      ],
+      "why": "The anchor phrase was removed from the block (task spec: removed/moved within the block -> anchor_moved).",
+      "plan_locator": {
+        "block_id": "b5",
+        "block_kind": "p",
+        "start": 36,
+        "end": 51,
+        "anchor_text_verbatim": "battery storage"
+      },
+      "text_unchanged": false,
+      "reasons_include_any": [],
+      "expect_block_id_changed": false
+    }
+  ]
+}

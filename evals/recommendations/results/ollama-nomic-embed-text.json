@@ -1,0 +1,1435 @@
+{
+  "benchmark": "ken-phase3-recommendations",
+  "generated_at": "2026-10-14T08:09:03+00:00",
+  "host": {
+    "python": "3.12.14",
+    "machine": "arm64"
+  },
+  "provider": "ollama",
+  "embedding_model": "nomic-embed-text",
+  "semantic_floor": 0.78,
+  "policy": {
+    "version": 1,
+    "ranking_version": 1,
+    "ranking_weights": {
+      "semantic": 0.3,
+      "taxonomy": 0.2,
+      "intent": 0.15,
+      "graph": 0.15,
+      "geography": 0.08,
+      "commercial": 0.05,
+      "underlinked": 0.04,
+      "historical": 0.03
+    }
+  },
+  "corpus": {
+    "file": "tests/fixtures/demo/research_site.jsonl",
+    "judgments": "tests/fixtures/demo/recommendation_judgments.json",
+    "judged_sources": 46
+  },
+  "setup": {
+    "ingest": {
+      "pages_discovered": 65,
+      "pages_fetched": 65,
+      "pages_created": 64,
+      "pages_changed": 0,
+      "pages_unchanged": 0,
+      "pages_duplicate": 1,
+      "pages_failed": 0,
+      "pages_skipped": 0,
+      "pages_gone": 0,
+      "error_count": 0,
+      "warning_count": 0
+    },
+    "analysis": {
+      "embeddings_written": 64,
+      "pages_analyzed": 64,
+      "pages_considered": 64,
+      "protections_added": 2,
+      "relationships_written": 805
+    },
+    "analysis_status": "succeeded",
+    "setup_ms": 5726.7
+  },
+  "summary": {
+    "all": {
+      "plans": 46,
+      "sources_with_plans": 27,
+      "precision_at_3_macro": 0.9815,
+      "precision_at_3_micro": 0.9783,
+      "recall_good_macro": 0.2094,
+      "bad_rate": 0.0217,
+      "unjudged_rate": 0.0,
+      "anchor_exact_match": 1.0,
+      "anchor_pairs_proposed": "13/24",
+      "anchor_names_target_market_rate": 0.913,
+      "mean_total_score": 0.5408,
+      "must_not_violations": 0,
+      "plans_vs_all": {
+        "same": 46,
+        "only_here": 0,
+        "only_in_all": 0
+      }
+    },
+    "no_semantic": {
+      "plans": 45,
+      "sources_with_plans": 27,
+      "precision_at_3_macro": 0.9815,
+      "precision_at_3_micro": 0.9778,
+      "recall_good_macro": 0.2094,
+      "bad_rate": 0.0222,
+      "unjudged_rate": 0.0,
+      "anchor_exact_match": 1.0,
+      "anchor_pairs_proposed": "13/24",
+      "anchor_names_target_market_rate": 0.9111,
+      "mean_total_score": 0.5433,
+      "must_not_violations": 0,
+      "plans_vs_all": {
+        "same": 45,
+        "only_here": 0,
+        "only_in_all": 1
+      }
+    },
+    "no_lexical": {
+      "plans": 46,
+      "sources_with_plans": 27,
+      "precision_at_3_macro": 1.0,
+      "precision_at_3_micro": 1.0,
+      "recall_good_macro": 0.2094,
+      "bad_rate": 0.0,
+      "unjudged_rate": 0.0,
+      "anchor_exact_match": 1.0,
+      "anchor_pairs_proposed": "13/24",
+      "anchor_names_target_market_rate": 0.913,
+      "mean_total_score": 0.5408,
+      "must_not_violations": 0,
+      "plans_vs_all": {
+        "same": 45,
+        "only_here": 1,
+        "only_in_all": 1
+      }
+    },
+    "no_taxonomy": {
+      "plans": 46,
+      "sources_with_plans": 27,
+      "precision_at_3_macro": 0.9815,
+      "precision_at_3_micro": 0.9783,
+      "recall_good_macro": 0.2094,
+      "bad_rate": 0.0217,
+      "unjudged_rate": 0.0,
+      "anchor_exact_match": 1.0,
+      "anchor_pairs_proposed": "13/24",
+      "anchor_names_target_market_rate": 0.913,
+      "mean_total_score": 0.5408,
+      "must_not_violations": 0,
+      "plans_vs_all": {
+        "same": 46,
+        "only_here": 0,
+        "only_in_all": 0
+      }
+    },
+    "no_graph": {
+      "plans": 46,
+      "sources_with_plans": 27,
+      "precision_at_3_macro": 0.9815,
+      "precision_at_3_micro": 0.9783,
+      "recall_good_macro": 0.2094,
+      "bad_rate": 0.0217,
+      "unjudged_rate": 0.0,
+      "anchor_exact_match": 1.0,
+      "anchor_pairs_proposed": "13/24",
+      "anchor_names_target_market_rate": 0.913,
+      "mean_total_score": 0.5408,
+      "must_not_violations": 0,
+      "plans_vs_all": {
+        "same": 46,
+        "only_here": 0,
+        "only_in_all": 0
+      }
+    },
+    "only_semantic": {
+      "plans": 46,
+      "sources_with_plans": 27,
+      "precision_at_3_macro": 1.0,
+      "precision_at_3_micro": 1.0,
+      "recall_good_macro": 0.2094,
+      "bad_rate": 0.0,
+      "unjudged_rate": 0.0,
+      "anchor_exact_match": 1.0,
+      "anchor_pairs_proposed": "13/24",
+      "anchor_names_target_market_rate": 0.913,
+      "mean_total_score": 0.5408,
+      "must_not_violations": 0,
+      "plans_vs_all": {
+        "same": 45,
+        "only_here": 1,
+        "only_in_all": 1
+      }
+    },
+    "only_lexical": {
+      "plans": 45,
+      "sources_with_plans": 27,
+      "precision_at_3_macro": 0.9815,
+      "precision_at_3_micro": 0.9778,
+      "recall_good_macro": 0.2094,
+      "bad_rate": 0.0222,
+      "unjudged_rate": 0.0,
+      "anchor_exact_match": 1.0,
+      "anchor_pairs_proposed": "13/24",
+      "anchor_names_target_market_rate": 0.9111,
+      "mean_total_score": 0.5433,
+      "must_not_violations": 0,
+      "plans_vs_all": {
+        "same": 45,
+        "only_here": 0,
+        "only_in_all": 1
+      }
+    },
+    "only_taxonomy": {
+      "plans": 38,
+      "sources_with_plans": 25,
+      "precision_at_3_macro": 1.0,
+      "precision_at_3_micro": 1.0,
+      "recall_good_macro": 0.1752,
+      "bad_rate": 0.0,
+      "unjudged_rate": 0.0,
+      "anchor_exact_match": 1.0,
+      "anchor_pairs_proposed": "10/24",
+      "anchor_names_target_market_rate": 0.8947,
+      "mean_total_score": 0.5614,
+      "must_not_violations": 0,
+      "plans_vs_all": {
+        "same": 37,
+        "only_here": 1,
+        "only_in_all": 9
+      }
+    },
+    "only_graph": {
+      "plans": 30,
+      "sources_with_plans": 21,
+      "precision_at_3_macro": 1.0,
+      "precision_at_3_micro": 1.0,
+      "recall_good_macro": 0.1453,
+      "bad_rate": 0.0,
+      "unjudged_rate": 0.0,
+      "anchor_exact_match": 1.0,
+      "anchor_pairs_proposed": "7/24",
+      "anchor_names_target_market_rate": 0.8667,
+      "mean_total_score": 0.5602,
+      "must_not_violations": 0,
+      "plans_vs_all": {
+        "same": 27,
+        "only_here": 3,
+        "only_in_all": 19
+      }
+    },
+    "graph_weight_0": {
+      "plans": 40,
+      "sources_with_plans": 26,
+      "precision_at_3_macro": 1.0,
+      "precision_at_3_micro": 1.0,
+      "recall_good_macro": 0.2009,
+      "bad_rate": 0.0,
+      "unjudged_rate": 0.0,
+      "anchor_exact_match": 1.0,
+      "anchor_pairs_proposed": "12/24",
+      "anchor_names_target_market_rate": 0.925,
+      "mean_total_score": 0.4868,
+      "must_not_violations": 0,
+      "plans_vs_all": {
+        "same": 40,
+        "only_here": 0,
+        "only_in_all": 6
+      }
+    }
+  },
+  "determinism_after_reingest": {
+    "identical": false,
+    "only_first": [
+      "/industry-reports/india-cold-chain-market -> /industry-reports/saudi-arabia-solar-power-market ['solar panels'] bad"
+    ],
+    "only_second": [
+      "/industry-reports/india-cold-chain-market -> /industry-reports/india-rooftop-solar-market ['solar panels'] acceptable"
+    ],
+    "first_counters": {
+      "candidates": 1774,
+      "opportunities": 80,
+      "plans_created": 46,
+      "rejected_already_linked": 29,
+      "rejected_below_min_relevance": 24,
+      "rejected_below_min_score": 2,
+      "rejected_diversity_limit": 2,
+      "rejected_no_natural_anchor": 1575,
+      "rejected_page_type_incompatible": 37,
+      "rejected_target_ineligible": 32,
+      "rejected_target_protected": 27,
+      "sources_considered": 64,
+      "sources_skipped_ineligible": 18
+    },
+    "second_counters": {
+      "candidates": 1774,
+      "opportunities": 80,
+      "plans_created": 46,
+      "rejected_already_linked": 29,
+      "rejected_below_min_relevance": 22,
+      "rejected_below_min_score": 2,
+      "rejected_diversity_limit": 2,
+      "rejected_no_natural_anchor": 1580,
+      "rejected_page_type_incompatible": 37,
+      "rejected_target_ineligible": 31,
+      "rejected_target_protected": 25,
+      "sources_considered": 64,
+      "sources_skipped_ineligible": 18
+    },
+    "second_metrics": {
+      "plans": 46,
+      "sources_with_plans": 27,
+      "precision_at_3_macro": 1.0,
+      "precision_at_3_micro": 1.0,
+      "recall_good_macro": 0.2094,
+      "bad_rate": 0.0,
+      "unjudged_rate": 0.0,
+      "anchor_exact_match": 1.0,
+      "anchor_pairs_proposed": "13/24",
+      "anchor_names_target_market_rate": 0.913,
+      "mean_total_score": 0.5408
+    }
+  },
+  "configs": {
+    "all": {
+      "status": "succeeded",
+      "run_ms": 1961.8,
+      "counters": {
+        "candidates": 1774,
+        "opportunities": 80,
+        "plans_created": 46,
+        "rejected_already_linked": 29,
+        "rejected_below_min_relevance": 24,
+        "rejected_below_min_score": 2,
+        "rejected_diversity_limit": 2,
+        "rejected_no_natural_anchor": 1575,
+        "rejected_page_type_incompatible": 37,
+        "rejected_target_ineligible": 32,
+        "rejected_target_protected": 27,
+        "sources_considered": 64,
+        "sources_skipped_ineligible": 18
+      },
+      "must_not_violations": {},
+      "graph_component_values": {
+        "0.5": 1,
+        "1.0": 45
+      },
+      "metrics": {
+        "plans": 46,
+        "sources_with_plans": 27,
+        "judged_sources": 46,
+        "judged_sources_with_plans": 27,
+        "precision_at_3_macro": 0.9815,
+        "precision_at_3_micro": 0.9783,
+        "recall_good_macro": 0.2094,
+        "bad_rate": 0.0217,
+        "unjudged_rate": 0.0,
+        "label_counts": {
+          "acceptable": 27,
+          "bad": 1,
+          "good": 18
+        },
+        "anchor_exact_match": 1.0,
+        "anchor_pairs_proposed": "13/24",
+        "anchor_names_target_market_rate": 0.913,
+        "anchor_source_counts": {
+          "target_keyword": 3,
+          "target_title": 1,
+          "target_topic": 42
+        },
+        "channel_counts": {
+          "graph": 29,
+          "lexical": 45,
+          "semantic": 45,
+          "taxonomy": 37
+        },
+        "mean_total_score": 0.5408,
+        "bad_examples": [
+          "https://research.example.com/industry-reports/india-cold-chain-market -> https://research.example.com/industry-reports/saudi-arabia-solar-power-market ['solar panels'] (unrelated_market)"
+        ],
+        "unjudged_examples": [],
+        "anchor_mismatches": []
+      }
+    },
+    "no_semantic": {
+      "status": "succeeded",
+      "run_ms": 1771.2,
+      "counters": {
+        "candidates": 1458,
+        "opportunities": 80,
+        "plans_created": 45,
+        "rejected_already_linked": 29,
+        "rejected_below_min_relevance": 18,
+        "rejected_below_min_score": 2,
+        "rejected_diversity_limit": 2,
+        "rejected_no_natural_anchor": 1283,
+        "rejected_page_type_incompatible": 27,
+        "rejected_target_ineligible": 26,
+        "rejected_target_protected": 26,
+        "sources_considered": 64,
+        "sources_skipped_ineligible": 18
+      },
+      "must_not_violations": {},
+      "graph_component_values": {
+        "0.5": 1,
+        "1.0": 44
+      },
+      "diff_vs_all": {
+        "only_here": [],
+        "only_in_all": [
+          "/industry-reports/thailand-ecommerce-logistics-market -> /industry-reports/philippines-fintech-market ['digital payments'] acceptable"
+        ]
+      },
+      "metrics": {
+        "plans": 45,
+        "sources_with_plans": 27,
+        "judged_sources": 46,
+        "judged_sources_with_plans": 27,
+        "precision_at_3_macro": 0.9815,
+        "precision_at_3_micro": 0.9778,
+        "recall_good_macro": 0.2094,
+        "bad_rate": 0.0222,
+        "unjudged_rate": 0.0,
+        "label_counts": {
+          "acceptable": 26,
+          "bad": 1,
+          "good": 18
+        },
+        "anchor_exact_match": 1.0,
+        "anchor_pairs_proposed": "13/24",
+        "anchor_names_target_market_rate": 0.9111,
+        "anchor_source_counts": {
+          "target_keyword": 3,
+          "target_title": 1,
+          "target_topic": 41
+        },
+        "channel_counts": {
+          "graph": 29,
+          "lexical": 45,
+          "taxonomy": 37
+        },
+        "mean_total_score": 0.5433,
+        "bad_examples": [
+          "https://research.example.com/industry-reports/india-cold-chain-market -> https://research.example.com/industry-reports/saudi-arabia-solar-power-market ['solar panels'] (unrelated_market)"
+        ],
+        "unjudged_examples": [],
+        "anchor_mismatches": []
+      }
+    },
+    "no_lexical": {
+      "status": "succeeded",
+      "run_ms": 1631.2,
+      "counters": {
+        "candidates": 1425,
+        "opportunities": 80,
+        "plans_created": 46,
+        "rejected_already_linked": 29,
+        "rejected_below_min_relevance": 12,
+        "rejected_below_min_score": 2,
+        "rejected_diversity_limit": 2,
+        "rejected_no_natural_anchor": 1258,
+        "rejected_page_type_incompatible": 31,
+        "rejected_target_ineligible": 30,
+        "rejected_target_protected": 15,
+        "sources_considered": 64,
+        "sources_skipped_ineligible": 18
+      },
+      "must_not_violations": {},
+      "graph_component_values": {
+        "0.5": 1,
+        "1.0": 45
+      },
+      "diff_vs_all": {
+        "only_here": [
+          "/industry-reports/india-cold-chain-market -> /industry-reports/india-rooftop-solar-market ['solar panels'] acceptable"
+        ],
+        "only_in_all": [
+          "/industry-reports/india-cold-chain-market -> /industry-reports/saudi-arabia-solar-power-market ['solar panels'] bad"
+        ]
+      },
+      "metrics": {
+        "plans": 46,
+        "sources_with_plans": 27,
+        "judged_sources": 46,
+        "judged_sources_with_plans": 27,
+        "precision_at_3_macro": 1.0,
+        "precision_at_3_micro": 1.0,
+        "recall_good_macro": 0.2094,
+        "bad_rate": 0.0,
+        "unjudged_rate": 0.0,
+        "label_counts": {
+          "acceptable": 28,
+          "good": 18
+        },
+        "anchor_exact_match": 1.0,
+        "anchor_pairs_proposed": "13/24",
+        "anchor_names_target_market_rate": 0.913,
+        "anchor_source_counts": {
+          "target_keyword": 3,
+          "target_title": 1,
+          "target_topic": 42
+        },
+        "channel_counts": {
+          "graph": 29,
+          "semantic": 46,
+          "taxonomy": 37
+        },
+        "mean_total_score": 0.5408,
+        "bad_examples": [],
+        "unjudged_examples": [],
+        "anchor_mismatches": []
+      }
+    },
+    "no_taxonomy": {
+      "status": "succeeded",
+      "run_ms": 1816.9,
+      "counters": {
+        "candidates": 1771,
+        "opportunities": 80,
+        "plans_created": 46,
+        "rejected_already_linked": 29,
+        "rejected_below_min_relevance": 24,
+        "rejected_below_min_score": 2,
+        "rejected_diversity_limit": 2,
+        "rejected_no_natural_anchor": 1572,
+        "rejected_page_type_incompatible": 37,
+        "rejected_target_ineligible": 32,
+        "rejected_target_protected": 27,
+        "sources_considered": 64,
+        "sources_skipped_ineligible": 18
+      },
+      "must_not_violations": {},
+      "graph_component_values": {
+        "0.5": 1,
+        "1.0": 45
+      },
+      "metrics": {
+        "plans": 46,
+        "sources_with_plans": 27,
+        "judged_sources": 46,
+        "judged_sources_with_plans": 27,
+        "precision_at_3_macro": 0.9815,
+        "precision_at_3_micro": 0.9783,
+        "recall_good_macro": 0.2094,
+        "bad_rate": 0.0217,
+        "unjudged_rate": 0.0,
+        "label_counts": {
+          "acceptable": 27,
+          "bad": 1,
+          "good": 18
+        },
+        "anchor_exact_match": 1.0,
+        "anchor_pairs_proposed": "13/24",
+        "anchor_names_target_market_rate": 0.913,
+        "anchor_source_counts": {
+          "target_keyword": 3,
+          "target_title": 1,
+          "target_topic": 42
+        },
+        "channel_counts": {
+          "graph": 29,
+          "lexical": 45,
+          "semantic": 45
+        },
+        "mean_total_score": 0.5408,
+        "bad_examples": [
+          "https://research.example.com/industry-reports/india-cold-chain-market -> https://research.example.com/industry-reports/saudi-arabia-solar-power-market ['solar panels'] (unrelated_market)"
+        ],
+        "unjudged_examples": [],
+        "anchor_mismatches": []
+      }
+    },
+    "no_graph": {
+      "status": "succeeded",
+      "run_ms": 1745.7,
+      "counters": {
+        "candidates": 1766,
+        "opportunities": 80,
+        "plans_created": 46,
+        "rejected_already_linked": 29,
+        "rejected_below_min_relevance": 24,
+        "rejected_below_min_score": 2,
+        "rejected_diversity_limit": 2,
+        "rejected_no_natural_anchor": 1570,
+        "rejected_page_type_incompatible": 34,
+        "rejected_target_ineligible": 32,
+        "rejected_target_protected": 27,
+        "sources_considered": 64,
+        "sources_skipped_ineligible": 18
+      },
+      "must_not_violations": {},
+      "graph_component_values": {
+        "0.5": 1,
+        "1.0": 45
+      },
+      "metrics": {
+        "plans": 46,
+        "sources_with_plans": 27,
+        "judged_sources": 46,
+        "judged_sources_with_plans": 27,
+        "precision_at_3_macro": 0.9815,
+        "precision_at_3_micro": 0.9783,
+        "recall_good_macro": 0.2094,
+        "bad_rate": 0.0217,
+        "unjudged_rate": 0.0,
+        "label_counts": {
+          "acceptable": 27,
+          "bad": 1,
+          "good": 18
+        },
+        "anchor_exact_match": 1.0,
+        "anchor_pairs_proposed": "13/24",
+        "anchor_names_target_market_rate": 0.913,
+        "anchor_source_counts": {
+          "target_keyword": 3,
+          "target_title": 1,
+          "target_topic": 42
+        },
+        "channel_counts": {
+          "lexical": 45,
+          "semantic": 45,
+          "taxonomy": 37
+        },
+        "mean_total_score": 0.5408,
+        "bad_examples": [
+          "https://research.example.com/industry-reports/india-cold-chain-market -> https://research.example.com/industry-reports/saudi-arabia-solar-power-market ['solar panels'] (unrelated_market)"
+        ],
+        "unjudged_examples": [],
+        "anchor_mismatches": []
+      }
+    },
+    "only_semantic": {
+      "status": "succeeded",
+      "run_ms": 1312.0,
+      "counters": {
+        "candidates": 1380,
+        "opportunities": 80,
+        "plans_created": 46,
+        "rejected_already_linked": 29,
+        "rejected_below_min_relevance": 12,
+        "rejected_below_min_score": 2,
+        "rejected_diversity_limit": 1,
+        "rejected_no_natural_anchor": 1226,
+        "rejected_page_type_incompatible": 23,
+        "rejected_target_ineligible": 27,
+        "rejected_target_protected": 14,
+        "sources_considered": 64,
+        "sources_skipped_ineligible": 18
+      },
+      "must_not_violations": {},
+      "graph_component_values": {
+        "0.5": 1,
+        "1.0": 45
+      },
+      "diff_vs_all": {
+        "only_here": [
+          "/industry-reports/india-cold-chain-market -> /industry-reports/india-rooftop-solar-market ['solar panels'] acceptable"
+        ],
+        "only_in_all": [
+          "/industry-reports/india-cold-chain-market -> /industry-reports/saudi-arabia-solar-power-market ['solar panels'] bad"
+        ]
+      },
+      "metrics": {
+        "plans": 46,
+        "sources_with_plans": 27,
+        "judged_sources": 46,
+        "judged_sources_with_plans": 27,
+        "precision_at_3_macro": 1.0,
+        "precision_at_3_micro": 1.0,
+        "recall_good_macro": 0.2094,
+        "bad_rate": 0.0,
+        "unjudged_rate": 0.0,
+        "label_counts": {
+          "acceptable": 28,
+          "good": 18
+        },
+        "anchor_exact_match": 1.0,
+        "anchor_pairs_proposed": "13/24",
+        "anchor_names_target_market_rate": 0.913,
+        "anchor_source_counts": {
+          "target_keyword": 3,
+          "target_title": 1,
+          "target_topic": 42
+        },
+        "channel_counts": {
+          "semantic": 46
+        },
+        "mean_total_score": 0.5408,
+        "bad_examples": [],
+        "unjudged_examples": [],
+        "anchor_mismatches": []
+      }
+    },
+    "only_lexical": {
+      "status": "succeeded",
+      "run_ms": 1382.6,
+      "counters": {
+        "candidates": 1380,
+        "opportunities": 80,
+        "plans_created": 45,
+        "rejected_already_linked": 29,
+        "rejected_below_min_relevance": 18,
+        "rejected_below_min_score": 2,
+        "rejected_diversity_limit": 2,
+        "rejected_no_natural_anchor": 1225,
+        "rejected_page_type_incompatible": 20,
+        "rejected_target_ineligible": 15,
+        "rejected_target_protected": 24,
+        "sources_considered": 64,
+        "sources_skipped_ineligible": 18
+      },
+      "must_not_violations": {},
+      "graph_component_values": {
+        "0.5": 1,
+        "1.0": 44
+      },
+      "diff_vs_all": {
+        "only_here": [],
+        "only_in_all": [
+          "/industry-reports/thailand-ecommerce-logistics-market -> /industry-reports/philippines-fintech-market ['digital payments'] acceptable"
+        ]
+      },
+      "metrics": {
+        "plans": 45,
+        "sources_with_plans": 27,
+        "judged_sources": 46,
+        "judged_sources_with_plans": 27,
+        "precision_at_3_macro": 0.9815,
+        "precision_at_3_micro": 0.9778,
+        "recall_good_macro": 0.2094,
+        "bad_rate": 0.0222,
+        "unjudged_rate": 0.0,
+        "label_counts": {
+          "acceptable": 26,
+          "bad": 1,
+          "good": 18
+        },
+        "anchor_exact_match": 1.0,
+        "anchor_pairs_proposed": "13/24",
+        "anchor_names_target_market_rate": 0.9111,
+        "anchor_source_counts": {
+          "target_keyword": 3,
+          "target_title": 1,
+          "target_topic": 41
+        },
+        "channel_counts": {
+          "lexical": 45
+        },
+        "mean_total_score": 0.5433,
+        "bad_examples": [
+          "https://research.example.com/industry-reports/india-cold-chain-market -> https://research.example.com/industry-reports/saudi-arabia-solar-power-market ['solar panels'] (unrelated_market)"
+        ],
+        "unjudged_examples": [],
+        "anchor_mismatches": []
+      }
+    },
+    "only_taxonomy": {
+      "status": "succeeded",
+      "run_ms": 940.4,
+      "counters": {
+        "candidates": 361,
+        "opportunities": 80,
+        "plans_created": 38,
+        "rejected_already_linked": 29,
+        "rejected_below_min_score": 1,
+        "rejected_diversity_limit": 1,
+        "rejected_no_natural_anchor": 270,
+        "rejected_page_type_incompatible": 4,
+        "rejected_target_ineligible": 13,
+        "rejected_target_protected": 5,
+        "sources_considered": 64,
+        "sources_skipped_ineligible": 18
+      },
+      "must_not_violations": {},
+      "graph_component_values": {
+        "0.5": 1,
+        "1.0": 37
+      },
+      "diff_vs_all": {
+        "only_here": [
+          "/insights/indonesia-nickel-battery-materials -> /industry-reports/india-lithium-ion-battery-manufacturing-market ['battery cells'] acceptable"
+        ],
+        "only_in_all": [
+          "/industry-reports/india-cold-chain-market -> /industry-reports/saudi-arabia-solar-power-market ['solar panels'] bad",
+          "/industry-reports/india-electric-two-wheeler-market -> /industry-reports/india-lithium-ion-battery-manufacturing-market ['lithium-ion battery'] good",
+          "/industry-reports/india-ev-charging-infrastructure-market -> /industry-reports/india-battery-energy-storage-market ['battery storage'] good",
+          "/industry-reports/india-lithium-ion-battery-manufacturing-market -> /industry-reports/india-electric-two-wheeler-market ['electric two-wheelers'] good",
+          "/industry-reports/indonesia-ev-charging-infrastructure-market -> /industry-reports/southeast-asia-battery-materials-market ['battery materials'] acceptable",
+          "/industry-reports/thailand-ecommerce-logistics-market -> /industry-reports/philippines-fintech-market ['digital payments'] acceptable",
+          "/insights/battery-swapping-electric-two-wheelers-india -> /industry-reports/india-lithium-ion-battery-manufacturing-market ['lithium-ion battery'] good",
+          "/insights/gcc-data-center-power-demand -> /industry-reports/gcc-energy-storage-market ['energy storage'] acceptable",
+          "/insights/indonesia-nickel-battery-materials -> /industry-reports/indonesia-electric-two-wheeler-market ['electric motorcycles'] acceptable"
+        ]
+      },
+      "metrics": {
+        "plans": 38,
+        "sources_with_plans": 25,
+        "judged_sources": 46,
+        "judged_sources_with_plans": 25,
+        "precision_at_3_macro": 1.0,
+        "precision_at_3_micro": 1.0,
+        "recall_good_macro": 0.1752,
+        "bad_rate": 0.0,
+        "unjudged_rate": 0.0,
+        "label_counts": {
+          "acceptable": 24,
+          "good": 14
+        },
+        "anchor_exact_match": 1.0,
+        "anchor_pairs_proposed": "10/24",
+        "anchor_names_target_market_rate": 0.8947,
+        "anchor_source_counts": {
+          "target_keyword": 3,
+          "target_title": 1,
+          "target_topic": 34
+        },
+        "channel_counts": {
+          "taxonomy": 38
+        },
+        "mean_total_score": 0.5614,
+        "bad_examples": [],
+        "unjudged_examples": [],
+        "anchor_mismatches": []
+      }
+    },
+    "only_graph": {
+      "status": "succeeded",
+      "run_ms": 1012.4,
+      "counters": {
+        "candidates": 362,
+        "opportunities": 80,
+        "plans_created": 30,
+        "rejected_already_linked": 28,
+        "rejected_below_min_score": 1,
+        "rejected_diversity_limit": 1,
+        "rejected_no_natural_anchor": 270,
+        "rejected_page_type_incompatible": 10,
+        "rejected_target_ineligible": 17,
+        "rejected_target_protected": 5,
+        "sources_considered": 64,
+        "sources_skipped_ineligible": 18
+      },
+      "must_not_violations": {},
+      "graph_component_values": {
+        "1.0": 30
+      },
+      "diff_vs_all": {
+        "only_here": [
+          "/industry-reports/thailand-ecommerce-logistics-market -> /industry-reports/qatar-logistics-market ['logistics'] acceptable",
+          "/industry-reports/vietnam-ecommerce-logistics-market -> /industry-reports/qatar-logistics-market ['logistics'] acceptable",
+          "/insights/indonesia-nickel-battery-materials -> /industry-reports/india-lithium-ion-battery-manufacturing-market ['battery cells'] acceptable"
+        ],
+        "only_in_all": [
+          "/industry-reports/gcc-energy-storage-market -> /industry-reports/india-lithium-ion-battery-manufacturing-market ['battery manufacturing'] acceptable",
+          "/industry-reports/india-battery-energy-storage-market -> /industry-reports/india-lithium-ion-battery-manufacturing-market ['battery manufacturing'] good",
+          "/industry-reports/india-cold-chain-market -> /industry-reports/saudi-arabia-solar-power-market ['solar panels'] bad",
+          "/industry-reports/india-electric-two-wheeler-market -> /industry-reports/india-lithium-ion-battery-manufacturing-market ['lithium-ion battery'] good",
+          "/industry-reports/india-ev-charging-infrastructure-market -> /industry-reports/india-battery-energy-storage-market ['battery storage'] good",
+          "/industry-reports/india-lithium-ion-battery-manufacturing-market -> /industry-reports/india-battery-energy-storage-market ['grid storage'] good",
+          "/industry-reports/india-lithium-ion-battery-manufacturing-market -> /industry-reports/india-electric-two-wheeler-market ['electric two-wheelers'] good",
+          "/industry-reports/india-pharmaceutical-market -> /industry-reports/india-cold-chain-market ['cold chain'] good",
+          "/industry-reports/indonesia-ev-charging-infrastructure-market -> /industry-reports/southeast-asia-battery-materials-market ['battery materials'] acceptable",
+          "/industry-reports/thailand-ecommerce-logistics-market -> /industry-reports/indonesia-ecommerce-market ['e-commerce'] acceptable",
+          "/industry-reports/thailand-ecommerce-logistics-market -> /industry-reports/philippines-fintech-market ['digital payments'] acceptable",
+          "/industry-reports/thailand-ecommerce-logistics-market -> /industry-reports/qatar-logistics-market ['logistics'] acceptable",
+          "/industry-reports/uae-cold-chain-market -> /industry-reports/bangladesh-pharmaceutical-market ['pharmaceutical'] acceptable",
+          "/industry-reports/vietnam-ecommerce-logistics-market -> /industry-reports/indonesia-ecommerce-market ['e-commerce'] acceptable",
+          "/industry-reports/vietnam-ecommerce-logistics-market -> /industry-reports/qatar-logistics-market ['logistics'] acceptable",
+          "/insights/battery-swapping-electric-two-wheelers-india -> /industry-reports/india-lithium-ion-battery-manufacturing-market ['lithium-ion battery'] good",
+          "/insights/cold-chain-vaccine-distribution-india -> /industry-reports/bangladesh-pharmaceutical-market ['pharmaceutical'] acceptable",
+          "/insights/gcc-data-center-power-demand -> /industry-reports/gcc-energy-storage-market ['energy storage'] acceptable",
+          "/insights/indonesia-nickel-battery-materials -> /industry-reports/indonesia-electric-two-wheeler-market ['electric motorcycles'] acceptable"
+        ]
+      },
+      "metrics": {
+        "plans": 30,
+        "sources_with_plans": 21,
+        "judged_sources": 46,
+        "judged_sources_with_plans": 21,
+        "precision_at_3_macro": 1.0,
+        "precision_at_3_micro": 1.0,
+        "recall_good_macro": 0.1453,
+        "bad_rate": 0.0,
+        "unjudged_rate": 0.0,
+        "label_counts": {
+          "acceptable": 19,
+          "good": 11
+        },
+        "anchor_exact_match": 1.0,
+        "anchor_pairs_proposed": "7/24",
+        "anchor_names_target_market_rate": 0.8667,
+        "anchor_source_counts": {
+          "target_keyword": 3,
+          "target_title": 1,
+          "target_topic": 26
+        },
+        "channel_counts": {
+          "graph": 30
+        },
+        "mean_total_score": 0.5602,
+        "bad_examples": [],
+        "unjudged_examples": [],
+        "anchor_mismatches": []
+      }
+    },
+    "graph_weight_0": {
+      "status": "succeeded",
+      "run_ms": 1535.3,
+      "counters": {
+        "candidates": 1774,
+        "opportunities": 80,
+        "plans_created": 40,
+        "rejected_already_linked": 29,
+        "rejected_below_min_relevance": 707,
+        "rejected_below_min_score": 10,
+        "rejected_diversity_limit": 2,
+        "rejected_no_natural_anchor": 890,
+        "rejected_page_type_incompatible": 37,
+        "rejected_target_ineligible": 32,
+        "rejected_target_protected": 27,
+        "sources_considered": 64,
+        "sources_skipped_ineligible": 18
+      },
+      "must_not_violations": {},
+      "graph_component_values": {},
+      "diff_vs_all": {
+        "only_here": [],
+        "only_in_all": [
+          "/industry-reports/india-cold-chain-market -> /industry-reports/saudi-arabia-solar-power-market ['solar panels'] bad",
+          "/industry-reports/india-lithium-ion-battery-manufacturing-market -> /industry-reports/india-electric-two-wheeler-market ['electric two-wheelers'] good",
+          "/industry-reports/indonesia-ev-charging-infrastructure-market -> /industry-reports/southeast-asia-battery-materials-market ['battery materials'] acceptable",
+          "/industry-reports/malaysia-data-center-market -> /insights/gcc-data-center-power-demand ['power demand'] acceptable",
+          "/industry-reports/thailand-ecommerce-logistics-market -> /industry-reports/philippines-fintech-market ['digital payments'] acceptable",
+          "/insights/indonesia-nickel-battery-materials -> /industry-reports/indonesia-electric-two-wheeler-market ['electric motorcycles'] acceptable"
+        ]
+      },
+      "metrics": {
+        "plans": 40,
+        "sources_with_plans": 26,
+        "judged_sources": 46,
+        "judged_sources_with_plans": 26,
+        "precision_at_3_macro": 1.0,
+        "precision_at_3_micro": 1.0,
+        "recall_good_macro": 0.2009,
+        "bad_rate": 0.0,
+        "unjudged_rate": 0.0,
+        "label_counts": {
+          "acceptable": 23,
+          "good": 17
+        },
+        "anchor_exact_match": 1.0,
+        "anchor_pairs_proposed": "12/24",
+        "anchor_names_target_market_rate": 0.925,
+        "anchor_source_counts": {
+          "target_keyword": 2,
+          "target_title": 1,
+          "target_topic": 37
+        },
+        "channel_counts": {
+          "graph": 28,
+          "lexical": 40,
+          "semantic": 40,
+          "taxonomy": 36
+        },
+        "mean_total_score": 0.4868,
+        "bad_examples": [],
+        "unjudged_examples": [],
+        "anchor_mismatches": []
+      }
+    }
+  },
+  "per_source_all": {
+    "https://research.example.com/industry-reports/bangladesh-pharmaceutical-market": {
+      "plans": [],
+      "good": 1
+    },
+    "https://research.example.com/industry-reports/gcc-energy-storage-market": {
+      "plans": [
+        {
+          "target": "https://research.example.com/industry-reports/saudi-arabia-solar-power-market",
+          "anchor": "photovoltaic",
+          "label": "good",
+          "score": 0.6950179587195935
+        },
+        {
+          "target": "https://research.example.com/industry-reports/india-lithium-ion-battery-manufacturing-market",
+          "anchor": "battery manufacturing",
+          "label": "acceptable",
+          "score": 0.5016666666666667
+        },
+        {
+          "target": "https://research.example.com/industry-reports/india-battery-energy-storage-market",
+          "anchor": "battery energy",
+          "label": "good",
+          "score": 0.43066201579257946
+        }
+      ],
+      "good": 2
+    },
+    "https://research.example.com/industry-reports/india-auto-components-market": {
+      "plans": [
+        {
+          "target": "https://research.example.com/industry-reports/india-electric-vehicle-market",
+          "anchor": "electric vehicles",
+          "label": "good",
+          "score": 0.6854731284989516
+        }
+      ],
+      "good": 1
+    },
+    "https://research.example.com/industry-reports/india-battery-energy-storage-market": {
+      "plans": [
+        {
+          "target": "https://research.example.com/industry-reports/india-lithium-ion-battery-manufacturing-market",
+          "anchor": "battery manufacturing",
+          "label": "good",
+          "score": 0.7358808212964552
+        }
+      ],
+      "good": 2
+    },
+    "https://research.example.com/industry-reports/india-cold-chain-market": {
+      "plans": [
+        {
+          "target": "https://research.example.com/industry-reports/qatar-logistics-market",
+          "anchor": "logistics",
+          "label": "acceptable",
+          "score": 0.5216666666666667
+        },
+        {
+          "target": "https://research.example.com/industry-reports/saudi-arabia-solar-power-market",
+          "anchor": "solar panels",
+          "label": "bad",
+          "score": 0.42833333333333334
+        }
+      ],
+      "good": 2
+    },
+    "https://research.example.com/industry-reports/india-diagnostics-market": {
+      "plans": [],
+      "good": 1
+    },
+    "https://research.example.com/industry-reports/india-digital-lending-market": {
+      "plans": [],
+      "good": 1
+    },
+    "https://research.example.com/industry-reports/india-electric-two-wheeler-market": {
+      "plans": [
+        {
+          "target": "https://research.example.com/insights/battery-swapping-electric-two-wheelers-india",
+          "anchor": "Battery swapping",
+          "label": "good",
+          "score": 0.5245604752220846
+        },
+        {
+          "target": "https://research.example.com/industry-reports/india-lithium-ion-battery-manufacturing-market",
+          "anchor": "lithium-ion battery",
+          "label": "good",
+          "score": 0.4619749679870114
+        }
+      ],
+      "good": 4
+    },
+    "https://research.example.com/industry-reports/india-electric-vehicle-market": {
+      "plans": [
+        {
+          "target": "https://research.example.com/industry-reports/india-ev-charging-infrastructure-market",
+          "anchor": "charging infrastructure",
+          "label": "good",
+          "score": 0.7578057116082495
+        },
+        {
+          "target": "https://research.example.com/industry-reports/india-auto-components-market",
+          "anchor": "Auto parts",
+          "label": "good",
+          "score": 0.6988064618322849
+        }
+      ],
+      "good": 4
+    },
+    "https://research.example.com/industry-reports/india-ev-charging-infrastructure-market": {
+      "plans": [
+        {
+          "target": "https://research.example.com/industry-reports/india-battery-energy-storage-market",
+          "anchor": "battery storage",
+          "label": "good",
+          "score": 0.575902841281056
+        }
+      ],
+      "good": 4
+    },
+    "https://research.example.com/industry-reports/india-health-insurance-market": {
+      "plans": [],
+      "good": 0
+    },
+    "https://research.example.com/industry-reports/india-lithium-ion-battery-manufacturing-market": {
+      "plans": [
+        {
+          "target": "https://research.example.com/industry-reports/india-battery-energy-storage-market",
+          "anchor": "grid storage",
+          "label": "good",
+          "score": 0.6382927391668097
+        },
+        {
+          "target": "https://research.example.com/industry-reports/india-electric-two-wheeler-market",
+          "anchor": "electric two-wheelers",
+          "label": "good",
+          "score": 0.4353083013203447
+        }
+      ],
+      "good": 3
+    },
+    "https://research.example.com/industry-reports/india-pharmaceutical-market": {
+      "plans": [
+        {
+          "target": "https://research.example.com/industry-reports/india-cold-chain-market",
+          "anchor": "cold chain",
+          "label": "good",
+          "score": 0.6046021903872137
+        }
+      ],
+      "good": 3
+    },
+    "https://research.example.com/industry-reports/india-rooftop-solar-market": {
+      "plans": [],
+      "good": 3
+    },
+    "https://research.example.com/industry-reports/india-semiconductor-market": {
+      "plans": [],
+      "good": 2
+    },
+    "https://research.example.com/industry-reports/indonesia-ecommerce-market": {
+      "plans": [],
+      "good": 0
+    },
+    "https://research.example.com/industry-reports/indonesia-electric-two-wheeler-market": {
+      "plans": [],
+      "good": 2
+    },
+    "https://research.example.com/industry-reports/indonesia-ev-charging-infrastructure-market": {
+      "plans": [
+        {
+          "target": "https://research.example.com/industry-reports/thailand-electric-vehicle-market",
+          "anchor": "electric vehicles",
+          "label": "acceptable",
+          "score": 0.6046174093880031
+        },
+        {
+          "target": "https://research.example.com/industry-reports/southeast-asia-battery-materials-market",
+          "anchor": "battery materials",
+          "label": "acceptable",
+          "score": 0.41500000000000004
+        }
+      ],
+      "good": 2
+    },
+    "https://research.example.com/industry-reports/malaysia-data-center-market": {
+      "plans": [
+        {
+          "target": "https://research.example.com/industry-reports/singapore-cloud-computing-market",
+          "anchor": "cloud services",
+          "label": "acceptable",
+          "score": 0.5501648684348048
+        },
+        {
+          "target": "https://research.example.com/insights/gcc-data-center-power-demand",
+          "anchor": "power demand",
+          "label": "acceptable",
+          "score": 0.3831509718175068
+        }
+      ],
+      "good": 2
+    },
+    "https://research.example.com/industry-reports/malaysia-semiconductor-market": {
+      "plans": [],
+      "good": 1
+    },
+    "https://research.example.com/industry-reports/philippines-cold-chain-market": {
+      "plans": [
+        {
+          "target": "https://research.example.com/industry-reports/qatar-logistics-market",
+          "anchor": "logistics",
+          "label": "acceptable",
+          "score": 0.5216666666666667
+        }
+      ],
+      "good": 3
+    },
+    "https://research.example.com/industry-reports/philippines-fintech-market": {
+      "plans": [],
+      "good": 1
+    },
+    "https://research.example.com/industry-reports/qatar-logistics-market": {
+      "plans": [],
+      "good": 0
+    },
+    "https://research.example.com/industry-reports/saudi-arabia-data-center-market": {
+      "plans": [],
+      "good": 2
+    },
+    "https://research.example.com/industry-reports/saudi-arabia-solar-power-market": {
+      "plans": [],
+      "good": 3
+    },
+    "https://research.example.com/industry-reports/singapore-cloud-computing-market": {
+      "plans": [],
+      "good": 0
+    },
+    "https://research.example.com/industry-reports/southeast-asia-battery-materials-market": {
+      "plans": [
+        {
+          "target": "https://research.example.com/industry-reports/india-lithium-ion-battery-manufacturing-market",
+          "anchor": "lithium-ion battery",
+          "label": "acceptable",
+          "score": 0.6208114493386937
+        }
+      ],
+      "good": 0
+    },
+    "https://research.example.com/industry-reports/thailand-ecommerce-logistics-market": {
+      "plans": [
+        {
+          "target": "https://research.example.com/industry-reports/indonesia-ecommerce-market",
+          "anchor": "e-commerce",
+          "label": "acceptable",
+          "score": 0.551186690607791
+        },
+        {
+          "target": "https://research.example.com/industry-reports/qatar-logistics-market",
+          "anchor": "logistics",
+          "label": "acceptable",
+          "score": 0.5216666666666667
+        },
+        {
+          "target": "https://research.example.com/industry-reports/philippines-fintech-market",
+          "anchor": "digital payments",
+          "label": "acceptable",
+          "score": 0.42833333333333334
+        }
+      ],
+      "good": 1
+    },
+    "https://research.example.com/industry-reports/thailand-electric-vehicle-market": {
+      "plans": [
+        {
+          "target": "https://research.example.com/insights/charging-infrastructure-gaps-southeast-asia",
+          "anchor": "fast chargers",
+          "label": "good",
+          "score": 0.6228352534784373
+        },
+        {
+          "target": "https://research.example.com/industries/automotive",
+          "anchor": "auto industry",
+          "label": "acceptable",
+          "score": 0.5501953500740046
+        }
+      ],
+      "good": 2
+    },
+    "https://research.example.com/industry-reports/uae-cold-chain-market": {
+      "plans": [
+        {
+          "target": "https://research.example.com/industry-reports/qatar-logistics-market",
+          "anchor": "Logistics",
+          "label": "acceptable",
+          "score": 0.5949710430139264
+        },
+        {
+          "target": "https://research.example.com/industry-reports/bangladesh-pharmaceutical-market",
+          "anchor": "pharmaceutical",
+          "label": "acceptable",
+          "score": 0.4683333333333333
+        }
+      ],
+      "good": 3
+    },
+    "https://research.example.com/industry-reports/uae-data-center-market": {
+      "plans": [
+        {
+          "target": "https://research.example.com/industry-reports/singapore-cloud-computing-market",
+          "anchor": "cloud services",
+          "label": "acceptable",
+          "score": 0.4683333333333333
+        }
+      ],
+      "good": 2
+    },
+    "https://research.example.com/industry-reports/uae-diagnostics-market": {
+      "plans": [],
+      "good": 1
+    },
+    "https://research.example.com/industry-reports/vietnam-ecommerce-logistics-market": {
+      "plans": [
+        {
+          "target": "https://research.example.com/industry-reports/indonesia-ecommerce-market",
+          "anchor": "e-commerce",
+          "label": "acceptable",
+          "score": 0.5392062577420544
+        },
+        {
+          "target": "https://research.example.com/industry-reports/qatar-logistics-market",
+          "anchor": "logistics",
+          "label": "acceptable",
+          "score": 0.5216666666666667
+        }
+      ],
+      "good": 1
+    },
+    "https://research.example.com/industry-reports/vietnam-solar-power-market": {
+      "plans": [
+        {
+          "target": "https://research.example.com/insights/perovskite-solar-cells-commercialisation",
+          "anchor": "perovskite solar cells",
+          "label": "good",
+          "score": 0.5355
+        },
+        {
+          "target": "https://research.example.com/industry-reports/gcc-energy-storage-market",
+          "anchor": "energy storage",
+          "label": "acceptable",
+          "score": 0.455
+        }
+      ],
+      "good": 3
+    },
+    "https://research.example.com/industry-reports/vietnam-wind-power-market": {
+      "plans": [
+        {
+          "target": "https://research.example.com/industry-reports/gcc-energy-storage-market",
+          "anchor": "battery storage",
+          "label": "acceptable",
+          "score": 0.455
+        }
+      ],
+      "good": 0
+    },
+    "https://research.example.com/insights/battery-swapping-electric-two-wheelers-india": {
+      "plans": [
+        {
+          "target": "https://research.example.com/industry-reports/india-ev-charging-infrastructure-market",
+          "anchor": "charging stations",
+          "label": "good",
+          "score": 0.647231953305862
+        },
+        {
+          "target": "https://research.example.com/industry-reports/india-electric-vehicle-market",
+          "anchor": "electric cars",
+          "label": "acceptable",
+          "score": 0.6205173904844964
+        },
+        {
+          "target": "https://research.example.com/industry-reports/india-lithium-ion-battery-manufacturing-market",
+          "anchor": "lithium-ion battery",
+          "label": "good",
+          "score": 0.45666666666666667
+        }
+      ],
+      "good": 3
+    },
+    "https://research.example.com/insights/charging-infrastructure-gaps-southeast-asia": {
+      "plans": [
+        {
+          "target": "https://research.example.com/industry-reports/thailand-electric-vehicle-market",
+          "anchor": "electric vehicles",
+          "label": "good",
+          "score": 0.6711685868117706
+        },
+        {
+          "target": "https://research.example.com/insights/fame-scheme-electric-vehicle-adoption-india",
+          "anchor": "electric vehicle",
+          "label": "acceptable",
+          "score": 0.4633333333333334
+        },
+        {
+          "target": "https://research.example.com/industry-reports/india-electric-vehicle-market",
+          "anchor": "Electric vehicle",
+          "label": "acceptable",
+          "score": 0.459
+        }
+      ],
+      "good": 2
+    },
+    "https://research.example.com/insights/cold-chain-vaccine-distribution-india": {
+      "plans": [
+        {
+          "target": "https://research.example.com/industry-reports/bangladesh-pharmaceutical-market",
+          "anchor": "pharmaceutical",
+          "label": "acceptable",
+          "score": 0.48833333333333334
+        }
+      ],
+      "good": 1
+    },
+    "https://research.example.com/insights/diagnostics-chains-consolidation-india": {
+      "plans": [],
+      "good": 1
+    },
+    "https://research.example.com/insights/digital-payments-lessons-southeast-asia": {
+      "plans": [
+        {
+          "target": "https://research.example.com/industry-reports/india-health-insurance-market",
+          "anchor": "insurance",
+          "label": "acceptable",
+          "score": 0.5766666666666667
+        }
+      ],
+      "good": 1
+    },
+    "https://research.example.com/insights/fame-scheme-electric-vehicle-adoption-india": {
+      "plans": [
+        {
+          "target": "https://research.example.com/industry-reports/india-ev-charging-infrastructure-market",
+          "anchor": "charging stations",
+          "label": "good",
+          "score": 0.6052797614996845
+        },
+        {
+          "target": "https://research.example.com/industries/automotive",
+          "anchor": "mobility",
+          "label": "acceptable",
+          "score": 0.47894377144798883
+        }
+      ],
+      "good": 1
+    },
+    "https://research.example.com/insights/gcc-data-center-power-demand": {
+      "plans": [
+        {
+          "target": "https://research.example.com/industry-reports/gcc-energy-storage-market",
+          "anchor": "energy storage",
+          "label": "acceptable",
+          "score": 0.46154820006219666
+        }
+      ],
+      "good": 1
+    },
+    "https://research.example.com/insights/indonesia-nickel-battery-materials": {
+      "plans": [
+        {
+          "target": "https://research.example.com/industry-reports/indonesia-electric-two-wheeler-market",
+          "anchor": "electric motorcycles",
+          "label": "acceptable",
+          "score": 0.44333333333333336
+        }
+      ],
+      "good": 0
+    },
+    "https://research.example.com/insights/last-mile-delivery-economics-thailand-vietnam": {
+      "plans": [],
+      "good": 1
+    },
+    "https://research.example.com/insights/perovskite-solar-cells-commercialisation": {
+      "plans": [],
+      "good": 1
+    },
+    "https://research.example.com/insights/semiconductor-supply-chain-shift-malaysia": {
+      "plans": [],
+      "good": 1
+    }
+  }
+}

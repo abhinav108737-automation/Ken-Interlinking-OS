@@ -15,6 +15,7 @@ import { pageHref } from "@/components/inventory/PageInventoryTable";
 import { PageVersionTable } from "@/components/inventory/PageVersionTable";
 import { Pagination } from "@/components/inventory/Pagination";
 import { runHref } from "@/components/inventory/RunTable";
+import { RecommendationTable } from "@/components/recommendations/RecommendationTable";
 import {
   type ApiError,
   getInventoryPage,
@@ -25,6 +26,7 @@ import {
   listInventoryLinks,
   listInventoryPageLinks,
   listInventoryPageVersions,
+  listLinkPlans,
   listPageRelationships,
   listSimilarPages,
 } from "@/lib/api";
@@ -45,6 +47,7 @@ import {
   parseOffset,
   parsePositiveInt,
 } from "@/lib/inventory";
+import { ALL_STATUSES, PAGE_PLANS_LIMIT, RECOMMENDATIONS_PATH } from "@/lib/recommendations";
 
 export const dynamic = "force-dynamic";
 
@@ -108,6 +111,8 @@ export default async function PageDetailPage({
     relationshipsResult,
     similarResult,
     taxonomyResult,
+    plansFromResult,
+    plansToResult,
   ] = await Promise.all([
     getInventoryPage(pageId),
     requestedVersion === undefined ? Promise.resolve(null) : getInventoryPageVersion(pageId, requestedVersion),
@@ -117,6 +122,8 @@ export default async function PageDetailPage({
     listPageRelationships(pageId, { limit: DEFAULT_PAGE_SIZE, offset: relatedOffset }),
     listSimilarPages(pageId, { limit: SIMILAR_DEFAULT_LIMIT }),
     getTaxonomy(),
+    listLinkPlans({ source_page_id: pageId, limit: PAGE_PLANS_LIMIT }),
+    listLinkPlans({ target_page_id: pageId, limit: PAGE_PLANS_LIMIT }),
   ]);
 
   if (!pageResult.ok) {
@@ -237,6 +244,55 @@ export default async function PageDetailPage({
         labels={taxonomyLabels(taxonomyResult.ok ? taxonomyResult.data : null)}
         pagination={{ pathname: self, params: state, offsetParam: "related_offset" }}
       />
+
+      <section aria-labelledby="recommendations-heading" className="space-y-4">
+        <h2 id="recommendations-heading" className="text-xl font-semibold">
+          Recommendations
+        </h2>
+        <p className="text-sm text-slate-700">
+          Proposed links involving this page, in any status, highest score first. Read-only.
+        </p>
+        {(
+          [
+            ["from", "Recommendations from this page", plansFromResult, "source_page_id"],
+            ["to", "Recommendations to this page", plansToResult, "target_page_id"],
+          ] as const
+        ).map(([variant, title, plansResult, filter]) => (
+          <div key={variant} className="space-y-2">
+            <h3 id={`recommendations-${variant}-heading`} className="text-lg font-semibold">
+              {title}
+            </h3>
+            {plansResult.ok ? (
+              <>
+                <RecommendationTable
+                  plans={plansResult.data.items}
+                  total={plansResult.data.page.total}
+                  caption={title}
+                  variant={variant}
+                  emptyMessage={
+                    variant === "from"
+                      ? "No recommendations place a link on this page."
+                      : "No recommendations link to this page."
+                  }
+                />
+                {plansResult.data.page.total > plansResult.data.items.length && (
+                  <p className="text-sm">
+                    <Link
+                      href={buildHref(RECOMMENDATIONS_PATH, { status: ALL_STATUSES, [filter]: page.id })}
+                      className="text-blue-800 underline underline-offset-4"
+                    >
+                      View all {formatCount(plansResult.data.page.total)}{" "}
+                      <span className="sr-only">{title.toLowerCase()}</span>
+                    </Link>
+                  </p>
+                )}
+              </>
+            ) : (
+              <ApiErrorNotice error={plansResult.error} what={title} />
+            )}
+          </div>
+        ))}
+      </section>
 
       <section aria-labelledby="version-heading" className="space-y-3">
         <h2 id="version-heading" className="text-xl font-semibold">

@@ -82,6 +82,9 @@ Phase 2 adds a synthetic demo corpus with analysis/eligibility goldens, labelled
 pairs and a retrieval/embedding benchmark (mock and local Ollama):
 [intelligence/README.md](intelligence/README.md).
 
+Phase 3 adds recommendation judgments, must-not gates, freshness fixtures and a channel/component
+ablation benchmark (mock and local Ollama): [recommendations/README.md](recommendations/README.md).
+
 Phase 8 ("Evaluation datasets … offline evals") is when these suites become
 formal, versioned datasets with a runner. Before Phase 8, the phases above may
 add recorded fixtures as they build the corresponding nodes.

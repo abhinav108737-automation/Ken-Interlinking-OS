@@ -69,6 +69,10 @@ page_type_targets:
   insight: [report, insight, hub]
   other: [report, insight]
 
+# URL paths that are never link targets: the home page is a listing, and a
+# taxonomy match on it is an artefact ("mobility" must not link to "/").
+excluded_target_paths: ['^/$']
+
 underlinked_inbound_threshold: 3
 
 geography_scores:

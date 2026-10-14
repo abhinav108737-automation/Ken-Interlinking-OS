@@ -57,6 +57,7 @@ export function SelectField({
   value,
   options,
   anyLabel = "Any",
+  includeAny = true,
 }: {
   readonly id: string;
   readonly name: string;
@@ -64,6 +65,8 @@ export function SelectField({
   readonly value: string | undefined;
   readonly options: readonly { readonly value: string; readonly label: string }[];
   readonly anyLabel?: string;
+  /** Offer the empty "Any" option (default). Off when "any" has an explicit option value. */
+  readonly includeAny?: boolean;
 }) {
   return (
     <div className="flex flex-col gap-1">
@@ -76,7 +79,7 @@ export function SelectField({
         defaultValue={value ?? ""}
         className="rounded border border-slate-400 bg-white px-2 py-1"
       >
-        <option value="">{anyLabel}</option>
+        {includeAny && <option value="">{anyLabel}</option>}
         {options.map((option) => (
           <option key={option.value} value={option.value}>
             {option.label}
@@ -122,6 +125,47 @@ export function TextField({
         placeholder={placeholder}
         aria-describedby={describedBy}
         className="w-64 rounded border border-slate-400 bg-white px-2 py-1"
+      />
+    </div>
+  );
+}
+
+/** A bounded decimal input (e.g. a minimum score). Submitted as text; the screen validates it. */
+export function NumberField({
+  id,
+  name,
+  label,
+  value,
+  min,
+  max,
+  step,
+  describedBy,
+}: {
+  readonly id: string;
+  readonly name: string;
+  readonly label: string;
+  readonly value: string | undefined;
+  readonly min: number;
+  readonly max: number;
+  readonly step: number;
+  readonly describedBy?: string;
+}) {
+  return (
+    <div className="flex flex-col gap-1">
+      <label htmlFor={id} className="font-medium text-slate-800">
+        {label}
+      </label>
+      <input
+        id={id}
+        name={name}
+        type="number"
+        inputMode="decimal"
+        min={min}
+        max={max}
+        step={step}
+        defaultValue={value ?? ""}
+        aria-describedby={describedBy}
+        className="w-28 rounded border border-slate-400 bg-white px-2 py-1"
       />
     </div>
   );

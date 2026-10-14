@@ -28,6 +28,7 @@ TRD section 12 ranking policy (policies/ranking/ranking_weights.v<N>.yaml).
 from __future__ import annotations
 
 import math
+import re
 from collections.abc import Mapping
 from enum import StrEnum
 from typing import Any, Final, Literal, Protocol, runtime_checkable
@@ -293,7 +294,15 @@ class SelectionPolicy(FrozenModel):
         default=90, ge=0, description="A reviewer-rejected pair is not re-proposed for this long."
     )
     max_plans_per_source: int = Field(default=3, ge=1, le=50)
-    max_plans_per_target_per_run: int = Field(default=5, ge=1, le=1000)
+    max_plans_per_target_per_run: int = Field(
+        default=5,
+        ge=1,
+        le=1000,
+        description=(
+            "Destination diversity: OPEN plans pointing at one target, from all sources "
+            "(existing open plans count, so re-runs are idempotent)."
+        ),
+    )
     max_internal_links_per_100_words: float = Field(
         default=2.0, gt=0.0, description="Existing + proposed internal body links, per 100 words."
     )
@@ -348,6 +357,13 @@ class RecommendationPolicy(FrozenModel):
     page_type_targets: dict[str, tuple[str, ...]] = Field(
         description="source page type -> page types it may link to (others are rejected)."
     )
+    excluded_target_paths: tuple[str, ...] = Field(
+        default=("^/$",),
+        description=(
+            "URL-path regexes that are never link TARGETS (the home page is a listing, and a "
+            "taxonomy match on it is an artefact). Matched against the canonical URL path."
+        ),
+    )
     underlinked_inbound_threshold: int = Field(
         default=3, ge=1, description="Fewer current inbound internal links than this = underlinked."
     )
@@ -359,6 +375,13 @@ class RecommendationPolicy(FrozenModel):
             "global_target": 0.3,
         }
     )
+
+    @field_validator("excluded_target_paths")
+    @classmethod
+    def _paths_compile(cls, value: tuple[str, ...]) -> tuple[str, ...]:
+        for pattern in value:
+            re.compile(pattern)
+        return value
 
     @model_validator(mode="after")
     def _scores_in_range(self) -> RecommendationPolicy:
@@ -417,6 +440,10 @@ class PlanFreshness(StrEnum):
 
 class FreshnessCheck(FrozenModel):
     freshness: PlanFreshness
+    block_id: str | None = Field(
+        default=None,
+        description="The current block the plan maps to (fresh/rebasable); None when stale.",
+    )
     reasons: tuple[str, ...] = Field(
         default=(), description="version_changed | block_missing | context_changed | anchor_moved"
     )

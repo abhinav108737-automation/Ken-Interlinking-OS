@@ -32,6 +32,8 @@ const api = vi.hoisted(() => ({
   // Phase 2.
   getIntelligenceCoverage: vi.fn(),
   getTaxonomy: vi.fn(),
+  // Phase 3: the page detail screen also lists recommendations from/to the page.
+  listLinkPlans: vi.fn(),
   listTaxonomyNodePages: vi.fn(),
   getPageIntelligence: vi.fn(),
   listSimilarPages: vi.fn(),
@@ -60,6 +62,7 @@ const MODEL_DOWN = fail({ kind: "api_error", status: 503, code: "model_unavailab
 beforeEach(() => {
   for (const mock of Object.values(api)) mock.mockReset();
   api.getTaxonomy.mockResolvedValue(ok(taxonomy()));
+  api.listLinkPlans.mockResolvedValue(ok(list([])));
 });
 
 async function renderPage(element: Promise<React.ReactElement>) {
