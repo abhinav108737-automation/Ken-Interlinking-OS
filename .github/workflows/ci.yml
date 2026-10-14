@@ -85,8 +85,15 @@ jobs:
       - run: alembic upgrade 0002_content_inventory
       - run: alembic downgrade base
       - run: alembic upgrade 0002_content_inventory
-      - name: "0003 must fail clearly without pgvector"
-        run: "! alembic upgrade head"
+      - name: "0003 must fail, and fail because pgvector is missing"
+        run: |
+          set +e
+          alembic upgrade head > upgrade.log 2>&1
+          status=$?
+          set -e
+          cat upgrade.log
+          test "$status" -ne 0
+          grep -q 'extension "vector" is not available' upgrade.log
 
   frontend:
     runs-on: ubuntu-latest

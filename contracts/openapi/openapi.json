@@ -1766,6 +1766,12 @@
             "title": "Source Page Id",
             "type": "string"
           },
+          "source_page_version": {
+            "description": "Source version the edge was computed from.",
+            "minimum": 1.0,
+            "title": "Source Page Version",
+            "type": "integer"
+          },
           "target_canonical_url": {
             "title": "Target Canonical Url",
             "type": "string"
@@ -1774,6 +1780,12 @@
             "format": "uuid",
             "title": "Target Page Id",
             "type": "string"
+          },
+          "target_page_version": {
+            "description": "Target version the edge was computed from.",
+            "minimum": 1.0,
+            "title": "Target Page Version",
+            "type": "integer"
           },
           "target_title": {
             "anyOf": [
@@ -1795,7 +1807,9 @@
         },
         "required": [
           "source_page_id",
+          "source_page_version",
           "target_page_id",
+          "target_page_version",
           "target_canonical_url",
           "target_title",
           "relationship_type",

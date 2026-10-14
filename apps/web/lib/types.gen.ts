@@ -1161,6 +1161,11 @@ export interface components {
              * Format: uuid
              */
             source_page_id: string;
+            /**
+             * Source Page Version
+             * @description Source version the edge was computed from.
+             */
+            source_page_version: number;
             /** Target Canonical Url */
             target_canonical_url: string;
             /**
@@ -1168,6 +1173,11 @@ export interface components {
              * Format: uuid
              */
             target_page_id: string;
+            /**
+             * Target Page Version
+             * @description Target version the edge was computed from.
+             */
+            target_page_version: number;
             /** Target Title */
             target_title: string | null;
             /** Weight */

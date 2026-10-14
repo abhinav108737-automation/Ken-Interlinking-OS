@@ -141,6 +141,7 @@ recorded decision — never by a specialist on its own. Current additions:
 |---|---|
 | `worker.heartbeat` | operational; ADR-0005 |
 | `skill.promoted` | user decision, post-Phase-0 cleanup (2026-10-13) — closes the TRD gap where PROMOTE_SKILL had no audit event |
+| `job.completed` | operational, Phase 2 ([ADR-0010](adr/ADR-0010-content-intelligence.md)) — every finished generic job run (analysis, recommendation, verification, analytics import, evaluation, autonomy shadow), including failed ones |
 
 `EventName` is a Pydantic enum, not a database enum, so additions need no migration.
 
@@ -197,3 +198,23 @@ UTF-8, one JSON object per line, blank lines ignored. Unknown keys are rejected.
 `emitted_by` is `ken-ingest` and `correlation_id` is the run id. Payloads are always built from
 these models (`model_dump(mode="json")`). No event name was added: `crawl.completed` covers file
 and CMS imports via `source_type` (rule 12).
+
+### 14. Content intelligence (Phase 2)
+
+Design: [ADR-0010](adr/ADR-0010-content-intelligence.md). Modules: `intelligence.py`, `jobs.py`.
+
+- **Deterministic analysis.** Classification, summaries and relationships are code over the
+  versioned taxonomy policy (`policies/taxonomy/`). Every analysis records
+  `analysis_version = "tax{N}-alg{M}"` and is immutable. LLM annotations (Phase 4 onward) are
+  marked `extractor="llm"`.
+- **The embedding dimension is the provider's.** The column is dimension-less, and every query
+  filters on the provider-reported (model, dimensions). No code hard-codes a dimension.
+- **Eligibility is computed at read time** (`LinkEligibility`) and never stored. Any active
+  protection blocks a page as both source and target.
+- **Relationships are derived and version-stamped**, and replaced per run for every edge touching
+  an analysed page. Nothing may reference their ids.
+- **Every batch job from Phase 2 on is a `job_runs` row**, emits `job.completed`, and holds a
+  per-kind advisory lock.
+- **The intelligence and jobs APIs are GET-only.** `/intelligence/search` returns 503
+  `model_unavailable` when the embedding model is unreachable; it never falls back silently to
+  another model.

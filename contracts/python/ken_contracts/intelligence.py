@@ -25,6 +25,14 @@ Four groups:
 
 Eligibility is computed at READ time from current state (publication, gone,
 protection, robots, canonical, analysis), never stored, so it cannot go stale.
+
+Embedding identity (freshness and similarity key) is the PROVIDER-REPORTED
+model -- ``ProviderCapabilities.roles[EMBEDDING].model`` /
+``EmbeddingResult.model`` -- together with ``provider``, ``dimensions`` and
+``recipe_version``; never the raw ``KEN_MODEL_EMBEDDING`` setting string. Every
+provider must report the same model string in both places (a contract test
+checks the mock and Ollama providers), and one shared helper
+(``ken_services.intelligence.embeddings.embedding_identity``) resolves it.
 """
 
 from __future__ import annotations
@@ -316,7 +324,9 @@ class PageEmbeddingInfo(FrozenModel):
 
 class PageRelationshipView(FrozenModel):
     source_page_id: UUID
+    source_page_version: int = Field(ge=1, description="Source version the edge was computed from.")
     target_page_id: UUID
+    target_page_version: int = Field(ge=1, description="Target version the edge was computed from.")
     target_canonical_url: str
     target_title: str | None = None
     relationship_type: RelationshipType

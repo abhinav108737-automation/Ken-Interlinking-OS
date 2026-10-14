@@ -3,7 +3,11 @@
 ``job_runs``           generic run record for every batch job from Phase 2 on
 ``page_analyses``      IMMUTABLE deterministic analysis per (page version, analysis version)
 ``page_embeddings``    IMMUTABLE page vector per (page version, model, recipe version)
-``page_relationships`` derived typed page-to-page edges; REPLACED per page by each analysis run
+``page_relationships`` derived typed page-to-page edges; REPLACED by each analysis run for every
+                       edge touching an analysed page (as source OR target). Each edge records
+                       both endpoint versions; readers treat an edge whose endpoint version is not
+                       current as stale. No table may foreign-key ``page_relationships.id``: Phase 3
+                       copies the evidence values it relies on.
 ``page_protections``   protection flags (policy / cms / manual); deactivated, never deleted
 
 Migration 0003 also runs ``CREATE EXTENSION vector`` (ADR-0003 deferred it to
@@ -140,6 +144,13 @@ class PageAnalysis(Base):
             postgresql_using="gin",
             postgresql_ops={"geographies": "jsonb_path_ops"},
         ),
+        # Entity-overlap retrieval (Phase 3): entities @> '[{"entity_id": "x"}]'.
+        Index(
+            "ix_page_analyses_entities",
+            "entities",
+            postgresql_using="gin",
+            postgresql_ops={"entities": "jsonb_path_ops"},
+        ),
     )
 
 
@@ -181,9 +192,11 @@ class PageRelationship(Base):
     source_page_id: Mapped[uuid.UUID] = mapped_column(
         Uuid(as_uuid=True), ForeignKey("pages.id", ondelete="RESTRICT"), nullable=False
     )
+    source_page_version: Mapped[int] = mapped_column(Integer, nullable=False)
     target_page_id: Mapped[uuid.UUID] = mapped_column(
         Uuid(as_uuid=True), ForeignKey("pages.id", ondelete="RESTRICT"), nullable=False
     )
+    target_page_version: Mapped[int] = mapped_column(Integer, nullable=False)
     relationship_type: Mapped[str] = mapped_column(Text, nullable=False)
     weight: Mapped[float] = mapped_column(Float, nullable=False)
     evidence: Mapped[dict[str, Any]] = _jsonb("{}")

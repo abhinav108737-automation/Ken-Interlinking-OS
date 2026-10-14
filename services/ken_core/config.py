@@ -208,8 +208,9 @@ class Settings(BaseSettings):
         default=True,
         description=(
             "From Phase 2 true: migration 0003 creates the vector extension and the "
-            "first vector column (ADR-0010). A server without pgvector can still run "
-            "the Phase 0-1 schema (migrate to 0002 only) with this set false."
+            "first vector column (ADR-0010). A server without pgvector can apply "
+            "migrations up to 0002 only; the Phase 2 build then reports /ready 503 "
+            "(migrations behind head) against it."
         ),
     )
     require_ollama: bool = Field(

@@ -26,9 +26,14 @@ and is never hard-coded; no paid API; no new infrastructure.
 - **Migration 0003 runs `CREATE EXTENSION IF NOT EXISTS vector`** in the same migration that creates
   the first vector column, `page_embeddings.embedding`. This is exactly what ADR-0003 deferred.
 - **`KEN_REQUIRE_PGVECTOR` now defaults to `true`.**
-- **Native degraded mode is narrowed, not removed.** A PostgreSQL without pgvector still runs the
-  Phase 0–1 schema (`alembic upgrade 0002_content_inventory`). Migration 0003 fails there loudly; it
-  never silently skips. The CI job asserts both.
+- **Native degraded mode narrows to a schema guarantee.** A PostgreSQL without pgvector can still
+  apply migrations up to 0002. The Phase 2 build then reports `/ready` **503** against it, because
+  its migrations are behind head. Migration 0003 fails there loudly, with pgvector's own error; it
+  never silently skips.
+  - The CI job asserts both: 0002 applies, and 0003 fails *because* the extension is missing.
+  - ADR-0003 is amended accordingly.
+  - PRD v1.1 §17.1 ("preserving a genuine native degraded mode") holds only for that schema range.
+    This is flagged for the next PRD revision.
 
 ### 2. Embeddings
 
@@ -46,8 +51,12 @@ and is never hard-coded; no paid API; no new infrastructure.
 - **What gets embedded:** one vector per page version, from a deterministic text recipe
   (`EMBEDDING_RECIPE_VERSION`): title, description, headings and body text up to
   `KEN_EMBEDDING_MAX_CHARS`.
-  - An embedding is **fresh** when a row exists for (current version, configured model, recipe
-    version).
+  - **Embedding identity** is the **provider-reported** model: `ProviderCapabilities.roles[EMBEDDING]
+    .model`, which must equal `EmbeddingResult.model`. It is combined with the provider name,
+    dimensions and recipe version, and resolved by one helper (`embedding_identity`). It is never
+    the raw setting string, which can differ, as with `nomic-embed-text` vs `:latest` or the mock's
+    own name.
+  - An embedding is **fresh** when a row exists for (current version, that identity).
   - `input_hash` detects whether the recipe text itself changed.
 - **Mock embeddings** (tests, CI, Mode B without Ollama) switch from hash-seeded random vectors to
   **feature hashing**: token uni- and bigrams hashed into the configured dimension, then
@@ -103,8 +112,15 @@ computed only between pages with fresh analyses, from:
   complementary and adjacency links);
 - the top-k embedding neighbours above `KEN_SIMILARITY_MIN_SCORE`.
 
-They are derived data. Each analysis run **replaces** the edges of the pages it analysed, so this
-table, unlike the immutable history tables, is mutable by design.
+They are derived data, so this table, unlike the immutable history tables, is mutable by design.
+- **Each edge records both endpoint versions** (`source_page_version`, `target_page_version`).
+- **A run replaces every edge touching a page it analysed, as source *or* target.** Without that,
+  edges from unchanged pages would keep pointing at a stale analysis.
+- **For `semantic_similar`,** the run also re-evaluates the existing neighbours' top-k against newly
+  analysed pages, so a new page can enter an old page's neighbour list.
+- **Readers treat an edge whose endpoint version is no longer current as stale** and exclude it.
+- **No table may foreign-key `page_relationships.id`.** Phase 3 copies the evidence values it
+  relies on into its own immutable records.
 
 ### 5. Protection and eligibility
 
@@ -147,6 +163,14 @@ job. The alternative, emitting `crawl.completed` for analysis runs, would make t
 The routes are read-only `GET /intelligence/*` and `GET /jobs/runs*`. `/intelligence/search` embeds
 the query at request time and answers **503 `model_unavailable`** when the model cannot be reached.
 It stores nothing. Analysis runs start from the CLI (`make analyze`).
+
+### 8. Mapping to TRD §5's table names
+
+TRD §5 lists `page_entities` and `graph_edges`. They are realised as:
+- `page_entities` → `page_analyses.entities` (JSONB, GIN-indexed, versioned with the analysis);
+- `graph_edges` → `page_relationships` (typed, weighted, evidenced, version-stamped edges).
+
+`page_embeddings` keeps its TRD name.
 
 ## Consequences
 
