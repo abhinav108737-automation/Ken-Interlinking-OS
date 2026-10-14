@@ -201,7 +201,11 @@ class Settings(BaseSettings):
     embedding_max_chars: int = Field(default=6000, ge=200, le=100_000)
     embedding_batch_size: int = Field(default=16, ge=1, le=256)
     similarity_top_k: int = Field(default=10, ge=1, le=100)
-    similarity_min_score: float = Field(default=0.55, ge=-1.0, le=1.0)
+    # Model-specific: calibrated for nomic-embed-text on the demo corpus, where
+    # related pairs average ~0.85 cosine and unrelated ~0.75 (evals/intelligence).
+    # At 0.55 almost every pair qualified. Re-calibrate when the model changes;
+    # the deterministic mock produces lower cosines (set ~0.3 for it).
+    similarity_min_score: float = Field(default=0.78, ge=-1.0, le=1.0)
 
     # -------------------------------------------------------------- readiness
     require_pgvector: bool = Field(

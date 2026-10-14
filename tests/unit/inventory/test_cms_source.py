@@ -135,7 +135,10 @@ async def test_reads_seed_pages() -> None:
         assert doc.assertions.publication_state is PublicationState.PUBLISHED
         assert doc.assertions.published_at == page.published_at
         assert doc.assertions.modified_at == page.updated_at
-        assert doc.assertions.metadata == {k: str(v) for k, v in page.metadata.items()}
+        expected = {k: str(v) for k, v in page.metadata.items()}
+        if page.protected:  # Phase 2: the CMS flag becomes assertion metadata (ADR-0010)
+            expected["cms_protected"] = "true"
+        assert doc.assertions.metadata == expected
         normalized = normalize_document(doc, scope=scope)
         assert normalized.external_id == page.page_id
         assert normalized.title == page.title

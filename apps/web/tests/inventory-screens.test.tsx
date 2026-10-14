@@ -21,6 +21,7 @@ import {
   versionDetail,
   versionSummary,
 } from "./fixtures/inventory";
+import { pageIntelligence, taxonomy } from "./fixtures/intelligence";
 
 const api = vi.hoisted(() => ({
   listInventoryPages: vi.fn(),
@@ -32,6 +33,11 @@ const api = vi.hoisted(() => ({
   listIngestionRuns: vi.fn(),
   getIngestionRun: vi.fn(),
   listIngestionRunIssues: vi.fn(),
+  // Phase 2: the page detail screen also loads its intelligence section.
+  getPageIntelligence: vi.fn(),
+  listPageRelationships: vi.fn(),
+  listSimilarPages: vi.fn(),
+  getTaxonomy: vi.fn(),
 }));
 
 vi.mock("@/lib/api", async (importOriginal) => ({
@@ -51,6 +57,10 @@ const NOT_FOUND = fail({ kind: "api_error", status: 404, code: "page_not_found",
 
 beforeEach(() => {
   for (const mock of Object.values(api)) mock.mockReset();
+  api.getPageIntelligence.mockResolvedValue(ok(pageIntelligence()));
+  api.listPageRelationships.mockResolvedValue(ok(list([])));
+  api.listSimilarPages.mockResolvedValue(ok(list([])));
+  api.getTaxonomy.mockResolvedValue(ok(taxonomy()));
 });
 
 async function renderPage(element: Promise<React.ReactElement>) {

@@ -91,8 +91,8 @@ The analyser is code over that data. It does not call an LLM.
 | Output | Method |
 |---|---|
 | page type, intent, commercial importance | first matching page-type rule on the URL path |
-| topics (markets) | whole-phrase alias matching, weighted by location (title > headings > description > body); `market_id` is the most specific node whose score clears the confidence threshold; `industry_id` is its root |
-| geographies | the same matcher over the geography tree |
+| topics (markets) | whole-phrase alias matching, weighted by location (title 5, headings 3, description 2, body 1, body capped at 10 mentions per node). `market_id` is the **highest-scoring** node whose score clears the confidence threshold (3.0); ties go to the deeper node, then the id. `industry_id` is its root. (The original wording, "the most specific confident node", agrees on every report and insight in the demo corpus. It differs only on hub pages that list many sub-markets, where the industry is the right answer. The fixture eval settled it.) |
+| geographies | the same matcher over the geography tree, except that `global` is never listed ("global market" is generic phrasing, not a geography) |
 | entities | gazetteer matching with mention counts |
 | keywords | top terms by a deterministic within-page salience score (stopwords removed) |
 | summary | extractive: the leading body sentences, capped at 600 characters |

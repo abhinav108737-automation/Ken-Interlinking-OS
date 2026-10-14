@@ -19,6 +19,7 @@ from sqlalchemy.exc import DBAPIError, IntegrityError
 
 import ken_core.db.models  # noqa: F401 -- registers every model
 from ken_core.db.base import Base
+from ken_core.db.models.intelligence import IMMUTABLE_INTELLIGENCE_TABLES
 from ken_core.db.models.inventory import IMMUTABLE_TABLES
 from tests.integration.conftest import TRUNCATE_ALL, SyncDb
 
@@ -219,7 +220,8 @@ def test_trigger_set_matches_the_orm_declaration(empty: SyncDb) -> None:
             ).scalars()
         )
     )
-    assert set(rows) == set(IMMUTABLE_TABLES)
+    # Migration 0003 extends the same function to the Phase 2 history tables.
+    assert set(rows) == set(IMMUTABLE_TABLES) | set(IMMUTABLE_INTELLIGENCE_TABLES)
 
 
 def test_pages_remain_updatable(empty: SyncDb) -> None:
@@ -389,8 +391,9 @@ def test_downgrade_to_0001_restores_exactly_the_events_schema(
     assert "ken_reject_mutation" in sync_db.run(_ken_functions)
 
 
-def test_no_extension_beyond_plpgsql(empty: SyncDb) -> None:
+def test_no_extension_beyond_plpgsql_and_pgvector(empty: SyncDb) -> None:
     extensions: set[str] = empty.run(
         lambda c: set(c.execute(text("SELECT extname FROM pg_extension")).scalars())
     )
-    assert extensions == {"plpgsql"}
+    # 0002 needs none; pgvector arrives with migration 0003 (ADR-0010).
+    assert extensions == {"plpgsql", "vector"}

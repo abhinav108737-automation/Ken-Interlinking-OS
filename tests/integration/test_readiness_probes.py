@@ -26,13 +26,16 @@ async def test_postgres_probe(
     assert "ken:ken" not in str(result.detail)
 
 
-async def test_pgvector_probe_reports_available_but_not_installed(
+@pytest.mark.usefixtures("migrated")
+async def test_pgvector_probe_reports_available_and_installed_at_head(
     sessionmaker: async_sessionmaker[AsyncSession],
 ) -> None:
     result = await probe_pgvector(sessionmaker)
-    # The project image provisions pgvector; Phase 0 never enables it.
+    # The project image provisions pgvector; migration 0003 enables it (ADR-0010).
     assert result.status is HealthStatus.OK
-    assert result.detail == {"available": True, "installed_version": None, "enabled_from_phase": 2}
+    assert result.detail["available"] is True
+    assert isinstance(result.detail["installed_version"], str)
+    assert result.detail["enabled_from_phase"] == 2
 
 
 @pytest.mark.usefixtures("migrated")
@@ -42,8 +45,8 @@ async def test_migrations_probe_at_head(
     result = await probe_migrations(sessionmaker, alembic_ini_path=alembic_ini_path)
     assert result.status is HealthStatus.OK
     assert result.detail == {
-        "code_head": "0002_content_inventory",
-        "db_revision": "0002_content_inventory",
+        "code_head": "0003_content_intelligence",
+        "db_revision": "0003_content_intelligence",
     }
 
 
@@ -72,4 +75,4 @@ def test_migrations_probe_unmigrated_database(
     finally:
         command.upgrade(alembic_config, "head")
     assert status is HealthStatus.UNAVAILABLE
-    assert detail == {"code_head": "0002_content_inventory", "db_revision": None}
+    assert detail == {"code_head": "0003_content_intelligence", "db_revision": None}

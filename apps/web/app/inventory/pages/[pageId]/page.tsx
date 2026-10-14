@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 
 import { ApiErrorNotice } from "@/components/ApiErrorNotice";
 import { StatusBadge } from "@/components/StatusBadge";
+import { PageIntelligencePanel } from "@/components/intelligence/PageIntelligencePanel";
 import { ExternalUrl } from "@/components/inventory/ExternalUrl";
 import { FilterForm, SelectField } from "@/components/inventory/FilterForm";
 import { KeyValueTable } from "@/components/inventory/KeyValueTable";
@@ -18,12 +19,17 @@ import {
   type ApiError,
   getInventoryPage,
   getInventoryPageVersion,
+  getPageIntelligence,
+  getTaxonomy,
   isNotFoundError,
   listInventoryLinks,
   listInventoryPageLinks,
   listInventoryPageVersions,
+  listPageRelationships,
+  listSimilarPages,
 } from "@/lib/api";
 import { formatCount, formatDateTime, shortHash, toDisplayEntries } from "@/lib/format";
+import { SIMILAR_DEFAULT_LIMIT, taxonomyLabels } from "@/lib/intelligence";
 import {
   DEFAULT_PAGE_SIZE,
   GONE_PRESENTATION,
@@ -91,12 +97,26 @@ export default async function PageDetailPage({
   const linksOffset = parseOffset(query, "links_offset");
   const inboundOffset = parseOffset(query, "inbound_offset");
   const versionsOffset = parseOffset(query, "versions_offset");
+  const relatedOffset = parseOffset(query, "related_offset");
 
-  const [pageResult, selectedResult, versionsResult, inboundResult] = await Promise.all([
+  const [
+    pageResult,
+    selectedResult,
+    versionsResult,
+    inboundResult,
+    intelligenceResult,
+    relationshipsResult,
+    similarResult,
+    taxonomyResult,
+  ] = await Promise.all([
     getInventoryPage(pageId),
     requestedVersion === undefined ? Promise.resolve(null) : getInventoryPageVersion(pageId, requestedVersion),
     listInventoryPageVersions(pageId, { limit: DEFAULT_PAGE_SIZE, offset: versionsOffset }),
     listInventoryLinks({ target_page_id: pageId, limit: DEFAULT_PAGE_SIZE, offset: inboundOffset }),
+    getPageIntelligence(pageId),
+    listPageRelationships(pageId, { limit: DEFAULT_PAGE_SIZE, offset: relatedOffset }),
+    listSimilarPages(pageId, { limit: SIMILAR_DEFAULT_LIMIT }),
+    getTaxonomy(),
   ]);
 
   if (!pageResult.ok) {
@@ -136,6 +156,7 @@ export default async function PageDetailPage({
     links_offset: linksOffset || undefined,
     inbound_offset: inboundOffset || undefined,
     versions_offset: versionsOffset || undefined,
+    related_offset: relatedOffset || undefined,
   };
   const metadataRows = toDisplayEntries(shown.metadata);
 
@@ -208,6 +229,14 @@ export default async function PageDetailPage({
           </Fact>
         </dl>
       </section>
+
+      <PageIntelligencePanel
+        intelligence={intelligenceResult}
+        relationships={relationshipsResult}
+        similar={similarResult}
+        labels={taxonomyLabels(taxonomyResult.ok ? taxonomyResult.data : null)}
+        pagination={{ pathname: self, params: state, offsetParam: "related_offset" }}
+      />
 
       <section aria-labelledby="version-heading" className="space-y-3">
         <h2 id="version-heading" className="text-xl font-semibold">

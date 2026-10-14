@@ -10,12 +10,18 @@ Rules this module enforces:
   the raw text so it can become an evaluation fixture.
 * ``embed`` never falls back to a completion model. A completion model's hidden
   size is not an embedding dimension.
+* Embedding identity: ``capabilities().roles[EMBEDDING].model`` and
+  ``EmbeddingResult.model`` are both the configured ``KEN_MODEL_EMBEDDING``
+  string verbatim (canonical form; the daemon's ``:latest`` normalisation is
+  never surfaced), and ``capabilities().embedding_dimensions`` is the
+  dimension of the last successful ``embed`` (``None`` until one is observed).
 * ``health`` never raises, and neither errors nor logs carry the base URL
   (which could embed credentials) or prompt content at INFO.
 """
 
 from __future__ import annotations
 
+import math
 import time
 from collections.abc import Sequence
 from typing import Any, Literal
@@ -401,6 +407,25 @@ class OllamaProvider:
         texts: Sequence[str],
         role: ModelRole = ModelRole.EMBEDDING,
     ) -> EmbeddingResult:
+        """Embed ``texts`` in ONE ``POST /api/embed`` request.
+
+        * **Batching is the caller's job.** Every text goes in this request;
+          callers chunk by ``KEN_EMBEDDING_BATCH_SIZE``.
+        * **Request shape:** ``{"model": <configured>, "input": [...],
+          "truncate": true}``. ``truncate`` is sent explicitly (it is also
+          Ollama's default) so that an over-long page is cut to the model's
+          context window instead of failing the batch. The recipe already caps
+          input at ``KEN_EMBEDDING_MAX_CHARS``; truncation is the backstop.
+        * **Embedding identity:** ``EmbeddingResult.model`` is the configured
+          ``KEN_MODEL_EMBEDDING`` string verbatim -- exactly what
+          :meth:`capabilities` reports for the role -- even when the daemon
+          echoes a normalised name such as ``nomic-embed-text:latest``. A reply
+          naming a different model is a :class:`ModelProviderError`.
+        * **Errors:** timeout -> :class:`ModelTimeoutError`; unreachable, HTTP
+          error or model absent -> :class:`ModelUnavailableError`; wrong count,
+          empty, ragged or non-finite vectors -> :class:`ModelProviderError`.
+        * **Logging:** counts, dimensions and latency only; never input text.
+        """
         if not texts:
             raise ValueError("texts must not be empty")
         model = self._settings.role_model(role)
@@ -411,7 +436,7 @@ class OllamaProvider:
                 "POST",
                 "/api/embed",
                 timeout_s=_EMBED_TIMEOUT_S,
-                json={"model": model, "input": list(texts)},
+                json={"model": model, "input": list(texts), "truncate": True},
             )
         except ModelUnavailableError:
             # The model may have been removed since verification.
@@ -419,6 +444,13 @@ class OllamaProvider:
             raise
         parsed = self._parse(response, _EmbedResponse, "/api/embed")
         latency_ms = _elapsed_ms(start)
+        if parsed.model is not None and _normalise_model_name(
+            parsed.model
+        ) != _normalise_model_name(model):
+            raise ModelProviderError(
+                f"Ollama answered /api/embed with model {parsed.model!r}, "
+                f"not the requested {model!r}"
+            )
         vectors = parsed.embeddings
         dims = {len(v) for v in vectors}
         if len(vectors) != len(texts) or len(dims) != 1 or 0 in dims:
@@ -426,6 +458,8 @@ class OllamaProvider:
                 f"Ollama returned {len(vectors)} embeddings of inconsistent or empty "
                 f"dimensions for {len(texts)} input(s)"
             )
+        if not all(math.isfinite(x) for vector in vectors for x in vector):
+            raise ModelProviderError("Ollama returned non-finite embedding values")
         dimensions = dims.pop()
         self._embedding_dims[model] = dimensions
         _log.info(
@@ -439,7 +473,7 @@ class OllamaProvider:
         )
         return EmbeddingResult(
             vectors=vectors,
-            model=parsed.model or model,
+            model=model,
             dimensions=dimensions,
             latency_ms=latency_ms,
             provider=PROVIDER_NAME,

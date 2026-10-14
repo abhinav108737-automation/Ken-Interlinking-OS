@@ -68,7 +68,7 @@ from ken_services.inventory.hashing import content_hash, sha256_hex
 from ken_services.inventory.html import discover_soup, make_soup
 from ken_services.inventory.urls import InvalidUrlError, in_scope, normalize_url, try_normalize_url
 
-__all__ = ["NormalizationError", "normalize_document"]
+__all__ = ["ContentBlock", "NormalizationError", "extract_blocks", "normalize_document"]
 
 BLOCK_TAGS: Final = frozenset(
     {
@@ -454,6 +454,40 @@ def _walk(root: Tag) -> _Walk:
             block.block_id = f"b{len(kept)}"
             kept.append(block)
     return _Walk(blocks=tuple(kept), anchors=tuple(anchors))
+
+
+@dataclass(frozen=True, slots=True)
+class ContentBlock:
+    """One text block of a stored page body, as :func:`normalize_document` saw it."""
+
+    block_id: str
+    """``b<N>``: identical to ``ExtractedLink.block_id`` / ``Heading.block_id``."""
+    kind: str
+    """The block's tag name (``p``, ``h2``, ``li``, ``div``...) or ``document``."""
+    text: str
+    """Collapsed, NFC-normalised block text (may be empty for a link-only block)."""
+
+
+def extract_blocks(body_html: str) -> tuple[ContentBlock, ...]:
+    """The blocks of a stored ``NormalizedPage.body_html``, in reading order.
+
+    Phase 2 (ADR-0010) reads blocks from the persisted ``body_html`` instead of
+    re-normalising the source document. ``body_html`` is the decoded content
+    root after boilerplate removal, so re-parsing it, selecting the same root
+    and running the same :func:`_walk` yields the same block ids and kinds as
+    the ``links`` and ``headings`` of that page version. Stripping again is a
+    no-op on already-stripped markup; it is applied so this function mirrors the
+    pipeline exactly. Pure; never raises on malformed HTML.
+    """
+    soup = _parse(_scrub(body_html))
+    root = _select_root(soup)
+    _strip_boilerplate(root)
+    walk = _walk(root)
+    return tuple(
+        ContentBlock(block_id=block.block_id, kind=block.kind, text=block.text)
+        for block in walk.blocks
+        if block.block_id is not None
+    )
 
 
 # --------------------------------------------------------------------------- #

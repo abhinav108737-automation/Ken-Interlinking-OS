@@ -1,4 +1,4 @@
-"""Migrations 0001-0002 against a real PostgreSQL (the ``*_test`` database)."""
+"""Migrations 0001-0003 against a real PostgreSQL (the ``*_test`` database)."""
 
 from __future__ import annotations
 
@@ -9,9 +9,11 @@ from alembic.config import Config
 from alembic.migration import MigrationContext
 from alembic.script import ScriptDirectory
 from sqlalchemy import Connection, inspect, text
+from sqlalchemy.dialects.postgresql import base as postgresql_base
 
 import ken_core.db.models  # noqa: F401 -- registers every model
 from ken_core.db.base import Base
+from ken_core.db.types import Vector
 from tests.integration.conftest import SyncDb
 
 pytestmark = pytest.mark.integration
@@ -25,6 +27,11 @@ APP_TABLES = frozenset(
         "page_versions",
         "existing_links",
         "known_urls",
+        "job_runs",
+        "page_analyses",
+        "page_embeddings",
+        "page_relationships",
+        "page_protections",
     }
 )
 
@@ -43,7 +50,7 @@ def _revision(db: SyncDb) -> str | None:
 
 def test_upgrade_downgrade_upgrade_round_trip(alembic_config: Config, sync_db: SyncDb) -> None:
     head = ScriptDirectory.from_config(alembic_config).get_current_head()
-    assert head == "0002_content_inventory"
+    assert head == "0003_content_intelligence"
 
     command.upgrade(alembic_config, "head")
     assert _tables(sync_db) >= APP_TABLES
@@ -52,17 +59,24 @@ def test_upgrade_downgrade_upgrade_round_trip(alembic_config: Config, sync_db: S
     command.downgrade(alembic_config, "base")
     assert not APP_TABLES & _tables(sync_db)
     assert _revision(sync_db) is None
+    # Migration 0003 created the extension, so its downgrade removed it again.
+    assert "vector" not in _extensions(sync_db)
 
     command.upgrade(alembic_config, "head")
     assert _tables(sync_db) >= APP_TABLES
     assert _revision(sync_db) == head
 
-    # ADR-0003: pgvector is provisioned by the image but never enabled in Phase 0.
-    assert "vector" not in _extensions(sync_db)
+    # ADR-0010: migration 0003 enables pgvector with the first vector column.
+    assert "vector" in _extensions(sync_db)
 
 
-def test_orm_matches_migration(alembic_config: Config, sync_db: SyncDb) -> None:
+def test_orm_matches_migration(
+    alembic_config: Config, sync_db: SyncDb, monkeypatch: pytest.MonkeyPatch
+) -> None:
     command.upgrade(alembic_config, "head")
+    # Teach reflection the pgvector type, so page_embeddings.embedding is really
+    # compared (as Vector vs Vector) instead of being skipped as an unknown type.
+    monkeypatch.setitem(postgresql_base.ischema_names, "vector", Vector)
 
     def _diff(connection: Connection) -> list[object]:
         context = MigrationContext.configure(
@@ -113,3 +127,53 @@ def test_identity_is_generated_always(alembic_config: Config, sync_db: SyncDb) -
         )
     )
     assert identity == ("YES", "ALWAYS")
+
+
+@pytest.mark.parametrize("argv_form", ["split", "single_word"])
+def test_dburl_is_honoured_however_the_shell_passes_it(argv_form: str) -> None:
+    """Phase 2 incident: '-x dburl=...' as ONE argv word used to fall back to the dev DB."""
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[2]
+    target = "postgresql+asyncpg://ken:ken@localhost:5433/ken_no_such_database_test"
+    args = ["-x", f"dburl={target}"] if argv_form == "split" else [f"-x dburl={target}"]
+    result = subprocess.run(  # noqa: S603 -- fixed argv, no shell
+        [sys.executable, "-m", "alembic", "-c", str(root / "alembic.ini"), *args, "current"],
+        capture_output=True,
+        text=True,
+        timeout=60,
+        check=False,
+        cwd=root,
+    )
+    # It must try the named (non-existent) database, never fall back to KEN_DATABASE_URL.
+    assert result.returncode != 0
+    assert "ken_no_such_database_test" in result.stderr or "does not exist" in result.stderr
+
+
+def test_unknown_x_argument_is_refused() -> None:
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[2]
+    result = subprocess.run(  # noqa: S603 -- fixed argv, no shell
+        [
+            sys.executable,
+            "-m",
+            "alembic",
+            "-c",
+            str(root / "alembic.ini"),
+            "-x",
+            "db_url=x",
+            "current",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=60,
+        check=False,
+        cwd=root,
+    )
+    assert result.returncode != 0
+    assert "unknown -x argument" in result.stderr + result.stdout

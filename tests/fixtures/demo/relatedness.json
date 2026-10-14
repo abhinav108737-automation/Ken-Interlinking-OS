@@ -1,0 +1,647 @@
+{
+  "description": "Labelled page pairs over tests/fixtures/demo/research_site.jsonl, by canonical URL. Pairs are UNORDERED. Labels are editorial judgements written from the rubric below, not from any implementation's scores.",
+  "rubric": {
+    "strong": "Should be recommended as related: the same market in any geography; or a parent/child or declared (complementary, supply-chain) market relation within the same country or a containing region; or an insight on that market and geography.",
+    "weak": "Plausibly related, not a first-choice recommendation: a declared relation across geographies, a sibling market or declared industry adjacency within one geography, or a real-world link the taxonomy does not declare.",
+    "unrelated": "Different industries with no declared link. Hard negatives share a geography or surface wording (storage, cells, materials, infrastructure)."
+  },
+  "pool_rule": "Retrieval candidates = every published, canonical, unprotected report or insight with at least 120 words (listed in 'pool'). The protected medical-devices report, drafts, the alias edition, thin pages, hubs and corporate pages are excluded.",
+  "pool": [
+    "https://research.example.com/industry-reports/india-electric-two-wheeler-market",
+    "https://research.example.com/industry-reports/india-electric-vehicle-market",
+    "https://research.example.com/industry-reports/indonesia-ev-charging-infrastructure-market",
+    "https://research.example.com/industry-reports/india-ev-charging-infrastructure-market",
+    "https://research.example.com/industry-reports/vietnam-solar-power-market",
+    "https://research.example.com/industry-reports/india-rooftop-solar-market",
+    "https://research.example.com/industry-reports/saudi-arabia-data-center-market",
+    "https://research.example.com/industry-reports/uae-data-center-market",
+    "https://research.example.com/industry-reports/uae-cold-chain-market",
+    "https://research.example.com/industry-reports/india-cold-chain-market",
+    "https://research.example.com/industry-reports/india-diagnostics-market",
+    "https://research.example.com/industry-reports/thailand-ecommerce-logistics-market",
+    "https://research.example.com/industry-reports/malaysia-semiconductor-market",
+    "https://research.example.com/industry-reports/philippines-fintech-market",
+    "https://research.example.com/industry-reports/gcc-energy-storage-market",
+    "https://research.example.com/industry-reports/india-lithium-ion-battery-manufacturing-market",
+    "https://research.example.com/industry-reports/southeast-asia-battery-materials-market",
+    "https://research.example.com/industry-reports/vietnam-wind-power-market",
+    "https://research.example.com/industry-reports/indonesia-electric-two-wheeler-market",
+    "https://research.example.com/industry-reports/thailand-electric-vehicle-market",
+    "https://research.example.com/industry-reports/india-auto-components-market",
+    "https://research.example.com/industry-reports/india-pharmaceutical-market",
+    "https://research.example.com/industry-reports/indonesia-ecommerce-market",
+    "https://research.example.com/industry-reports/vietnam-ecommerce-logistics-market",
+    "https://research.example.com/industry-reports/india-digital-lending-market",
+    "https://research.example.com/industry-reports/malaysia-data-center-market",
+    "https://research.example.com/industry-reports/singapore-cloud-computing-market",
+    "https://research.example.com/industry-reports/india-semiconductor-market",
+    "https://research.example.com/industry-reports/saudi-arabia-solar-power-market",
+    "https://research.example.com/industry-reports/india-battery-energy-storage-market",
+    "https://research.example.com/industry-reports/philippines-cold-chain-market",
+    "https://research.example.com/industry-reports/uae-diagnostics-market",
+    "https://research.example.com/industry-reports/india-health-insurance-market",
+    "https://research.example.com/industry-reports/qatar-logistics-market",
+    "https://research.example.com/industry-reports/bangladesh-pharmaceutical-market",
+    "https://research.example.com/insights/battery-swapping-electric-two-wheelers-india",
+    "https://research.example.com/insights/charging-infrastructure-gaps-southeast-asia",
+    "https://research.example.com/insights/perovskite-solar-cells-commercialisation",
+    "https://research.example.com/insights/gcc-data-center-power-demand",
+    "https://research.example.com/insights/cold-chain-vaccine-distribution-india",
+    "https://research.example.com/insights/digital-payments-lessons-southeast-asia",
+    "https://research.example.com/insights/last-mile-delivery-economics-thailand-vietnam",
+    "https://research.example.com/insights/indonesia-nickel-battery-materials",
+    "https://research.example.com/insights/semiconductor-supply-chain-shift-malaysia",
+    "https://research.example.com/insights/diagnostics-chains-consolidation-india",
+    "https://research.example.com/insights/fame-scheme-electric-vehicle-adoption-india"
+  ],
+  "pairs": [
+    {
+      "a": "https://research.example.com/industry-reports/india-electric-two-wheeler-market",
+      "b": "https://research.example.com/industry-reports/india-electric-vehicle-market",
+      "label": "strong",
+      "rationale": "Child market (electric two-wheelers) of electric vehicles, same country."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/india-electric-two-wheeler-market",
+      "b": "https://research.example.com/insights/battery-swapping-electric-two-wheelers-india",
+      "label": "strong",
+      "rationale": "Insight on battery swapping for the same market and country."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/india-electric-two-wheeler-market",
+      "b": "https://research.example.com/industry-reports/india-lithium-ion-battery-manufacturing-market",
+      "label": "strong",
+      "rationale": "Lithium-ion cells are upstream of Indian EVs incl. two-wheelers; same country."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/india-electric-two-wheeler-market",
+      "b": "https://research.example.com/industry-reports/india-ev-charging-infrastructure-market",
+      "label": "strong",
+      "rationale": "Sibling EV sub-markets in India sharing battery swapping and home charging."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/india-electric-two-wheeler-market",
+      "b": "https://research.example.com/industry-reports/indonesia-electric-two-wheeler-market",
+      "label": "strong",
+      "rationale": "Same market (electric two-wheelers), different country."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/india-electric-two-wheeler-market",
+      "b": "https://research.example.com/insights/fame-scheme-electric-vehicle-adoption-india",
+      "label": "strong",
+      "rationale": "FAME subsidies drove Indian two-wheeler EV demand; parent market, same country."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/india-electric-vehicle-market",
+      "b": "https://research.example.com/industry-reports/india-ev-charging-infrastructure-market",
+      "label": "strong",
+      "rationale": "Submarket and declared complementary market (EV charging), same country."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/india-electric-vehicle-market",
+      "b": "https://research.example.com/industry-reports/india-lithium-ion-battery-manufacturing-market",
+      "label": "strong",
+      "rationale": "Declared upstream supply chain (lithium-ion batteries -> EVs), same country."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/india-electric-vehicle-market",
+      "b": "https://research.example.com/industry-reports/india-auto-components-market",
+      "label": "strong",
+      "rationale": "Declared upstream supply chain (auto components -> EVs), same country."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/india-electric-vehicle-market",
+      "b": "https://research.example.com/insights/fame-scheme-electric-vehicle-adoption-india",
+      "label": "strong",
+      "rationale": "Insight on the main Indian EV demand incentive."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/india-electric-vehicle-market",
+      "b": "https://research.example.com/industry-reports/thailand-electric-vehicle-market",
+      "label": "strong",
+      "rationale": "Same market (electric vehicles), different country."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/indonesia-ev-charging-infrastructure-market",
+      "b": "https://research.example.com/industry-reports/india-ev-charging-infrastructure-market",
+      "label": "strong",
+      "rationale": "Same market (EV charging), different country."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/indonesia-ev-charging-infrastructure-market",
+      "b": "https://research.example.com/insights/charging-infrastructure-gaps-southeast-asia",
+      "label": "strong",
+      "rationale": "Insight on charging gaps in Southeast Asia; cites the Indonesian network."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/india-ev-charging-infrastructure-market",
+      "b": "https://research.example.com/insights/battery-swapping-electric-two-wheelers-india",
+      "label": "strong",
+      "rationale": "Battery swapping is part of Indian charging infrastructure; same country."
+    },
+    {
+      "a": "https://research.example.com/insights/charging-infrastructure-gaps-southeast-asia",
+      "b": "https://research.example.com/industry-reports/india-ev-charging-infrastructure-market",
+      "label": "strong",
+      "rationale": "Same market (EV charging), different region."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/thailand-electric-vehicle-market",
+      "b": "https://research.example.com/insights/charging-infrastructure-gaps-southeast-asia",
+      "label": "strong",
+      "rationale": "Declared complementary market (charging for EVs); Thailand is in Southeast Asia."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/vietnam-solar-power-market",
+      "b": "https://research.example.com/industry-reports/saudi-arabia-solar-power-market",
+      "label": "strong",
+      "rationale": "Same market (solar power), different country."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/vietnam-solar-power-market",
+      "b": "https://research.example.com/industry-reports/india-rooftop-solar-market",
+      "label": "strong",
+      "rationale": "Same market (solar power), different country."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/vietnam-solar-power-market",
+      "b": "https://research.example.com/insights/perovskite-solar-cells-commercialisation",
+      "label": "strong",
+      "rationale": "Insight on next-generation solar cells; names Vietnam as a test market."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/india-rooftop-solar-market",
+      "b": "https://research.example.com/industry-reports/india-battery-energy-storage-market",
+      "label": "strong",
+      "rationale": "Declared complementary markets (solar + storage), same country."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/saudi-arabia-solar-power-market",
+      "b": "https://research.example.com/industry-reports/gcc-energy-storage-market",
+      "label": "strong",
+      "rationale": "Declared complementary markets (solar + storage); Saudi Arabia is in the GCC."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/india-battery-energy-storage-market",
+      "b": "https://research.example.com/industry-reports/gcc-energy-storage-market",
+      "label": "strong",
+      "rationale": "Same market (energy storage), different region."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/india-lithium-ion-battery-manufacturing-market",
+      "b": "https://research.example.com/industry-reports/india-battery-energy-storage-market",
+      "label": "strong",
+      "rationale": "Declared downstream (lithium-ion batteries -> energy storage), same country."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/saudi-arabia-data-center-market",
+      "b": "https://research.example.com/industry-reports/uae-data-center-market",
+      "label": "strong",
+      "rationale": "Same market (data centers), neighbouring Gulf countries."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/saudi-arabia-data-center-market",
+      "b": "https://research.example.com/insights/gcc-data-center-power-demand",
+      "label": "strong",
+      "rationale": "Insight on Gulf data center power demand; Saudi Arabia is in the region."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/uae-data-center-market",
+      "b": "https://research.example.com/insights/gcc-data-center-power-demand",
+      "label": "strong",
+      "rationale": "Insight on Gulf data center power demand; the UAE is in the region."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/saudi-arabia-data-center-market",
+      "b": "https://research.example.com/industry-reports/malaysia-data-center-market",
+      "label": "strong",
+      "rationale": "Same market (data centers), different region."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/malaysia-semiconductor-market",
+      "b": "https://research.example.com/industry-reports/india-semiconductor-market",
+      "label": "strong",
+      "rationale": "Same market (semiconductors), different country."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/malaysia-semiconductor-market",
+      "b": "https://research.example.com/insights/semiconductor-supply-chain-shift-malaysia",
+      "label": "strong",
+      "rationale": "Insight on the semiconductor supply-chain shift to Malaysia."
+    },
+    {
+      "a": "https://research.example.com/insights/semiconductor-supply-chain-shift-malaysia",
+      "b": "https://research.example.com/industry-reports/india-semiconductor-market",
+      "label": "strong",
+      "rationale": "Same market (semiconductors); the insight discusses India's first fabs."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/malaysia-semiconductor-market",
+      "b": "https://research.example.com/industry-reports/malaysia-data-center-market",
+      "label": "strong",
+      "rationale": "Declared downstream (semiconductors -> data centers), same country."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/uae-cold-chain-market",
+      "b": "https://research.example.com/industry-reports/india-cold-chain-market",
+      "label": "strong",
+      "rationale": "Same market (cold chain), different country."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/uae-cold-chain-market",
+      "b": "https://research.example.com/industry-reports/philippines-cold-chain-market",
+      "label": "strong",
+      "rationale": "Same market (cold chain), different country."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/india-cold-chain-market",
+      "b": "https://research.example.com/insights/cold-chain-vaccine-distribution-india",
+      "label": "strong",
+      "rationale": "Insight on India's vaccine cold chain."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/india-cold-chain-market",
+      "b": "https://research.example.com/industry-reports/india-pharmaceutical-market",
+      "label": "strong",
+      "rationale": "Declared complementary markets (cold chain + pharmaceuticals), same country."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/india-pharmaceutical-market",
+      "b": "https://research.example.com/industry-reports/bangladesh-pharmaceutical-market",
+      "label": "strong",
+      "rationale": "Same market (pharmaceuticals), neighbouring country."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/india-pharmaceutical-market",
+      "b": "https://research.example.com/insights/cold-chain-vaccine-distribution-india",
+      "label": "strong",
+      "rationale": "Insight on pharmaceutical cold chain in India; complementary, same country."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/india-diagnostics-market",
+      "b": "https://research.example.com/industry-reports/uae-diagnostics-market",
+      "label": "strong",
+      "rationale": "Same market (diagnostics), different country."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/india-diagnostics-market",
+      "b": "https://research.example.com/insights/diagnostics-chains-consolidation-india",
+      "label": "strong",
+      "rationale": "Insight on consolidation of Indian diagnostic chains."
+    },
+    {
+      "a": "https://research.example.com/insights/diagnostics-chains-consolidation-india",
+      "b": "https://research.example.com/industry-reports/uae-diagnostics-market",
+      "label": "strong",
+      "rationale": "Same market (diagnostics), different country."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/thailand-ecommerce-logistics-market",
+      "b": "https://research.example.com/industry-reports/vietnam-ecommerce-logistics-market",
+      "label": "strong",
+      "rationale": "Same market (e-commerce logistics), neighbouring country."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/thailand-ecommerce-logistics-market",
+      "b": "https://research.example.com/insights/last-mile-delivery-economics-thailand-vietnam",
+      "label": "strong",
+      "rationale": "Insight on last-mile delivery in Thailand and Vietnam."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/vietnam-ecommerce-logistics-market",
+      "b": "https://research.example.com/insights/last-mile-delivery-economics-thailand-vietnam",
+      "label": "strong",
+      "rationale": "Insight on last-mile delivery in Thailand and Vietnam."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/philippines-fintech-market",
+      "b": "https://research.example.com/industry-reports/india-digital-lending-market",
+      "label": "strong",
+      "rationale": "Same market (fintech), different country."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/philippines-fintech-market",
+      "b": "https://research.example.com/insights/digital-payments-lessons-southeast-asia",
+      "label": "strong",
+      "rationale": "Insight on digital payments comparing India with the Philippines."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/india-digital-lending-market",
+      "b": "https://research.example.com/insights/digital-payments-lessons-southeast-asia",
+      "label": "strong",
+      "rationale": "Insight on India's payments rail; same market and country."
+    },
+    {
+      "a": "https://research.example.com/insights/digital-payments-lessons-southeast-asia",
+      "b": "https://research.example.com/industry-reports/indonesia-ecommerce-market",
+      "label": "strong",
+      "rationale": "Declared complementary markets (fintech + e-commerce); the insight covers Indonesia."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/southeast-asia-battery-materials-market",
+      "b": "https://research.example.com/insights/indonesia-nickel-battery-materials",
+      "label": "strong",
+      "rationale": "Same market (battery materials); Indonesia is in Southeast Asia."
+    },
+    {
+      "a": "https://research.example.com/insights/battery-swapping-electric-two-wheelers-india",
+      "b": "https://research.example.com/industry-reports/indonesia-electric-two-wheeler-market",
+      "label": "strong",
+      "rationale": "Same market (electric two-wheelers) and battery swapping, different country."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/indonesia-ev-charging-infrastructure-market",
+      "b": "https://research.example.com/industry-reports/indonesia-electric-two-wheeler-market",
+      "label": "weak",
+      "rationale": "Sibling EV sub-markets in Indonesia; battery-swapping overlap, no declared relation."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/vietnam-solar-power-market",
+      "b": "https://research.example.com/industry-reports/vietnam-wind-power-market",
+      "label": "weak",
+      "rationale": "Sibling renewable markets in the same country."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/vietnam-wind-power-market",
+      "b": "https://research.example.com/industry-reports/gcc-energy-storage-market",
+      "label": "weak",
+      "rationale": "Wind and storage are complementary, but different regions."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/vietnam-wind-power-market",
+      "b": "https://research.example.com/industry-reports/india-battery-energy-storage-market",
+      "label": "weak",
+      "rationale": "Wind and storage are complementary, but different countries."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/malaysia-data-center-market",
+      "b": "https://research.example.com/industry-reports/singapore-cloud-computing-market",
+      "label": "weak",
+      "rationale": "Declared complementary markets (data centers + cloud), but different countries."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/singapore-cloud-computing-market",
+      "b": "https://research.example.com/industry-reports/saudi-arabia-data-center-market",
+      "label": "weak",
+      "rationale": "Complementary markets (cloud + data centers), different regions."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/indonesia-ecommerce-market",
+      "b": "https://research.example.com/industry-reports/thailand-ecommerce-logistics-market",
+      "label": "weak",
+      "rationale": "Complementary markets (e-commerce + its logistics), different countries."
+    },
+    {
+      "a": "https://research.example.com/insights/last-mile-delivery-economics-thailand-vietnam",
+      "b": "https://research.example.com/industry-reports/indonesia-ecommerce-market",
+      "label": "weak",
+      "rationale": "Complementary markets (last-mile delivery + e-commerce), different countries."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/india-lithium-ion-battery-manufacturing-market",
+      "b": "https://research.example.com/industry-reports/southeast-asia-battery-materials-market",
+      "label": "weak",
+      "rationale": "Declared upstream (battery materials), but different regions."
+    },
+    {
+      "a": "https://research.example.com/insights/indonesia-nickel-battery-materials",
+      "b": "https://research.example.com/industry-reports/india-lithium-ion-battery-manufacturing-market",
+      "label": "weak",
+      "rationale": "Upstream battery materials, different country."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/indonesia-electric-two-wheeler-market",
+      "b": "https://research.example.com/industry-reports/thailand-electric-vehicle-market",
+      "label": "weak",
+      "rationale": "Child/parent EV markets, different countries."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/qatar-logistics-market",
+      "b": "https://research.example.com/industry-reports/thailand-ecommerce-logistics-market",
+      "label": "weak",
+      "rationale": "Parent/child logistics markets, different regions."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/qatar-logistics-market",
+      "b": "https://research.example.com/industry-reports/uae-cold-chain-market",
+      "label": "weak",
+      "rationale": "Parent/child logistics markets, neighbouring Gulf countries."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/india-health-insurance-market",
+      "b": "https://research.example.com/industry-reports/india-diagnostics-market",
+      "label": "weak",
+      "rationale": "Health insurance pays for diagnostic tests; no taxonomy relation."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/india-health-insurance-market",
+      "b": "https://research.example.com/industry-reports/india-digital-lending-market",
+      "label": "weak",
+      "rationale": "Sibling financial-services markets in the same country."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/india-auto-components-market",
+      "b": "https://research.example.com/industry-reports/thailand-electric-vehicle-market",
+      "label": "weak",
+      "rationale": "Upstream auto components for EVs, different countries."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/thailand-ecommerce-logistics-market",
+      "b": "https://research.example.com/industry-reports/thailand-electric-vehicle-market",
+      "label": "weak",
+      "rationale": "Declared industry adjacency only (logistics ~ automotive), same country."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/uae-diagnostics-market",
+      "b": "https://research.example.com/industry-reports/uae-cold-chain-market",
+      "label": "weak",
+      "rationale": "Declared industry adjacency (healthcare ~ logistics), same country."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/philippines-cold-chain-market",
+      "b": "https://research.example.com/industry-reports/bangladesh-pharmaceutical-market",
+      "label": "weak",
+      "rationale": "Complementary markets (cold chain + pharmaceuticals), different countries."
+    },
+    {
+      "a": "https://research.example.com/insights/gcc-data-center-power-demand",
+      "b": "https://research.example.com/industry-reports/saudi-arabia-solar-power-market",
+      "label": "weak",
+      "rationale": "The Gulf data center insight discusses solar supply; different industries."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/india-diagnostics-market",
+      "b": "https://research.example.com/industry-reports/india-electric-two-wheeler-market",
+      "label": "unrelated",
+      "rationale": "Hard negative: same country (India), unrelated industries."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/india-cold-chain-market",
+      "b": "https://research.example.com/industry-reports/india-battery-energy-storage-market",
+      "label": "unrelated",
+      "rationale": "Hard negative, shared wording: cold storage vs battery storage, same country."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/saudi-arabia-data-center-market",
+      "b": "https://research.example.com/industry-reports/saudi-arabia-solar-power-market",
+      "label": "unrelated",
+      "rationale": "Hard negative: same country (Saudi Arabia), technology vs energy."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/uae-data-center-market",
+      "b": "https://research.example.com/industry-reports/uae-cold-chain-market",
+      "label": "unrelated",
+      "rationale": "Hard negative: same country (UAE), data centers vs cold chain."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/uae-data-center-market",
+      "b": "https://research.example.com/industry-reports/uae-diagnostics-market",
+      "label": "unrelated",
+      "rationale": "Hard negative: same country (UAE), data centers vs diagnostics."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/malaysia-semiconductor-market",
+      "b": "https://research.example.com/industry-reports/vietnam-solar-power-market",
+      "label": "unrelated",
+      "rationale": "Hard negative, shared wording: wafers, cells, modules; chips vs solar."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/philippines-fintech-market",
+      "b": "https://research.example.com/industry-reports/philippines-cold-chain-market",
+      "label": "unrelated",
+      "rationale": "Hard negative: same country (Philippines), fintech vs cold chain."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/vietnam-solar-power-market",
+      "b": "https://research.example.com/industry-reports/vietnam-ecommerce-logistics-market",
+      "label": "unrelated",
+      "rationale": "Hard negative: same country (Vietnam), solar vs e-commerce logistics."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/vietnam-wind-power-market",
+      "b": "https://research.example.com/industry-reports/vietnam-ecommerce-logistics-market",
+      "label": "unrelated",
+      "rationale": "Hard negative: same country (Vietnam), wind vs e-commerce logistics."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/india-pharmaceutical-market",
+      "b": "https://research.example.com/industry-reports/india-digital-lending-market",
+      "label": "unrelated",
+      "rationale": "Hard negative: same country (India), pharmaceuticals vs lending."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/india-semiconductor-market",
+      "b": "https://research.example.com/industry-reports/india-diagnostics-market",
+      "label": "unrelated",
+      "rationale": "Hard negative: same country (India), semiconductors vs diagnostics."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/india-ev-charging-infrastructure-market",
+      "b": "https://research.example.com/industry-reports/india-cold-chain-market",
+      "label": "unrelated",
+      "rationale": "Hard negative, shared wording: infrastructure, tariffs; charging vs cold chain."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/india-rooftop-solar-market",
+      "b": "https://research.example.com/industry-reports/india-diagnostics-market",
+      "label": "unrelated",
+      "rationale": "Hard negative: same country (India), solar vs diagnostics."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/indonesia-ecommerce-market",
+      "b": "https://research.example.com/industry-reports/indonesia-electric-two-wheeler-market",
+      "label": "unrelated",
+      "rationale": "Hard negative: same country (Indonesia), e-commerce vs two-wheelers."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/indonesia-ev-charging-infrastructure-market",
+      "b": "https://research.example.com/industry-reports/indonesia-ecommerce-market",
+      "label": "unrelated",
+      "rationale": "Hard negative: same country (Indonesia), EV charging vs e-commerce."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/southeast-asia-battery-materials-market",
+      "b": "https://research.example.com/industry-reports/malaysia-semiconductor-market",
+      "label": "unrelated",
+      "rationale": "Hard negative, shared wording: materials, processing, plants; batteries vs chips."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/bangladesh-pharmaceutical-market",
+      "b": "https://research.example.com/industry-reports/philippines-fintech-market",
+      "label": "unrelated",
+      "rationale": "Different industries and countries."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/qatar-logistics-market",
+      "b": "https://research.example.com/industry-reports/saudi-arabia-data-center-market",
+      "label": "unrelated",
+      "rationale": "Hard negative: same region (Middle East), logistics vs data centers."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/gcc-energy-storage-market",
+      "b": "https://research.example.com/industry-reports/uae-data-center-market",
+      "label": "unrelated",
+      "rationale": "Hard negative: same region (Gulf), energy storage vs data centers."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/singapore-cloud-computing-market",
+      "b": "https://research.example.com/industry-reports/philippines-fintech-market",
+      "label": "unrelated",
+      "rationale": "Different industries (cloud vs fintech), same region."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/india-electric-vehicle-market",
+      "b": "https://research.example.com/industry-reports/india-pharmaceutical-market",
+      "label": "unrelated",
+      "rationale": "Hard negative: same country (India), EVs vs pharmaceuticals."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/india-lithium-ion-battery-manufacturing-market",
+      "b": "https://research.example.com/industry-reports/india-cold-chain-market",
+      "label": "unrelated",
+      "rationale": "Hard negative: same country (India), batteries vs cold chain."
+    },
+    {
+      "a": "https://research.example.com/insights/perovskite-solar-cells-commercialisation",
+      "b": "https://research.example.com/industry-reports/malaysia-semiconductor-market",
+      "label": "unrelated",
+      "rationale": "Hard negative, shared wording: cells, wafers, manufacturing; solar vs chips."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/india-auto-components-market",
+      "b": "https://research.example.com/industry-reports/india-diagnostics-market",
+      "label": "unrelated",
+      "rationale": "Hard negative: same country (India), auto components vs diagnostics."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/malaysia-data-center-market",
+      "b": "https://research.example.com/industry-reports/philippines-cold-chain-market",
+      "label": "unrelated",
+      "rationale": "Different industries (data centers vs cold chain), same region."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/india-digital-lending-market",
+      "b": "https://research.example.com/industry-reports/india-diagnostics-market",
+      "label": "unrelated",
+      "rationale": "Hard negative: same country (India), lending vs diagnostics."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/india-semiconductor-market",
+      "b": "https://research.example.com/industry-reports/india-lithium-ion-battery-manufacturing-market",
+      "label": "unrelated",
+      "rationale": "Hard negative, shared wording: incentive schemes, fabs vs gigafactories, India."
+    },
+    {
+      "a": "https://research.example.com/industry-reports/india-battery-energy-storage-market",
+      "b": "https://research.example.com/industry-reports/saudi-arabia-data-center-market",
+      "label": "unrelated",
+      "rationale": "Different industries (storage vs data centers), different regions."
+    },
+    {
+      "a": "https://research.example.com/insights/cold-chain-vaccine-distribution-india",
+      "b": "https://research.example.com/industry-reports/thailand-ecommerce-logistics-market",
+      "label": "unrelated",
+      "rationale": "Different logistics sub-markets and countries, no declared link."
+    }
+  ]
+}

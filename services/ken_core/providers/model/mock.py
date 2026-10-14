@@ -2,8 +2,15 @@
 
 Design rules:
 
-* **Deterministic.** Every output is a pure function of the inputs (sha256),
-  so a test that passes once passes always, on every machine.
+* **Deterministic.** Every output is a pure function of the inputs (sha256 for
+  completions, blake2b feature hashing for embeddings), so a test that passes
+  once passes always, on every machine.
+* **Lexically meaningful embeddings.** :func:`deterministic_vector` is feature
+  hashing over word uni- and bigrams (ADR-0010 section 2), so related texts
+  really are closer and retrieval tests can assert similarity without a model.
+* **One embedding identity.** ``capabilities().roles[EMBEDDING].model`` and
+  ``EmbeddingResult.model`` are the same string (``mock-embedding``), and
+  ``capabilities().embedding_dimensions`` equals ``EmbeddingResult.dimensions``.
 * **No fabricated structured values.** ``complete_structured`` only returns a
   value that a test explicitly registered *and* that passed the schema's own
   validation. An unregistered schema is a :class:`ModelSchemaViolationError`,
@@ -15,9 +22,11 @@ Design rules:
 from __future__ import annotations
 
 import hashlib
+import itertools
 import json
 import math
-import struct
+import re
+import unicodedata
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
@@ -64,25 +73,52 @@ def _messages_digest(messages: Sequence[Message]) -> str:
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
-def deterministic_vector(text: str, dimensions: int) -> list[float]:
-    """An L2-normalised vector seeded from sha256(text). Pure stdlib.
+_TOKEN = re.compile(r"\w+")
+_FEATURE_HASH_PERSON = b"ken-mock-embed"
+"""blake2b personalisation: domain-separates these hashes from any other use."""
 
-    sha256 is run in counter mode to produce enough bytes; each 4-byte chunk
-    becomes a uniform value in [-1, 1).
+
+def _features(text: str) -> list[str]:
+    """Unigrams and adjacent-token bigrams of NFC-normalised, lower-cased ``text``.
+
+    Tokens are ``\\w+`` runs, so a bigram (``"a b"``, joined by one space) can
+    never collide with a unigram.
     """
-    seed = hashlib.sha256(text.encode("utf-8")).digest()
-    values: list[float] = []
-    counter = 0
-    while len(values) < dimensions:
-        block = hashlib.sha256(seed + counter.to_bytes(8, "big")).digest()
-        for (word,) in struct.iter_unpack(">I", block):
-            values.append(word / 2**31 - 1.0)
-            if len(values) == dimensions:
-                break
-        counter += 1
+    tokens = _TOKEN.findall(unicodedata.normalize("NFC", text).lower())
+    return [*tokens, *(f"{a} {b}" for a, b in itertools.pairwise(tokens))]
+
+
+def deterministic_vector(text: str, dimensions: int) -> list[float]:
+    """A deterministic, LEXICALLY MEANINGFUL, L2-normalised vector (feature hashing).
+
+    ADR-0010 section 2. Each unigram and bigram of ``text`` is hashed with
+    blake2b (8 bytes; never Python's per-process salted ``hash()``) to an
+    unsigned 64-bit integer ``h``. ``h % dimensions`` picks the bucket and the
+    top bit of ``h`` picks a +1/-1 sign (the signed "hashing trick", which keeps
+    collisions unbiased). Counts are summed, then the vector is L2-normalised.
+
+    Consequences: the same text yields the bit-identical vector in every
+    process and on every machine; texts that share words and phrases have a
+    higher cosine similarity than texts that do not; word order matters only
+    through bigrams.
+
+    Empty or token-free text (``""``, whitespace, punctuation only) maps to the
+    fixed unit basis vector ``e0 = [1.0, 0.0, ..., 0.0]``. A non-empty feature
+    list can never sum to the zero vector (2n-1 features is odd), but the same
+    fallback guards that case too.
+    """
+    if dimensions <= 0:
+        raise ValueError("dimensions must be positive")
+    values = [0.0] * dimensions
+    for feature in _features(text):
+        digest = hashlib.blake2b(
+            feature.encode("utf-8"), digest_size=8, person=_FEATURE_HASH_PERSON
+        ).digest()
+        h = int.from_bytes(digest, "big")
+        values[h % dimensions] += 1.0 if h >> 63 else -1.0
     norm = math.sqrt(math.fsum(v * v for v in values))
-    if norm == 0.0:  # pragma: no cover - probability ~2**-(32*dimensions)
-        values[0] = norm = 1.0
+    if norm == 0.0:
+        return [1.0] + [0.0] * (dimensions - 1)
     return [v / norm for v in values]
 
 

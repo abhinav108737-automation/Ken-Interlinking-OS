@@ -191,7 +191,12 @@ class PageTypeRule(FrozenModel):
 
 
 class ProtectionRule(FrozenModel):
-    """Declares pages protected: by path regex and/or an exact metadata value."""
+    """Declares pages protected.
+
+    A page matches when ANY path regex matches its URL path, OR when ALL
+    ``metadata_equals`` pairs equal the page's metadata (conditions combine
+    with OR; metadata pairs combine with AND).
+    """
 
     id: str = Field(pattern=_ID_PATTERN)
     reason: str = Field(min_length=1)
@@ -253,6 +258,18 @@ class TaxonomyPolicy(FrozenModel):
                     raise ValueError(f"entity {entity.id!r} references unknown market {ref!r}")
         if self.default_page_type not in page_types:
             raise ValueError("default_page_type must be one of page_types")
+        for tree, what in (
+            ({m.id: m.parent for m in self.markets}, "market"),
+            ({g.id: g.parent for g in self.geographies}, "geography"),
+        ):
+            for start in tree:
+                seen: set[str] = set()
+                node: str | None = start
+                while node is not None:
+                    if node in seen:
+                        raise ValueError(f"{what} tree has a parent cycle through {start!r}")
+                    seen.add(node)
+                    node = tree.get(node)
         return self
 
 

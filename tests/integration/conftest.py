@@ -46,7 +46,8 @@ from tests.conftest import make_settings
 ALEMBIC_INI = Path(__file__).resolve().parents[2] / "alembic.ini"
 
 TRUNCATE_ALL = (
-    "TRUNCATE existing_links, known_urls, page_versions, pages, ingestion_issues, "
+    "TRUNCATE page_relationships, page_protections, page_embeddings, page_analyses, job_runs, "
+    "existing_links, known_urls, page_versions, pages, ingestion_issues, "
     "ingestion_runs, events RESTART IDENTITY CASCADE"
 )
 
@@ -105,8 +106,9 @@ def sync_db(test_database_url: str) -> SyncDb:
 def migrated(alembic_config: Config, sync_db: SyncDb) -> Iterator[None]:
     """Test database at head, with every application table empty.
 
-    TRUNCATE, not DELETE: the immutability triggers on page_versions and
-    existing_links are row triggers, which TRUNCATE does not fire.
+    TRUNCATE, not DELETE: the immutability triggers on page_versions,
+    existing_links, page_analyses and page_embeddings are row triggers, which
+    TRUNCATE does not fire.
     """
     command.upgrade(alembic_config, "head")
     sync_db.run(lambda connection: connection.execute(text(TRUNCATE_ALL)))
@@ -191,6 +193,7 @@ def make_page(
     publication_state: PublicationState = PublicationState.PUBLISHED,
     page_type: str | None = None,
     source_type: SourceType = SourceType.FILE_EXPORT,
+    metadata: dict[str, str] | None = None,
 ) -> NormalizedPage:
     """A NormalizedPage served at ``path``; ``canonical`` (a path) makes it an alias."""
     own = url(path)
@@ -219,6 +222,7 @@ def make_page(
         language="en",
         publication_state=publication_state,
         page_type=page_type,
+        metadata=metadata or {},
         body_html=f"<p>{body}</p>",
         body_text=body,
         word_count=len(body.split()),

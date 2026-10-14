@@ -174,6 +174,6 @@ describe("activeNavHref", () => {
   });
 
   it("keeps System in the navigation", () => {
-    expect(NAV_LINKS.map((link) => link.label)).toEqual(["Home", "Inventory", "Runs", "System"]);
+    expect(NAV_LINKS.map((link) => link.label)).toEqual(["Home", "Inventory", "Runs", "Intelligence", "Jobs", "System"]);
   });
 });

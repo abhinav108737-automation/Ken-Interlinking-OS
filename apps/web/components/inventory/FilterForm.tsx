@@ -10,10 +10,14 @@ export function FilterForm({
   label,
   hidden = {},
   clearHref,
+  clearLabel = "Clear filters",
+  submitLabel = "Apply",
   children,
 }: {
   readonly action: string;
   readonly label: string;
+  readonly clearLabel?: string;
+  readonly submitLabel?: string;
   /** Query parameters to carry through the submit (e.g. the selected version). */
   readonly hidden?: Readonly<Record<string, string | number | undefined>>;
   readonly clearHref?: string;
@@ -35,11 +39,11 @@ export function FilterForm({
         type="submit"
         className="rounded border border-blue-800 bg-blue-800 px-3 py-1 font-medium text-white hover:bg-blue-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
       >
-        Apply
+        {submitLabel}
       </button>
       {clearHref !== undefined && (
         <Link href={clearHref} className="py-1 text-blue-800 underline underline-offset-4">
-          Clear filters
+          {clearLabel}
         </Link>
       )}
     </form>
@@ -89,14 +93,19 @@ export function TextField({
   label,
   value,
   maxLength,
+  minLength,
   placeholder,
+  describedBy,
 }: {
   readonly id: string;
   readonly name: string;
   readonly label: string;
   readonly value: string | undefined;
   readonly maxLength?: number;
+  readonly minLength?: number;
   readonly placeholder?: string;
+  /** Id of an element that describes the field (e.g. a length hint). */
+  readonly describedBy?: string;
 }) {
   return (
     <div className="flex flex-col gap-1">
@@ -109,7 +118,9 @@ export function TextField({
         type="search"
         defaultValue={value ?? ""}
         maxLength={maxLength}
+        minLength={minLength}
         placeholder={placeholder}
+        aria-describedby={describedBy}
         className="w-64 rounded border border-slate-400 bg-white px-2 py-1"
       />
     </div>

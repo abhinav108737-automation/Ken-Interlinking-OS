@@ -21,7 +21,10 @@ import {
   type ApiResult,
   type HealthResponse,
   type IngestionRunDetail,
+  type IntelligenceCoverage,
   type IssueList,
+  type JobRunDetail,
+  type JobRunList,
   type LinkList,
   type ListIngestionRunIssuesQuery,
   type ListIngestionRunsQuery,
@@ -29,14 +32,23 @@ import {
   type ListInventoryPageLinksQuery,
   type ListInventoryPageVersionsQuery,
   type ListInventoryPagesQuery,
+  type ListJobRunsQuery,
+  type ListPageRelationshipsQuery,
+  type ListSimilarPagesQuery,
+  type ListTaxonomyNodePagesQuery,
   type MetaResponse,
   type PageDetail,
+  type PageIntelligenceView,
   type PageList,
   type PageVersionDetail,
   type PageVersionList,
   type ReadinessResponse,
+  type RelationshipList,
   type RequestOptions,
   type RunList,
+  type SemanticSearchQuery,
+  type SimilarPageList,
+  type TaxonomyView,
   DEFAULT_API_BASE_URL,
   configError,
   createApiClient,
@@ -58,20 +70,30 @@ export type {
   IngestionIssueView,
   IngestionRunDetail,
   IngestionRunSummary,
+  IntelligenceCoverage,
   IssueList,
+  JobRunDetail,
+  JobRunList,
+  JobRunSummary,
   LinkList,
   MetaResponse,
   PageDetail,
   PageInfo,
+  PageIntelligenceView,
+  PageRelationshipView,
   PageList,
   PageSummary,
   PageVersionDetail,
   PageVersionList,
   PageVersionSummary,
   ReadinessResponse,
+  RelationshipList,
   RequestOptions,
   RunList,
   ServiceIdentity,
+  SimilarPage,
+  SimilarPageList,
+  TaxonomyView,
 } from "./api-client";
 export {
   DEFAULT_API_BASE_URL,
@@ -79,6 +101,8 @@ export {
   createApiClient,
   isHealthResponse,
   isMetaResponse,
+  isMissingResourceError,
+  isModelUnavailableError,
   isNotFoundError,
   isReadinessResponse,
 } from "./api-client";
@@ -207,4 +231,81 @@ export function listIngestionRunIssues(
   return withServerClient("/inventory/runs/{run_id}/issues", (client) =>
     client.listIngestionRunIssues(runId, query, options),
   );
+}
+
+// ---------------------------------------------------------------------------
+// Phase 2 content intelligence and job runs (ADR-0010 sections 6-7). All
+// read-only GETs; analysis runs start from the CLI, never from here.
+// ---------------------------------------------------------------------------
+
+/** `GET /intelligence/coverage` — analysis/embedding/eligibility coverage. Contract: 200 only. */
+export function getIntelligenceCoverage(options: RequestOptions = {}): Promise<ApiResult<IntelligenceCoverage>> {
+  return withServerClient("/intelligence/coverage", (client) => client.getIntelligenceCoverage(options));
+}
+
+/** `GET /intelligence/taxonomy` — the active taxonomy with page counts. Contract: 200 only. */
+export function getTaxonomy(options: RequestOptions = {}): Promise<ApiResult<TaxonomyView>> {
+  return withServerClient("/intelligence/taxonomy", (client) => client.getTaxonomy(options));
+}
+
+/** `GET /intelligence/taxonomy/{node_id}/pages` — pages for one node. Contract: 200, 404, 422. */
+export function listTaxonomyNodePages(
+  nodeId: string,
+  query: ListTaxonomyNodePagesQuery = {},
+  options: RequestOptions = {},
+): Promise<ApiResult<SimilarPageList>> {
+  return withServerClient("/intelligence/taxonomy/{node_id}/pages", (client) =>
+    client.listTaxonomyNodePages(nodeId, query, options),
+  );
+}
+
+/** `GET /intelligence/pages/{page_id}` — one page's intelligence. Contract: 200, 404, 422. */
+export function getPageIntelligence(
+  pageId: string,
+  options: RequestOptions = {},
+): Promise<ApiResult<PageIntelligenceView>> {
+  return withServerClient("/intelligence/pages/{page_id}", (client) => client.getPageIntelligence(pageId, options));
+}
+
+/** `GET /intelligence/pages/{page_id}/similar` — nearest pages by embedding. Contract: 200, 404, 422. */
+export function listSimilarPages(
+  pageId: string,
+  query: ListSimilarPagesQuery = {},
+  options: RequestOptions = {},
+): Promise<ApiResult<SimilarPageList>> {
+  return withServerClient("/intelligence/pages/{page_id}/similar", (client) =>
+    client.listSimilarPages(pageId, query, options),
+  );
+}
+
+/** `GET /intelligence/pages/{page_id}/relationships` — typed edges. Contract: 200, 404, 422. */
+export function listPageRelationships(
+  pageId: string,
+  query: ListPageRelationshipsQuery = {},
+  options: RequestOptions = {},
+): Promise<ApiResult<RelationshipList>> {
+  return withServerClient("/intelligence/pages/{page_id}/relationships", (client) =>
+    client.listPageRelationships(pageId, query, options),
+  );
+}
+
+/**
+ * `GET /intelligence/search` — semantic search. Contract: 200, 422, 503. A 503
+ * is an `api_error` with code `model_unavailable` (`isModelUnavailableError`).
+ */
+export function semanticSearch(
+  query: SemanticSearchQuery,
+  options: RequestOptions = {},
+): Promise<ApiResult<SimilarPageList>> {
+  return withServerClient("/intelligence/search", (client) => client.semanticSearch(query, options));
+}
+
+/** `GET /jobs/runs` — batch job runs. Contract: 200, 422. */
+export function listJobRuns(query: ListJobRunsQuery = {}, options: RequestOptions = {}): Promise<ApiResult<JobRunList>> {
+  return withServerClient("/jobs/runs", (client) => client.listJobRuns(query, options));
+}
+
+/** `GET /jobs/runs/{run_id}` — one job run. Contract: 200, 404, 422. */
+export function getJobRun(runId: string, options: RequestOptions = {}): Promise<ApiResult<JobRunDetail>> {
+  return withServerClient("/jobs/runs/{run_id}", (client) => client.getJobRun(runId, options));
 }

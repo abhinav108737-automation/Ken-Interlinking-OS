@@ -684,3 +684,53 @@ async def test_a_repeated_export_line_is_not_recorded_as_a_self_redirect(
     assert known is not None
     assert known.outcome == "page"
     assert known.page_id is not None
+
+
+async def test_cms_protection_follows_the_flag_even_without_a_content_change(
+    sessionmaker: async_sessionmaker[AsyncSession],
+) -> None:
+    """Protection must never lag: unchanged content + flag on -> protected; flag off -> cleared."""
+    from ken_core.db.models import PageProtection
+    from tests.integration.conftest import ingest, make_page
+
+    def doc(flag: bool) -> Any:
+        return make_page(
+            "/guarded",
+            source_type=SourceType.CMS,
+            metadata={"cms_protected": "true"} if flag else {},
+        )
+
+    async def active_cms() -> list[PageProtection]:
+        async with sessionmaker() as session:
+            rows = await session.scalars(
+                select(PageProtection).where(
+                    PageProtection.source == "cms", PageProtection.active.is_(True)
+                )
+            )
+            return list(rows)
+
+    await ingest(sessionmaker, doc(False))
+    assert await active_cms() == []
+    run = await ingest(sessionmaker, doc(True))
+    assert run.counters.pages_unchanged == 1  # same content hash: no new version
+    [row] = await active_cms()
+    assert row.created_by == "ken-ingest"
+    await ingest(sessionmaker, doc(True))  # idempotent: still exactly one
+    assert len(await active_cms()) == 1
+    await ingest(sessionmaker, doc(False))
+    assert await active_cms() == []
+
+
+async def test_a_public_web_document_never_touches_cms_protection(
+    sessionmaker: async_sessionmaker[AsyncSession],
+) -> None:
+    from ken_core.db.models import PageProtection
+    from tests.integration.conftest import ingest, make_page
+
+    await ingest(sessionmaker, make_page("/p", metadata={"cms_protected": "true"}))
+    await ingest(sessionmaker, make_page("/p", source_type=SourceType.PUBLIC_WEB))
+    async with sessionmaker() as session:
+        rows = list(
+            await session.scalars(select(PageProtection).where(PageProtection.active.is_(True)))
+        )
+    assert [row.source for row in rows] == ["cms"]

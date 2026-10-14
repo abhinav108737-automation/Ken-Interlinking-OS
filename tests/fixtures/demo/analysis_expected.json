@@ -1,0 +1,1221 @@
+{
+  "description": "Spec-derived analysis goldens for tests/fixtures/demo/research_site.jsonl. Written from ADR-0010 and policies/taxonomy/taxonomy.v1.yaml BEFORE running the analyser; never paste implementation output in here.",
+  "taxonomy": "policies/taxonomy/taxonomy.v1.yaml",
+  "corpus": "tests/fixtures/demo/research_site.jsonl",
+  "conventions": {
+    "omitted_key": "not asserted",
+    "geographies_include": "geo ids that must be among the analysis geographies (at least)",
+    "entities_include": "entity ids that must be among the analysis entities (at least)",
+    "protection_rule_ids": "exact set of policy protection rules match_protections must return",
+    "eligibility": "compute_eligibility over the normalised record with a fresh analysis, not gone; reasons compared as exact sets (IneligibilityReason values)",
+    "market_rule": "ADR-0010 s3: market_id is the most specific node whose score clears the confidence threshold; industry_id is its root"
+  },
+  "pages": {
+    "https://research.example.com/": {
+      "page_type": "hub",
+      "intent": "navigational",
+      "protection_rule_ids": [],
+      "eligibility": {
+        "as_source": false,
+        "as_target": true,
+        "source_reasons": [
+          "thin_content",
+          "page_type_excluded"
+        ],
+        "target_reasons": []
+      },
+      "note": "Hub rule '^/$': linkable_as_source false; 89 words < min_words_source 120, >= min_words_target 60."
+    },
+    "https://research.example.com/industry-reports": {
+      "page_type": "hub",
+      "intent": "navigational",
+      "protection_rule_ids": [],
+      "eligibility": {
+        "as_source": false,
+        "as_target": true,
+        "source_reasons": [
+          "page_type_excluded"
+        ],
+        "target_reasons": []
+      }
+    },
+    "https://research.example.com/insights": {
+      "page_type": "hub",
+      "intent": "navigational",
+      "protection_rule_ids": [],
+      "eligibility": {
+        "as_source": false,
+        "as_target": true,
+        "source_reasons": [
+          "page_type_excluded"
+        ],
+        "target_reasons": []
+      }
+    },
+    "https://research.example.com/industries/automotive": {
+      "page_type": "hub",
+      "intent": "navigational",
+      "industry_id": "automotive",
+      "protection_rule_ids": [],
+      "eligibility": {
+        "as_source": false,
+        "as_target": true,
+        "source_reasons": [
+          "thin_content",
+          "page_type_excluded"
+        ],
+        "target_reasons": []
+      },
+      "note": "Every market it lists is under automotive, so the industry is automotive whichever child wins."
+    },
+    "https://research.example.com/industries/energy": {
+      "page_type": "hub",
+      "intent": "navigational",
+      "industry_id": "energy",
+      "protection_rule_ids": [],
+      "eligibility": {
+        "as_source": false,
+        "as_target": true,
+        "source_reasons": [
+          "thin_content",
+          "page_type_excluded"
+        ],
+        "target_reasons": []
+      }
+    },
+    "https://research.example.com/industries/healthcare": {
+      "page_type": "hub",
+      "intent": "navigational",
+      "industry_id": "healthcare",
+      "protection_rule_ids": [],
+      "eligibility": {
+        "as_source": false,
+        "as_target": true,
+        "source_reasons": [
+          "thin_content",
+          "page_type_excluded"
+        ],
+        "target_reasons": []
+      }
+    },
+    "https://research.example.com/industries/technology": {
+      "page_type": "hub",
+      "intent": "navigational",
+      "industry_id": "technology",
+      "protection_rule_ids": [],
+      "eligibility": {
+        "as_source": false,
+        "as_target": true,
+        "source_reasons": [
+          "thin_content",
+          "page_type_excluded"
+        ],
+        "target_reasons": []
+      }
+    },
+    "https://research.example.com/industry-reports/india-electric-two-wheeler-market": {
+      "page_type": "report",
+      "intent": "commercial_research",
+      "market_id": "electric-two-wheelers",
+      "industry_id": "automotive",
+      "geographies_include": [
+        "india"
+      ],
+      "entities_include": [
+        "voltara-motors",
+        "fame-scheme",
+        "battery-swapping"
+      ],
+      "protection_rule_ids": [],
+      "eligibility": {
+        "as_source": true,
+        "as_target": true,
+        "source_reasons": [],
+        "target_reasons": []
+      }
+    },
+    "https://research.example.com/industry-reports/india-electric-vehicle-market": {
+      "page_type": "report",
+      "intent": "commercial_research",
+      "market_id": "electric-vehicles",
+      "industry_id": "automotive",
+      "geographies_include": [
+        "india"
+      ],
+      "entities_include": [
+        "voltara-motors",
+        "fame-scheme"
+      ],
+      "protection_rule_ids": [],
+      "eligibility": {
+        "as_source": true,
+        "as_target": true,
+        "source_reasons": [],
+        "target_reasons": []
+      },
+      "note": "Child markets (ev-charging, auto-components) appear once in the body only: below any confidence threshold."
+    },
+    "https://research.example.com/industry-reports/indonesia-ev-charging-infrastructure-market": {
+      "page_type": "report",
+      "intent": "commercial_research",
+      "market_id": "ev-charging",
+      "industry_id": "automotive",
+      "geographies_include": [
+        "indonesia"
+      ],
+      "entities_include": [
+        "battery-swapping",
+        "fast-charging"
+      ],
+      "protection_rule_ids": [],
+      "eligibility": {
+        "as_source": true,
+        "as_target": true,
+        "source_reasons": [],
+        "target_reasons": []
+      }
+    },
+    "https://research.example.com/industry-reports/india-ev-charging-infrastructure-market": {
+      "page_type": "report",
+      "intent": "commercial_research",
+      "market_id": "ev-charging",
+      "industry_id": "automotive",
+      "geographies_include": [
+        "india"
+      ],
+      "entities_include": [
+        "battery-swapping",
+        "fast-charging"
+      ],
+      "protection_rule_ids": [],
+      "eligibility": {
+        "as_source": true,
+        "as_target": true,
+        "source_reasons": [],
+        "target_reasons": []
+      }
+    },
+    "https://research.example.com/industry-reports/vietnam-solar-power-market": {
+      "page_type": "report",
+      "intent": "commercial_research",
+      "market_id": "solar-power",
+      "industry_id": "energy",
+      "geographies_include": [
+        "vietnam"
+      ],
+      "entities_include": [
+        "sunvale-energy",
+        "perovskite"
+      ],
+      "protection_rule_ids": [],
+      "eligibility": {
+        "as_source": true,
+        "as_target": true,
+        "source_reasons": [],
+        "target_reasons": []
+      }
+    },
+    "https://research.example.com/industry-reports/india-rooftop-solar-market": {
+      "page_type": "report",
+      "intent": "commercial_research",
+      "market_id": "solar-power",
+      "industry_id": "energy",
+      "geographies_include": [
+        "india"
+      ],
+      "entities_include": [
+        "sunvale-energy"
+      ],
+      "protection_rule_ids": [],
+      "eligibility": {
+        "as_source": true,
+        "as_target": true,
+        "source_reasons": [],
+        "target_reasons": []
+      }
+    },
+    "https://research.example.com/industry-reports/saudi-arabia-data-center-market": {
+      "page_type": "report",
+      "intent": "commercial_research",
+      "market_id": "data-centers",
+      "industry_id": "technology",
+      "geographies_include": [
+        "saudi-arabia",
+        "middle-east"
+      ],
+      "entities_include": [],
+      "protection_rule_ids": [],
+      "eligibility": {
+        "as_source": true,
+        "as_target": true,
+        "source_reasons": [],
+        "target_reasons": []
+      }
+    },
+    "https://research.example.com/industry-reports/uae-data-center-market": {
+      "page_type": "report",
+      "intent": "commercial_research",
+      "market_id": "data-centers",
+      "industry_id": "technology",
+      "geographies_include": [
+        "uae",
+        "middle-east"
+      ],
+      "entities_include": [],
+      "protection_rule_ids": [],
+      "eligibility": {
+        "as_source": true,
+        "as_target": true,
+        "source_reasons": [],
+        "target_reasons": []
+      }
+    },
+    "https://research.example.com/industry-reports/uae-cold-chain-market": {
+      "page_type": "report",
+      "intent": "commercial_research",
+      "market_id": "cold-chain",
+      "industry_id": "logistics",
+      "geographies_include": [
+        "uae"
+      ],
+      "entities_include": [
+        "coldpath"
+      ],
+      "protection_rule_ids": [],
+      "eligibility": {
+        "as_source": true,
+        "as_target": true,
+        "source_reasons": [],
+        "target_reasons": []
+      }
+    },
+    "https://research.example.com/industry-reports/india-cold-chain-market": {
+      "page_type": "report",
+      "intent": "commercial_research",
+      "market_id": "cold-chain",
+      "industry_id": "logistics",
+      "geographies_include": [
+        "india"
+      ],
+      "entities_include": [
+        "coldpath"
+      ],
+      "protection_rule_ids": [],
+      "eligibility": {
+        "as_source": true,
+        "as_target": true,
+        "source_reasons": [],
+        "target_reasons": []
+      }
+    },
+    "https://research.example.com/industry-reports/india-diagnostics-market": {
+      "page_type": "report",
+      "intent": "commercial_research",
+      "market_id": "diagnostics",
+      "industry_id": "healthcare",
+      "geographies_include": [
+        "india"
+      ],
+      "entities_include": [],
+      "protection_rule_ids": [],
+      "eligibility": {
+        "as_source": true,
+        "as_target": true,
+        "source_reasons": [],
+        "target_reasons": []
+      }
+    },
+    "https://research.example.com/industry-reports/thailand-ecommerce-logistics-market": {
+      "page_type": "report",
+      "intent": "commercial_research",
+      "market_id": "ecommerce-logistics",
+      "industry_id": "logistics",
+      "geographies_include": [
+        "thailand"
+      ],
+      "entities_include": [],
+      "protection_rule_ids": [],
+      "eligibility": {
+        "as_source": true,
+        "as_target": true,
+        "source_reasons": [],
+        "target_reasons": []
+      },
+      "note": "'e-commerce logistics' is the ecommerce-logistics alias; bare e-commerce/logistics aliases must not outrank it."
+    },
+    "https://research.example.com/industry-reports/malaysia-semiconductor-market": {
+      "page_type": "report",
+      "intent": "commercial_research",
+      "market_id": "semiconductors",
+      "industry_id": "technology",
+      "geographies_include": [
+        "malaysia"
+      ],
+      "entities_include": [
+        "nimbus-semi"
+      ],
+      "protection_rule_ids": [],
+      "eligibility": {
+        "as_source": true,
+        "as_target": true,
+        "source_reasons": [],
+        "target_reasons": []
+      }
+    },
+    "https://research.example.com/industry-reports/philippines-fintech-market": {
+      "page_type": "report",
+      "intent": "commercial_research",
+      "market_id": "fintech",
+      "industry_id": "financial-services",
+      "geographies_include": [
+        "philippines",
+        "india"
+      ],
+      "entities_include": [
+        "paylane",
+        "upi-payments"
+      ],
+      "protection_rule_ids": [],
+      "eligibility": {
+        "as_source": true,
+        "as_target": true,
+        "source_reasons": [],
+        "target_reasons": []
+      }
+    },
+    "https://research.example.com/industry-reports/gcc-energy-storage-market": {
+      "page_type": "report",
+      "intent": "commercial_research",
+      "market_id": "energy-storage",
+      "industry_id": "energy",
+      "geographies_include": [
+        "middle-east",
+        "saudi-arabia",
+        "uae",
+        "qatar"
+      ],
+      "entities_include": [],
+      "protection_rule_ids": [],
+      "eligibility": {
+        "as_source": true,
+        "as_target": true,
+        "source_reasons": [],
+        "target_reasons": []
+      },
+      "note": "'GCC' is a middle-east alias; regional page with country mentions."
+    },
+    "https://research.example.com/industry-reports/india-lithium-ion-battery-manufacturing-market": {
+      "page_type": "report",
+      "intent": "commercial_research",
+      "market_id": "lithium-ion-batteries",
+      "industry_id": "chemicals-materials",
+      "geographies_include": [
+        "india"
+      ],
+      "entities_include": [
+        "corecell",
+        "solid-state-batteries"
+      ],
+      "protection_rule_ids": [],
+      "eligibility": {
+        "as_source": true,
+        "as_target": true,
+        "source_reasons": [],
+        "target_reasons": []
+      }
+    },
+    "https://research.example.com/industry-reports/southeast-asia-battery-materials-market": {
+      "page_type": "report",
+      "intent": "commercial_research",
+      "market_id": "battery-materials",
+      "industry_id": "chemicals-materials",
+      "geographies_include": [
+        "southeast-asia",
+        "indonesia",
+        "philippines"
+      ],
+      "entities_include": [],
+      "protection_rule_ids": [],
+      "eligibility": {
+        "as_source": true,
+        "as_target": true,
+        "source_reasons": [],
+        "target_reasons": []
+      }
+    },
+    "https://research.example.com/industry-reports/vietnam-wind-power-market": {
+      "page_type": "report",
+      "intent": "commercial_research",
+      "market_id": "wind-power",
+      "industry_id": "energy",
+      "geographies_include": [
+        "vietnam"
+      ],
+      "entities_include": [],
+      "protection_rule_ids": [],
+      "eligibility": {
+        "as_source": true,
+        "as_target": true,
+        "source_reasons": [],
+        "target_reasons": []
+      }
+    },
+    "https://research.example.com/industry-reports/indonesia-electric-two-wheeler-market": {
+      "page_type": "report",
+      "intent": "commercial_research",
+      "market_id": "electric-two-wheelers",
+      "industry_id": "automotive",
+      "geographies_include": [
+        "indonesia"
+      ],
+      "entities_include": [
+        "voltara-motors",
+        "battery-swapping"
+      ],
+      "protection_rule_ids": [],
+      "eligibility": {
+        "as_source": true,
+        "as_target": true,
+        "source_reasons": [],
+        "target_reasons": []
+      }
+    },
+    "https://research.example.com/industry-reports/thailand-electric-vehicle-market": {
+      "page_type": "report",
+      "intent": "commercial_research",
+      "market_id": "electric-vehicles",
+      "industry_id": "automotive",
+      "geographies_include": [
+        "thailand"
+      ],
+      "entities_include": [],
+      "protection_rule_ids": [],
+      "eligibility": {
+        "as_source": true,
+        "as_target": true,
+        "source_reasons": [],
+        "target_reasons": []
+      }
+    },
+    "https://research.example.com/industry-reports/india-auto-components-market": {
+      "page_type": "report",
+      "intent": "commercial_research",
+      "market_id": "auto-components",
+      "industry_id": "automotive",
+      "geographies_include": [
+        "india",
+        "united-states",
+        "germany"
+      ],
+      "entities_include": [],
+      "protection_rule_ids": [],
+      "eligibility": {
+        "as_source": true,
+        "as_target": true,
+        "source_reasons": [],
+        "target_reasons": []
+      }
+    },
+    "https://research.example.com/industry-reports/india-pharmaceutical-market": {
+      "page_type": "report",
+      "intent": "commercial_research",
+      "market_id": "pharmaceuticals",
+      "industry_id": "healthcare",
+      "geographies_include": [
+        "india"
+      ],
+      "entities_include": [],
+      "protection_rule_ids": [],
+      "eligibility": {
+        "as_source": true,
+        "as_target": true,
+        "source_reasons": [],
+        "target_reasons": []
+      }
+    },
+    "https://research.example.com/industry-reports/saudi-arabia-medical-devices-market": {
+      "page_type": "report",
+      "intent": "commercial_research",
+      "market_id": "medical-devices",
+      "industry_id": "healthcare",
+      "geographies_include": [
+        "saudi-arabia"
+      ],
+      "entities_include": [
+        "medaxis"
+      ],
+      "protection_rule_ids": [
+        "cms-protected"
+      ],
+      "eligibility": {
+        "as_source": false,
+        "as_target": false,
+        "source_reasons": [
+          "protected"
+        ],
+        "target_reasons": [
+          "protected"
+        ]
+      },
+      "note": "metadata cms_protected='true' matches protection rule cms-protected; any active protection blocks source and target."
+    },
+    "https://research.example.com/industry-reports/indonesia-ecommerce-market": {
+      "page_type": "report",
+      "intent": "commercial_research",
+      "market_id": "ecommerce",
+      "industry_id": "consumer-retail",
+      "geographies_include": [
+        "indonesia"
+      ],
+      "entities_include": [],
+      "protection_rule_ids": [],
+      "eligibility": {
+        "as_source": true,
+        "as_target": true,
+        "source_reasons": [],
+        "target_reasons": []
+      }
+    },
+    "https://research.example.com/industry-reports/vietnam-ecommerce-logistics-market": {
+      "page_type": "report",
+      "intent": "commercial_research",
+      "market_id": "ecommerce-logistics",
+      "industry_id": "logistics",
+      "geographies_include": [
+        "vietnam"
+      ],
+      "entities_include": [],
+      "protection_rule_ids": [],
+      "eligibility": {
+        "as_source": true,
+        "as_target": true,
+        "source_reasons": [],
+        "target_reasons": []
+      }
+    },
+    "https://research.example.com/industry-reports/india-digital-lending-market": {
+      "page_type": "report",
+      "intent": "commercial_research",
+      "market_id": "fintech",
+      "industry_id": "financial-services",
+      "geographies_include": [
+        "india"
+      ],
+      "entities_include": [
+        "paylane"
+      ],
+      "protection_rule_ids": [],
+      "eligibility": {
+        "as_source": true,
+        "as_target": true,
+        "source_reasons": [],
+        "target_reasons": []
+      }
+    },
+    "https://research.example.com/industry-reports/malaysia-data-center-market": {
+      "page_type": "report",
+      "intent": "commercial_research",
+      "market_id": "data-centers",
+      "industry_id": "technology",
+      "geographies_include": [
+        "malaysia",
+        "singapore"
+      ],
+      "entities_include": [],
+      "protection_rule_ids": [],
+      "eligibility": {
+        "as_source": true,
+        "as_target": true,
+        "source_reasons": [],
+        "target_reasons": []
+      }
+    },
+    "https://research.example.com/industry-reports/singapore-cloud-computing-market": {
+      "page_type": "report",
+      "intent": "commercial_research",
+      "market_id": "cloud-computing",
+      "industry_id": "technology",
+      "geographies_include": [
+        "singapore",
+        "malaysia"
+      ],
+      "entities_include": [],
+      "protection_rule_ids": [],
+      "eligibility": {
+        "as_source": true,
+        "as_target": true,
+        "source_reasons": [],
+        "target_reasons": []
+      }
+    },
+    "https://research.example.com/industry-reports/india-semiconductor-market": {
+      "page_type": "report",
+      "intent": "commercial_research",
+      "market_id": "semiconductors",
+      "industry_id": "technology",
+      "geographies_include": [
+        "india"
+      ],
+      "entities_include": [
+        "nimbus-semi"
+      ],
+      "protection_rule_ids": [],
+      "eligibility": {
+        "as_source": true,
+        "as_target": true,
+        "source_reasons": [],
+        "target_reasons": []
+      }
+    },
+    "https://research.example.com/industry-reports/saudi-arabia-solar-power-market": {
+      "page_type": "report",
+      "intent": "commercial_research",
+      "market_id": "solar-power",
+      "industry_id": "energy",
+      "geographies_include": [
+        "saudi-arabia",
+        "china",
+        "india"
+      ],
+      "entities_include": [
+        "sunvale-energy"
+      ],
+      "protection_rule_ids": [],
+      "eligibility": {
+        "as_source": true,
+        "as_target": true,
+        "source_reasons": [],
+        "target_reasons": []
+      }
+    },
+    "https://research.example.com/industry-reports/india-battery-energy-storage-market": {
+      "page_type": "report",
+      "intent": "commercial_research",
+      "market_id": "energy-storage",
+      "industry_id": "energy",
+      "geographies_include": [
+        "india"
+      ],
+      "entities_include": [],
+      "protection_rule_ids": [],
+      "eligibility": {
+        "as_source": true,
+        "as_target": true,
+        "source_reasons": [],
+        "target_reasons": []
+      }
+    },
+    "https://research.example.com/industry-reports/philippines-cold-chain-market": {
+      "page_type": "report",
+      "intent": "commercial_research",
+      "market_id": "cold-chain",
+      "industry_id": "logistics",
+      "geographies_include": [
+        "philippines"
+      ],
+      "entities_include": [
+        "coldpath"
+      ],
+      "protection_rule_ids": [],
+      "eligibility": {
+        "as_source": true,
+        "as_target": true,
+        "source_reasons": [],
+        "target_reasons": []
+      }
+    },
+    "https://research.example.com/industry-reports/uae-diagnostics-market": {
+      "page_type": "report",
+      "intent": "commercial_research",
+      "market_id": "diagnostics",
+      "industry_id": "healthcare",
+      "geographies_include": [
+        "uae"
+      ],
+      "entities_include": [],
+      "protection_rule_ids": [],
+      "eligibility": {
+        "as_source": true,
+        "as_target": true,
+        "source_reasons": [],
+        "target_reasons": []
+      }
+    },
+    "https://research.example.com/industry-reports/india-health-insurance-market": {
+      "page_type": "report",
+      "intent": "commercial_research",
+      "market_id": "insurance",
+      "industry_id": "financial-services",
+      "geographies_include": [
+        "india"
+      ],
+      "entities_include": [],
+      "protection_rule_ids": [],
+      "eligibility": {
+        "as_source": true,
+        "as_target": true,
+        "source_reasons": [],
+        "target_reasons": []
+      }
+    },
+    "https://research.example.com/industry-reports/qatar-logistics-market": {
+      "page_type": "report",
+      "intent": "commercial_research",
+      "market_id": "logistics",
+      "industry_id": "logistics",
+      "geographies_include": [
+        "qatar",
+        "middle-east"
+      ],
+      "entities_include": [],
+      "protection_rule_ids": [],
+      "eligibility": {
+        "as_source": true,
+        "as_target": true,
+        "source_reasons": [],
+        "target_reasons": []
+      },
+      "note": "An industry-level page: the most specific confident market is the root itself."
+    },
+    "https://research.example.com/industry-reports/bangladesh-pharmaceutical-market": {
+      "page_type": "report",
+      "intent": "commercial_research",
+      "market_id": "pharmaceuticals",
+      "industry_id": "healthcare",
+      "geographies_include": [
+        "bangladesh",
+        "china",
+        "india"
+      ],
+      "entities_include": [],
+      "protection_rule_ids": [],
+      "eligibility": {
+        "as_source": true,
+        "as_target": true,
+        "source_reasons": [],
+        "target_reasons": []
+      }
+    },
+    "https://research.example.com/industry-reports/vietnam-ev-charging-market": {
+      "page_type": "report",
+      "intent": "commercial_research",
+      "market_id": "ev-charging",
+      "industry_id": "automotive",
+      "geographies_include": [
+        "vietnam"
+      ],
+      "entities_include": [],
+      "protection_rule_ids": [],
+      "eligibility": {
+        "as_source": false,
+        "as_target": false,
+        "source_reasons": [
+          "not_published"
+        ],
+        "target_reasons": [
+          "not_published"
+        ]
+      },
+      "note": "Draft (publication_state draft); 124 words."
+    },
+    "https://research.example.com/industry-reports/india-electric-two-wheeler-market-2025-edition": {
+      "page_type": "report",
+      "intent": "commercial_research",
+      "market_id": "electric-two-wheelers",
+      "industry_id": "automotive",
+      "geographies_include": [
+        "india"
+      ],
+      "entities_include": [
+        "voltara-motors"
+      ],
+      "protection_rule_ids": [],
+      "eligibility": {
+        "as_source": false,
+        "as_target": false,
+        "source_reasons": [
+          "not_canonical",
+          "thin_content"
+        ],
+        "target_reasons": [
+          "not_canonical"
+        ]
+      },
+      "note": "Declares /industry-reports/india-electric-two-wheeler-market canonical (canonical_status declared). ADR-0010 s5: aliases are never targets; an alias writes no version of its own (ADR-0009), so it is not a source either. 117 words < 120."
+    },
+    "https://research.example.com/industry-reports/qatar-insurance-market": {
+      "page_type": "report",
+      "intent": "commercial_research",
+      "market_id": "insurance",
+      "industry_id": "financial-services",
+      "geographies_include": [
+        "qatar"
+      ],
+      "entities_include": [],
+      "protection_rule_ids": [],
+      "eligibility": {
+        "as_source": false,
+        "as_target": false,
+        "source_reasons": [
+          "thin_content"
+        ],
+        "target_reasons": [
+          "thin_content"
+        ]
+      },
+      "note": "Thin stub: 29 words < min_words_target 60."
+    },
+    "https://research.example.com/insights/battery-swapping-electric-two-wheelers-india": {
+      "page_type": "insight",
+      "intent": "informational",
+      "market_id": "electric-two-wheelers",
+      "industry_id": "automotive",
+      "geographies_include": [
+        "india"
+      ],
+      "entities_include": [
+        "battery-swapping"
+      ],
+      "protection_rule_ids": [],
+      "eligibility": {
+        "as_source": true,
+        "as_target": true,
+        "source_reasons": [],
+        "target_reasons": []
+      }
+    },
+    "https://research.example.com/insights/charging-infrastructure-gaps-southeast-asia": {
+      "page_type": "insight",
+      "intent": "informational",
+      "market_id": "ev-charging",
+      "industry_id": "automotive",
+      "geographies_include": [
+        "southeast-asia",
+        "thailand",
+        "indonesia",
+        "vietnam",
+        "malaysia"
+      ],
+      "entities_include": [
+        "fast-charging"
+      ],
+      "protection_rule_ids": [],
+      "eligibility": {
+        "as_source": true,
+        "as_target": true,
+        "source_reasons": [],
+        "target_reasons": []
+      }
+    },
+    "https://research.example.com/insights/perovskite-solar-cells-commercialisation": {
+      "page_type": "insight",
+      "intent": "informational",
+      "market_id": "solar-power",
+      "industry_id": "energy",
+      "geographies_include": [
+        "vietnam"
+      ],
+      "entities_include": [
+        "perovskite",
+        "sunvale-energy"
+      ],
+      "protection_rule_ids": [],
+      "eligibility": {
+        "as_source": true,
+        "as_target": true,
+        "source_reasons": [],
+        "target_reasons": []
+      }
+    },
+    "https://research.example.com/insights/gcc-data-center-power-demand": {
+      "page_type": "insight",
+      "intent": "informational",
+      "market_id": "data-centers",
+      "industry_id": "technology",
+      "geographies_include": [
+        "middle-east",
+        "saudi-arabia",
+        "uae"
+      ],
+      "entities_include": [],
+      "protection_rule_ids": [],
+      "eligibility": {
+        "as_source": true,
+        "as_target": true,
+        "source_reasons": [],
+        "target_reasons": []
+      }
+    },
+    "https://research.example.com/insights/cold-chain-vaccine-distribution-india": {
+      "page_type": "insight",
+      "intent": "informational",
+      "market_id": "cold-chain",
+      "industry_id": "logistics",
+      "geographies_include": [
+        "india"
+      ],
+      "entities_include": [
+        "coldpath"
+      ],
+      "protection_rule_ids": [],
+      "eligibility": {
+        "as_source": true,
+        "as_target": true,
+        "source_reasons": [],
+        "target_reasons": []
+      },
+      "note": "Pharmaceutical mentions are secondary; cold chain is in the title and description."
+    },
+    "https://research.example.com/insights/digital-payments-lessons-southeast-asia": {
+      "page_type": "insight",
+      "intent": "informational",
+      "market_id": "fintech",
+      "industry_id": "financial-services",
+      "geographies_include": [
+        "india",
+        "philippines",
+        "indonesia",
+        "singapore"
+      ],
+      "entities_include": [
+        "upi-payments",
+        "paylane"
+      ],
+      "protection_rule_ids": [],
+      "eligibility": {
+        "as_source": true,
+        "as_target": true,
+        "source_reasons": [],
+        "target_reasons": []
+      }
+    },
+    "https://research.example.com/insights/last-mile-delivery-economics-thailand-vietnam": {
+      "page_type": "insight",
+      "intent": "informational",
+      "market_id": "ecommerce-logistics",
+      "industry_id": "logistics",
+      "geographies_include": [
+        "thailand",
+        "vietnam"
+      ],
+      "entities_include": [],
+      "protection_rule_ids": [],
+      "eligibility": {
+        "as_source": true,
+        "as_target": true,
+        "source_reasons": [],
+        "target_reasons": []
+      }
+    },
+    "https://research.example.com/insights/indonesia-nickel-battery-materials": {
+      "page_type": "insight",
+      "intent": "informational",
+      "market_id": "battery-materials",
+      "industry_id": "chemicals-materials",
+      "geographies_include": [
+        "indonesia",
+        "china"
+      ],
+      "entities_include": [],
+      "protection_rule_ids": [],
+      "eligibility": {
+        "as_source": true,
+        "as_target": true,
+        "source_reasons": [],
+        "target_reasons": []
+      }
+    },
+    "https://research.example.com/insights/semiconductor-supply-chain-shift-malaysia": {
+      "page_type": "insight",
+      "intent": "informational",
+      "market_id": "semiconductors",
+      "industry_id": "technology",
+      "geographies_include": [
+        "malaysia",
+        "vietnam",
+        "india"
+      ],
+      "entities_include": [
+        "nimbus-semi"
+      ],
+      "protection_rule_ids": [],
+      "eligibility": {
+        "as_source": true,
+        "as_target": true,
+        "source_reasons": [],
+        "target_reasons": []
+      }
+    },
+    "https://research.example.com/insights/diagnostics-chains-consolidation-india": {
+      "page_type": "insight",
+      "intent": "informational",
+      "market_id": "diagnostics",
+      "industry_id": "healthcare",
+      "geographies_include": [
+        "india"
+      ],
+      "entities_include": [],
+      "protection_rule_ids": [],
+      "eligibility": {
+        "as_source": true,
+        "as_target": true,
+        "source_reasons": [],
+        "target_reasons": []
+      }
+    },
+    "https://research.example.com/insights/fame-scheme-electric-vehicle-adoption-india": {
+      "page_type": "insight",
+      "intent": "informational",
+      "market_id": "electric-vehicles",
+      "industry_id": "automotive",
+      "geographies_include": [
+        "india"
+      ],
+      "entities_include": [
+        "fame-scheme"
+      ],
+      "protection_rule_ids": [],
+      "eligibility": {
+        "as_source": true,
+        "as_target": true,
+        "source_reasons": [],
+        "target_reasons": []
+      }
+    },
+    "https://research.example.com/insights/solid-state-batteries-outlook": {
+      "page_type": "insight",
+      "intent": "informational",
+      "entities_include": [
+        "solid-state-batteries",
+        "corecell"
+      ],
+      "protection_rule_ids": [],
+      "eligibility": {
+        "as_source": false,
+        "as_target": false,
+        "source_reasons": [
+          "not_published",
+          "thin_content"
+        ],
+        "target_reasons": [
+          "not_published"
+        ]
+      },
+      "note": "Draft; 87 words (< 120 source, >= 60 target). Market not asserted: one body mention only."
+    },
+    "https://research.example.com/insights/q3-market-update": {
+      "page_type": "insight",
+      "intent": "informational",
+      "protection_rule_ids": [],
+      "eligibility": {
+        "as_source": false,
+        "as_target": true,
+        "source_reasons": [
+          "thin_content"
+        ],
+        "target_reasons": []
+      },
+      "note": "82 words: between min_words_target (60) and min_words_source (120)."
+    },
+    "https://research.example.com/insights/webinar-recap-october": {
+      "page_type": "insight",
+      "intent": "informational",
+      "protection_rule_ids": [],
+      "eligibility": {
+        "as_source": false,
+        "as_target": false,
+        "source_reasons": [
+          "thin_content"
+        ],
+        "target_reasons": [
+          "thin_content"
+        ]
+      },
+      "note": "Thin: 23 words."
+    },
+    "https://research.example.com/about": {
+      "page_type": "corporate",
+      "intent": "corporate",
+      "protection_rule_ids": [],
+      "eligibility": {
+        "as_source": false,
+        "as_target": false,
+        "source_reasons": [
+          "page_type_excluded"
+        ],
+        "target_reasons": [
+          "page_type_excluded"
+        ]
+      }
+    },
+    "https://research.example.com/careers": {
+      "page_type": "corporate",
+      "intent": "corporate",
+      "protection_rule_ids": [],
+      "eligibility": {
+        "as_source": false,
+        "as_target": false,
+        "source_reasons": [
+          "page_type_excluded"
+        ],
+        "target_reasons": [
+          "page_type_excluded"
+        ]
+      }
+    },
+    "https://research.example.com/privacy": {
+      "page_type": "corporate",
+      "intent": "corporate",
+      "protection_rule_ids": [
+        "legal-pages"
+      ],
+      "eligibility": {
+        "as_source": false,
+        "as_target": false,
+        "source_reasons": [
+          "protected",
+          "page_type_excluded"
+        ],
+        "target_reasons": [
+          "protected",
+          "page_type_excluded"
+        ]
+      },
+      "note": "Legal path: corporate page-type rule AND the legal-pages protection rule."
+    },
+    "https://research.example.com/terms": {
+      "page_type": "corporate",
+      "intent": "corporate",
+      "protection_rule_ids": [
+        "legal-pages"
+      ],
+      "eligibility": {
+        "as_source": false,
+        "as_target": false,
+        "source_reasons": [
+          "protected",
+          "page_type_excluded"
+        ],
+        "target_reasons": [
+          "protected",
+          "page_type_excluded"
+        ]
+      }
+    },
+    "https://research.example.com/contact": {
+      "page_type": "transactional",
+      "intent": "transactional",
+      "protection_rule_ids": [],
+      "eligibility": {
+        "as_source": false,
+        "as_target": false,
+        "source_reasons": [
+          "page_type_excluded"
+        ],
+        "target_reasons": [
+          "page_type_excluded"
+        ]
+      }
+    }
+  }
+}

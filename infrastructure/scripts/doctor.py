@@ -23,7 +23,10 @@ import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
+
+if TYPE_CHECKING:
+    from ken_core.config import Settings
 
 Status = Literal["OK", "WARN", "FAIL", "INFO"]
 
@@ -199,13 +202,14 @@ def check_ollama() -> list[Row]:
     try:
         import httpx
 
-        from ken_contracts.model import ModelRole
         from ken_core.config import Settings
 
         settings = Settings()
         response = httpx.get(f"{settings.ollama_base_url}/api/tags", timeout=3.0, trust_env=False)
         response.raise_for_status()
-        installed = {m["name"] for m in response.json().get("models", [])}
+        models = response.json().get("models", [])
+        # name -> advertised capabilities (None when this Ollama is too old to say)
+        installed: dict[str, list[str] | None] = {m["name"]: m.get("capabilities") for m in models}
     except Exception as exc:
         return [Row("WARN", "ollama", f"unreachable ({type(exc).__name__}) — optional for now")]
 
@@ -216,15 +220,40 @@ def check_ollama() -> list[Row]:
             f"reachable at {settings.ollama_base_url}, provider={settings.model_provider}",
         )
     )
-    normalised = installed | {n.removesuffix(":latest") for n in installed}
+    rows.extend(model_role_rows(settings, installed))
+    return rows
+
+
+def model_role_rows(settings: Settings, installed: dict[str, list[str] | None]) -> list[Row]:
+    """One row per model role: OK when its model is pulled and fit for the role.
+
+    ``foo`` and ``foo:latest`` are the same Ollama model. The embedding role
+    additionally needs the ``embedding`` capability (a completion model's
+    hidden states are not embeddings); a missing model gets the exact pull
+    command as its hint.
+    """
+    from ken_contracts.model import ModelRole
+
+    def lookup(model: str) -> tuple[bool, list[str] | None]:
+        for name in (model, f"{model}:latest", model.removesuffix(":latest")):
+            if name in installed:
+                return True, installed[name]
+        return False, None
+
+    rows: list[Row] = []
     for role in ModelRole:
         model = settings.role_model(role)
-        present = model in normalised or f"{model}:latest" in installed
-        if present:
-            rows.append(Row("OK", f"model role {role.value}", model))
+        present, capabilities = lookup(model)
+        check = f"model role {role.value}"
+        needed = "embedding" if role is ModelRole.EMBEDDING else "completion"
+        if not present:
+            rows.append(Row("WARN", check, f"{model} — not pulled; run: ollama pull {model}"))
+        elif capabilities is not None and needed not in capabilities:
+            rows.append(
+                Row("WARN", check, f"{model} — installed but lacks the {needed!r} capability")
+            )
         else:
-            note = "not pulled — Phase 2" if role is ModelRole.EMBEDDING else "not pulled"
-            rows.append(Row("WARN", f"model role {role.value}", f"{model} — {note}"))
+            rows.append(Row("OK", check, model))
     return rows
 
 

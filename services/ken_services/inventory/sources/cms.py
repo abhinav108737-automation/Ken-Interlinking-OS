@@ -68,6 +68,25 @@ def _metadata(values: dict[str, Any]) -> dict[str, str]:
     return out
 
 
+CMS_PROTECTED_KEY: Final = "cms_protected"
+"""Assertion metadata set when the CMS flags a page protected (``CMSPage.protected``).
+
+The taxonomy policy's ``cms-protected`` rule matches ``{cms_protected: "true"}``,
+so a CMS-protected page becomes a POLICY protection in Phase 2 (ADR-0010 s.5)."""
+
+
+def _assertion_metadata(page: CMSPage) -> dict[str, str]:
+    """CMS metadata, plus ``cms_protected: "true"`` when the CMS protects the page.
+
+    The CMS's own flag wins over a same-named metadata key, but only ever in the
+    protecting direction: an unprotected page keeps whatever the CMS sent.
+    """
+    metadata = _metadata(page.metadata)
+    if page.protected:
+        metadata[CMS_PROTECTED_KEY] = "true"
+    return metadata
+
+
 class CMSContentSource:
     """:class:`~ken_contracts.inventory.ContentSourceProvider` over a CMS read API.
 
@@ -188,7 +207,7 @@ class CMSContentSource:
                     ),
                     published_at=_aware_or_none(page.published_at),
                     modified_at=_aware_or_none(page.updated_at),
-                    metadata=_metadata(page.metadata),
+                    metadata=_assertion_metadata(page),
                 ),
             )
         except ValidationError as exc:

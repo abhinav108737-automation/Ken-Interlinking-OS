@@ -35,8 +35,31 @@ if config.config_file_name is not None and config.attributes.get("configure_logg
 target_metadata = Base.metadata
 
 
+KNOWN_X_ARGS = frozenset({"dburl"})
+
+
+def _x_arguments() -> dict[str, str]:
+    """``-x key=value`` arguments, strictly parsed.
+
+    A shell that passes ``"-x dburl=..."`` as ONE word hands Alembic the key
+    ``" dburl"`` (leading space). Unrecognised, it used to be ignored, and the
+    run silently fell back to KEN_DATABASE_URL -- the dev database -- instead
+    of the intended test database (this happened once, in Phase 1). Keys are
+    therefore stripped, and an unknown key is an error, never a fallback.
+    """
+    raw = context.get_x_argument(as_dictionary=True)
+    parsed = {key.strip(): value.strip() for key, value in raw.items()}
+    unknown = sorted(set(parsed) - KNOWN_X_ARGS)
+    if unknown:
+        raise SystemExit(
+            f"unknown -x argument(s) {unknown}; supported: {sorted(KNOWN_X_ARGS)}. "
+            "Refusing to fall back to KEN_DATABASE_URL."
+        )
+    return parsed
+
+
 def _database_url() -> str:
-    x_args = context.get_x_argument(as_dictionary=True)
+    x_args = _x_arguments()
     url = x_args.get("dburl") or config.get_main_option("sqlalchemy.url")
     resolved = url or get_settings().database_url
     # Guard the URL actually used -- including a -x dburl= override -- before

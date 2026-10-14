@@ -71,6 +71,45 @@ export type ListIngestionRunIssuesQuery = NonNullable<
   operations["listIngestionRunIssues"]["parameters"]["query"]
 >;
 
+// Phase 2 content intelligence (ADR-0010 section 7). Read-only.
+export type IntelligenceCoverage = Schemas["IntelligenceCoverage"];
+export type TaxonomyView = Schemas["TaxonomyView"];
+export type TaxonomyNodeView = Schemas["TaxonomyNodeView"];
+export type PageTypeView = Schemas["PageTypeView"];
+export type PageIntelligenceView = Schemas["PageIntelligenceView"];
+export type PageAnalysis = Schemas["PageAnalysis"];
+export type PageEmbeddingInfo = Schemas["PageEmbeddingInfo"];
+export type PageProtectionView = Schemas["PageProtectionView"];
+export type LinkEligibility = Schemas["LinkEligibility"];
+export type IneligibilityReason = Schemas["IneligibilityReason"];
+export type Intent = Schemas["Intent"];
+export type ProtectionSource = Schemas["ProtectionSource"];
+export type EntityType = Schemas["EntityType"];
+export type TopicScore = Schemas["TopicScore"];
+export type GeographyMention = Schemas["GeographyMention"];
+export type EntityMention = Schemas["EntityMention"];
+export type SalientBlock = Schemas["SalientBlock"];
+export type SimilarPage = Schemas["SimilarPage"];
+export type PageRelationshipView = Schemas["PageRelationshipView"];
+export type RelationshipType = Schemas["RelationshipType"];
+export type JobKind = Schemas["JobKind"];
+export type JobRunSummary = Schemas["JobRunSummary"];
+export type JobRunDetail = Schemas["JobRunDetail"];
+
+export type SimilarPageList = Schemas["ListResponse_SimilarPage_"];
+export type RelationshipList = Schemas["ListResponse_PageRelationshipView_"];
+export type JobRunList = Schemas["ListResponse_JobRunSummary_"];
+
+export type ListTaxonomyNodePagesQuery = NonNullable<
+  operations["listTaxonomyNodePages"]["parameters"]["query"]
+>;
+export type ListPageRelationshipsQuery = NonNullable<
+  operations["listPageRelationships"]["parameters"]["query"]
+>;
+export type ListSimilarPagesQuery = NonNullable<operations["listSimilarPages"]["parameters"]["query"]>;
+export type SemanticSearchQuery = operations["semanticSearch"]["parameters"]["query"];
+export type ListJobRunsQuery = NonNullable<operations["listJobRuns"]["parameters"]["query"]>;
+
 export type ApiPath = keyof paths;
 
 export const DEFAULT_API_BASE_URL = "http://127.0.0.1:8000";
@@ -83,8 +122,9 @@ export const DEFAULT_TIMEOUT_MS = 5000;
  * - `invalid_argument` a path argument (id, version) was malformed; nothing was sent.
  * - `network`          the request never got an HTTP response (refused, DNS, reset).
  * - `timeout`          no response within the timeout.
- * - `api_error`        an error status the contract DOES declare for this path (404, 422)
- *                      with a contract `ErrorResponse` body; `code` is always set.
+ * - `api_error`        an error status the contract DOES declare for this path (404, 422,
+ *                      or 503 `model_unavailable` for semantic search) with a contract
+ *                      `ErrorResponse` body; `code` is always set.
  * - `http_status`      an HTTP status the contract does not define for this path.
  * - `invalid_body`     the body was not JSON or did not match the contract shape.
  */
@@ -106,6 +146,23 @@ export interface ApiError {
 /** True for a contract-declared 404 (`page_not_found` / `not_found`). */
 export function isNotFoundError(error: ApiError): boolean {
   return error.kind === "api_error" && error.status === 404;
+}
+
+/**
+ * True when a detail screen should answer "no such resource": a declared 404,
+ * an id the API rejects as malformed (422), or one the client refused to send.
+ */
+export function isMissingResourceError(error: ApiError): boolean {
+  return (
+    isNotFoundError(error) ||
+    error.kind === "invalid_argument" ||
+    (error.kind === "api_error" && error.status === 422)
+  );
+}
+
+/** True for semantic search's declared 503: the embedding model cannot be reached. */
+export function isModelUnavailableError(error: ApiError): boolean {
+  return error.kind === "api_error" && error.status === 503 && error.code === "model_unavailable";
 }
 
 export type ApiResult<T> =
@@ -185,6 +242,46 @@ export interface ApiClient {
     query?: ListIngestionRunIssuesQuery,
     options?: RequestOptions,
   ): Promise<ApiResult<IssueList>>;
+
+  // --- Phase 2 content intelligence: read-only -------------------------------
+
+  /** `GET /intelligence/coverage` — analysis/embedding/eligibility coverage. Contract: 200 only. */
+  getIntelligenceCoverage(options?: RequestOptions): Promise<ApiResult<IntelligenceCoverage>>;
+  /** `GET /intelligence/taxonomy` — the active taxonomy policy with page counts. Contract: 200 only. */
+  getTaxonomy(options?: RequestOptions): Promise<ApiResult<TaxonomyView>>;
+  /** `GET /intelligence/taxonomy/{node_id}/pages` — pages listing a market or geography. Contract: 200, 404, 422. */
+  listTaxonomyNodePages(
+    nodeId: string,
+    query?: ListTaxonomyNodePagesQuery,
+    options?: RequestOptions,
+  ): Promise<ApiResult<SimilarPageList>>;
+  /** `GET /intelligence/pages/{page_id}` — analysis, embedding, protections, eligibility. Contract: 200, 404, 422. */
+  getPageIntelligence(pageId: string, options?: RequestOptions): Promise<ApiResult<PageIntelligenceView>>;
+  /** `GET /intelligence/pages/{page_id}/similar` — nearest pages by stored embedding. Contract: 200, 404, 422. */
+  listSimilarPages(
+    pageId: string,
+    query?: ListSimilarPagesQuery,
+    options?: RequestOptions,
+  ): Promise<ApiResult<SimilarPageList>>;
+  /** `GET /intelligence/pages/{page_id}/relationships` — typed edges, strongest first. Contract: 200, 404, 422. */
+  listPageRelationships(
+    pageId: string,
+    query?: ListPageRelationshipsQuery,
+    options?: RequestOptions,
+  ): Promise<ApiResult<RelationshipList>>;
+  /**
+   * `GET /intelligence/search` — semantic search. Contract: 200, 422 and 503.
+   * A 503 is an `api_error` with code `model_unavailable` (see
+   * `isModelUnavailableError`): the embedding model could not be reached.
+   */
+  semanticSearch(query: SemanticSearchQuery, options?: RequestOptions): Promise<ApiResult<SimilarPageList>>;
+
+  // --- Generic job runs (ADR-0010 section 6): read-only ----------------------
+
+  /** `GET /jobs/runs` — batch job runs, newest first. Contract: 200, 422. */
+  listJobRuns(query?: ListJobRunsQuery, options?: RequestOptions): Promise<ApiResult<JobRunList>>;
+  /** `GET /jobs/runs/{run_id}` — one job run with its configuration snapshot. Contract: 200, 404, 422. */
+  getJobRun(runId: string, options?: RequestOptions): Promise<ApiResult<JobRunDetail>>;
 }
 
 // ---------------------------------------------------------------------------
@@ -492,6 +589,249 @@ export const isRunList = (value: unknown): value is RunList =>
 export const isIssueList = (value: unknown): value is IssueList =>
   isListResponse(value, isIngestionIssueView);
 
+// --- Intelligence guards -----------------------------------------------------
+// Same policy as above: every field the intelligence screens read is checked,
+// enum membership is left to lib/intelligence.ts presentations.
+
+function everyItem<T>(value: unknown, isItem: (item: unknown) => item is T): value is T[] {
+  return Array.isArray(value) && value.every(isItem);
+}
+
+export function isIntelligenceCoverage(value: unknown): value is IntelligenceCoverage {
+  return (
+    isObject(value) &&
+    [
+      "total_pages",
+      "analyzed_fresh",
+      "analyzed_stale",
+      "never_analyzed",
+      "embedded_fresh",
+      "embedded_stale_or_missing",
+      "protected",
+      "eligible_sources",
+      "eligible_targets",
+      "relationships",
+    ].every((key) => typeof value[key] === "number") &&
+    typeof value["analysis_version"] === "string" &&
+    typeof value["embedding_model"] === "string" &&
+    isNumberRecord(value["by_page_type"]) &&
+    isNumberRecord(value["by_industry"])
+  );
+}
+
+export function isTaxonomyNodeView(value: unknown): value is TaxonomyNodeView {
+  return (
+    isObject(value) &&
+    typeof value["id"] === "string" &&
+    typeof value["label"] === "string" &&
+    typeof value["kind"] === "string" &&
+    isNullableString(value["parent"]) &&
+    typeof value["depth"] === "number" &&
+    typeof value["page_count"] === "number"
+  );
+}
+
+export function isPageTypeView(value: unknown): value is PageTypeView {
+  return (
+    isObject(value) &&
+    typeof value["id"] === "string" &&
+    typeof value["label"] === "string" &&
+    typeof value["intent"] === "string" &&
+    typeof value["commercial_importance"] === "number" &&
+    typeof value["linkable_as_source"] === "boolean" &&
+    typeof value["linkable_as_target"] === "boolean" &&
+    typeof value["page_count"] === "number"
+  );
+}
+
+export function isTaxonomyView(value: unknown): value is TaxonomyView {
+  return (
+    isObject(value) &&
+    typeof value["version"] === "number" &&
+    typeof value["status"] === "string" &&
+    typeof value["source"] === "string" &&
+    typeof value["analysis_version"] === "string" &&
+    everyItem(value["markets"], isTaxonomyNodeView) &&
+    everyItem(value["geographies"], isTaxonomyNodeView) &&
+    everyItem(value["page_types"], isPageTypeView)
+  );
+}
+
+export function isSimilarPage(value: unknown): value is SimilarPage {
+  return (
+    isObject(value) &&
+    typeof value["page_id"] === "string" &&
+    typeof value["canonical_url"] === "string" &&
+    isNullableString(value["title"]) &&
+    typeof value["score"] === "number" &&
+    isNullableString(value["page_type"]) &&
+    isNullableString(value["market_id"])
+  );
+}
+
+export function isPageRelationshipView(value: unknown): value is PageRelationshipView {
+  return (
+    isObject(value) &&
+    typeof value["source_page_id"] === "string" &&
+    typeof value["source_page_version"] === "number" &&
+    typeof value["target_page_id"] === "string" &&
+    typeof value["target_page_version"] === "number" &&
+    typeof value["target_canonical_url"] === "string" &&
+    isNullableString(value["target_title"]) &&
+    typeof value["relationship_type"] === "string" &&
+    typeof value["weight"] === "number" &&
+    isObject(value["evidence"]) &&
+    typeof value["analysis_version"] === "string" &&
+    typeof value["computed_at"] === "string"
+  );
+}
+
+function isTopicScore(value: unknown): value is TopicScore {
+  return (
+    isObject(value) &&
+    typeof value["node_id"] === "string" &&
+    typeof value["label"] === "string" &&
+    typeof value["score"] === "number" &&
+    typeof value["depth"] === "number"
+  );
+}
+
+function isGeographyMention(value: unknown): value is GeographyMention {
+  return (
+    isObject(value) &&
+    typeof value["geo_id"] === "string" &&
+    typeof value["label"] === "string" &&
+    typeof value["kind"] === "string" &&
+    typeof value["score"] === "number"
+  );
+}
+
+function isEntityMention(value: unknown): value is EntityMention {
+  return (
+    isObject(value) &&
+    typeof value["entity_id"] === "string" &&
+    typeof value["label"] === "string" &&
+    typeof value["type"] === "string" &&
+    typeof value["mentions"] === "number"
+  );
+}
+
+function isSalientBlock(value: unknown): value is SalientBlock {
+  return (
+    isObject(value) &&
+    typeof value["block_id"] === "string" &&
+    typeof value["score"] === "number" &&
+    typeof value["text"] === "string"
+  );
+}
+
+export function isPageAnalysis(value: unknown): value is PageAnalysis {
+  return (
+    isObject(value) &&
+    typeof value["page_id"] === "string" &&
+    typeof value["page_version"] === "number" &&
+    typeof value["analysis_version"] === "string" &&
+    typeof value["extractor"] === "string" &&
+    typeof value["page_type"] === "string" &&
+    typeof value["intent"] === "string" &&
+    typeof value["commercial_importance"] === "number" &&
+    isNullableString(value["industry_id"]) &&
+    isNullableString(value["market_id"]) &&
+    everyItem(value["topics"], isTopicScore) &&
+    everyItem(value["geographies"], isGeographyMention) &&
+    everyItem(value["entities"], isEntityMention) &&
+    isStringArray(value["keywords"]) &&
+    typeof value["summary"] === "string" &&
+    everyItem(value["salient_blocks"], isSalientBlock)
+  );
+}
+
+export function isPageEmbeddingInfo(value: unknown): value is PageEmbeddingInfo {
+  return (
+    isObject(value) &&
+    typeof value["page_id"] === "string" &&
+    typeof value["page_version"] === "number" &&
+    typeof value["model"] === "string" &&
+    typeof value["provider"] === "string" &&
+    typeof value["dimensions"] === "number" &&
+    typeof value["recipe_version"] === "number" &&
+    typeof value["input_hash"] === "string" &&
+    typeof value["created_at"] === "string"
+  );
+}
+
+export function isPageProtectionView(value: unknown): value is PageProtectionView {
+  return (
+    isObject(value) &&
+    typeof value["id"] === "number" &&
+    typeof value["page_id"] === "string" &&
+    typeof value["source"] === "string" &&
+    isNullableString(value["rule_id"]) &&
+    typeof value["reason"] === "string" &&
+    typeof value["active"] === "boolean" &&
+    typeof value["created_by"] === "string" &&
+    typeof value["created_at"] === "string"
+  );
+}
+
+export function isLinkEligibility(value: unknown): value is LinkEligibility {
+  return (
+    isObject(value) &&
+    typeof value["as_source"] === "boolean" &&
+    typeof value["as_target"] === "boolean" &&
+    isStringArray(value["source_reasons"]) &&
+    isStringArray(value["target_reasons"])
+  );
+}
+
+export function isPageIntelligenceView(value: unknown): value is PageIntelligenceView {
+  return (
+    isObject(value) &&
+    typeof value["page_id"] === "string" &&
+    typeof value["canonical_url"] === "string" &&
+    isNullableString(value["title"]) &&
+    typeof value["current_version"] === "number" &&
+    (value["analysis"] === null || isPageAnalysis(value["analysis"])) &&
+    typeof value["analysis_fresh"] === "boolean" &&
+    (value["embedding"] === null || isPageEmbeddingInfo(value["embedding"])) &&
+    typeof value["embedding_fresh"] === "boolean" &&
+    everyItem(value["protections"], isPageProtectionView) &&
+    isLinkEligibility(value["eligibility"]) &&
+    isNumberRecord(value["relationship_counts"])
+  );
+}
+
+function hasJobRunSummaryFields(value: JsonObject): boolean {
+  return (
+    typeof value["id"] === "string" &&
+    typeof value["kind"] === "string" &&
+    typeof value["status"] === "string" &&
+    typeof value["triggered_by"] === "string" &&
+    typeof value["started_at"] === "string" &&
+    isNullableString(value["completed_at"]) &&
+    isNumberRecord(value["counters"])
+  );
+}
+
+export function isJobRunSummary(value: unknown): value is JobRunSummary {
+  return isObject(value) && hasJobRunSummaryFields(value);
+}
+
+export function isJobRunDetail(value: unknown): value is JobRunDetail {
+  return (
+    isObject(value) &&
+    hasJobRunSummaryFields(value) &&
+    isObject(value["config_snapshot"]) &&
+    isNullableString(value["failure_reason"])
+  );
+}
+
+export const isSimilarPageList = (value: unknown): value is SimilarPageList =>
+  isListResponse(value, isSimilarPage);
+export const isRelationshipList = (value: unknown): value is RelationshipList =>
+  isListResponse(value, isPageRelationshipView);
+export const isJobRunList = (value: unknown): value is JobRunList => isListResponse(value, isJobRunSummary);
+
 /** The contract's only error body. `details` may be absent from older servers. */
 export function isErrorResponse(value: unknown): value is ErrorResponse {
   return (
@@ -576,6 +916,17 @@ export function isSafePathId(value: unknown): value is string {
   return typeof value === "string" && PATH_ID.test(value);
 }
 
+/**
+ * Taxonomy node ids, exactly as the contract's `node_id` pattern. The leading
+ * alphanumeric means `.` / `..` can never be a whole segment, and `/`, `%`, `?`
+ * and `#` are not allowed at all.
+ */
+const NODE_ID = /^[a-z0-9][a-z0-9_.-]{0,99}$/;
+
+export function isSafeNodeId(value: unknown): value is string {
+  return typeof value === "string" && NODE_ID.test(value);
+}
+
 /** A concrete request: the contract path template (reported in errors) plus the real URL path. */
 interface ResolvedRequest {
   readonly path: ApiPath;
@@ -658,7 +1009,9 @@ async function getJson<T>(
           message:
             response.status === 404
               ? `The API reported that the requested ${path} resource does not exist.`
-              : `The API rejected the request to ${path} (HTTP ${response.status}).`,
+              : response.status === 503
+                ? `The API reported that a service needed for ${path} is unavailable (HTTP 503).`
+                : `The API rejected the request to ${path} (HTTP ${response.status}).`,
           ...(requestId === undefined ? {} : { requestId }),
         },
       };
@@ -732,7 +1085,7 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
     });
   }
 
-  /** Read-only inventory GET: 200 is data; 404/422 are contract `ErrorResponse`s. */
+  /** Read-only GET: 200 is data; `declaredErrors` (default 404/422) are contract `ErrorResponse`s. */
   function inventory<T>(
     path: ApiPath,
     urlPath: string,
@@ -808,6 +1161,61 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
       const path = "/inventory/runs/{run_id}/issues";
       if (!isSafePathId(runId)) return invalidArgument(path, "run id");
       return inventory(path, `/inventory/runs/${id(runId)}/issues`, isIssueList, query, callOptions);
+    },
+
+    getIntelligenceCoverage: (callOptions = {}) =>
+      inventory(
+        "/intelligence/coverage",
+        "/intelligence/coverage",
+        isIntelligenceCoverage,
+        undefined,
+        callOptions,
+        [],
+      ),
+
+    getTaxonomy: (callOptions = {}) =>
+      inventory("/intelligence/taxonomy", "/intelligence/taxonomy", isTaxonomyView, undefined, callOptions, []),
+
+    listTaxonomyNodePages: (nodeId, query, callOptions = {}) => {
+      const path = "/intelligence/taxonomy/{node_id}/pages";
+      if (!isSafeNodeId(nodeId)) return invalidArgument(path, "taxonomy node id");
+      return inventory(path, `/intelligence/taxonomy/${id(nodeId)}/pages`, isSimilarPageList, query, callOptions);
+    },
+
+    getPageIntelligence: (pageId, callOptions = {}) => {
+      const path = "/intelligence/pages/{page_id}";
+      if (!isSafePathId(pageId)) return invalidArgument(path, "page id");
+      return inventory(path, `/intelligence/pages/${id(pageId)}`, isPageIntelligenceView, undefined, callOptions);
+    },
+
+    listSimilarPages: (pageId, query, callOptions = {}) => {
+      const path = "/intelligence/pages/{page_id}/similar";
+      if (!isSafePathId(pageId)) return invalidArgument(path, "page id");
+      return inventory(path, `/intelligence/pages/${id(pageId)}/similar`, isSimilarPageList, query, callOptions);
+    },
+
+    listPageRelationships: (pageId, query, callOptions = {}) => {
+      const path = "/intelligence/pages/{page_id}/relationships";
+      if (!isSafePathId(pageId)) return invalidArgument(path, "page id");
+      return inventory(
+        path,
+        `/intelligence/pages/${id(pageId)}/relationships`,
+        isRelationshipList,
+        query,
+        callOptions,
+      );
+    },
+
+    semanticSearch: (query, callOptions = {}) =>
+      inventory("/intelligence/search", "/intelligence/search", isSimilarPageList, query, callOptions, [422, 503]),
+
+    listJobRuns: (query, callOptions = {}) =>
+      inventory("/jobs/runs", "/jobs/runs", isJobRunList, query, callOptions, [422]),
+
+    getJobRun: (runId, callOptions = {}) => {
+      const path = "/jobs/runs/{run_id}";
+      if (!isSafePathId(runId)) return invalidArgument(path, "run id");
+      return inventory(path, `/jobs/runs/${id(runId)}`, isJobRunDetail, undefined, callOptions);
     },
   };
 }

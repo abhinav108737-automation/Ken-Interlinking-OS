@@ -331,3 +331,21 @@ def test_taxonomy_rejects_dangling_references() -> None:
         intelligence.TaxonomyPolicy.model_validate(
             {**base, "markets": [{"id": "a", "label": "A"}, {"id": "a", "label": "B"}]}
         )
+
+
+def test_taxonomy_rejects_parent_cycles() -> None:
+    base = {
+        "policy": "taxonomy",
+        "version": 1,
+        "status": "t",
+        "source": "t",
+        "geographies": [],
+        "page_types": [
+            {"id": "other", "label": "o", "path_patterns": ["^/"], "intent": "unknown",
+             "commercial_importance": 0}
+        ],
+        "default_page_type": "other",
+    }  # fmt: skip
+    cycle = [{"id": "a", "label": "A", "parent": "b"}, {"id": "b", "label": "B", "parent": "a"}]
+    with pytest.raises(ValidationError, match="cycle"):
+        intelligence.TaxonomyPolicy.model_validate({**base, "markets": cycle})

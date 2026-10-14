@@ -8,12 +8,14 @@ from typing import Any
 
 import httpx
 import pytest
+import structlog
 from pydantic import BaseModel
 
 from ken_contracts.model import (
     GenerationOptions,
     Message,
     ModelProvider,
+    ModelProviderError,
     ModelRole,
     ModelSchemaViolationError,
     ModelTimeoutError,
@@ -279,7 +281,9 @@ async def test_embed_success_and_latest_equivalence() -> None:
     result = await provider.embed(texts=["a", "b"])
     assert result.dimensions == 3
     assert len(result.vectors) == 2
-    assert rec.bodies("/api/embed") == [{"model": EMBED, "input": ["a", "b"]}]
+    assert result.model == EMBED
+    # One request for the whole batch; truncate is explicit so long pages never error.
+    assert rec.bodies("/api/embed") == [{"model": EMBED, "input": ["a", "b"], "truncate": True}]
 
 
 async def test_embed_404_maps_to_unavailable() -> None:
@@ -291,6 +295,79 @@ async def test_embed_404_maps_to_unavailable() -> None:
     )
     with pytest.raises(ModelUnavailableError, match="404"):
         await _provider(rec).embed(texts=["a"])
+
+
+def _embed_routes(embed: Handler | list[httpx.Response]) -> Recorder:
+    return Recorder({"/api/tags": lambda _r: _tags((EMBED, ["embedding"])), "/api/embed": embed})
+
+
+async def test_embed_timeout_maps_to_model_timeout_error() -> None:
+    def slow(request: httpx.Request) -> httpx.Response:
+        raise httpx.ReadTimeout("timed out", request=request)
+
+    with pytest.raises(ModelTimeoutError, match="/api/embed"):
+        await _provider(_embed_routes(slow)).embed(texts=["a"])
+
+
+async def test_embed_unreachable_maps_to_unavailable() -> None:
+    def refuse(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("Connection refused", request=request)
+
+    with pytest.raises(ModelUnavailableError, match="unreachable"):
+        await _provider(_embed_routes(refuse)).embed(texts=["a"])
+    # Unreachable during verification too.
+    with pytest.raises(ModelUnavailableError, match="unreachable"):
+        await _provider(Recorder({"/api/tags": refuse})).embed(texts=["a"])
+
+
+@pytest.mark.parametrize(
+    ("embeddings", "texts"),
+    [
+        ([[0.1, 0.2]], ["a", "b"]),  # fewer vectors than inputs
+        ([[0.1, 0.2], [0.1, 0.2], [0.3, 0.4]], ["a", "b"]),  # more vectors than inputs
+        ([[0.1, 0.2], [0.1]], ["a", "b"]),  # ragged dimensions
+        ([[]], ["a"]),  # empty vector
+        ([], ["a"]),  # no vectors at all
+    ],
+)
+async def test_embed_inconsistent_vectors_are_provider_errors(
+    embeddings: list[list[float]], texts: list[str]
+) -> None:
+    rec = _embed_routes([httpx.Response(200, json={"model": EMBED, "embeddings": embeddings})])
+    with pytest.raises(ModelProviderError) as info:
+        await _provider(rec).embed(texts=texts)
+    # A malformed answer is NOT "unavailable": retrying elsewhere will not help.
+    assert not isinstance(info.value, ModelUnavailableError | ModelTimeoutError)
+
+
+async def test_embed_malformed_body_is_provider_error() -> None:
+    rec = _embed_routes([httpx.Response(200, json={"model": EMBED, "vectors": [[1.0]]})])
+    with pytest.raises(ModelProviderError, match="Malformed"):
+        await _provider(rec).embed(texts=["a"])
+
+
+async def test_embed_reply_for_a_different_model_is_provider_error() -> None:
+    rec = _embed_routes([httpx.Response(200, json={"model": "other:7b", "embeddings": [[1.0]]})])
+    with pytest.raises(ModelProviderError, match="other:7b"):
+        await _provider(rec).embed(texts=["a"])
+
+
+async def test_embed_never_logs_input_text() -> None:
+    secret = "CONFIDENTIAL page body about acquisitions"
+    rec = _embed_routes([httpx.Response(200, json={"model": EMBED, "embeddings": [[0.6, 0.8]]})])
+    with structlog.testing.capture_logs() as logs:
+        await _provider(rec).embed(texts=[secret])
+    [event] = [e for e in logs if e["event"] == "model.embed"]
+    assert event["count"] == 1
+    assert event["dimensions"] == 2
+    assert secret not in repr(logs)
+
+
+async def test_embed_empty_input_is_rejected_without_io() -> None:
+    rec = _embed_routes([])
+    with pytest.raises(ValueError, match="empty"):
+        await _provider(rec).embed(texts=[])
+    assert rec.requests == []
 
 
 # ------------------------------------------------------------- capabilities

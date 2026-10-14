@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+import json
 import math
+import os
+import subprocess
+import sys
 
 import pytest
 from pydantic import BaseModel, ValidationError
@@ -16,7 +20,7 @@ from ken_contracts.model import (
     ModelUnavailableError,
 )
 from ken_core.config import Settings
-from ken_core.providers.model.mock import MockModelProvider
+from ken_core.providers.model.mock import MockModelProvider, deterministic_vector
 
 
 class Verdict(BaseModel):
@@ -68,6 +72,74 @@ async def test_embed_shape_normalisation_and_stability(provider: MockModelProvid
     assert result.vectors[0] != result.vectors[1]
     again = await MockModelProvider(_settings()).embed(texts=["alpha"])
     assert again.vectors[0] == result.vectors[0]
+
+
+def _cos(a: list[float], b: list[float]) -> float:
+    return math.fsum(x * y for x, y in zip(a, b, strict=True))
+
+
+def test_feature_hashing_golden_vector() -> None:
+    """Pins the algorithm: any change to tokenising/hashing/signing fails here.
+
+    "internal linking" -> 3 features (2 unigrams + 1 bigram), each landing in a
+    distinct bucket of 8, so every non-zero entry is +-1/sqrt(3).
+    """
+    s = 1 / math.sqrt(3)
+    expected = [0.0, s, 0.0, 0.0, 0.0, 0.0, -s, s]
+    assert deterministic_vector("internal linking", 8) == pytest.approx(expected, abs=1e-12)
+
+
+def test_feature_hashing_is_lexically_meaningful() -> None:
+    a = deterministic_vector("Internal linking improves SEO for market research reports", 768)
+    b = deterministic_vector("Market research reports benefit from internal linking for SEO", 768)
+    c = deterministic_vector("The cat sat quietly on the warm kitchen mat", 768)
+    assert _cos(a, b) > 0.5
+    assert _cos(a, b) > _cos(a, c)
+    assert _cos(b, c) < _cos(a, b)
+    # Bigrams carry some word order: same words, different order, still close but not equal.
+    ab = deterministic_vector("research market", 768)
+    ba = deterministic_vector("market research", 768)
+    assert ab != ba
+    assert 0.0 < _cos(ab, ba) < 1.0
+
+
+def test_feature_hashing_normalises_case_and_unicode() -> None:
+    composed = "caf\u00e9 reports"  # e-acute as one code point
+    decomposed = "Cafe\u0301 REPORTS"  # e + combining acute; upper case
+    assert deterministic_vector(composed, 64) == deterministic_vector(decomposed, 64)
+    # Punctuation and whitespace are not features.
+    assert deterministic_vector("market, research!", 64) == deterministic_vector(
+        "  market   research ", 64
+    )
+
+
+@pytest.mark.parametrize("text", ["", "   ", "\n\t", "!!! ... ---"])
+def test_feature_hashing_empty_text_is_fixed_basis_vector(text: str) -> None:
+    assert deterministic_vector(text, 5) == [1.0, 0.0, 0.0, 0.0, 0.0]
+
+
+def test_feature_hashing_rejects_non_positive_dimensions() -> None:
+    with pytest.raises(ValueError, match="positive"):
+        deterministic_vector("x", 0)
+
+
+def test_feature_hashing_is_stable_across_processes() -> None:
+    """Never Python's salted hash(): a different PYTHONHASHSEED gives the same vector."""
+    code = (
+        "import json; from ken_core.providers.model.mock import deterministic_vector as d; "
+        "print(json.dumps(d('internal links between research pages', 32)))"
+    )
+    outputs = set()
+    for seed in ("1", "2"):
+        env = {**os.environ, "PYTHONHASHSEED": seed}
+        proc = subprocess.run(  # noqa: S603 - fixed argv: this interpreter, a literal script
+            [sys.executable, "-c", code], capture_output=True, text=True, env=env, check=True
+        )
+        outputs.add(proc.stdout.strip())
+    assert len(outputs) == 1
+    assert json.loads(outputs.pop()) == deterministic_vector(
+        "internal links between research pages", 32
+    )
 
 
 async def test_embedding_dimension_comes_from_settings() -> None:

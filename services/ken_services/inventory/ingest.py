@@ -43,6 +43,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, AsyncSession, async_sessionmaker
 
 from ken_contracts.events import EventEnvelope, EventName
+from ken_contracts.intelligence import ProtectionSource
 from ken_contracts.inventory import (
     EMITTED_BY_INGEST,
     MAX_URL_LENGTH,
@@ -63,12 +64,18 @@ from ken_contracts.inventory import (
     SourceDocument,
     SourceIssue,
     SourceSummary,
+    SourceType,
     UrlOutcome,
 )
+from ken_core.db.repositories import intelligence as protection_repo
 from ken_core.db.repositories import inventory as repo
 from ken_core.db.repositories.events import append_event
 from ken_core.logging import get_logger
 from ken_services.inventory.urls import InvalidUrlError
+
+CMS_PROTECTED_KEY: Final = "cms_protected"
+"""Metadata key a CMS-derived record uses to say the CMS protects the page."""
+CMS_PROTECTION_REASON: Final = "The CMS marks this page protected."
 
 logger = get_logger("ken_services.inventory.ingest")
 
@@ -562,6 +569,7 @@ class _Run:
             )
             await self._emit_page_event(session, EventName.PAGE_CREATED, page_id, page, 1, None)
             await self._observe(session, page, page_id, now)
+            await self._sync_cms_protection(session, page, page_id, now)
             tally.pages_created += 1
             return _Outcome.CREATED, page_id
 
@@ -592,6 +600,7 @@ class _Run:
         if state.content_hash == page.content_hash:
             await repo.touch_page(session, page_id=state.id, now=now)
             await self._observe(session, page, state.id, now)
+            await self._sync_cms_protection(session, page, state.id, now)
             tally.pages_unchanged += 1
             return _Outcome.UNCHANGED, state.id
 
@@ -602,8 +611,45 @@ class _Run:
         await repo.set_page_current(session, page_id=state.id, page=page, version=version, now=now)
         await self._emit_page_event(session, EventName.PAGE_UPDATED, state.id, page, version, state)
         await self._observe(session, page, state.id, now)
+        await self._sync_cms_protection(session, page, state.id, now)
         tally.pages_changed += 1
         return _Outcome.CHANGED, state.id
+
+    async def _sync_cms_protection(
+        self, session: AsyncSession, page: NormalizedPage, page_id: uuid.UUID, now: datetime
+    ) -> None:
+        """Mirror the CMS's own protection flag on EVERY document, changed or not.
+
+        Protection must never lag (ADR-0010 section 5). Metadata is not part of
+        the content hash, so a CMS switching ``protected`` on for unchanged
+        content creates no new version -- and Phase 2's policy rules, which run
+        on analysis, would not see it until the content changed. Only
+        CMS-derived records (a CMS read or a CMS export) can carry the flag; a
+        public-web crawl never creates or clears a CMS protection.
+        """
+        if page.source_type not in (SourceType.CMS, SourceType.FILE_EXPORT):
+            return
+        flagged = page.metadata.get(CMS_PROTECTED_KEY) == "true"
+        cms_rows = [
+            row
+            for row in await protection_repo.active_protections(session, page_id=page_id)
+            if row.source == ProtectionSource.CMS.value
+        ]
+        if flagged and not cms_rows:
+            await protection_repo.insert_protection(
+                session,
+                page_id=page_id,
+                source=ProtectionSource.CMS.value,
+                rule_id=None,
+                reason=CMS_PROTECTION_REASON,
+                created_by=EMITTED_BY_INGEST,
+                created_at=now,
+            )
+        elif not flagged:
+            for row in cms_rows:
+                await protection_repo.deactivate_protection(
+                    session, protection_id=row.id, deactivated_by=EMITTED_BY_INGEST, now=now
+                )
 
     async def _is_duplicate(
         self, session: AsyncSession, state: repo.PageState, authoritative: bool
