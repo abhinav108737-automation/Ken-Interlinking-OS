@@ -12,10 +12,32 @@ from uuid import uuid4
 import pytest
 from pydantic import BaseModel, ValidationError
 
-from ken_contracts import analytics, cms, common, errors, events, health, inventory, model
+from ken_contracts import (
+    analytics,
+    cms,
+    common,
+    errors,
+    events,
+    health,
+    intelligence,
+    inventory,
+    jobs,
+    model,
+)
 from ken_contracts.common import AsyncClosable, ContractModel
 
-CONTRACT_MODULES = [analytics, cms, common, errors, events, health, inventory, model]
+CONTRACT_MODULES = [
+    analytics,
+    cms,
+    common,
+    errors,
+    events,
+    health,
+    intelligence,
+    inventory,
+    jobs,
+    model,
+]
 
 
 def _contract_models() -> list[type[BaseModel]]:
@@ -94,6 +116,13 @@ def test_provider_protocols_are_closable(protocol: type) -> None:
         (inventory.InventoryReader, "list_runs"),
         (inventory.InventoryReader, "get_run"),
         (inventory.InventoryReader, "list_run_issues"),
+        (intelligence.IntelligenceReader, "get_page_intelligence"),
+        (intelligence.IntelligenceReader, "list_similar"),
+        (intelligence.IntelligenceReader, "list_relationships"),
+        (intelligence.IntelligenceReader, "list_topic_pages"),
+        (intelligence.IntelligenceReader, "semantic_search"),
+        (jobs.JobReader, "list_runs"),
+        (jobs.JobReader, "get_run"),
     ],
 )
 def test_protocol_methods_are_async_and_keyword_only(protocol: type, method: str) -> None:
@@ -256,3 +285,49 @@ def test_list_response_round_trips_through_json() -> None:
     assert again == page
     with pytest.raises(ValidationError):
         errors.PageInfo.model_validate({"total": 1, "limit": 1, "offset": 0, "surprise": 1})
+
+
+def test_event_vocabulary_beyond_trd_is_exactly_the_governed_additions() -> None:
+    """CONTRACTS rule 12: every name outside TRD section 15 is a recorded decision."""
+    trd_names = {
+        "page.created", "page.updated", "page.deleted", "crawl.completed",
+        "link.proposed", "link.approved", "link.rejected", "link.deployed",
+        "link.verified", "link.failed", "link.rolled_back", "analytics.updated",
+        "skill.proposed", "policy.proposed", "policy.promoted",
+    }  # fmt: skip
+    governed = {"worker.heartbeat", "skill.promoted", "job.completed"}
+    assert {e.value for e in events.EventName} == trd_names | governed
+
+
+def test_taxonomy_policy_file_validates() -> None:
+    from pathlib import Path
+
+    import yaml
+
+    path = Path(__file__).resolve().parents[2] / "policies" / "taxonomy" / "taxonomy.v1.yaml"
+    policy = intelligence.TaxonomyPolicy.model_validate(yaml.safe_load(path.read_text()))
+    assert policy.version == 1
+    assert intelligence.analysis_version(policy.version) == "tax1-alg1"
+
+
+def test_taxonomy_rejects_dangling_references() -> None:
+    base = {
+        "policy": "taxonomy",
+        "version": 1,
+        "status": "t",
+        "source": "t",
+        "geographies": [],
+        "page_types": [
+            {"id": "other", "label": "o", "path_patterns": ["^/"], "intent": "unknown",
+             "commercial_importance": 0}
+        ],
+        "default_page_type": "other",
+    }  # fmt: skip
+    with pytest.raises(ValidationError):
+        intelligence.TaxonomyPolicy.model_validate(
+            {**base, "markets": [{"id": "a", "label": "A", "parent": "missing"}]}
+        )
+    with pytest.raises(ValidationError):
+        intelligence.TaxonomyPolicy.model_validate(
+            {**base, "markets": [{"id": "a", "label": "A"}, {"id": "a", "label": "B"}]}
+        )

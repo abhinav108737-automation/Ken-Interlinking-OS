@@ -92,6 +92,45 @@
         "title": "DependencyCheck",
         "type": "object"
       },
+      "EntityMention": {
+        "additionalProperties": false,
+        "properties": {
+          "entity_id": {
+            "title": "Entity Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "mentions": {
+            "minimum": 1.0,
+            "title": "Mentions",
+            "type": "integer"
+          },
+          "type": {
+            "$ref": "#/components/schemas/EntityType"
+          }
+        },
+        "required": [
+          "entity_id",
+          "label",
+          "type",
+          "mentions"
+        ],
+        "title": "EntityMention",
+        "type": "object"
+      },
+      "EntityType": {
+        "enum": [
+          "company",
+          "technology",
+          "product",
+          "organization"
+        ],
+        "title": "EntityType",
+        "type": "string"
+      },
       "ErrorCode": {
         "description": "Stable machine-readable error codes.\n\nCodes are ``snake_case``. A client may branch on a code but must never\nbranch on ``message``, which is human-readable and may be reworded at any\ntime. Adding a member in a later phase is additive and non-breaking.",
         "enum": [
@@ -305,6 +344,41 @@
         "title": "ExistingLinkView",
         "type": "object"
       },
+      "GeographyMention": {
+        "additionalProperties": false,
+        "properties": {
+          "geo_id": {
+            "title": "Geo Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "global",
+              "region",
+              "country"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "score": {
+            "minimum": 0.0,
+            "title": "Score",
+            "type": "number"
+          }
+        },
+        "required": [
+          "geo_id",
+          "label",
+          "kind",
+          "score"
+        ],
+        "title": "GeographyMention",
+        "type": "object"
+      },
       "Heading": {
         "additionalProperties": false,
         "properties": {
@@ -372,6 +446,23 @@
           "skipped"
         ],
         "title": "HealthStatus",
+        "type": "string"
+      },
+      "IneligibilityReason": {
+        "description": "Why a page cannot be a link source or target right now.",
+        "enum": [
+          "not_published",
+          "gone",
+          "protected",
+          "noindex",
+          "not_canonical",
+          "http_not_ok",
+          "thin_content",
+          "page_type_excluded",
+          "not_analyzed",
+          "stale_analysis"
+        ],
+        "title": "IneligibilityReason",
         "type": "string"
       },
       "IngestionIssueView": {
@@ -580,6 +671,114 @@
         "title": "IngestionRunSummary",
         "type": "object"
       },
+      "IntelligenceCoverage": {
+        "additionalProperties": false,
+        "properties": {
+          "analysis_version": {
+            "title": "Analysis Version",
+            "type": "string"
+          },
+          "analyzed_fresh": {
+            "minimum": 0.0,
+            "title": "Analyzed Fresh",
+            "type": "integer"
+          },
+          "analyzed_stale": {
+            "minimum": 0.0,
+            "title": "Analyzed Stale",
+            "type": "integer"
+          },
+          "by_industry": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "By Industry",
+            "type": "object"
+          },
+          "by_page_type": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "By Page Type",
+            "type": "object"
+          },
+          "eligible_sources": {
+            "minimum": 0.0,
+            "title": "Eligible Sources",
+            "type": "integer"
+          },
+          "eligible_targets": {
+            "minimum": 0.0,
+            "title": "Eligible Targets",
+            "type": "integer"
+          },
+          "embedded_fresh": {
+            "minimum": 0.0,
+            "title": "Embedded Fresh",
+            "type": "integer"
+          },
+          "embedded_stale_or_missing": {
+            "minimum": 0.0,
+            "title": "Embedded Stale Or Missing",
+            "type": "integer"
+          },
+          "embedding_model": {
+            "title": "Embedding Model",
+            "type": "string"
+          },
+          "never_analyzed": {
+            "minimum": 0.0,
+            "title": "Never Analyzed",
+            "type": "integer"
+          },
+          "protected": {
+            "minimum": 0.0,
+            "title": "Protected",
+            "type": "integer"
+          },
+          "relationships": {
+            "minimum": 0.0,
+            "title": "Relationships",
+            "type": "integer"
+          },
+          "total_pages": {
+            "minimum": 0.0,
+            "title": "Total Pages",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total_pages",
+          "analysis_version",
+          "analyzed_fresh",
+          "analyzed_stale",
+          "never_analyzed",
+          "embedding_model",
+          "embedded_fresh",
+          "embedded_stale_or_missing",
+          "protected",
+          "eligible_sources",
+          "eligible_targets",
+          "relationships",
+          "by_page_type",
+          "by_industry"
+        ],
+        "title": "IntelligenceCoverage",
+        "type": "object"
+      },
+      "Intent": {
+        "description": "Reader/search intent of a page (PRD section 7.2).",
+        "enum": [
+          "commercial_research",
+          "informational",
+          "navigational",
+          "transactional",
+          "corporate",
+          "unknown"
+        ],
+        "title": "Intent",
+        "type": "string"
+      },
       "IssueCode": {
         "description": "Stable machine-readable reason for one per-URL or per-record problem.\n\nAdding a member is additive and non-breaking.",
         "enum": [
@@ -616,6 +815,190 @@
         ],
         "title": "IssueSeverity",
         "type": "string"
+      },
+      "JobKind": {
+        "description": "What a job run does. Adding a member is additive (one per phase).",
+        "enum": [
+          "analysis",
+          "recommendation",
+          "agent",
+          "verification",
+          "analytics_import",
+          "evaluation",
+          "autonomy_shadow"
+        ],
+        "title": "JobKind",
+        "type": "string"
+      },
+      "JobRunDetail": {
+        "additionalProperties": false,
+        "properties": {
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "config_snapshot": {
+            "additionalProperties": true,
+            "description": "Secret-free run configuration.",
+            "title": "Config Snapshot",
+            "type": "object"
+          },
+          "counters": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "description": "Kind-specific counters; names are documented per kind.",
+            "title": "Counters",
+            "type": "object"
+          },
+          "failure_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Safe summary when status is failed. Never exception text.",
+            "title": "Failure Reason"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/JobKind"
+          },
+          "started_at": {
+            "format": "date-time",
+            "title": "Started At",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RunStatus"
+          },
+          "triggered_by": {
+            "description": "Actor or component that started the run, e.g. 'cli'.",
+            "title": "Triggered By",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "status",
+          "triggered_by",
+          "started_at",
+          "completed_at",
+          "counters",
+          "config_snapshot",
+          "failure_reason"
+        ],
+        "title": "JobRunDetail",
+        "type": "object"
+      },
+      "JobRunSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "counters": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "description": "Kind-specific counters; names are documented per kind.",
+            "title": "Counters",
+            "type": "object"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/JobKind"
+          },
+          "started_at": {
+            "format": "date-time",
+            "title": "Started At",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RunStatus"
+          },
+          "triggered_by": {
+            "description": "Actor or component that started the run, e.g. 'cli'.",
+            "title": "Triggered By",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "status",
+          "triggered_by",
+          "started_at",
+          "completed_at",
+          "counters"
+        ],
+        "title": "JobRunSummary",
+        "type": "object"
+      },
+      "LinkEligibility": {
+        "additionalProperties": false,
+        "description": "Whether a page may currently be a link source / target, and why not.",
+        "properties": {
+          "as_source": {
+            "title": "As Source",
+            "type": "boolean"
+          },
+          "as_target": {
+            "title": "As Target",
+            "type": "boolean"
+          },
+          "source_reasons": {
+            "items": {
+              "$ref": "#/components/schemas/IneligibilityReason"
+            },
+            "title": "Source Reasons",
+            "type": "array"
+          },
+          "target_reasons": {
+            "items": {
+              "$ref": "#/components/schemas/IneligibilityReason"
+            },
+            "title": "Target Reasons",
+            "type": "array"
+          }
+        },
+        "required": [
+          "as_source",
+          "as_target",
+          "source_reasons",
+          "target_reasons"
+        ],
+        "title": "LinkEligibility",
+        "type": "object"
       },
       "LinkResolution": {
         "description": "Whether an internal link's destination is known (computed at read time).\n\n``resolved``        the destination URL has led to a known, live page (the mapping\n                    survives a later transient failure such as a timeout)\n``broken``          the destination's latest answer was 404/410, or it leads to a gone page\n``unresolved``      never led to a page: beyond crawl limits, robots-blocked or errored\n``not_applicable``  the link is not internal",
@@ -703,6 +1086,48 @@
         "title": "ListResponse[IngestionRunSummary]",
         "type": "object"
       },
+      "ListResponse_JobRunSummary_": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/JobRunSummary"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          }
+        },
+        "required": [
+          "items",
+          "page"
+        ],
+        "title": "ListResponse[JobRunSummary]",
+        "type": "object"
+      },
+      "ListResponse_PageRelationshipView_": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PageRelationshipView"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          }
+        },
+        "required": [
+          "items",
+          "page"
+        ],
+        "title": "ListResponse[PageRelationshipView]",
+        "type": "object"
+      },
       "ListResponse_PageSummary_": {
         "additionalProperties": false,
         "properties": {
@@ -745,6 +1170,27 @@
         "title": "ListResponse[PageVersionSummary]",
         "type": "object"
       },
+      "ListResponse_SimilarPage_": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/SimilarPage"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          }
+        },
+        "required": [
+          "items",
+          "page"
+        ],
+        "title": "ListResponse[SimilarPage]",
+        "type": "object"
+      },
       "MetaResponse": {
         "additionalProperties": false,
         "description": "``GET /meta`` -- build and configuration facts.\n\n``settings`` is an explicit allowlist built in the router. Secrets are\nnever placed in this payload; see docs/CONTRACTS.md.",
@@ -781,6 +1227,136 @@
           "settings"
         ],
         "title": "MetaResponse",
+        "type": "object"
+      },
+      "PageAnalysis": {
+        "additionalProperties": false,
+        "description": "Deterministic understanding of one page version.",
+        "properties": {
+          "analysis_version": {
+            "title": "Analysis Version",
+            "type": "string"
+          },
+          "commercial_importance": {
+            "maximum": 3.0,
+            "minimum": 0.0,
+            "title": "Commercial Importance",
+            "type": "integer"
+          },
+          "entities": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/EntityMention"
+            },
+            "title": "Entities",
+            "type": "array"
+          },
+          "extractor": {
+            "const": "deterministic",
+            "default": "deterministic",
+            "title": "Extractor",
+            "type": "string"
+          },
+          "geographies": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/GeographyMention"
+            },
+            "title": "Geographies",
+            "type": "array"
+          },
+          "industry_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Top-level market (industry).",
+            "title": "Industry Id"
+          },
+          "intent": {
+            "$ref": "#/components/schemas/Intent"
+          },
+          "keywords": {
+            "default": [],
+            "description": "Top salient terms, deterministic.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Keywords",
+            "type": "array"
+          },
+          "market_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Most specific confident market.",
+            "title": "Market Id"
+          },
+          "page_id": {
+            "format": "uuid",
+            "title": "Page Id",
+            "type": "string"
+          },
+          "page_type": {
+            "title": "Page Type",
+            "type": "string"
+          },
+          "page_version": {
+            "minimum": 1.0,
+            "title": "Page Version",
+            "type": "integer"
+          },
+          "salient_blocks": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/SalientBlock"
+            },
+            "title": "Salient Blocks",
+            "type": "array"
+          },
+          "summary": {
+            "default": "",
+            "description": "Extractive, from page text.",
+            "maxLength": 600,
+            "title": "Summary",
+            "type": "string"
+          },
+          "topics": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/TopicScore"
+            },
+            "title": "Topics",
+            "type": "array"
+          }
+        },
+        "required": [
+          "page_id",
+          "page_version",
+          "analysis_version",
+          "extractor",
+          "page_type",
+          "intent",
+          "commercial_importance",
+          "industry_id",
+          "market_id",
+          "topics",
+          "geographies",
+          "entities",
+          "keywords",
+          "summary",
+          "salient_blocks"
+        ],
+        "title": "PageAnalysis",
         "type": "object"
       },
       "PageDetail": {
@@ -921,6 +1497,64 @@
         "title": "PageDetail",
         "type": "object"
       },
+      "PageEmbeddingInfo": {
+        "additionalProperties": false,
+        "description": "Metadata of a stored page embedding (the vector itself is never sent to clients).",
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "dimensions": {
+            "description": "As reported by the provider, never assumed.",
+            "exclusiveMinimum": 0.0,
+            "title": "Dimensions",
+            "type": "integer"
+          },
+          "input_hash": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Input Hash",
+            "type": "string"
+          },
+          "model": {
+            "description": "Configured model of the EMBEDDING role at write time.",
+            "title": "Model",
+            "type": "string"
+          },
+          "page_id": {
+            "format": "uuid",
+            "title": "Page Id",
+            "type": "string"
+          },
+          "page_version": {
+            "minimum": 1.0,
+            "title": "Page Version",
+            "type": "integer"
+          },
+          "provider": {
+            "title": "Provider",
+            "type": "string"
+          },
+          "recipe_version": {
+            "minimum": 1.0,
+            "title": "Recipe Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "page_id",
+          "page_version",
+          "model",
+          "provider",
+          "dimensions",
+          "recipe_version",
+          "input_hash",
+          "created_at"
+        ],
+        "title": "PageEmbeddingInfo",
+        "type": "object"
+      },
       "PageInfo": {
         "additionalProperties": false,
         "description": "Pagination metadata.\n\nOffset/limit rather than cursors: the Phase 5 review inbox needs jumpable\npages and stable total counts more than it needs consistency under\nconcurrent insertion.",
@@ -955,6 +1589,222 @@
           "has_more"
         ],
         "title": "PageInfo",
+        "type": "object"
+      },
+      "PageIntelligenceView": {
+        "additionalProperties": false,
+        "properties": {
+          "analysis": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PageAnalysis"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Latest analysis of the CURRENT version, if any."
+          },
+          "analysis_fresh": {
+            "description": "An analysis exists for the current version and current analysis version.",
+            "title": "Analysis Fresh",
+            "type": "boolean"
+          },
+          "canonical_url": {
+            "title": "Canonical Url",
+            "type": "string"
+          },
+          "current_version": {
+            "minimum": 1.0,
+            "title": "Current Version",
+            "type": "integer"
+          },
+          "eligibility": {
+            "$ref": "#/components/schemas/LinkEligibility"
+          },
+          "embedding": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PageEmbeddingInfo"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "embedding_fresh": {
+            "title": "Embedding Fresh",
+            "type": "boolean"
+          },
+          "page_id": {
+            "format": "uuid",
+            "title": "Page Id",
+            "type": "string"
+          },
+          "protections": {
+            "items": {
+              "$ref": "#/components/schemas/PageProtectionView"
+            },
+            "title": "Protections",
+            "type": "array"
+          },
+          "relationship_counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Relationship Counts",
+            "type": "object"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "required": [
+          "page_id",
+          "canonical_url",
+          "title",
+          "current_version",
+          "analysis",
+          "analysis_fresh",
+          "embedding",
+          "embedding_fresh",
+          "protections",
+          "eligibility",
+          "relationship_counts"
+        ],
+        "title": "PageIntelligenceView",
+        "type": "object"
+      },
+      "PageProtectionView": {
+        "additionalProperties": false,
+        "properties": {
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by": {
+            "title": "Created By",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "page_id": {
+            "format": "uuid",
+            "title": "Page Id",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "rule_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rule Id"
+          },
+          "source": {
+            "$ref": "#/components/schemas/ProtectionSource"
+          }
+        },
+        "required": [
+          "id",
+          "page_id",
+          "source",
+          "rule_id",
+          "reason",
+          "active",
+          "created_by",
+          "created_at"
+        ],
+        "title": "PageProtectionView",
+        "type": "object"
+      },
+      "PageRelationshipView": {
+        "additionalProperties": false,
+        "properties": {
+          "analysis_version": {
+            "title": "Analysis Version",
+            "type": "string"
+          },
+          "computed_at": {
+            "format": "date-time",
+            "title": "Computed At",
+            "type": "string"
+          },
+          "evidence": {
+            "additionalProperties": true,
+            "description": "Why: shared node ids, cosine score, ... (no free text).",
+            "title": "Evidence",
+            "type": "object"
+          },
+          "relationship_type": {
+            "$ref": "#/components/schemas/RelationshipType"
+          },
+          "source_page_id": {
+            "format": "uuid",
+            "title": "Source Page Id",
+            "type": "string"
+          },
+          "target_canonical_url": {
+            "title": "Target Canonical Url",
+            "type": "string"
+          },
+          "target_page_id": {
+            "format": "uuid",
+            "title": "Target Page Id",
+            "type": "string"
+          },
+          "target_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Title"
+          },
+          "weight": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Weight",
+            "type": "number"
+          }
+        },
+        "required": [
+          "source_page_id",
+          "target_page_id",
+          "target_canonical_url",
+          "target_title",
+          "relationship_type",
+          "weight",
+          "evidence",
+          "analysis_version",
+          "computed_at"
+        ],
+        "title": "PageRelationshipView",
         "type": "object"
       },
       "PageSummary": {
@@ -1090,6 +1940,50 @@
           "gone_at"
         ],
         "title": "PageSummary",
+        "type": "object"
+      },
+      "PageTypeView": {
+        "additionalProperties": false,
+        "properties": {
+          "commercial_importance": {
+            "title": "Commercial Importance",
+            "type": "integer"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "intent": {
+            "$ref": "#/components/schemas/Intent"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "linkable_as_source": {
+            "title": "Linkable As Source",
+            "type": "boolean"
+          },
+          "linkable_as_target": {
+            "title": "Linkable As Target",
+            "type": "boolean"
+          },
+          "page_count": {
+            "minimum": 0.0,
+            "title": "Page Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "intent",
+          "commercial_importance",
+          "linkable_as_source",
+          "linkable_as_target",
+          "page_count"
+        ],
+        "title": "PageTypeView",
         "type": "object"
       },
       "PageVersionDetail": {
@@ -1459,6 +2353,16 @@
         "title": "PageVersionSummary",
         "type": "object"
       },
+      "ProtectionSource": {
+        "description": "Who declared a page protected. Any active protection blocks every mutation.",
+        "enum": [
+          "policy",
+          "cms",
+          "manual"
+        ],
+        "title": "ProtectionSource",
+        "type": "string"
+      },
       "PublicationState": {
         "description": "Publication state as the source reports it.\n\nThe public web crawler can only observe ``published`` (a page served with\nHTTP 200). Drafts are visible only through an export or a CMS read API.\n``unknown`` is the honest default when a source does not say.",
         "enum": [
@@ -1516,6 +2420,24 @@
           "not_ready"
         ],
         "title": "ReadinessStatus",
+        "type": "string"
+      },
+      "RelationshipType": {
+        "description": "Explainable page relationships (PRD section 7.3) plus semantic similarity.",
+        "enum": [
+          "same_market",
+          "parent_market",
+          "submarket",
+          "related_market",
+          "same_geography",
+          "regional_parent",
+          "supply_chain_upstream",
+          "supply_chain_downstream",
+          "complementary_market",
+          "industry_adjacency",
+          "semantic_similar"
+        ],
+        "title": "RelationshipType",
         "type": "string"
       },
       "RunCounters": {
@@ -1616,6 +2538,32 @@
         "title": "RunStatus",
         "type": "string"
       },
+      "SalientBlock": {
+        "additionalProperties": false,
+        "properties": {
+          "block_id": {
+            "title": "Block Id",
+            "type": "string"
+          },
+          "score": {
+            "minimum": 0.0,
+            "title": "Score",
+            "type": "number"
+          },
+          "text": {
+            "maxLength": 600,
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "block_id",
+          "score",
+          "text"
+        ],
+        "title": "SalientBlock",
+        "type": "object"
+      },
       "ServiceIdentity": {
         "additionalProperties": false,
         "description": "Who is answering. Present in every health, readiness and meta payload.",
@@ -1657,6 +2605,70 @@
         "title": "ServiceIdentity",
         "type": "object"
       },
+      "SimilarPage": {
+        "additionalProperties": false,
+        "properties": {
+          "canonical_url": {
+            "title": "Canonical Url",
+            "type": "string"
+          },
+          "market_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Market Id"
+          },
+          "page_id": {
+            "format": "uuid",
+            "title": "Page Id",
+            "type": "string"
+          },
+          "page_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page Type"
+          },
+          "score": {
+            "description": "Cosine similarity.",
+            "maximum": 1.0,
+            "minimum": -1.0,
+            "title": "Score",
+            "type": "number"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "required": [
+          "page_id",
+          "canonical_url",
+          "title",
+          "score",
+          "page_type",
+          "market_id"
+        ],
+        "title": "SimilarPage",
+        "type": "object"
+      },
       "SourceType": {
         "description": "Where a document came from. Recorded on every run and page version.",
         "enum": [
@@ -1666,6 +2678,147 @@
         ],
         "title": "SourceType",
         "type": "string"
+      },
+      "TaxonomyNodeView": {
+        "additionalProperties": false,
+        "properties": {
+          "depth": {
+            "minimum": 0.0,
+            "title": "Depth",
+            "type": "integer"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "market",
+              "global",
+              "region",
+              "country"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "page_count": {
+            "description": "Pages whose fresh analysis lists this node.",
+            "minimum": 0.0,
+            "title": "Page Count",
+            "type": "integer"
+          },
+          "parent": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "kind",
+          "parent",
+          "depth",
+          "page_count"
+        ],
+        "title": "TaxonomyNodeView",
+        "type": "object"
+      },
+      "TaxonomyView": {
+        "additionalProperties": false,
+        "properties": {
+          "analysis_version": {
+            "title": "Analysis Version",
+            "type": "string"
+          },
+          "geographies": {
+            "items": {
+              "$ref": "#/components/schemas/TaxonomyNodeView"
+            },
+            "title": "Geographies",
+            "type": "array"
+          },
+          "markets": {
+            "items": {
+              "$ref": "#/components/schemas/TaxonomyNodeView"
+            },
+            "title": "Markets",
+            "type": "array"
+          },
+          "page_types": {
+            "items": {
+              "$ref": "#/components/schemas/PageTypeView"
+            },
+            "title": "Page Types",
+            "type": "array"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version",
+          "status",
+          "source",
+          "analysis_version",
+          "markets",
+          "geographies",
+          "page_types"
+        ],
+        "title": "TaxonomyView",
+        "type": "object"
+      },
+      "TopicScore": {
+        "additionalProperties": false,
+        "properties": {
+          "depth": {
+            "description": "0 = industry; deeper = more specific market.",
+            "minimum": 0.0,
+            "title": "Depth",
+            "type": "integer"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "node_id": {
+            "title": "Node Id",
+            "type": "string"
+          },
+          "score": {
+            "description": "Location-weighted mention score.",
+            "minimum": 0.0,
+            "title": "Score",
+            "type": "number"
+          }
+        },
+        "required": [
+          "node_id",
+          "label",
+          "score",
+          "depth"
+        ],
+        "title": "TopicScore",
+        "type": "object"
       }
     }
   },
@@ -1693,6 +2846,403 @@
         "summary": "Liveness. Performs zero I/O.",
         "tags": [
           "system"
+        ]
+      }
+    },
+    "/intelligence/coverage": {
+      "get": {
+        "operationId": "getIntelligenceCoverage",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IntelligenceCoverage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "How much of the inventory is analysed, embedded, protected and eligible.",
+        "tags": [
+          "intelligence"
+        ]
+      }
+    },
+    "/intelligence/pages/{page_id}": {
+      "get": {
+        "operationId": "getPageIntelligence",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "page_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Page Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageIntelligenceView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A parameter is invalid."
+          }
+        },
+        "summary": "Analysis, embedding, protections and eligibility of one page.",
+        "tags": [
+          "intelligence"
+        ]
+      }
+    },
+    "/intelligence/pages/{page_id}/relationships": {
+      "get": {
+        "operationId": "listPageRelationships",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "page_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Page Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "maximum": 10000000,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "relationship_type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/RelationshipType"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Relationship Type"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListResponse_PageRelationshipView_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A parameter is invalid."
+          }
+        },
+        "summary": "Typed relationships from one page, strongest first.",
+        "tags": [
+          "intelligence"
+        ]
+      }
+    },
+    "/intelligence/pages/{page_id}/similar": {
+      "get": {
+        "operationId": "listSimilarPages",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "page_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Page Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "maximum": 50,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListResponse_SimilarPage_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A parameter is invalid."
+          }
+        },
+        "summary": "Nearest pages by stored embedding.",
+        "tags": [
+          "intelligence"
+        ]
+      }
+    },
+    "/intelligence/search": {
+      "get": {
+        "operationId": "semanticSearch",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": true,
+            "schema": {
+              "maxLength": 500,
+              "minLength": 2,
+              "pattern": "^[^\\x00]*$",
+              "title": "Q",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "maximum": 50,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListResponse_SimilarPage_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A parameter is invalid."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The embedding model is unavailable."
+          }
+        },
+        "summary": "Semantic search over current page embeddings.",
+        "tags": [
+          "intelligence"
+        ]
+      }
+    },
+    "/intelligence/taxonomy": {
+      "get": {
+        "operationId": "getTaxonomy",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaxonomyView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "The active taxonomy policy with page counts.",
+        "tags": [
+          "intelligence"
+        ]
+      }
+    },
+    "/intelligence/taxonomy/{node_id}/pages": {
+      "get": {
+        "operationId": "listTaxonomyNodePages",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "node_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-z0-9][a-z0-9_.-]{0,99}$",
+              "title": "Node Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "maximum": 10000000,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListResponse_SimilarPage_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A parameter is invalid."
+          }
+        },
+        "summary": "Pages whose current analysis lists a market or geography.",
+        "tags": [
+          "intelligence"
         ]
       }
     },
@@ -2429,6 +3979,148 @@
         "summary": "Per-URL issues recorded by one run.",
         "tags": [
           "inventory"
+        ]
+      }
+    },
+    "/jobs/runs": {
+      "get": {
+        "operationId": "listJobRuns",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "maximum": 10000000,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "kind",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/JobKind"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Kind"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/RunStatus"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListResponse_JobRunSummary_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A parameter is invalid."
+          }
+        },
+        "summary": "Batch job runs (analysis and later phases), newest first.",
+        "tags": [
+          "jobs"
+        ]
+      }
+    },
+    "/jobs/runs/{run_id}": {
+      "get": {
+        "operationId": "getJobRun",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobRunDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A parameter is invalid."
+          }
+        },
+        "summary": "One job run with its configuration snapshot.",
+        "tags": [
+          "jobs"
         ]
       }
     },

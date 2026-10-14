@@ -44,6 +44,10 @@ class EventName(StrEnum):
       equivalent, although AUTONOMY_AND_PERMISSIONS.md makes PROMOTE_SKILL an
       ASK-level action, which therefore needs an audit event.
     * ``worker.heartbeat`` -- operational, recorded in docs/adr/ADR-0005.md.
+    * ``job.completed`` -- operational, Phase 2 (docs/adr/ADR-0010-content-intelligence.md):
+      every finished generic job run (analysis, recommendation, verification,
+      analytics import, evaluation, autonomy shadow), including failed ones.
+      Ingestion keeps ``crawl.completed``.
 
     Governed lifecycles (no learning behaviour is implemented yet)::
 
@@ -77,8 +81,9 @@ class EventName(StrEnum):
     POLICY_PROPOSED = "policy.proposed"
     POLICY_PROMOTED = "policy.promoted"
 
-    # Operational (Phase 0)
+    # Operational
     WORKER_HEARTBEAT = "worker.heartbeat"
+    JOB_COMPLETED = "job.completed"
 
 
 class PromotionAuditPayload(FrozenModel):

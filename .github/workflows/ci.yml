@@ -58,7 +58,7 @@ jobs:
   # ADR-0003 guardrail: migration 0001 must succeed on a PostgreSQL that has
   # NO pgvector at all. If anyone adds CREATE EXTENSION to 0001, this fails.
   native-degraded-mode:
-    name: migrations without pgvector (ADR-0003)
+    name: Phase 0-1 schema without pgvector (ADR-0003, ADR-0010)
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -80,9 +80,13 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -e . -c requirements.lock.txt
-      - run: alembic upgrade head
+      # 0003 creates the vector extension (ADR-0010), so a server without
+      # pgvector supports the Phase 0-1 schema only.
+      - run: alembic upgrade 0002_content_inventory
       - run: alembic downgrade base
-      - run: alembic upgrade head
+      - run: alembic upgrade 0002_content_inventory
+      - name: "0003 must fail clearly without pgvector"
+        run: "! alembic upgrade head"
 
   frontend:
     runs-on: ubuntu-latest

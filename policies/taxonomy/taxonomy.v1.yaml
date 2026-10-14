@@ -1,0 +1,265 @@
+# Taxonomy policy v1 — Phase 2 content intelligence (ADR-0010).
+#
+# DATA, NOT CODE. The deterministic analyser classifies pages ONLY from this
+# file: markets (industry tree), geographies, an entity gazetteer, page-type
+# rules, protection rules and eligibility thresholds. It is validated on load by
+# ken_contracts.intelligence.TaxonomyPolicy (unique ids, every reference resolves).
+#
+# PROVENANCE: illustrative seed taxonomy written for the local fixture and demo
+# corpora (Ken-Research-style coverage: markets in India, Southeast Asia and the
+# Middle East). It is NOT Ken Research's official taxonomy. Replace it with
+# taxonomy.v2.yaml once Ken supplies its own (see NEXT_STEPS.md). Company names
+# below are fictional.
+#
+# Changing anything means a NEW version file (taxonomy.v2.yaml), never an
+# in-place edit: every stored analysis records the taxonomy version that produced
+# it, so stale analyses are detectable and past results reproducible.
+
+policy: taxonomy
+version: 1
+status: baseline
+source: fixture
+
+# --------------------------------------------------------------------------- markets
+# Top-level nodes (no parent) are industries. Aliases are matched as whole
+# words/phrases, case-insensitively. Relationship lists drive PRD 7.3 edges.
+markets:
+  - id: energy
+    label: Energy & Utilities
+    aliases: [energy sector, utilities, power sector]
+    adjacent: [automotive, chemicals-materials]
+  - id: renewable-energy
+    label: Renewable Energy
+    parent: energy
+    aliases: [renewable energy, renewables, clean energy, green energy]
+  - id: solar-power
+    label: Solar Power
+    parent: renewable-energy
+    aliases: [solar power, solar energy, solar pv, photovoltaic, solar panels, rooftop solar]
+    complementary: [energy-storage]
+  - id: wind-power
+    label: Wind Power
+    parent: renewable-energy
+    aliases: [wind power, wind energy, wind turbines, offshore wind, onshore wind]
+    complementary: [energy-storage]
+  - id: energy-storage
+    label: Energy Storage
+    parent: energy
+    aliases: [energy storage, battery energy storage, battery storage, bess, grid storage]
+    upstream: [lithium-ion-batteries]
+    complementary: [solar-power, wind-power]
+
+  - id: automotive
+    label: Automotive & Mobility
+    aliases: [automotive, automobile, mobility, auto industry]
+    adjacent: [energy, logistics]
+  - id: electric-vehicles
+    label: Electric Vehicles
+    parent: automotive
+    aliases: [electric vehicle, electric vehicles, ev market, evs, electric mobility, e-mobility, electric cars]
+    upstream: [lithium-ion-batteries, auto-components]
+    complementary: [ev-charging]
+  - id: electric-two-wheelers
+    label: Electric Two-Wheelers
+    parent: electric-vehicles
+    aliases: [electric two-wheeler, electric two-wheelers, e2w, electric scooter, electric scooters, electric motorcycles]
+  - id: ev-charging
+    label: EV Charging Infrastructure
+    parent: electric-vehicles
+    aliases: [ev charging, charging infrastructure, charging stations, charging station, fast chargers, charge points]
+    complementary: [electric-vehicles]
+  - id: auto-components
+    label: Auto Components
+    parent: automotive
+    aliases: [auto components, automotive components, auto parts, automotive parts]
+    downstream: [electric-vehicles]
+
+  - id: chemicals-materials
+    label: Chemicals & Materials
+    aliases: [chemicals, specialty chemicals, materials industry]
+    adjacent: [energy]
+  - id: lithium-ion-batteries
+    label: Lithium-ion Batteries
+    parent: chemicals-materials
+    aliases: [lithium-ion battery, lithium-ion batteries, li-ion batteries, li-ion, battery cells, battery manufacturing, gigafactory, gigafactories]
+    upstream: [battery-materials]
+    downstream: [electric-vehicles, energy-storage]
+  - id: battery-materials
+    label: Battery Materials
+    parent: chemicals-materials
+    aliases: [battery materials, cathode materials, anode materials, lithium mining, lithium carbonate, battery-grade lithium]
+    downstream: [lithium-ion-batteries]
+
+  - id: technology
+    label: Technology & Telecom
+    aliases: [technology sector, information technology, telecom, telecommunications]
+  - id: semiconductors
+    label: Semiconductors
+    parent: technology
+    aliases: [semiconductor, semiconductors, chips, chip manufacturing, chipmakers, foundries, wafer fabrication]
+    downstream: [data-centers]
+  - id: data-centers
+    label: Data Centers
+    parent: technology
+    aliases: [data center, data centers, data centre, data centres, colocation, hyperscale]
+    upstream: [semiconductors]
+    complementary: [cloud-computing]
+  - id: cloud-computing
+    label: Cloud Computing
+    parent: technology
+    aliases: [cloud computing, cloud services, public cloud, saas market]
+    complementary: [data-centers]
+
+  - id: healthcare
+    label: Healthcare & Life Sciences
+    aliases: [healthcare, health care, life sciences]
+    adjacent: [logistics]
+  - id: pharmaceuticals
+    label: Pharmaceuticals
+    parent: healthcare
+    aliases: [pharmaceutical, pharmaceuticals, pharma, generic drugs, drug manufacturing, active pharmaceutical ingredients]
+    complementary: [cold-chain]
+  - id: medical-devices
+    label: Medical Devices
+    parent: healthcare
+    aliases: [medical devices, medical device, medical equipment, diagnostic imaging equipment]
+  - id: diagnostics
+    label: Diagnostics
+    parent: healthcare
+    aliases: [diagnostics, diagnostic labs, diagnostic laboratories, pathology labs, in-vitro diagnostics]
+
+  - id: financial-services
+    label: Financial Services
+    aliases: [financial services, bfsi, banking sector]
+  - id: fintech
+    label: Fintech
+    parent: financial-services
+    aliases: [fintech, digital payments, payment gateways, digital lending, neobanks, upi]
+    complementary: [ecommerce]
+  - id: insurance
+    label: Insurance
+    parent: financial-services
+    aliases: [insurance, insurtech, general insurance, life insurance, health insurance]
+
+  - id: logistics
+    label: Logistics & Transportation
+    aliases: [logistics, freight, transportation sector, supply chain services]
+    adjacent: [automotive, healthcare]
+  - id: cold-chain
+    label: Cold Chain
+    parent: logistics
+    aliases: [cold chain, cold storage, temperature-controlled logistics, reefer]
+    complementary: [pharmaceuticals]
+  - id: ecommerce-logistics
+    label: E-commerce Logistics
+    parent: logistics
+    aliases: [e-commerce logistics, last-mile delivery, last mile delivery, fulfilment centres, fulfillment centers, express delivery]
+    complementary: [ecommerce]
+
+  - id: consumer-retail
+    label: Consumer & Retail
+    aliases: [consumer goods, retail sector, fmcg]
+  - id: ecommerce
+    label: E-commerce
+    parent: consumer-retail
+    aliases: [e-commerce, ecommerce, online retail, online shopping, quick commerce]
+    complementary: [ecommerce-logistics, fintech]
+
+# --------------------------------------------------------------------------- geographies
+geographies:
+  - {id: global, label: Global, kind: global, aliases: [global, worldwide]}
+  - {id: asia-pacific, label: Asia Pacific, kind: region, parent: global, aliases: [asia pacific, asia-pacific, apac]}
+  - {id: southeast-asia, label: Southeast Asia, kind: region, parent: asia-pacific, aliases: [southeast asia, south east asia, sea region, asean]}
+  - {id: south-asia, label: South Asia, kind: region, parent: asia-pacific, aliases: [south asia]}
+  - {id: middle-east, label: Middle East, kind: region, parent: global, aliases: [middle east, gcc, mena, gulf region]}
+  - {id: europe, label: Europe, kind: region, parent: global, aliases: [europe, european union]}
+  - {id: north-america, label: North America, kind: region, parent: global, aliases: [north america]}
+  - {id: india, label: India, kind: country, parent: south-asia, aliases: [india, indian]}
+  - {id: bangladesh, label: Bangladesh, kind: country, parent: south-asia, aliases: [bangladesh]}
+  - {id: indonesia, label: Indonesia, kind: country, parent: southeast-asia, aliases: [indonesia, indonesian]}
+  - {id: vietnam, label: Vietnam, kind: country, parent: southeast-asia, aliases: [vietnam, viet nam, vietnamese]}
+  - {id: thailand, label: Thailand, kind: country, parent: southeast-asia, aliases: [thailand, thai]}
+  - {id: malaysia, label: Malaysia, kind: country, parent: southeast-asia, aliases: [malaysia, malaysian]}
+  - {id: philippines, label: Philippines, kind: country, parent: southeast-asia, aliases: [philippines, philippine]}
+  - {id: singapore, label: Singapore, kind: country, parent: southeast-asia, aliases: [singapore]}
+  - {id: saudi-arabia, label: Saudi Arabia, kind: country, parent: middle-east, aliases: [saudi arabia, ksa, saudi]}
+  - {id: uae, label: United Arab Emirates, kind: country, parent: middle-east, aliases: [uae, united arab emirates, dubai, abu dhabi]}
+  - {id: qatar, label: Qatar, kind: country, parent: middle-east, aliases: [qatar]}
+  - {id: china, label: China, kind: country, parent: asia-pacific, aliases: [china, chinese]}
+  - {id: japan, label: Japan, kind: country, parent: asia-pacific, aliases: [japan, japanese]}
+  - {id: germany, label: Germany, kind: country, parent: europe, aliases: [germany, german]}
+  - {id: united-kingdom, label: United Kingdom, kind: country, parent: europe, aliases: [united kingdom, uk, britain]}
+  - {id: united-states, label: United States, kind: country, parent: north-america, aliases: [united states, usa, us market]}
+
+# --------------------------------------------------------------------------- entities (fictional)
+entities:
+  - {id: voltara-motors, label: Voltara Motors, type: company, aliases: [voltara motors, voltara], markets: [electric-vehicles]}
+  - {id: sunvale-energy, label: Sunvale Energy, type: company, aliases: [sunvale energy, sunvale], markets: [solar-power]}
+  - {id: corecell, label: Corecell Batteries, type: company, aliases: [corecell batteries, corecell], markets: [lithium-ion-batteries]}
+  - {id: nimbus-semi, label: Nimbus Semiconductors, type: company, aliases: [nimbus semiconductors, nimbus semi], markets: [semiconductors]}
+  - {id: medaxis, label: MedAxis Devices, type: company, aliases: [medaxis devices, medaxis], markets: [medical-devices]}
+  - {id: paylane, label: PayLane, type: company, aliases: [paylane], markets: [fintech]}
+  - {id: coldpath, label: ColdPath Logistics, type: company, aliases: [coldpath logistics, coldpath], markets: [cold-chain]}
+  - {id: solid-state-batteries, label: Solid-state Batteries, type: technology, aliases: [solid-state batteries, solid-state battery], markets: [lithium-ion-batteries]}
+  - {id: battery-swapping, label: Battery Swapping, type: technology, aliases: [battery swapping, battery-swapping, swap stations], markets: [electric-two-wheelers, ev-charging]}
+  - {id: fast-charging, label: DC Fast Charging, type: technology, aliases: [dc fast charging, fast charging, ultra-fast charging], markets: [ev-charging]}
+  - {id: perovskite, label: Perovskite Solar Cells, type: technology, aliases: [perovskite solar cells, perovskite], markets: [solar-power]}
+  - {id: upi-payments, label: Unified Payments Interface, type: product, aliases: [unified payments interface], markets: [fintech]}
+  - {id: fame-scheme, label: FAME Scheme, type: organization, aliases: [fame scheme, fame ii, fame-ii], markets: [electric-vehicles]}
+
+# --------------------------------------------------------------------------- page types
+# The FIRST rule whose regex matches the URL path wins; default_page_type otherwise.
+page_types:
+  - id: hub
+    label: Listing / hub page
+    path_patterns: ['^/(reports|industry-reports|insights)/?$', '^/(industries|sectors|categories|tags)(/|$)', '^/$']
+    intent: navigational
+    commercial_importance: 1
+    linkable_as_source: false
+    linkable_as_target: true
+  - id: report
+    label: Market research report
+    path_patterns: ['^/(industry-reports|reports)/']
+    intent: commercial_research
+    commercial_importance: 3
+  - id: insight
+    label: Insight / article
+    path_patterns: ['^/(insights|blog|articles|news)/']
+    intent: informational
+    commercial_importance: 2
+  - id: transactional
+    label: Contact / enquiry
+    path_patterns: ['^/(contact|enquiry|request-sample|pricing|checkout)(/|$)']
+    intent: transactional
+    commercial_importance: 1
+    linkable_as_source: false
+    linkable_as_target: false
+  - id: corporate
+    label: Corporate / legal
+    path_patterns: ['^/(about|careers|team|privacy|terms|cookie-policy|legal)(/|$)']
+    intent: corporate
+    commercial_importance: 0
+    linkable_as_source: false
+    linkable_as_target: false
+  - id: other
+    label: Other page
+    path_patterns: ['^/']
+    intent: informational
+    commercial_importance: 1
+default_page_type: other
+
+# --------------------------------------------------------------------------- protections
+# Any match makes a page PROTECTED: no link may ever be inserted into or point
+# at it, whatever a model or reviewer says. Operators can add manual protections.
+protections:
+  - id: legal-pages
+    reason: Legal and policy pages are never modified.
+    path_patterns: ['^/(privacy|terms|cookie-policy|legal)(/|$)']
+  - id: cms-protected
+    reason: The CMS marks this page protected.
+    metadata_equals: {cms_protected: "true"}
+
+# --------------------------------------------------------------------------- eligibility
+eligibility:
+  min_words_source: 120
+  min_words_target: 60

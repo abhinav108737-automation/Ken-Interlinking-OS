@@ -78,16 +78,25 @@ def test_operation_ids_and_tags(live: dict[str, Any]) -> None:
         "/inventory/runs": ("listIngestionRuns", ["inventory"]),
         "/inventory/runs/{run_id}": ("getIngestionRun", ["inventory"]),
         "/inventory/runs/{run_id}/issues": ("listIngestionRunIssues", ["inventory"]),
+        "/intelligence/coverage": ("getIntelligenceCoverage", ["intelligence"]),
+        "/intelligence/taxonomy": ("getTaxonomy", ["intelligence"]),
+        "/intelligence/taxonomy/{node_id}/pages": ("listTaxonomyNodePages", ["intelligence"]),
+        "/intelligence/pages/{page_id}": ("getPageIntelligence", ["intelligence"]),
+        "/intelligence/pages/{page_id}/similar": ("listSimilarPages", ["intelligence"]),
+        "/intelligence/pages/{page_id}/relationships": ("listPageRelationships", ["intelligence"]),
+        "/intelligence/search": ("semanticSearch", ["intelligence"]),
+        "/jobs/runs": ("listJobRuns", ["jobs"]),
+        "/jobs/runs/{run_id}": ("getJobRun", ["jobs"]),
     }
 
 
 def test_inventory_api_is_read_only(live: dict[str, Any]) -> None:
-    """Phase 1 exposes no mutation: nothing can write to the inventory or a CMS over HTTP."""
+    """Inventory, intelligence and job routes are read-only: runs start from the CLI."""
     methods = {
         method
         for path, item in live["paths"].items()
         for method in item
-        if path.startswith("/inventory")
+        if path.startswith(("/inventory", "/intelligence", "/jobs"))
     }
     assert methods == {"get"}
 

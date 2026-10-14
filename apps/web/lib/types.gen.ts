@@ -21,6 +21,125 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/intelligence/coverage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** How much of the inventory is analysed, embedded, protected and eligible. */
+        get: operations["getIntelligenceCoverage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/intelligence/pages/{page_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Analysis, embedding, protections and eligibility of one page. */
+        get: operations["getPageIntelligence"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/intelligence/pages/{page_id}/relationships": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Typed relationships from one page, strongest first. */
+        get: operations["listPageRelationships"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/intelligence/pages/{page_id}/similar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Nearest pages by stored embedding. */
+        get: operations["listSimilarPages"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/intelligence/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Semantic search over current page embeddings. */
+        get: operations["semanticSearch"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/intelligence/taxonomy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The active taxonomy policy with page counts. */
+        get: operations["getTaxonomy"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/intelligence/taxonomy/{node_id}/pages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Pages whose current analysis lists a market or geography. */
+        get: operations["listTaxonomyNodePages"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/inventory/links": {
         parameters: {
             query?: never;
@@ -174,6 +293,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/jobs/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Batch job runs (analysis and later phases), newest first. */
+        get: operations["listJobRuns"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/jobs/runs/{run_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One job run with its configuration snapshot. */
+        get: operations["getJobRun"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/meta": {
         parameters: {
             query?: never;
@@ -274,6 +427,21 @@ export interface components {
             required: boolean;
             status: components["schemas"]["HealthStatus"];
         };
+        /** EntityMention */
+        EntityMention: {
+            /** Entity Id */
+            entity_id: string;
+            /** Label */
+            label: string;
+            /** Mentions */
+            mentions: number;
+            type: components["schemas"]["EntityType"];
+        };
+        /**
+         * EntityType
+         * @enum {string}
+         */
+        EntityType: "company" | "technology" | "product" | "organization";
         /**
          * ErrorCode
          * @description Stable machine-readable error codes.
@@ -365,6 +533,20 @@ export interface components {
             /** Target Page Id */
             target_page_id: string | null;
         };
+        /** GeographyMention */
+        GeographyMention: {
+            /** Geo Id */
+            geo_id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "global" | "region" | "country";
+            /** Label */
+            label: string;
+            /** Score */
+            score: number;
+        };
         /** Heading */
         Heading: {
             /** Block Id */
@@ -400,6 +582,12 @@ export interface components {
          * @enum {string}
          */
         HealthStatus: "ok" | "degraded" | "unavailable" | "error" | "skipped";
+        /**
+         * IneligibilityReason
+         * @description Why a page cannot be a link source or target right now.
+         * @enum {string}
+         */
+        IneligibilityReason: "not_published" | "gone" | "protected" | "noindex" | "not_canonical" | "http_not_ok" | "thin_content" | "page_type_excluded" | "not_analyzed" | "stale_analysis";
         /** IngestionIssueView */
         IngestionIssueView: {
             code: components["schemas"]["IssueCode"];
@@ -484,6 +672,47 @@ export interface components {
             started_at: string;
             status: components["schemas"]["RunStatus"];
         };
+        /** IntelligenceCoverage */
+        IntelligenceCoverage: {
+            /** Analysis Version */
+            analysis_version: string;
+            /** Analyzed Fresh */
+            analyzed_fresh: number;
+            /** Analyzed Stale */
+            analyzed_stale: number;
+            /** By Industry */
+            by_industry: {
+                [key: string]: number;
+            };
+            /** By Page Type */
+            by_page_type: {
+                [key: string]: number;
+            };
+            /** Eligible Sources */
+            eligible_sources: number;
+            /** Eligible Targets */
+            eligible_targets: number;
+            /** Embedded Fresh */
+            embedded_fresh: number;
+            /** Embedded Stale Or Missing */
+            embedded_stale_or_missing: number;
+            /** Embedding Model */
+            embedding_model: string;
+            /** Never Analyzed */
+            never_analyzed: number;
+            /** Protected */
+            protected: number;
+            /** Relationships */
+            relationships: number;
+            /** Total Pages */
+            total_pages: number;
+        };
+        /**
+         * Intent
+         * @description Reader/search intent of a page (PRD section 7.2).
+         * @enum {string}
+         */
+        Intent: "commercial_research" | "informational" | "navigational" | "transactional" | "corporate" | "unknown";
         /**
          * IssueCode
          * @description Stable machine-readable reason for one per-URL or per-record problem.
@@ -497,6 +726,96 @@ export interface components {
          * @enum {string}
          */
         IssueSeverity: "info" | "warning" | "error";
+        /**
+         * JobKind
+         * @description What a job run does. Adding a member is additive (one per phase).
+         * @enum {string}
+         */
+        JobKind: "analysis" | "recommendation" | "agent" | "verification" | "analytics_import" | "evaluation" | "autonomy_shadow";
+        /** JobRunDetail */
+        JobRunDetail: {
+            /** Completed At */
+            completed_at: string | null;
+            /**
+             * Config Snapshot
+             * @description Secret-free run configuration.
+             */
+            config_snapshot: {
+                [key: string]: unknown;
+            };
+            /**
+             * Counters
+             * @description Kind-specific counters; names are documented per kind.
+             */
+            counters: {
+                [key: string]: number;
+            };
+            /**
+             * Failure Reason
+             * @description Safe summary when status is failed. Never exception text.
+             */
+            failure_reason: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            kind: components["schemas"]["JobKind"];
+            /**
+             * Started At
+             * Format: date-time
+             */
+            started_at: string;
+            status: components["schemas"]["RunStatus"];
+            /**
+             * Triggered By
+             * @description Actor or component that started the run, e.g. 'cli'.
+             */
+            triggered_by: string;
+        };
+        /** JobRunSummary */
+        JobRunSummary: {
+            /** Completed At */
+            completed_at: string | null;
+            /**
+             * Counters
+             * @description Kind-specific counters; names are documented per kind.
+             */
+            counters: {
+                [key: string]: number;
+            };
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            kind: components["schemas"]["JobKind"];
+            /**
+             * Started At
+             * Format: date-time
+             */
+            started_at: string;
+            status: components["schemas"]["RunStatus"];
+            /**
+             * Triggered By
+             * @description Actor or component that started the run, e.g. 'cli'.
+             */
+            triggered_by: string;
+        };
+        /**
+         * LinkEligibility
+         * @description Whether a page may currently be a link source / target, and why not.
+         */
+        LinkEligibility: {
+            /** As Source */
+            as_source: boolean;
+            /** As Target */
+            as_target: boolean;
+            /** Source Reasons */
+            source_reasons: components["schemas"]["IneligibilityReason"][];
+            /** Target Reasons */
+            target_reasons: components["schemas"]["IneligibilityReason"][];
+        };
         /**
          * LinkResolution
          * @description Whether an internal link's destination is known (computed at read time).
@@ -533,6 +852,18 @@ export interface components {
             items: components["schemas"]["IngestionRunSummary"][];
             page: components["schemas"]["PageInfo"];
         };
+        /** ListResponse[JobRunSummary] */
+        ListResponse_JobRunSummary_: {
+            /** Items */
+            items: components["schemas"]["JobRunSummary"][];
+            page: components["schemas"]["PageInfo"];
+        };
+        /** ListResponse[PageRelationshipView] */
+        ListResponse_PageRelationshipView_: {
+            /** Items */
+            items: components["schemas"]["PageRelationshipView"][];
+            page: components["schemas"]["PageInfo"];
+        };
         /** ListResponse[PageSummary] */
         ListResponse_PageSummary_: {
             /** Items */
@@ -543,6 +874,12 @@ export interface components {
         ListResponse_PageVersionSummary_: {
             /** Items */
             items: components["schemas"]["PageVersionSummary"][];
+            page: components["schemas"]["PageInfo"];
+        };
+        /** ListResponse[SimilarPage] */
+        ListResponse_SimilarPage_: {
+            /** Items */
+            items: components["schemas"]["SimilarPage"][];
             page: components["schemas"]["PageInfo"];
         };
         /**
@@ -573,6 +910,74 @@ export interface components {
             settings: {
                 [key: string]: unknown;
             };
+        };
+        /**
+         * PageAnalysis
+         * @description Deterministic understanding of one page version.
+         */
+        PageAnalysis: {
+            /** Analysis Version */
+            analysis_version: string;
+            /** Commercial Importance */
+            commercial_importance: number;
+            /**
+             * Entities
+             * @default []
+             */
+            entities: components["schemas"]["EntityMention"][];
+            /**
+             * Extractor
+             * @default deterministic
+             * @constant
+             */
+            extractor: "deterministic";
+            /**
+             * Geographies
+             * @default []
+             */
+            geographies: components["schemas"]["GeographyMention"][];
+            /**
+             * Industry Id
+             * @description Top-level market (industry).
+             */
+            industry_id: string | null;
+            intent: components["schemas"]["Intent"];
+            /**
+             * Keywords
+             * @description Top salient terms, deterministic.
+             * @default []
+             */
+            keywords: string[];
+            /**
+             * Market Id
+             * @description Most specific confident market.
+             */
+            market_id: string | null;
+            /**
+             * Page Id
+             * Format: uuid
+             */
+            page_id: string;
+            /** Page Type */
+            page_type: string;
+            /** Page Version */
+            page_version: number;
+            /**
+             * Salient Blocks
+             * @default []
+             */
+            salient_blocks: components["schemas"]["SalientBlock"][];
+            /**
+             * Summary
+             * @description Extractive, from page text.
+             * @default
+             */
+            summary: string;
+            /**
+             * Topics
+             * @default []
+             */
+            topics: components["schemas"]["TopicScore"][];
         };
         /** PageDetail */
         PageDetail: {
@@ -625,6 +1030,40 @@ export interface components {
             word_count: number;
         };
         /**
+         * PageEmbeddingInfo
+         * @description Metadata of a stored page embedding (the vector itself is never sent to clients).
+         */
+        PageEmbeddingInfo: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Dimensions
+             * @description As reported by the provider, never assumed.
+             */
+            dimensions: number;
+            /** Input Hash */
+            input_hash: string;
+            /**
+             * Model
+             * @description Configured model of the EMBEDDING role at write time.
+             */
+            model: string;
+            /**
+             * Page Id
+             * Format: uuid
+             */
+            page_id: string;
+            /** Page Version */
+            page_version: number;
+            /** Provider */
+            provider: string;
+            /** Recipe Version */
+            recipe_version: number;
+        };
+        /**
          * PageInfo
          * @description Pagination metadata.
          *
@@ -644,6 +1083,95 @@ export interface components {
              * @description Total matching items, ignoring pagination.
              */
             total: number;
+        };
+        /** PageIntelligenceView */
+        PageIntelligenceView: {
+            /** @description Latest analysis of the CURRENT version, if any. */
+            analysis: components["schemas"]["PageAnalysis"] | null;
+            /**
+             * Analysis Fresh
+             * @description An analysis exists for the current version and current analysis version.
+             */
+            analysis_fresh: boolean;
+            /** Canonical Url */
+            canonical_url: string;
+            /** Current Version */
+            current_version: number;
+            eligibility: components["schemas"]["LinkEligibility"];
+            embedding: components["schemas"]["PageEmbeddingInfo"] | null;
+            /** Embedding Fresh */
+            embedding_fresh: boolean;
+            /**
+             * Page Id
+             * Format: uuid
+             */
+            page_id: string;
+            /** Protections */
+            protections: components["schemas"]["PageProtectionView"][];
+            /** Relationship Counts */
+            relationship_counts: {
+                [key: string]: number;
+            };
+            /** Title */
+            title: string | null;
+        };
+        /** PageProtectionView */
+        PageProtectionView: {
+            /** Active */
+            active: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Created By */
+            created_by: string;
+            /** Id */
+            id: number;
+            /**
+             * Page Id
+             * Format: uuid
+             */
+            page_id: string;
+            /** Reason */
+            reason: string;
+            /** Rule Id */
+            rule_id: string | null;
+            source: components["schemas"]["ProtectionSource"];
+        };
+        /** PageRelationshipView */
+        PageRelationshipView: {
+            /** Analysis Version */
+            analysis_version: string;
+            /**
+             * Computed At
+             * Format: date-time
+             */
+            computed_at: string;
+            /**
+             * Evidence
+             * @description Why: shared node ids, cosine score, ... (no free text).
+             */
+            evidence: {
+                [key: string]: unknown;
+            };
+            relationship_type: components["schemas"]["RelationshipType"];
+            /**
+             * Source Page Id
+             * Format: uuid
+             */
+            source_page_id: string;
+            /** Target Canonical Url */
+            target_canonical_url: string;
+            /**
+             * Target Page Id
+             * Format: uuid
+             */
+            target_page_id: string;
+            /** Target Title */
+            target_title: string | null;
+            /** Weight */
+            weight: number;
         };
         /**
          * PageSummary
@@ -696,6 +1224,22 @@ export interface components {
             title: string | null;
             /** Word Count */
             word_count: number;
+        };
+        /** PageTypeView */
+        PageTypeView: {
+            /** Commercial Importance */
+            commercial_importance: number;
+            /** Id */
+            id: string;
+            intent: components["schemas"]["Intent"];
+            /** Label */
+            label: string;
+            /** Linkable As Source */
+            linkable_as_source: boolean;
+            /** Linkable As Target */
+            linkable_as_target: boolean;
+            /** Page Count */
+            page_count: number;
         };
         /** PageVersionDetail */
         PageVersionDetail: {
@@ -816,6 +1360,12 @@ export interface components {
             word_count: number;
         };
         /**
+         * ProtectionSource
+         * @description Who declared a page protected. Any active protection blocks every mutation.
+         * @enum {string}
+         */
+        ProtectionSource: "policy" | "cms" | "manual";
+        /**
          * PublicationState
          * @description Publication state as the source reports it.
          *
@@ -867,6 +1417,12 @@ export interface components {
          * @enum {string}
          */
         ReadinessStatus: "ready" | "degraded" | "not_ready";
+        /**
+         * RelationshipType
+         * @description Explainable page relationships (PRD section 7.3) plus semantic similarity.
+         * @enum {string}
+         */
+        RelationshipType: "same_market" | "parent_market" | "submarket" | "related_market" | "same_geography" | "regional_parent" | "supply_chain_upstream" | "supply_chain_downstream" | "complementary_market" | "industry_adjacency" | "semantic_similar";
         /**
          * RunCounters
          * @description Run accounting. Invariant (checked by tests)::
@@ -941,6 +1497,15 @@ export interface components {
          * @enum {string}
          */
         RunStatus: "running" | "succeeded" | "completed_with_errors" | "failed";
+        /** SalientBlock */
+        SalientBlock: {
+            /** Block Id */
+            block_id: string;
+            /** Score */
+            score: number;
+            /** Text */
+            text: string;
+        };
         /**
          * ServiceIdentity
          * @description Who is answering. Present in every health, readiness and meta payload.
@@ -967,12 +1532,88 @@ export interface components {
              */
             version: string;
         };
+        /** SimilarPage */
+        SimilarPage: {
+            /** Canonical Url */
+            canonical_url: string;
+            /** Market Id */
+            market_id: string | null;
+            /**
+             * Page Id
+             * Format: uuid
+             */
+            page_id: string;
+            /** Page Type */
+            page_type: string | null;
+            /**
+             * Score
+             * @description Cosine similarity.
+             */
+            score: number;
+            /** Title */
+            title: string | null;
+        };
         /**
          * SourceType
          * @description Where a document came from. Recorded on every run and page version.
          * @enum {string}
          */
         SourceType: "public_web" | "file_export" | "cms";
+        /** TaxonomyNodeView */
+        TaxonomyNodeView: {
+            /** Depth */
+            depth: number;
+            /** Id */
+            id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "market" | "global" | "region" | "country";
+            /** Label */
+            label: string;
+            /**
+             * Page Count
+             * @description Pages whose fresh analysis lists this node.
+             */
+            page_count: number;
+            /** Parent */
+            parent: string | null;
+        };
+        /** TaxonomyView */
+        TaxonomyView: {
+            /** Analysis Version */
+            analysis_version: string;
+            /** Geographies */
+            geographies: components["schemas"]["TaxonomyNodeView"][];
+            /** Markets */
+            markets: components["schemas"]["TaxonomyNodeView"][];
+            /** Page Types */
+            page_types: components["schemas"]["PageTypeView"][];
+            /** Source */
+            source: string;
+            /** Status */
+            status: string;
+            /** Version */
+            version: number;
+        };
+        /** TopicScore */
+        TopicScore: {
+            /**
+             * Depth
+             * @description 0 = industry; deeper = more specific market.
+             */
+            depth: number;
+            /** Label */
+            label: string;
+            /** Node Id */
+            node_id: string;
+            /**
+             * Score
+             * @description Location-weighted mention score.
+             */
+            score: number;
+        };
     };
     responses: never;
     parameters: never;
@@ -998,6 +1639,256 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HealthResponse"];
+                };
+            };
+        };
+    };
+    getIntelligenceCoverage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntelligenceCoverage"];
+                };
+            };
+        };
+    };
+    getPageIntelligence: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                page_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PageIntelligenceView"];
+                };
+            };
+            /** @description No such resource. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A parameter is invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    listPageRelationships: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+                relationship_type?: components["schemas"]["RelationshipType"] | null;
+            };
+            header?: never;
+            path: {
+                page_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListResponse_PageRelationshipView_"];
+                };
+            };
+            /** @description No such resource. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A parameter is invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    listSimilarPages: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                page_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListResponse_SimilarPage_"];
+                };
+            };
+            /** @description No such resource. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A parameter is invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    semanticSearch: {
+        parameters: {
+            query: {
+                q: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListResponse_SimilarPage_"];
+                };
+            };
+            /** @description A parameter is invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The embedding model is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    getTaxonomy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaxonomyView"];
+                };
+            };
+        };
+    };
+    listTaxonomyNodePages: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                node_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListResponse_SimilarPage_"];
+                };
+            };
+            /** @description No such resource. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A parameter is invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -1336,6 +2227,80 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ListResponse_IngestionIssueView_"];
+                };
+            };
+            /** @description No such resource. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A parameter is invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    listJobRuns: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+                kind?: components["schemas"]["JobKind"] | null;
+                status?: components["schemas"]["RunStatus"] | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListResponse_JobRunSummary_"];
+                };
+            };
+            /** @description A parameter is invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    getJobRun: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobRunDetail"];
                 };
             };
             /** @description No such resource. */

@@ -17,12 +17,16 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from ken_contracts.cms import CMSProvider
 from ken_contracts.common import ServiceIdentity
+from ken_contracts.intelligence import IntelligenceReader
 from ken_contracts.inventory import InventoryReader
+from ken_contracts.jobs import JobReader
 from ken_contracts.model import ModelProvider
 from ken_core.config import Settings
 from ken_core.health.probes import Probe, build_probes
 
 INVENTORY_READER: Final = "ken_services.inventory.reader"
+INTELLIGENCE_READER: Final = "ken_services.intelligence.reader"
+JOB_READER: Final = "ken_services.jobs.reader"
 
 
 class AppStateNotInitialisedError(RuntimeError):
@@ -79,7 +83,29 @@ def get_inventory_reader(
     return reader
 
 
+def get_intelligence_reader(
+    settings: Annotated[Settings, Depends(get_app_settings)],
+    sessionmaker: Annotated[async_sessionmaker[AsyncSession], Depends(get_sessionmaker)],
+    model_provider: Annotated[ModelProvider, Depends(get_model_provider)],
+) -> IntelligenceReader:
+    module: Any = importlib.import_module(INTELLIGENCE_READER)
+    reader: IntelligenceReader = module.SqlIntelligenceReader(
+        sessionmaker=sessionmaker, model_provider=model_provider, settings=settings
+    )
+    return reader
+
+
+def get_job_reader(
+    sessionmaker: Annotated[async_sessionmaker[AsyncSession], Depends(get_sessionmaker)],
+) -> JobReader:
+    module: Any = importlib.import_module(JOB_READER)
+    reader: JobReader = module.SqlJobReader(sessionmaker)
+    return reader
+
+
 SettingsDep = Annotated[Settings, Depends(get_app_settings)]
 IdentityDep = Annotated[ServiceIdentity, Depends(get_identity)]
 ProbesDep = Annotated[list[Probe], Depends(get_probes)]
 InventoryReaderDep = Annotated[InventoryReader, Depends(get_inventory_reader)]
+IntelligenceReaderDep = Annotated[IntelligenceReader, Depends(get_intelligence_reader)]
+JobReaderDep = Annotated[JobReader, Depends(get_job_reader)]

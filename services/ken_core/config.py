@@ -114,7 +114,7 @@ class Settings(BaseSettings):
     # ---------------------------------------------------------------- service
     service_name: str = "ken-api"
     environment: Literal["local", "ci", "staging", "production"] = "local"
-    phase: int = 1
+    phase: int = 2
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
     log_format: Literal["json", "console"] = "console"
 
@@ -186,12 +186,30 @@ class Settings(BaseSettings):
         default=200_000_000, ge=1, description="Largest JSONL export an import will read."
     )
 
+    # ---------------------------------------------------- content intelligence
+    # Phase 2. The taxonomy is versioned POLICY DATA (ADR-0010).
+    taxonomy_path: str = Field(
+        default=str(REPO_ROOT / "policies" / "taxonomy" / "taxonomy.v1.yaml"),
+        description="A relative value is resolved against the repository root.",
+    )
+    # Embedding text recipe. Prefixes are model conventions (configuration, not
+    # business logic): the defaults suit the default local model,
+    # nomic-embed-text, which expects task prefixes. Set both empty for a model
+    # that does not use them.
+    embedding_document_prefix: str = "search_document: "
+    embedding_query_prefix: str = "search_query: "
+    embedding_max_chars: int = Field(default=6000, ge=200, le=100_000)
+    embedding_batch_size: int = Field(default=16, ge=1, le=256)
+    similarity_top_k: int = Field(default=10, ge=1, le=100)
+    similarity_min_score: float = Field(default=0.55, ge=-1.0, le=1.0)
+
     # -------------------------------------------------------------- readiness
     require_pgvector: bool = Field(
-        default=False,
+        default=True,
         description=(
-            "Phase 0 default false: migration 0001 creates no vector column, so a "
-            "database without the extension is a fully supported degraded mode."
+            "From Phase 2 true: migration 0003 creates the vector extension and the "
+            "first vector column (ADR-0010). A server without pgvector can still run "
+            "the Phase 0-1 schema (migrate to 0002 only) with this set false."
         ),
     )
     require_ollama: bool = Field(
@@ -232,7 +250,7 @@ class Settings(BaseSettings):
             )
         return value
 
-    @field_validator("alembic_ini_path")
+    @field_validator("alembic_ini_path", "taxonomy_path")
     @classmethod
     def _resolve_against_repo_root(cls, value: str) -> str:
         path = Path(value)

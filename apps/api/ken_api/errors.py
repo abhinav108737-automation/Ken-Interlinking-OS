@@ -17,7 +17,9 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from ken_api.middleware.request_id import REQUEST_ID_HEADER
 from ken_contracts.errors import ErrorCode, ErrorDetail, ErrorResponse
+from ken_contracts.intelligence import EmbeddingUnavailableError, IntelligenceNotFoundError
 from ken_contracts.inventory import InventoryNotFoundError
+from ken_contracts.jobs import JobRunNotFoundError
 from ken_core.logging import get_logger
 
 logger = get_logger(__name__)
@@ -110,6 +112,31 @@ async def inventory_not_found_handler(request: Request, exc: Exception) -> JSONR
     return _respond(request, 404, body)
 
 
+async def intelligence_not_found_handler(request: Request, exc: Exception) -> JSONResponse:
+    if isinstance(exc, IntelligenceNotFoundError):
+        code, message = (
+            (ErrorCode.PAGE_NOT_FOUND, "Page not found.")
+            if exc.resource == "page"
+            else (ErrorCode.NOT_FOUND, "Taxonomy node not found.")
+        )
+    elif isinstance(exc, JobRunNotFoundError):
+        code, message = ErrorCode.NOT_FOUND, "Job run not found."
+    else:  # registration guarantees one of the above
+        return await unhandled_exception_handler(request, exc)
+    return _respond(request, 404, ErrorResponse.of(code, message, request_id=_request_id(request)))
+
+
+async def embedding_unavailable_handler(request: Request, exc: Exception) -> JSONResponse:
+    # The class name only is logged; the provider's message may name its host.
+    logger.warning("embedding_unavailable", error_class=type(exc).__name__)
+    body = ErrorResponse.of(
+        ErrorCode.MODEL_UNAVAILABLE,
+        "The embedding model is unavailable.",
+        request_id=_request_id(request),
+    )
+    return _respond(request, 503, body, {"Retry-After": "30"})
+
+
 async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     request_id = _request_id(request)
     logger.error(
@@ -129,4 +156,7 @@ def install_exception_handlers(app: FastAPI) -> None:
     app.add_exception_handler(StarletteHTTPException, http_exception_handler)
     app.add_exception_handler(RequestValidationError, validation_exception_handler)
     app.add_exception_handler(InventoryNotFoundError, inventory_not_found_handler)
+    app.add_exception_handler(IntelligenceNotFoundError, intelligence_not_found_handler)
+    app.add_exception_handler(JobRunNotFoundError, intelligence_not_found_handler)
+    app.add_exception_handler(EmbeddingUnavailableError, embedding_unavailable_handler)
     app.add_exception_handler(Exception, unhandled_exception_handler)

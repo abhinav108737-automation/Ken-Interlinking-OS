@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
+from typing import Any
 
 import pytest
 from sqlalchemy import CheckConstraint, UniqueConstraint
@@ -50,12 +51,22 @@ def test_constraint_and_index_names_are_deterministic() -> None:
     }
 
 
-def test_no_vector_types_in_metadata() -> None:
-    ddl = "\n".join(
-        str(CreateTable(t).compile(dialect=postgresql.dialect()))  # type: ignore[no-untyped-call]
-        for t in Base.metadata.sorted_tables
-    )
-    assert "vector" not in ddl.lower()
+def _ddl_type(column: Any) -> str:
+    return str(column.type.compile(dialect=postgresql.dialect()))  # type: ignore[no-untyped-call]
+
+
+def test_the_only_vector_column_is_the_dimensionless_page_embedding() -> None:
+    """ADR-0010: one vector column, with NO fixed dimension (it is the provider's)."""
+    vector_columns = [
+        (table.name, column.name, _ddl_type(column))
+        for table in Base.metadata.sorted_tables
+        for column in table.columns
+        if "vector" in _ddl_type(column).lower()
+    ]
+    assert vector_columns == [("page_embeddings", "embedding", "vector")]
+    table = Base.metadata.tables["page_embeddings"]
+    ddl = str(CreateTable(table).compile(dialect=postgresql.dialect()))  # type: ignore[no-untyped-call]
+    assert "vector(" not in ddl.lower()
 
 
 def test_migration_0001_never_enables_extensions_or_vectors() -> None:

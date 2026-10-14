@@ -5,6 +5,13 @@ Alembic's env.py imports this package for autogenerate comparison.
 """
 
 from ken_core.db.models.event import Event
+from ken_core.db.models.intelligence import (
+    JobRun,
+    PageAnalysis,
+    PageEmbedding,
+    PageProtection,
+    PageRelationship,
+)
 from ken_core.db.models.inventory import (
     ExistingLink,
     IngestionIssue,
@@ -19,7 +26,12 @@ __all__ = [
     "ExistingLink",
     "IngestionIssue",
     "IngestionRun",
+    "JobRun",
     "KnownUrl",
     "Page",
+    "PageAnalysis",
+    "PageEmbedding",
+    "PageProtection",
+    "PageRelationship",
     "PageVersion",
 ]

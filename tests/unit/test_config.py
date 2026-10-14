@@ -86,9 +86,10 @@ def test_driver_error_does_not_echo_credentials() -> None:
     assert SECRET not in str(exc_info.value)
 
 
-def test_phase_0_defaults_are_lenient_and_safe() -> None:
+def test_defaults_are_safe() -> None:
     s = _settings()
-    assert s.require_pgvector is False
+    # From Phase 2 pgvector is required (embeddings, ADR-0010); Ollama stays optional.
+    assert s.require_pgvector is True
     assert s.require_ollama is False
     assert s.auto_approve_enabled is False
     assert s.model_provider == "mock"
