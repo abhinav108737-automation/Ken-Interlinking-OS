@@ -7,12 +7,14 @@ frozen contract drifts, which is what lets parallel workstreams rely on it.
 from __future__ import annotations
 
 import inspect
+from pathlib import Path
 from uuid import uuid4
 
 import pytest
 from pydantic import BaseModel, ValidationError
 
 from ken_contracts import (
+    agents,
     analytics,
     cms,
     common,
@@ -28,6 +30,7 @@ from ken_contracts import (
 from ken_contracts.common import AsyncClosable, ContractModel
 
 CONTRACT_MODULES = [
+    agents,
     analytics,
     cms,
     common,
@@ -406,3 +409,40 @@ def test_recommendation_policy_file_validates() -> None:
     )
     assert policy.selection.min_relevance <= policy.selection.min_score
     assert ranking.version == 1
+
+
+def test_agent_policy_file_validates_and_tools_are_allowlisted() -> None:
+    import yaml
+
+    from ken_contracts.agents import TOOL_PERMISSIONS, AgentPolicy, ToolName, ToolPermission
+
+    path = Path(__file__).resolve().parents[2] / "policies" / "agents" / "agents.v1.yaml"
+    raw = yaml.safe_load(path.read_text("utf-8"))
+    policy = AgentPolicy.model_validate(raw)
+    assert policy.version == 1
+    assert set(TOOL_PERMISSIONS) == set(ToolName)
+    writers = {t for t, p in TOOL_PERMISSIONS.items() if p is ToolPermission.PROPOSE}
+    assert writers == {ToolName.PROPOSE_PLANS, ToolName.TRANSITION_PLAN}
+
+
+def test_llm_boundary_models_are_bounded_and_strict() -> None:
+    from pydantic import ValidationError
+
+    from ken_contracts.agents import (
+        MAX_CANDIDATES_FOR_MODEL,
+        CriticAssessment,
+        PlannerSelection,
+    )
+
+    with pytest.raises(ValidationError):
+        PlannerSelection.model_validate({"selected": ["a"], "anchor_text": "invented"})
+    with pytest.raises(ValidationError):
+        PlannerSelection(selected=[str(i) for i in range(MAX_CANDIDATES_FOR_MODEL + 1)])
+    with pytest.raises(ValidationError):
+        CriticAssessment.model_validate(
+            {"critiques": [{"ref": "a", "verdict": "approve", "reasons": []}]}
+        )
+    with pytest.raises(ValidationError):
+        CriticAssessment.model_validate(
+            {"critiques": [{"ref": "a", "verdict": "accept", "explanation": "x" * 301}]}
+        )

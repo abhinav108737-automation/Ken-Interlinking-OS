@@ -24,6 +24,10 @@ dependencies = [
   # Phase 1 HTML parsing (TRD.md section 2). MIT. Used with Python's built-in
   # html.parser backend only: no lxml/html5lib native code (ADR-0009).
   "beautifulsoup4==4.15.0",
+  # Phase 4 supervisor / state machine (TRD.md section 2, ADR-0012). MIT. Only
+  # StateGraph is used: no checkpointer package (langgraph-checkpoint-postgres
+  # pulls psycopg, LGPL), and LangSmith tracing is refused at startup.
+  "langgraph==1.2.12",
 ]
 
 [project.optional-dependencies]

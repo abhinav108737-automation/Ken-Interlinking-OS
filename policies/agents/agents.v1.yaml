@@ -1,0 +1,22 @@
+# Agent supervisor policy v1 (Phase 4, ADR-0012). Versioned data: a change is a new
+# version file, never an in-place edit once released. Validated by AgentPolicy.
+version: 1
+
+# FAST role: may re-order / choose among the engine's deterministic candidates.
+# Off by default: the engine's rank order is the deterministic rule.
+planner:
+  use_model: false
+  timeout_seconds: 30
+
+# REASONING role: assesses each planned candidate (accept / reject / uncertain).
+# Deterministic rule when off or on any model failure: accept at or above
+# accept_min_confidence (RAW, uncalibrated until Phase 8), else uncertain.
+critic:
+  use_model: true
+  timeout_seconds: 90
+  accept_min_confidence: 0.5
+
+max_plans_per_run: 3          # per source; never above selection.max_plans_per_source
+node_timeout_seconds: 30      # every non-model node
+tool_retries: 1               # retries of a failed READ tool call
+max_sources_per_batch: 100    # make agents
