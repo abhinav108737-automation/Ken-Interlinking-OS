@@ -43,7 +43,8 @@ class Role(StrEnum):
     REVIEWER = "reviewer"
     """Approves, rejects and edits recommendations; records editorial feedback."""
     OPERATOR_ADMIN = "operator_admin"
-    """Everything a reviewer may do, plus operator views (audit log, settings, policies)."""
+    """Everything a reviewer may do, plus operator views (audit log, settings, policies) and
+    deployment (Phase 6)."""
 
 
 class Permission(StrEnum):
@@ -55,13 +56,21 @@ class Permission(StrEnum):
     """The event log."""
     READ_SETTINGS = "read_settings"
     """Non-secret settings and the active policy documents."""
+    DEPLOY = "deploy"
+    """Phase 6 (ADR-0014): dry-run, deploy, verify and roll back approved plans."""
 
 
 ROLE_PERMISSIONS: Final[dict[Role, frozenset[Permission]]] = {
     Role.VIEWER: frozenset({Permission.READ}),
     Role.REVIEWER: frozenset({Permission.READ, Permission.REVIEW}),
     Role.OPERATOR_ADMIN: frozenset(
-        {Permission.READ, Permission.REVIEW, Permission.READ_AUDIT, Permission.READ_SETTINGS}
+        {
+            Permission.READ,
+            Permission.REVIEW,
+            Permission.READ_AUDIT,
+            Permission.READ_SETTINGS,
+            Permission.DEPLOY,
+        }
     ),
 }
 

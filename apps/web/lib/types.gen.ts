@@ -123,6 +123,92 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/deployments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Deployment history, newest first. */
+        get: operations["listDeployments"];
+        put?: never;
+        /** Deploy approved plans of one source page through the CMS adapter, then verify. */
+        post: operations["createDeployment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/deployments/dry-run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Validate and preview deploying approved plans of one source page (writes nothing). */
+        post: operations["dryRunDeployment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/deployments/{deployment_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One deployment with items, preview and verification runs. */
+        get: operations["getDeployment"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/deployments/{deployment_id}/rollback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Roll a deployment back through the CMS adapter (idempotent). */
+        post: operations["rollbackDeployment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/deployments/{deployment_id}/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Re-run post-publish verification of a deployment. */
+        post: operations["verifyDeployment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/events": {
         parameters: {
             query?: never;
@@ -610,6 +696,23 @@ export interface paths {
         put?: never;
         /** Approve a plan (via awaiting_approval when needed). */
         post: operations["approvePlan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/recommendations/{plan_id}/deployments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The deployments that included one plan. */
+        get: operations["listPlanDeployments"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1122,6 +1225,34 @@ export interface components {
          */
         CanonicalStatus: "self" | "declared" | "missing" | "out_of_scope" | "invalid";
         /**
+         * ChangePreview
+         * @description Dry-run preview of one plan. Snippets are TEXT for display, never rendered as HTML.
+         */
+        ChangePreview: {
+            /** Anchor End */
+            anchor_end: number;
+            /** Anchor Start */
+            anchor_start: number;
+            /** Anchor Text */
+            anchor_text: string;
+            /**
+             * Block Text
+             * @description The block's text; the UI marks [anchor_start, anchor_end).
+             */
+            block_text: string;
+            /** Href */
+            href: string;
+            /** Html After */
+            html_after: string;
+            /** Html Before */
+            html_before: string;
+            /**
+             * Plan Id
+             * Format: uuid
+             */
+            plan_id: string;
+        };
+        /**
          * CheckKind
          * @description Category of a readiness check, so clients can group them in a UI.
          * @enum {string}
@@ -1226,6 +1357,192 @@ export interface components {
              */
             required: boolean;
             status: components["schemas"]["HealthStatus"];
+        };
+        /** DeployRequest */
+        DeployRequest: {
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+            /**
+             * Operation Id
+             * Format: uuid
+             */
+            operation_id: string;
+            /** Plan Ids */
+            plan_ids: string[];
+        };
+        /** DeploymentDetail */
+        DeploymentDetail: {
+            /** Actor */
+            actor: string;
+            /** Applied At */
+            applied_at: string | null;
+            /** Cms Page Id */
+            cms_page_id: string;
+            /** Cms Provider */
+            cms_provider: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Error Code */
+            error_code: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Idempotent Replay
+             * @default false
+             */
+            idempotent_replay: boolean;
+            /** Items */
+            items: components["schemas"]["DeploymentItemView"][];
+            /** New Version */
+            new_version: string | null;
+            /**
+             * Operation Id
+             * Format: uuid
+             */
+            operation_id: string;
+            /** Plan Ids */
+            plan_ids: string[];
+            /** Preview */
+            preview: components["schemas"]["ChangePreview"][];
+            /** Previous Version */
+            previous_version: string | null;
+            /** Rollback Note */
+            rollback_note: string | null;
+            rollback_reason: components["schemas"]["RollbackReason"] | null;
+            /** Rolled Back At */
+            rolled_back_at: string | null;
+            /**
+             * Source Page Id
+             * Format: uuid
+             */
+            source_page_id: string;
+            /** Source Url */
+            source_url: string;
+            status: components["schemas"]["DeploymentStatus"];
+            /** Verifications */
+            verifications: components["schemas"]["VerificationRun"][];
+            /** Verified At */
+            verified_at: string | null;
+        };
+        /** DeploymentIssue */
+        DeploymentIssue: {
+            code: components["schemas"]["DeploymentIssueCode"];
+            /** Plan Id */
+            plan_id: string | null;
+        };
+        /**
+         * DeploymentIssueCode
+         * @description Why a plan (or the whole request) cannot be deployed. Fixed vocabulary.
+         * @enum {string}
+         */
+        DeploymentIssueCode: "plan_not_approved" | "plan_stale" | "plan_invalid" | "mixed_sources" | "cms_page_not_found" | "cms_page_protected" | "cms_unavailable" | "cms_validation_failed" | "href_invalid" | "broken_target" | "block_not_found" | "ambiguous_block" | "anchor_not_found" | "anchor_not_in_single_text_node" | "unmappable_span" | "unsafe_placement" | "overlapping_changes" | "already_applied" | "conflicting_link" | "self_check_failed";
+        /** DeploymentItemView */
+        DeploymentItemView: {
+            /** Anchor Text */
+            anchor_text: string;
+            /**
+             * Plan Id
+             * Format: uuid
+             */
+            plan_id: string;
+            plan_status: components["schemas"]["LinkPlanStatus"];
+            /** Target Url */
+            target_url: string;
+        };
+        /**
+         * DeploymentStatus
+         * @enum {string}
+         */
+        DeploymentStatus: "applied" | "verified" | "verification_failed" | "failed" | "conflict" | "rolled_back";
+        /** DeploymentView */
+        DeploymentView: {
+            /** Actor */
+            actor: string;
+            /** Applied At */
+            applied_at: string | null;
+            /** Cms Page Id */
+            cms_page_id: string;
+            /** Cms Provider */
+            cms_provider: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Error Code */
+            error_code: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Idempotent Replay
+             * @default false
+             */
+            idempotent_replay: boolean;
+            /** New Version */
+            new_version: string | null;
+            /**
+             * Operation Id
+             * Format: uuid
+             */
+            operation_id: string;
+            /** Plan Ids */
+            plan_ids: string[];
+            /** Previous Version */
+            previous_version: string | null;
+            /** Rolled Back At */
+            rolled_back_at: string | null;
+            /**
+             * Source Page Id
+             * Format: uuid
+             */
+            source_page_id: string;
+            /** Source Url */
+            source_url: string;
+            status: components["schemas"]["DeploymentStatus"];
+            /** Verified At */
+            verified_at: string | null;
+        };
+        /** DryRunRequest */
+        DryRunRequest: {
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+            /**
+             * Operation Id
+             * Format: uuid
+             */
+            operation_id: string;
+            /** Plan Ids */
+            plan_ids: string[];
+        };
+        /** DryRunResult */
+        DryRunResult: {
+            /** Changes */
+            changes: components["schemas"]["ChangePreview"][];
+            /** Cms Page Id */
+            cms_page_id: string | null;
+            /** Cms Version */
+            cms_version: string | null;
+            /** Issues */
+            issues: components["schemas"]["DeploymentIssue"][];
+            /** Source Page Id */
+            source_page_id: string | null;
+            /** Valid */
+            valid: boolean;
         };
         /**
          * EditAnchorRequest
@@ -1963,6 +2280,12 @@ export interface components {
             items: components["schemas"]["CandidateView"][];
             page: components["schemas"]["PageInfo"];
         };
+        /** ListResponse[DeploymentView] */
+        ListResponse_DeploymentView_: {
+            /** Items */
+            items: components["schemas"]["DeploymentView"][];
+            page: components["schemas"]["PageInfo"];
+        };
         /** ListResponse[EventRecord] */
         ListResponse_EventRecord_: {
             /** Items */
@@ -2581,7 +2904,7 @@ export interface components {
          * Permission
          * @enum {string}
          */
-        Permission: "read" | "review" | "read_audit" | "read_settings";
+        Permission: "read" | "review" | "read_audit" | "read_settings" | "deploy";
         /**
          * PlacementLocator
          * @description Where the anchor goes. Mirrors ``ken_contracts.cms.LinkLocator`` plus offsets.
@@ -2927,6 +3250,25 @@ export interface components {
          */
         Role: "viewer" | "reviewer" | "operator_admin";
         /**
+         * RollbackReason
+         * @enum {string}
+         */
+        RollbackReason: "verification_failed" | "editorial_reversal" | "wrong_destination" | "broken_page" | "other";
+        /** RollbackRequest */
+        RollbackRequest: {
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+            /**
+             * Operation Id
+             * Format: uuid
+             */
+            operation_id: string;
+            reason: components["schemas"]["RollbackReason"];
+        };
+        /**
          * RunCounters
          * @description Run accounting. Invariant (checked by tests)::
          *
@@ -3256,6 +3598,43 @@ export interface components {
          * @enum {string}
          */
         TriageDecision: "no_action" | "reindex" | "optimize" | "repair_link" | "review_performance";
+        /** VerificationCheck */
+        VerificationCheck: {
+            check: components["schemas"]["VerificationCheckName"];
+            /**
+             * Detail
+             * @description Fixed-vocabulary code.
+             */
+            detail: string | null;
+            /** Outcome */
+            outcome: string;
+            /**
+             * Plan Id
+             * Format: uuid
+             */
+            plan_id: string;
+        };
+        /**
+         * VerificationCheckName
+         * @enum {string}
+         */
+        VerificationCheckName: "link_present_once" | "href_matches" | "anchor_matches" | "in_expected_block" | "not_hidden" | "not_nested" | "target_reachable";
+        /** VerificationRun */
+        VerificationRun: {
+            /** Checks */
+            checks: components["schemas"]["VerificationCheck"][];
+            /** Http Checked */
+            http_checked: boolean;
+            /** Id */
+            id: number;
+            /** Passed */
+            passed: boolean;
+            /**
+             * Run At
+             * Format: date-time
+             */
+            run_at: string;
+        };
     };
     responses: never;
     parameters: never;
@@ -3561,6 +3940,428 @@ export interface operations {
             };
             /** @description A parameter is invalid. */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    listDeployments: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+                status?: components["schemas"]["DeploymentStatus"] | null;
+                source_page_id?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListResponse_DeploymentView_"];
+                };
+            };
+            /** @description Not authenticated. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The role lacks the permission. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A parameter or the body is invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    createDeployment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeployRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeploymentDetail"];
+                };
+            };
+            /** @description Not authenticated. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The role lacks the permission. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No such plan or deployment. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Refused by validation, CMS version conflict, or reused operation id. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A parameter or the body is invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The CMS is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    dryRunDeployment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DryRunRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DryRunResult"];
+                };
+            };
+            /** @description Not authenticated. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The role lacks the permission. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No such plan or deployment. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Refused by validation, CMS version conflict, or reused operation id. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A parameter or the body is invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The CMS is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    getDeployment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                deployment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeploymentDetail"];
+                };
+            };
+            /** @description Not authenticated. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The role lacks the permission. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No such deployment. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A parameter or the body is invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    rollbackDeployment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                deployment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RollbackRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeploymentDetail"];
+                };
+            };
+            /** @description Not authenticated. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The role lacks the permission. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No such plan or deployment. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Refused by validation, CMS version conflict, or reused operation id. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A parameter or the body is invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The CMS is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    verifyDeployment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                deployment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeploymentDetail"];
+                };
+            };
+            /** @description Not authenticated. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The role lacks the permission. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No such plan or deployment. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Refused by validation, CMS version conflict, or reused operation id. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A parameter or the body is invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The CMS is unavailable. */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -5089,6 +5890,64 @@ export interface operations {
             };
             /** @description Status mismatch, stale plan, invalid pair or reused operation id. */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A parameter or the body is invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    listPlanDeployments: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                plan_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeploymentView"][];
+                };
+            };
+            /** @description Not authenticated. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The role lacks the permission. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No such plan. */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

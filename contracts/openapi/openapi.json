@@ -864,6 +864,62 @@
         "title": "CanonicalStatus",
         "type": "string"
       },
+      "ChangePreview": {
+        "additionalProperties": false,
+        "description": "Dry-run preview of one plan. Snippets are TEXT for display, never rendered as HTML.",
+        "properties": {
+          "anchor_end": {
+            "exclusiveMinimum": 0.0,
+            "title": "Anchor End",
+            "type": "integer"
+          },
+          "anchor_start": {
+            "minimum": 0.0,
+            "title": "Anchor Start",
+            "type": "integer"
+          },
+          "anchor_text": {
+            "title": "Anchor Text",
+            "type": "string"
+          },
+          "block_text": {
+            "description": "The block's text; the UI marks [anchor_start, anchor_end).",
+            "title": "Block Text",
+            "type": "string"
+          },
+          "href": {
+            "title": "Href",
+            "type": "string"
+          },
+          "html_after": {
+            "maxLength": 1200,
+            "title": "Html After",
+            "type": "string"
+          },
+          "html_before": {
+            "maxLength": 1000,
+            "title": "Html Before",
+            "type": "string"
+          },
+          "plan_id": {
+            "format": "uuid",
+            "title": "Plan Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "plan_id",
+          "anchor_text",
+          "href",
+          "block_text",
+          "anchor_start",
+          "anchor_end",
+          "html_before",
+          "html_after"
+        ],
+        "title": "ChangePreview",
+        "type": "object"
+      },
       "CheckKind": {
         "description": "Category of a readiness check, so clients can group them in a UI.",
         "enum": [
@@ -1054,6 +1110,572 @@
           "error"
         ],
         "title": "DependencyCheck",
+        "type": "object"
+      },
+      "DeployRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "note": {
+            "default": "",
+            "maxLength": 500,
+            "title": "Note",
+            "type": "string"
+          },
+          "operation_id": {
+            "format": "uuid",
+            "title": "Operation Id",
+            "type": "string"
+          },
+          "plan_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "Plan Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "operation_id",
+          "plan_ids"
+        ],
+        "title": "DeployRequest",
+        "type": "object"
+      },
+      "DeploymentDetail": {
+        "additionalProperties": false,
+        "properties": {
+          "actor": {
+            "title": "Actor",
+            "type": "string"
+          },
+          "applied_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Applied At"
+          },
+          "cms_page_id": {
+            "title": "Cms Page Id",
+            "type": "string"
+          },
+          "cms_provider": {
+            "title": "Cms Provider",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "idempotent_replay": {
+            "default": false,
+            "title": "Idempotent Replay",
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DeploymentItemView"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "new_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "New Version"
+          },
+          "operation_id": {
+            "format": "uuid",
+            "title": "Operation Id",
+            "type": "string"
+          },
+          "plan_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Plan Ids",
+            "type": "array"
+          },
+          "preview": {
+            "items": {
+              "$ref": "#/components/schemas/ChangePreview"
+            },
+            "title": "Preview",
+            "type": "array"
+          },
+          "previous_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previous Version"
+          },
+          "rollback_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rollback Note"
+          },
+          "rollback_reason": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RollbackReason"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "rolled_back_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rolled Back At"
+          },
+          "source_page_id": {
+            "format": "uuid",
+            "title": "Source Page Id",
+            "type": "string"
+          },
+          "source_url": {
+            "title": "Source Url",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/DeploymentStatus"
+          },
+          "verifications": {
+            "items": {
+              "$ref": "#/components/schemas/VerificationRun"
+            },
+            "title": "Verifications",
+            "type": "array"
+          },
+          "verified_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verified At"
+          }
+        },
+        "required": [
+          "id",
+          "operation_id",
+          "source_page_id",
+          "source_url",
+          "cms_provider",
+          "cms_page_id",
+          "status",
+          "plan_ids",
+          "previous_version",
+          "new_version",
+          "actor",
+          "error_code",
+          "created_at",
+          "applied_at",
+          "verified_at",
+          "rolled_back_at",
+          "idempotent_replay",
+          "items",
+          "preview",
+          "verifications",
+          "rollback_reason",
+          "rollback_note"
+        ],
+        "title": "DeploymentDetail",
+        "type": "object"
+      },
+      "DeploymentIssue": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "$ref": "#/components/schemas/DeploymentIssueCode"
+          },
+          "plan_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plan Id"
+          }
+        },
+        "required": [
+          "code",
+          "plan_id"
+        ],
+        "title": "DeploymentIssue",
+        "type": "object"
+      },
+      "DeploymentIssueCode": {
+        "description": "Why a plan (or the whole request) cannot be deployed. Fixed vocabulary.",
+        "enum": [
+          "plan_not_approved",
+          "plan_stale",
+          "plan_invalid",
+          "mixed_sources",
+          "cms_page_not_found",
+          "cms_page_protected",
+          "cms_unavailable",
+          "cms_validation_failed",
+          "href_invalid",
+          "broken_target",
+          "block_not_found",
+          "ambiguous_block",
+          "anchor_not_found",
+          "anchor_not_in_single_text_node",
+          "unmappable_span",
+          "unsafe_placement",
+          "overlapping_changes",
+          "already_applied",
+          "conflicting_link",
+          "self_check_failed"
+        ],
+        "title": "DeploymentIssueCode",
+        "type": "string"
+      },
+      "DeploymentItemView": {
+        "additionalProperties": false,
+        "properties": {
+          "anchor_text": {
+            "title": "Anchor Text",
+            "type": "string"
+          },
+          "plan_id": {
+            "format": "uuid",
+            "title": "Plan Id",
+            "type": "string"
+          },
+          "plan_status": {
+            "$ref": "#/components/schemas/LinkPlanStatus"
+          },
+          "target_url": {
+            "title": "Target Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "plan_id",
+          "plan_status",
+          "anchor_text",
+          "target_url"
+        ],
+        "title": "DeploymentItemView",
+        "type": "object"
+      },
+      "DeploymentStatus": {
+        "enum": [
+          "applied",
+          "verified",
+          "verification_failed",
+          "failed",
+          "conflict",
+          "rolled_back"
+        ],
+        "title": "DeploymentStatus",
+        "type": "string"
+      },
+      "DeploymentView": {
+        "additionalProperties": false,
+        "properties": {
+          "actor": {
+            "title": "Actor",
+            "type": "string"
+          },
+          "applied_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Applied At"
+          },
+          "cms_page_id": {
+            "title": "Cms Page Id",
+            "type": "string"
+          },
+          "cms_provider": {
+            "title": "Cms Provider",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "idempotent_replay": {
+            "default": false,
+            "title": "Idempotent Replay",
+            "type": "boolean"
+          },
+          "new_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "New Version"
+          },
+          "operation_id": {
+            "format": "uuid",
+            "title": "Operation Id",
+            "type": "string"
+          },
+          "plan_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Plan Ids",
+            "type": "array"
+          },
+          "previous_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previous Version"
+          },
+          "rolled_back_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rolled Back At"
+          },
+          "source_page_id": {
+            "format": "uuid",
+            "title": "Source Page Id",
+            "type": "string"
+          },
+          "source_url": {
+            "title": "Source Url",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/DeploymentStatus"
+          },
+          "verified_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verified At"
+          }
+        },
+        "required": [
+          "id",
+          "operation_id",
+          "source_page_id",
+          "source_url",
+          "cms_provider",
+          "cms_page_id",
+          "status",
+          "plan_ids",
+          "previous_version",
+          "new_version",
+          "actor",
+          "error_code",
+          "created_at",
+          "applied_at",
+          "verified_at",
+          "rolled_back_at",
+          "idempotent_replay"
+        ],
+        "title": "DeploymentView",
+        "type": "object"
+      },
+      "DryRunRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "note": {
+            "default": "",
+            "maxLength": 500,
+            "title": "Note",
+            "type": "string"
+          },
+          "operation_id": {
+            "format": "uuid",
+            "title": "Operation Id",
+            "type": "string"
+          },
+          "plan_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "Plan Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "operation_id",
+          "plan_ids"
+        ],
+        "title": "DryRunRequest",
+        "type": "object"
+      },
+      "DryRunResult": {
+        "additionalProperties": false,
+        "properties": {
+          "changes": {
+            "items": {
+              "$ref": "#/components/schemas/ChangePreview"
+            },
+            "title": "Changes",
+            "type": "array"
+          },
+          "cms_page_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cms Page Id"
+          },
+          "cms_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cms Version"
+          },
+          "issues": {
+            "items": {
+              "$ref": "#/components/schemas/DeploymentIssue"
+            },
+            "title": "Issues",
+            "type": "array"
+          },
+          "source_page_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Page Id"
+          },
+          "valid": {
+            "title": "Valid",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "source_page_id",
+          "cms_page_id",
+          "cms_version",
+          "valid",
+          "changes",
+          "issues"
+        ],
+        "title": "DryRunResult",
         "type": "object"
       },
       "EditAnchorRequest": {
@@ -2752,6 +3374,27 @@
         "title": "ListResponse[CandidateView]",
         "type": "object"
       },
+      "ListResponse_DeploymentView_": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DeploymentView"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          }
+        },
+        "required": [
+          "items",
+          "page"
+        ],
+        "title": "ListResponse[DeploymentView]",
+        "type": "object"
+      },
       "ListResponse_EventRecord_": {
         "additionalProperties": false,
         "properties": {
@@ -4297,7 +4940,8 @@
           "read",
           "review",
           "read_audit",
-          "read_settings"
+          "read_settings",
+          "deploy"
         ],
         "title": "Permission",
         "type": "string"
@@ -5026,6 +5670,42 @@
         "title": "Role",
         "type": "string"
       },
+      "RollbackReason": {
+        "enum": [
+          "verification_failed",
+          "editorial_reversal",
+          "wrong_destination",
+          "broken_page",
+          "other"
+        ],
+        "title": "RollbackReason",
+        "type": "string"
+      },
+      "RollbackRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "note": {
+            "default": "",
+            "maxLength": 500,
+            "title": "Note",
+            "type": "string"
+          },
+          "operation_id": {
+            "format": "uuid",
+            "title": "Operation Id",
+            "type": "string"
+          },
+          "reason": {
+            "$ref": "#/components/schemas/RollbackReason"
+          }
+        },
+        "required": [
+          "operation_id",
+          "reason"
+        ],
+        "title": "RollbackRequest",
+        "type": "object"
+      },
       "RunCounters": {
         "additionalProperties": false,
         "description": "Run accounting. Invariant (checked by tests)::\n\npages_fetched == pages_created + pages_changed + pages_unchanged\n                 + pages_duplicate + pages_failed",
@@ -5699,6 +6379,96 @@
         ],
         "title": "TriageDecision",
         "type": "string"
+      },
+      "VerificationCheck": {
+        "additionalProperties": false,
+        "properties": {
+          "check": {
+            "$ref": "#/components/schemas/VerificationCheckName"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Fixed-vocabulary code.",
+            "title": "Detail"
+          },
+          "outcome": {
+            "pattern": "^(passed|failed|skipped)$",
+            "title": "Outcome",
+            "type": "string"
+          },
+          "plan_id": {
+            "format": "uuid",
+            "title": "Plan Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "plan_id",
+          "check",
+          "outcome",
+          "detail"
+        ],
+        "title": "VerificationCheck",
+        "type": "object"
+      },
+      "VerificationCheckName": {
+        "enum": [
+          "link_present_once",
+          "href_matches",
+          "anchor_matches",
+          "in_expected_block",
+          "not_hidden",
+          "not_nested",
+          "target_reachable"
+        ],
+        "title": "VerificationCheckName",
+        "type": "string"
+      },
+      "VerificationRun": {
+        "additionalProperties": false,
+        "properties": {
+          "checks": {
+            "items": {
+              "$ref": "#/components/schemas/VerificationCheck"
+            },
+            "title": "Checks",
+            "type": "array"
+          },
+          "http_checked": {
+            "title": "Http Checked",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "passed": {
+            "title": "Passed",
+            "type": "boolean"
+          },
+          "run_at": {
+            "format": "date-time",
+            "title": "Run At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "run_at",
+          "passed",
+          "http_checked",
+          "checks"
+        ],
+        "title": "VerificationRun",
+        "type": "object"
       }
     }
   },
@@ -6128,6 +6898,565 @@
         "summary": "Reviewer home-screen summary.",
         "tags": [
           "control-plane"
+        ]
+      }
+    },
+    "/deployments": {
+      "get": {
+        "operationId": "listDeployments",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "maximum": 10000000,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/DeploymentStatus"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "source_page_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Source Page Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListResponse_DeploymentView_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not authenticated."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The role lacks the permission."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A parameter or the body is invalid."
+          }
+        },
+        "summary": "Deployment history, newest first.",
+        "tags": [
+          "deployments"
+        ]
+      },
+      "post": {
+        "operationId": "createDeployment",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeployRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeploymentDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not authenticated."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The role lacks the permission."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such plan or deployment."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Refused by validation, CMS version conflict, or reused operation id."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A parameter or the body is invalid."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The CMS is unavailable."
+          }
+        },
+        "summary": "Deploy approved plans of one source page through the CMS adapter, then verify.",
+        "tags": [
+          "deployments"
+        ]
+      }
+    },
+    "/deployments/dry-run": {
+      "post": {
+        "operationId": "dryRunDeployment",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DryRunRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DryRunResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not authenticated."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The role lacks the permission."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such plan or deployment."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Refused by validation, CMS version conflict, or reused operation id."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A parameter or the body is invalid."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The CMS is unavailable."
+          }
+        },
+        "summary": "Validate and preview deploying approved plans of one source page (writes nothing).",
+        "tags": [
+          "deployments"
+        ]
+      }
+    },
+    "/deployments/{deployment_id}": {
+      "get": {
+        "operationId": "getDeployment",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "deployment_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Deployment Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeploymentDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not authenticated."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The role lacks the permission."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such deployment."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A parameter or the body is invalid."
+          }
+        },
+        "summary": "One deployment with items, preview and verification runs.",
+        "tags": [
+          "deployments"
+        ]
+      }
+    },
+    "/deployments/{deployment_id}/rollback": {
+      "post": {
+        "operationId": "rollbackDeployment",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "deployment_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Deployment Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RollbackRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeploymentDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not authenticated."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The role lacks the permission."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such plan or deployment."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Refused by validation, CMS version conflict, or reused operation id."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A parameter or the body is invalid."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The CMS is unavailable."
+          }
+        },
+        "summary": "Roll a deployment back through the CMS adapter (idempotent).",
+        "tags": [
+          "deployments"
+        ]
+      }
+    },
+    "/deployments/{deployment_id}/verify": {
+      "post": {
+        "operationId": "verifyDeployment",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "deployment_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Deployment Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeploymentDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not authenticated."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The role lacks the permission."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such plan or deployment."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Refused by validation, CMS version conflict, or reused operation id."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A parameter or the body is invalid."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The CMS is unavailable."
+          }
+        },
+        "summary": "Re-run post-publish verification of a deployment.",
+        "tags": [
+          "deployments"
         ]
       }
     },
@@ -8620,6 +9949,83 @@
         "summary": "Approve a plan (via awaiting_approval when needed).",
         "tags": [
           "review"
+        ]
+      }
+    },
+    "/recommendations/{plan_id}/deployments": {
+      "get": {
+        "operationId": "listPlanDeployments",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "plan_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Plan Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DeploymentView"
+                  },
+                  "title": "Response Listplandeployments",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not authenticated."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The role lacks the permission."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such plan."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A parameter or the body is invalid."
+          }
+        },
+        "summary": "The deployments that included one plan.",
+        "tags": [
+          "deployments"
         ]
       }
     },

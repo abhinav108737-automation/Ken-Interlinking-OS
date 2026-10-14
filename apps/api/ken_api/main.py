@@ -27,6 +27,7 @@ from ken_api.middleware.request_id import RequestIdMiddleware
 from ken_api.routers.agents import router as agents_router
 from ken_api.routers.auth import router as auth_router
 from ken_api.routers.controlplane import router as controlplane_router
+from ken_api.routers.deployments import router as deployments_router
 from ken_api.routers.health import router as health_router
 from ken_api.routers.intelligence import jobs_router
 from ken_api.routers.intelligence import router as intelligence_router
@@ -171,6 +172,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(auth_router)
     app.include_router(review_router)
     app.include_router(controlplane_router)
+    app.include_router(deployments_router)
     _install_openapi(app)
     return app
 
