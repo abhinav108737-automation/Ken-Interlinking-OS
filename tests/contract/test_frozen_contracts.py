@@ -16,6 +16,7 @@ from pydantic import BaseModel, ValidationError
 from ken_contracts import (
     agents,
     analytics,
+    auth,
     cms,
     common,
     errors,
@@ -26,12 +27,14 @@ from ken_contracts import (
     jobs,
     model,
     recommendations,
+    review,
 )
 from ken_contracts.common import AsyncClosable, ContractModel
 
 CONTRACT_MODULES = [
     agents,
     analytics,
+    auth,
     cms,
     common,
     errors,
@@ -42,6 +45,7 @@ CONTRACT_MODULES = [
     jobs,
     model,
     recommendations,
+    review,
 ]
 
 

@@ -27,11 +27,13 @@ from ken_core.db.models.recommendations import (
     LinkPlanTransition,
     Opportunity,
 )
+from ken_core.db.models.review import AuthSession, ReviewActionRow, User
 
 __all__ = [
     "AgentRun",
     "AgentRunPlan",
     "AgentStep",
+    "AuthSession",
     "Event",
     "ExistingLink",
     "IngestionIssue",
@@ -48,4 +50,6 @@ __all__ = [
     "PageProtection",
     "PageRelationship",
     "PageVersion",
+    "ReviewActionRow",
+    "User",
 ]

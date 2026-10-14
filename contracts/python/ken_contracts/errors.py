@@ -48,6 +48,11 @@ class ErrorCode(StrEnum):
     MODEL_SCHEMA_VIOLATION = "model_schema_violation"
     APPROVAL_REQUIRED = "approval_required"
     PERMISSION_DENIED = "permission_denied"
+    # Phase 5 (ADR-0013)
+    UNAUTHENTICATED = "unauthenticated"
+    """401: no valid session (missing, malformed, unknown, expired or revoked token)."""
+    METHOD_NOT_ALLOWED = "method_not_allowed"
+    """405 (Phase 0 QA L1)."""
 
 
 class ErrorDetail(ContractModel):

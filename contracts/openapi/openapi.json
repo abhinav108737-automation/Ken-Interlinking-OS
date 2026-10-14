@@ -846,7 +846,9 @@
           "model_unavailable",
           "model_schema_violation",
           "approval_required",
-          "permission_denied"
+          "permission_denied",
+          "unauthenticated",
+          "method_not_allowed"
         ],
         "title": "ErrorCode",
         "type": "string"

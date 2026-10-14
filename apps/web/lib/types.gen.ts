@@ -882,7 +882,7 @@ export interface components {
          *     time. Adding a member in a later phase is additive and non-breaking.
          * @enum {string}
          */
-        ErrorCode: "validation_failed" | "not_found" | "conflict" | "internal_error" | "service_unavailable" | "page_not_found" | "stale_page_version" | "protected_page" | "cms_version_conflict" | "cms_unavailable" | "model_unavailable" | "model_schema_violation" | "approval_required" | "permission_denied";
+        ErrorCode: "validation_failed" | "not_found" | "conflict" | "internal_error" | "service_unavailable" | "page_not_found" | "stale_page_version" | "protected_page" | "cms_version_conflict" | "cms_unavailable" | "model_unavailable" | "model_schema_violation" | "approval_required" | "permission_denied" | "unauthenticated" | "method_not_allowed";
         /**
          * ErrorDetail
          * @description One field-level or item-level problem within a failed request.
