@@ -16,6 +16,9 @@
  * render either the data or a meaningful error state.
  */
 import {
+  type AgentPlanReviewList,
+  type AgentRunDetail,
+  type AgentRunList,
   type ApiClient,
   type ApiPath,
   type ApiResult,
@@ -27,6 +30,7 @@ import {
   type JobRunDetail,
   type JobRunList,
   type LinkList,
+  type ListAgentRunsQuery,
   type LinkPlanDetail,
   type LinkPlanList,
   type ListIngestionRunIssuesQuery,
@@ -64,6 +68,16 @@ import {
 } from "./api-client";
 
 export type {
+  AgentErrorCode,
+  AgentNode,
+  AgentOutcome,
+  AgentPlanReview,
+  AgentPlanReviewList,
+  AgentRunDetail,
+  AgentRunList,
+  AgentRunStatus,
+  AgentRunSummary,
+  AgentStepView,
   ApiClient,
   ApiClientOptions,
   ApiError,
@@ -112,6 +126,7 @@ export type {
   SimilarPage,
   SimilarPageList,
   TaxonomyView,
+  ToolCallRecord,
 } from "./api-client";
 export {
   DEFAULT_API_BASE_URL,
@@ -365,4 +380,27 @@ export function listOpportunities(
 /** `GET /recommendations/summary` — dashboard counts. Contract: 200 only. */
 export function getRecommendationSummary(options: RequestOptions = {}): Promise<ApiResult<RecommendationSummary>> {
   return withServerClient("/recommendations/summary", (client) => client.getRecommendationSummary(options));
+}
+
+// ---------------------------------------------------------------------------
+// Phase 4 agent orchestration (ADR-0012 section 11). All read-only GETs; agent
+// runs start from the CLI (`make agents`), never from this console.
+// ---------------------------------------------------------------------------
+
+/** `GET /agents/runs` — agent review runs, newest first. Contract: 200, 422. */
+export function listAgentRuns(query: ListAgentRunsQuery = {}, options: RequestOptions = {}): Promise<ApiResult<AgentRunList>> {
+  return withServerClient("/agents/runs", (client) => client.listAgentRuns(query, options));
+}
+
+/** `GET /agents/runs/{run_id}` — one run with its steps and plan reviews. Contract: 200, 404, 422. */
+export function getAgentRun(runId: string, options: RequestOptions = {}): Promise<ApiResult<AgentRunDetail>> {
+  return withServerClient("/agents/runs/{run_id}", (client) => client.getAgentRun(runId, options));
+}
+
+/** `GET /agents/plans/{plan_id}/reviews` — agent review(s) of one plan; empty if none. Contract: 200, 422. */
+export function listAgentPlanReviews(
+  planId: string,
+  options: RequestOptions = {},
+): Promise<ApiResult<AgentPlanReviewList>> {
+  return withServerClient("/agents/plans/{plan_id}/reviews", (client) => client.listAgentPlanReviews(planId, options));
 }

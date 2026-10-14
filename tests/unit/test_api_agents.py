@@ -65,6 +65,7 @@ def _summary() -> AgentRunSummary:
 
 def _review() -> AgentPlanReview:
     return AgentPlanReview(
+        run_id=RUN_ID,
         plan_id=PLAN_ID,
         verdict=CriticVerdict.ACCEPT,
         reasons=[CriticReason.NATURAL_ANCHOR],

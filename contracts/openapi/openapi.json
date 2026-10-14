@@ -99,11 +99,18 @@
             "title": "Reviewed At",
             "type": "string"
           },
+          "run_id": {
+            "description": "The agent run that reviewed the plan.",
+            "format": "uuid",
+            "title": "Run Id",
+            "type": "string"
+          },
           "verdict": {
             "$ref": "#/components/schemas/CriticVerdict"
           }
         },
         "required": [
+          "run_id",
           "plan_id",
           "verdict",
           "reasons",

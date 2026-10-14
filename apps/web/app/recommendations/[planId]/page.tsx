@@ -5,13 +5,14 @@ import type { ReactNode } from "react";
 
 import { ApiErrorNotice } from "@/components/ApiErrorNotice";
 import { StatusBadge } from "@/components/StatusBadge";
+import { AgentPlanReviewPanel } from "@/components/agents/AgentPlanReviewPanel";
 import { ExternalUrl } from "@/components/inventory/ExternalUrl";
 import { pageHref } from "@/components/inventory/PageInventoryTable";
 import { PlacementPreviewPanel, SourceBlockText } from "@/components/recommendations/PlacementPreview";
 import { PlanScore } from "@/components/recommendations/PlanScore";
 import { ScoreBreakdownTable } from "@/components/recommendations/ScoreBreakdownTable";
 import { TransitionHistory } from "@/components/recommendations/TransitionHistory";
-import { type LinkPlanDetail, getLinkPlan, isMissingResourceError } from "@/lib/api";
+import { type LinkPlanDetail, getLinkPlan, isMissingResourceError, listAgentPlanReviews } from "@/lib/api";
 import { formatDateTime, shortHash } from "@/lib/format";
 import { describeRelationshipType, jobRunHref } from "@/lib/intelligence";
 import { buildHref, pageDisplayTitle } from "@/lib/inventory";
@@ -95,7 +96,8 @@ export default async function RecommendationDetailPage({
   readonly params: Promise<{ planId: string }>;
 }) {
   const { planId } = await params;
-  const result = await getLinkPlan(planId);
+  // The agent review is fetched alongside; its failure never hides the plan.
+  const [result, reviewsResult] = await Promise.all([getLinkPlan(planId), listAgentPlanReviews(planId)]);
 
   if (!result.ok) {
     if (isMissingResourceError(result.error)) {
@@ -227,6 +229,10 @@ export default async function RecommendationDetailPage({
             Why these targets? Candidates for this source page
           </Link>
         </p>
+      </Section>
+
+      <Section id="agent-review" title="Agent review">
+        <AgentPlanReviewPanel result={reviewsResult} />
       </Section>
 
       <Section id="provenance" title="Provenance">

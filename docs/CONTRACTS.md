@@ -22,6 +22,7 @@ convention, not a freeze.
 | `errors.py` | `ErrorResponse`, `ErrorCode`, `ListResponse[T]`, `PageInfo` |
 | `intelligence.py` | Phase 2. Taxonomy policy schema (`TaxonomyPolicy`), `PageAnalysis`, embeddings/relationships/protections views, `LinkEligibility`, `IntelligenceReader` |
 | `jobs.py` | Phase 2. `JobKind`, `JobRunSummary` / `JobRunDetail`, `JobCompletedPayload`, `JobReader` — the run record of every batch job from Phase 2 on |
+| `agents.py` | Phase 4. Agent run/step/review views, nodes, outcomes, triage vocabulary, LLM boundary models (`PlannerSelection`, `CriticAssessment`), tool allowlist, actors, `AgentPolicy`, `AgentReader` |
 | `recommendations.py` | Phase 3. `LinkPlan` / `LinkCandidate` views, `CandidateRejection`, `LinkPlanStatus` + `ALLOWED_TRANSITIONS` / `TRANSITION_AUTHORITY`, `ACTOR_PATTERN`, `RecommendationPolicy` / `RankingPolicy`, `PlacementLocator`, `FreshnessCheck`, `ExperimentGuard`, `RecommendationReader` |
 | `inventory.py` | Phase 1. `ContentSourceProvider` + `CMSInventoryReader` protocols, `SourceDocument` / `SourceIssue`, `SiteScope`, `CrawlConfig`, `NormalizedPage`, the JSONL export format, inventory event payloads, API read models, `InventoryReader` (the API's only route to persistence) |
 
@@ -265,3 +266,39 @@ Design: [ADR-0011](adr/ADR-0011-recommendation-engine.md). Module: `recommendati
 |---|---|---|
 | `link.proposed` | `link_plan` / `str(plan_id)` | `LinkPlanEvent` |
 | `job.completed` | `job_run` / `str(run_id)` | `JobCompletedPayload` (kind `recommendation`) |
+
+### 16. Agent review workflow (Phase 4)
+
+Design: [ADR-0012](adr/ADR-0012-agent-orchestration.md). Modules: `agents.py`;
+the runtime/backend interface is `services/ken_services/agents/protocol.py` (orchestrator-frozen).
+
+- **One plan producer.** Only the deterministic engine inserts plans. An agent run REVIEWS one
+  source's unreviewed `proposed` plans and hands accepted / uncertain ones to the human queue
+  (`proposed → critiqued → policy_checked → awaiting_approval`) in ONE transaction
+  (`hand_off`), with actors bound inside the service (`CRITIC_ACTOR`, `POLICY_GATE_ACTOR`).
+  Agents never insert, reject, approve or expire a plan; a critic-rejected plan stays
+  `proposed`.
+- **A plan is reviewed by agents at most once** (`agent_run_plans.plan_id` UNIQUE).
+- **Hand-off conflicts** (`HandOffResult.conflicts`): `not_proposed`, `already_reviewed`, or the
+  first `PlanCheck` problem re-checked under the plan's row lock. Nothing is written for a
+  conflicting plan; the rest commit.
+- **LLM boundary.** `PlannerSelection` and `CriticAssessment` are frozen, bounded, strict
+  (`extra="forbid"`, unique refs matching `^c[0-9]{1,2}$`). Refs are per call and opaque; a
+  model never sees a plan id. Unknown refs are dropped; omitted refs get the deterministic
+  rule; every fallback is recorded (`FallbackReason`).
+- **Models by role** (`FAST` planner, `REASONING` critic) through `ModelProvider`; the step
+  records the model the provider reported. `agent_run_plans.model` is set only when a model
+  answered.
+- **Run lifecycle.** Every run belongs to a `job_runs` batch of kind `agent`. `running` →
+  `awaiting_approval` (≥ 1 plan handed off) | `completed` | `failed`; finished rows are frozen
+  (trigger); one `running` run per source; orphans are reaped as `failed`/`orphaned`.
+  `trace_id = correlation_id.hex`; steps carry a 16-hex `span_id`; step payloads ≤ 16 KiB.
+- **Tools** (`ToolName`, `TOOL_PERMISSIONS`): five READ tools and one REVIEW tool
+  (`hand_off_plans`). Adding a tool is a governed contract change.
+- **No tracing egress.** Agent runs refuse LangSmith/LangChain tracing variables, endpoints and
+  keys (ADR-0012 §9).
+- **The agents API is GET-only:** `/agents/runs`, `/agents/runs/{run_id}`,
+  `/agents/plans/{plan_id}/reviews`. Runs start from the CLI (`make agents`).
+
+No new event name: the hand-off is audited by `link_plan_transitions` and `agent_run_plans`;
+the batch emits `job.completed` (kind `agent`).

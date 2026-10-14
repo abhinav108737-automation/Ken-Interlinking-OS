@@ -169,11 +169,13 @@ describe("activeNavHref", () => {
     expect(activeNavHref("/inventory/pages/abc")).toBe("/inventory");
     expect(activeNavHref("/inventory/runs")).toBe("/inventory/runs");
     expect(activeNavHref("/inventory/runs/xyz")).toBe("/inventory/runs");
+    expect(activeNavHref("/agents")).toBe("/agents");
+    expect(activeNavHref("/agents/abc")).toBe("/agents");
     expect(activeNavHref("/inventoryx")).toBeNull();
     expect(activeNavHref(null)).toBeNull();
   });
 
   it("keeps System in the navigation", () => {
-    expect(NAV_LINKS.map((link) => link.label)).toEqual(["Home", "Inventory", "Runs", "Intelligence", "Recommendations", "Jobs", "System"]);
+    expect(NAV_LINKS.map((link) => link.label)).toEqual(["Home", "Inventory", "Runs", "Intelligence", "Recommendations", "Agents", "Jobs", "System"]);
   });
 });

@@ -137,6 +137,32 @@ export type ListLinkPlansQuery = NonNullable<operations["listLinkPlans"]["parame
 export type ListLinkCandidatesQuery = NonNullable<operations["listLinkCandidates"]["parameters"]["query"]>;
 export type ListOpportunitiesQuery = NonNullable<operations["listOpportunities"]["parameters"]["query"]>;
 
+// Phase 4 agent orchestration (ADR-0012 section 11). Read-only: runs start from the CLI.
+export type AgentRunStatus = Schemas["AgentRunStatus"];
+export type AgentOutcome = Schemas["AgentOutcome"];
+export type AgentTrigger = Schemas["AgentTrigger"];
+export type AgentNode = Schemas["AgentNode"];
+export type AgentErrorCode = Schemas["AgentErrorCode"];
+export type TriageDecision = Schemas["TriageDecision"];
+export type StepStatus = Schemas["StepStatus"];
+export type FallbackReason = Schemas["FallbackReason"];
+export type CriticVerdict = Schemas["CriticVerdict"];
+export type CriticReason = Schemas["CriticReason"];
+export type ToolName = Schemas["ToolName"];
+export type ToolPermission = Schemas["ToolPermission"];
+export type ModelRole = Schemas["ModelRole"];
+export type ToolCallRecord = Schemas["ToolCallRecord"];
+export type AgentStepView = Schemas["AgentStepView"];
+export type AgentPlanReview = Schemas["AgentPlanReview"];
+export type AgentRunSummary = Schemas["AgentRunSummary"];
+export type AgentRunDetail = Schemas["AgentRunDetail"];
+
+export type AgentRunList = Schemas["ListResponse_AgentRunSummary_"];
+/** `GET /agents/plans/{plan_id}/reviews` returns a bare array (empty when no agent reviewed the plan). */
+export type AgentPlanReviewList = operations["listAgentPlanReviews"]["responses"][200]["content"]["application/json"];
+
+export type ListAgentRunsQuery = NonNullable<operations["listAgentRuns"]["parameters"]["query"]>;
+
 export type ApiPath = keyof paths;
 
 export const DEFAULT_API_BASE_URL = "http://127.0.0.1:8000";
@@ -328,6 +354,18 @@ export interface ApiClient {
   ): Promise<ApiResult<OpportunityList>>;
   /** `GET /recommendations/summary` — dashboard counts. Contract: 200 only. */
   getRecommendationSummary(options?: RequestOptions): Promise<ApiResult<RecommendationSummary>>;
+
+  // --- Phase 4 agent orchestration (ADR-0012 section 11): read-only ----------
+
+  /** `GET /agents/runs` — agent review runs, newest first. Contract: 200, 422. */
+  listAgentRuns(query?: ListAgentRunsQuery, options?: RequestOptions): Promise<ApiResult<AgentRunList>>;
+  /** `GET /agents/runs/{run_id}` — one run with its step timeline and plan reviews. Contract: 200, 404, 422. */
+  getAgentRun(runId: string, options?: RequestOptions): Promise<ApiResult<AgentRunDetail>>;
+  /**
+   * `GET /agents/plans/{plan_id}/reviews` — the agent review(s) of one plan.
+   * Contract: 200 (an empty array when no agent reviewed it), 422. No 404.
+   */
+  listAgentPlanReviews(planId: string, options?: RequestOptions): Promise<ApiResult<AgentPlanReviewList>>;
 }
 
 // ---------------------------------------------------------------------------
@@ -1047,6 +1085,102 @@ export const isCandidateList = (value: unknown): value is CandidateList => isLis
 export const isOpportunityList = (value: unknown): value is OpportunityList =>
   isListResponse(value, isOpportunityView);
 
+// --- Agent guards (Phase 4) ---------------------------------------------------
+// Same policy: every field the agent screens read is checked, including nested
+// steps, tool calls and reviews; enum membership is left to lib/agents.ts.
+
+export function isToolCallRecord(value: unknown): value is ToolCallRecord {
+  return (
+    isObject(value) &&
+    typeof value["tool"] === "string" &&
+    typeof value["permission"] === "string" &&
+    typeof value["ok"] === "boolean" &&
+    isNumber(value["duration_ms"]) &&
+    isNumber(value["attempt"]) &&
+    isNullableString(value["error_code"]) &&
+    isObject(value["summary"])
+  );
+}
+
+export function isAgentStepView(value: unknown): value is AgentStepView {
+  return (
+    isObject(value) &&
+    typeof value["run_id"] === "string" &&
+    isNumber(value["seq"]) &&
+    typeof value["node"] === "string" &&
+    typeof value["status"] === "string" &&
+    isNumber(value["attempt"]) &&
+    typeof value["started_at"] === "string" &&
+    typeof value["finished_at"] === "string" &&
+    isNumber(value["duration_ms"]) &&
+    isNullableString(value["model_role"]) &&
+    isNullableString(value["model"]) &&
+    typeof value["fallback_used"] === "boolean" &&
+    isNullableString(value["fallback_reason"]) &&
+    isNullableString(value["error_code"]) &&
+    everyItem(value["tool_calls"], isToolCallRecord) &&
+    isObject(value["output"]) &&
+    typeof value["trace_id"] === "string" &&
+    typeof value["span_id"] === "string"
+  );
+}
+
+export function isAgentPlanReview(value: unknown): value is AgentPlanReview {
+  return (
+    isObject(value) &&
+    typeof value["run_id"] === "string" &&
+    typeof value["plan_id"] === "string" &&
+    typeof value["verdict"] === "string" &&
+    isStringArray(value["reasons"]) &&
+    typeof value["explanation"] === "string" &&
+    typeof value["handed_off"] === "boolean" &&
+    typeof value["fallback_used"] === "boolean" &&
+    isNullableString(value["fallback_reason"]) &&
+    isNullableString(value["model"]) &&
+    typeof value["reviewed_at"] === "string"
+  );
+}
+
+function hasAgentRunSummaryFields(value: JsonObject): boolean {
+  return (
+    typeof value["id"] === "string" &&
+    typeof value["job_run_id"] === "string" &&
+    typeof value["source_page_id"] === "string" &&
+    isNullableNumber(value["source_page_version"]) &&
+    typeof value["source_url"] === "string" &&
+    typeof value["trigger"] === "string" &&
+    typeof value["status"] === "string" &&
+    isNullableString(value["outcome"]) &&
+    isNullableString(value["triage_decision"]) &&
+    isStringArray(value["handed_off_plan_ids"]) &&
+    typeof value["correlation_id"] === "string" &&
+    typeof value["trace_id"] === "string" &&
+    typeof value["graph_version"] === "string" &&
+    typeof value["started_at"] === "string" &&
+    isNullableString(value["finished_at"]) &&
+    isNullableString(value["error_code"])
+  );
+}
+
+export function isAgentRunSummary(value: unknown): value is AgentRunSummary {
+  return isObject(value) && hasAgentRunSummaryFields(value);
+}
+
+export function isAgentRunDetail(value: unknown): value is AgentRunDetail {
+  return (
+    isObject(value) &&
+    hasAgentRunSummaryFields(value) &&
+    everyItem(value["steps"], isAgentStepView) &&
+    everyItem(value["reviews"], isAgentPlanReview) &&
+    isObject(value["config_snapshot"]) &&
+    isStringArray(value["review_notes"])
+  );
+}
+
+export const isAgentRunList = (value: unknown): value is AgentRunList => isListResponse(value, isAgentRunSummary);
+export const isAgentPlanReviewList = (value: unknown): value is AgentPlanReviewList =>
+  everyItem(value, isAgentPlanReview);
+
 /** The contract's only error body. `details` may be absent from older servers. */
 export function isErrorResponse(value: unknown): value is ErrorResponse {
   return (
@@ -1471,5 +1605,27 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
         callOptions,
         [],
       ),
+
+    listAgentRuns: (query, callOptions = {}) =>
+      inventory("/agents/runs", "/agents/runs", isAgentRunList, query, callOptions, [422]),
+
+    getAgentRun: (runId, callOptions = {}) => {
+      const path = "/agents/runs/{run_id}";
+      if (!isSafePathId(runId)) return invalidArgument(path, "agent run id");
+      return inventory(path, `/agents/runs/${id(runId)}`, isAgentRunDetail, undefined, callOptions);
+    },
+
+    listAgentPlanReviews: (planId, callOptions = {}) => {
+      const path = "/agents/plans/{plan_id}/reviews";
+      if (!isSafePathId(planId)) return invalidArgument(path, "recommendation id");
+      return inventory(
+        path,
+        `/agents/plans/${id(planId)}/reviews`,
+        isAgentPlanReviewList,
+        undefined,
+        callOptions,
+        [422],
+      );
+    },
   };
 }

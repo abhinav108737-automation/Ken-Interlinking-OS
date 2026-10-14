@@ -14,7 +14,7 @@ export function PrimaryNav({ links = NAV_LINKS }: PrimaryNavProps) {
   const active = activeNavHref(usePathname(), links);
   return (
     <nav aria-label="Primary">
-      <ul className="flex gap-4">
+      <ul className="flex flex-wrap gap-x-4 gap-y-1">
         {links.map((link) => {
           const current = link.href === active;
           return (

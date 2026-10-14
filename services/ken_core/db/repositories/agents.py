@@ -99,6 +99,7 @@ def step_from_row(row: AgentStep) -> AgentStepView:
 
 def review_from_row(row: AgentRunPlan) -> AgentPlanReview:
     return AgentPlanReview(
+        run_id=row.run_id,
         plan_id=row.plan_id,
         verdict=CriticVerdict(row.verdict),
         reasons=[CriticReason(r) for r in row.reasons],

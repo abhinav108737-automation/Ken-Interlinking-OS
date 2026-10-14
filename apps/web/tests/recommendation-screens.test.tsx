@@ -29,6 +29,8 @@ const api = vi.hoisted(() => ({
   listLinkCandidates: vi.fn(),
   listOpportunities: vi.fn(),
   getRecommendationSummary: vi.fn(),
+  // The plan detail screen's agent review panel (Phase 4).
+  listAgentPlanReviews: vi.fn(),
   // The page detail screen's other calls.
   getInventoryPage: vi.fn(),
   getInventoryPageVersion: vi.fn(),
@@ -69,6 +71,7 @@ beforeEach(() => {
   for (const mock of Object.values(api)) mock.mockReset();
   nav.notFound.mockClear();
   api.getRecommendationSummary.mockResolvedValue(ok(recommendationSummary()));
+  api.listAgentPlanReviews.mockResolvedValue(ok([]));
 });
 
 async function renderPage(element: Promise<React.ReactElement>) {

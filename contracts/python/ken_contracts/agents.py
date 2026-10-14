@@ -274,6 +274,7 @@ class AgentPlanReview(FrozenModel):
     """One plan reviewed by one run (append-only ``agent_run_plans``; a plan is reviewed
     by agents at most once)."""
 
+    run_id: UUID = Field(description="The agent run that reviewed the plan.")
     plan_id: UUID
     verdict: CriticVerdict
     reasons: list[CriticReason] = Field(default_factory=list)

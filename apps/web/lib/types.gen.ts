@@ -554,6 +554,12 @@ export interface components {
              * Format: date-time
              */
             reviewed_at: string;
+            /**
+             * Run Id
+             * Format: uuid
+             * @description The agent run that reviewed the plan.
+             */
+            run_id: string;
             verdict: components["schemas"]["CriticVerdict"];
         };
         /** AgentRunDetail */
