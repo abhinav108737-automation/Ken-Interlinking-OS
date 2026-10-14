@@ -49,12 +49,57 @@ def test_blank_settings_are_allowed() -> None:
     assert remote_tracing_problems(dict.fromkeys(FORBIDDEN_SETTINGS, "  ")) == ()
 
 
-def test_tracing_is_forced_off_with_setdefault() -> None:
+def test_every_tracing_flag_of_both_namespaces_is_forced_off() -> None:
     env: dict[str, str] = {"LANGCHAIN_TRACING_V2": "0"}
     enforce_no_remote_tracing(env)
-    assert env["LANGSMITH_TRACING"] == "false"
-    assert env["LANGCHAIN_TRACING"] == "false"
-    assert env["LANGCHAIN_TRACING_V2"] == "0", "an explicit falsy value is kept"
+    for name in TRACING_FLAGS:
+        assert env[name] == "false", name  # overwritten, not setdefault (QA C1)
+    assert "LANGSMITH_TRACING_V2" in TRACING_FLAGS
+    assert "LANGSMITH_OTEL_ONLY" in TRACING_FLAGS
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "LANGSMITH_TRACING_V2",  # QA C1: read BEFORE LANGCHAIN_TRACING_V2 by langsmith
+        "LANGSMITH_OTEL_ONLY",
+        "LANGCHAIN_OTEL_ENABLED",
+        "LANGSMITH_TRACING_MODE",
+        "LANGSMITH_RUNS_ENDPOINTS",
+        "LANGSMITH_PROJECT",
+        "LANGSMITH_WORKSPACE_ID",
+        "langsmith_tracing_v2",
+        "LANGCHAIN_ANY_FUTURE_SETTING",
+    ],
+)
+def test_any_non_falsy_variable_in_either_namespace_is_refused(name: str) -> None:
+    with pytest.raises(RemoteTracingConfiguredError) as caught:
+        enforce_no_remote_tracing({name: "true"})
+    assert name in caught.value.names
+
+
+def test_unrelated_variables_are_ignored() -> None:
+    assert remote_tracing_problems({"PATH": "/usr/bin", "LANG": "en", "SMITH_X": "1"}) == ()
+
+
+def test_the_langsmith_env_cache_is_cleared(monkeypatch: pytest.MonkeyPatch) -> None:
+    """If langsmith already cached an answer, the forced value must win."""
+    import os
+
+    import langsmith.utils as lu
+
+    clean = {
+        k: v
+        for k, v in os.environ.items()
+        if not k.upper().startswith(("LANGSMITH_", "LANGCHAIN_"))
+    }
+    monkeypatch.setattr(os, "environ", clean)
+    lu.get_env_var.cache_clear()  # type: ignore[attr-defined]
+    assert lu.get_env_var("TRACING") is None  # cached: unset
+    enforce_no_remote_tracing()
+    assert os.environ["LANGSMITH_TRACING"] == "false"
+    assert lu.get_env_var("TRACING") == "false"  # the stale cached None was dropped
+    assert lu.tracing_is_enabled() is False
 
 
 def test_build_graph_refuses_when_tracing_is_configured(monkeypatch: pytest.MonkeyPatch) -> None:

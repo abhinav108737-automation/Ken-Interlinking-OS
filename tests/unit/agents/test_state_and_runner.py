@@ -179,6 +179,18 @@ async def test_a_slow_read_tool_times_out_and_is_retried() -> None:
     assert backend.calls.count("get_eligibility") == 2
 
 
+async def test_a_slow_hand_off_is_never_cancelled_after_it_may_have_committed() -> None:
+    """QA L1: the write tool and the policy_gate node carry no asyncio deadline, so a slow
+    (but successful) hand-off is reported as the success it was."""
+    backend = FakeBackend.ready([make_plan(0, confidence=0.9)])
+    backend.slow["hand_off"] = 0.3
+    result = await run_source(
+        backend, FakeStore(), None, make_policy(critic=False, node_timeout=0.1)
+    )
+    assert result.outcome is AgentOutcome.RECOMMEND, result.error_code
+    assert backend.calls.count("hand_off") == 1
+
+
 async def test_a_read_tool_recovers_on_retry() -> None:
     backend = FakeBackend.ready()
     backend.failures["get_page"] = 1
@@ -320,6 +332,7 @@ async def test_batch_trigger_uses_sources_to_review_and_reaps_first() -> None:
     job = FakeJob()
     status = await body(job)
     assert store.reap_calls == 1
+    assert store.reaped_for == job.run_id  # orphans are judged relative to THIS batch
     assert store.sources_limit == policy.max_sources_per_batch
     assert job.counters == {
         "sources_considered": 3,

@@ -312,7 +312,7 @@ def make_batch_body(
 
     async def body(job: BatchJob) -> RunStatus:
         enforce_no_remote_tracing()
-        reaped = await store.reap_orphans(now=clock())
+        reaped = await store.reap_orphans(now=clock(), current_job_run_id=job.run_id)
         if reaped:
             logger.warning("agent_runs_reaped", count=reaped)
         if source_page_ids:

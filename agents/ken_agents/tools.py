@@ -144,8 +144,10 @@ class ToolBox:
     ) -> R:
         permission = TOOL_PERMISSIONS[tool]
         attempts = 1 + (self._retries if permission is ToolPermission.READ else 0)
-        # Every attempt fits the node's own budget, so a retry can actually happen.
-        timeout = self._node_timeout / attempts
+        # Every attempt fits the node's own budget, so a retry can actually happen. The
+        # REVIEW tool writes: it gets no asyncio deadline (cancelling it after its commit
+        # would misreport the run; QA L1).
+        timeout = self._node_timeout / attempts if permission is ToolPermission.READ else None
         code = AgentErrorCode.TOOL_FAILED
         for attempt in range(1, attempts + 1):
             started = time.monotonic()

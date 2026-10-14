@@ -111,6 +111,27 @@ start one. Design and rules: [ADR-0009](adr/ADR-0009-content-inventory.md).
 - `plan.id` is the stable link id for Phase 6 deployment and Phase 7 analytics.
 - Design: [ADR-0011](adr/ADR-0011-recommendation-engine.md).
 
+## What Phase 4 added: the agent review workflow
+
+A LangGraph `StateGraph` (ADR-0012) runs one supervised review per source page:
+`load_page → triage → understand → discover → plan → critique → check_invariants →
+policy_gate → finalize`.
+
+- **One plan producer.** The deterministic engine is the only producer of plans. Agents review
+  `proposed` plans and hand accepted / uncertain ones to `awaiting_approval` through ONE service
+  call (`hand_off`), whose actors are bound inside the service.
+- **Narrow tools.** Nodes get a `ToolBox` over the frozen `AgentBackend` protocol: five READ tools
+  and one REVIEW tool. They never receive a session, credentials, a filesystem, a shell, a CMS
+  client or an actor string. This is enforced by a static test.
+- **Typed model slots.** The FAST planner and the REASONING critic are reached by role through
+  `ModelProvider`. Their output is validated (`PlannerSelection`, `CriticAssessment`), and
+  every model problem falls back to a recorded deterministic rule.
+- **Audit.** `agent_runs` (frozen once finished), append-only `agent_steps` (per node: timing,
+  model role and reported model, fallback, tool calls, bounded output, trace and span ids) and
+  append-only `agent_run_plans` (one review per plan). Every run belongs to a `job_runs` batch.
+- **No egress.** LangSmith/LangChain tracing variables are refused, and a test runs the whole
+  graph with sockets blocked.
+
 ## Boundaries that are enforced in code, not by convention
 
 | Boundary | Where enforced |
@@ -167,4 +188,5 @@ Proposing one requires stopping and asking the user (CLAUDE.md), with an ADR.
 | [0008](adr/ADR-0008-electron-readiness.md) | Electron readiness: web UI canonical, typed bridge, Electron deferred |
 | [0009](adr/ADR-0009-content-inventory.md) | Phase 1 content inventory: sources, identity, immutable versions, read-time link resolution, crawler politeness |
 | [0011](adr/ADR-0011-recommendation-engine.md) | Phase 3 recommendation engine: four retrieval channels, ordered filters, transparent policy-weighted score, verbatim context-supported placement, immutable LinkPlans with an allowed-transition lifecycle |
+| [0012](adr/ADR-0012-agent-orchestration.md) | Phase 4 agent orchestration: a LangGraph supervisor that reviews deterministic plans with optional, validated local-model slots, deterministic fallbacks, narrow tools and an atomic hand-off to the human queue |
 | [0010](adr/ADR-0010-content-intelligence.md) | Phase 2 content intelligence: pgvector required from 0003, taxonomy-policy analysis, provider-defined embeddings, version-stamped relationships, protections, read-time eligibility, generic job runs |

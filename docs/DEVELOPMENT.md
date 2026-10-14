@@ -138,6 +138,26 @@ make recommend ARGS="--source <id>"    # one or more specific source pages
   score), `/recommendations/{id}`, `/recommendations/candidates`,
   `/recommendations/opportunities` and `/recommendations/summary`. Approve, reject and edit come
   in Phase 5.
+
+## Agent review workflow (Phase 4)
+
+```bash
+make agents                            # review every source with unreviewed proposed plans
+make agents ARGS="--source <id> ..."   # a manual batch of specific source pages
+```
+
+- Run it after `make recommend`. It moves accepted and uncertain plans to `awaiting_approval`;
+  critic-rejected plans stay `proposed`. A plan is reviewed by agents once.
+- **Models are optional.** `policies/agents/agents.v1.yaml` turns the FAST planner (off) and the
+  REASONING critic (on) on or off. With Ollama down, or the model off, the deterministic rule
+  is used and recorded. `KEN_MODEL_PROVIDER=mock` gives a fully offline run. The local
+  `qwen3:8b` critic takes about 10 s per source.
+- **Tracing is refused.** An agent run will not start while any `LANGSMITH_*` or
+  `LANGCHAIN_*` tracing variable, endpoint or key is set.
+- **Read-only endpoints:** `GET /agents/runs` (filters: status, outcome, source page),
+  `/agents/runs/{id}` and `/agents/plans/{plan_id}/reviews`. The screens are at `/agents`.
+- **Evals:** `evals/agents/README.md` (recorded model outputs; the benchmark uses only a
+  `*_test` database).
 - **Screens:** `/recommendations`, the plan detail (highlighted placement, score breakdown,
   reasons, history), opportunities, candidates, and per-page sections on page detail.
 - **Evals:** `KEN_REQUIRE_INTEGRATION_DB=1 .venv/bin/pytest tests/integration/test_recommendation_evals.py -rA`

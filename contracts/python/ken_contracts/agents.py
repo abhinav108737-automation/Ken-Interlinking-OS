@@ -36,11 +36,12 @@ Boundaries this module fixes:
 
 from __future__ import annotations
 
+import re
 from enum import StrEnum
 from typing import Annotated, Any, Final, Protocol, Self, runtime_checkable
 from uuid import UUID
 
-from pydantic import AwareDatetime, Field, model_validator
+from pydantic import AfterValidator, AwareDatetime, Field, model_validator
 
 from ken_contracts.common import FrozenModel
 from ken_contracts.errors import ListResponse
@@ -61,10 +62,28 @@ REF_PATTERN: Final = r"^c[0-9]{1,2}$"
 
 PLANNER_ACTOR: Final = "agent:planner@graph-v1"
 CRITIC_ACTOR: Final = "agent:critic@graph-v1"
-POLICY_GATE_ACTOR: Final = "system:agent-policy-gate"
-"""Actors are bound by the services, never chosen by a node."""
+POLICY_GATE_ACTOR: Final = "agent:policy-gate@graph-v1"
+"""Actors are bound by the services, never chosen by a node. Both are ``agent:`` actors:
+least privilege -- a ``system:`` actor also holds authority over deployed / expired
+(QA L3)."""
 
 type PlanRef = Annotated[str, Field(pattern=REF_PATTERN)]
+
+_CONTROL_CHARS: Final = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
+
+
+def _no_control_chars(value: str) -> str:
+    """Model text is stored in PostgreSQL text/jsonb, which reject NUL: a control character
+    (other than tab / newline / carriage return) makes the whole answer a schema violation
+    -- a recorded fallback -- instead of a database error that fails the run (QA H1)."""
+    if _CONTROL_CHARS.search(value):
+        raise ValueError("control characters are not allowed in model text")
+    return value
+
+
+type ModelText = Annotated[
+    str, Field(max_length=MAX_EXPLANATION_CHARS), AfterValidator(_no_control_chars)
+]
 
 
 class AgentTrigger(StrEnum):
@@ -186,7 +205,7 @@ class PlannerSelection(FrozenModel):
     """FAST-role output: an ordered subset of the offered refs, without duplicates."""
 
     selected: list[PlanRef] = Field(default_factory=list, max_length=MAX_CANDIDATES_FOR_MODEL)
-    explanation: str = Field(default="", max_length=MAX_EXPLANATION_CHARS)
+    explanation: ModelText = ""
 
     @model_validator(mode="after")
     def _unique(self) -> Self:
@@ -217,7 +236,7 @@ class CandidateCritique(FrozenModel):
     ref: PlanRef
     verdict: CriticVerdict
     reasons: list[CriticReason] = Field(default_factory=list, max_length=4)
-    explanation: str = Field(default="", max_length=MAX_EXPLANATION_CHARS)
+    explanation: ModelText = ""
 
 
 class CriticAssessment(FrozenModel):

@@ -45,6 +45,7 @@ READ methods
 
 from __future__ import annotations
 
+import re
 import uuid
 from collections.abc import Callable, Sequence
 from datetime import datetime
@@ -147,6 +148,10 @@ def _eligibility(
     )
 
 
+_CONTROL_CHARS: Final = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
+"""PostgreSQL text rejects NUL; models are validated upstream (ModelText), this is the backstop."""
+
+
 def _validated(reviews: Sequence[PlanReviewInput]) -> list[PlanReviewInput]:
     """Coerce and bound every review BEFORE anything is written (ValueError otherwise)."""
     out: list[PlanReviewInput] = []
@@ -162,6 +167,8 @@ def _validated(reviews: Sequence[PlanReviewInput]) -> list[PlanReviewInput]:
             raise ValueError(f"at most {MAX_REVIEW_REASONS} distinct reasons per review")
         if len(review.explanation) > MAX_EXPLANATION_CHARS:
             raise ValueError(f"explanation must be at most {MAX_EXPLANATION_CHARS} characters")
+        if _CONTROL_CHARS.search(review.explanation):
+            raise ValueError("explanation must not contain control characters")
         out.append(
             PlanReviewInput(
                 plan_id=review.plan_id,
@@ -342,6 +349,11 @@ class DatabaseAgentBackend:
                 )
                 if any(owners.get(r.plan_id) != run.source_page_id for r in checked):
                     raise ValueError("every reviewed plan must belong to the run's source page")
+            # Take every plan's row lock up front, in id order (QA L2: one global lock order),
+            # then process in the caller's order. A savepoint rollback keeps locks taken
+            # before it, so the per-plan re-lock below is a no-op.
+            for plan_id in sorted(r.plan_id for r in checked):
+                await rec_repo.lock_plan(session, plan_id=plan_id)
             for review in checked:
                 savepoint = await session.begin_nested()
                 try:

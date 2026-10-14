@@ -51,7 +51,7 @@ from tests.integration.agent_support import (
     step,
     store,
 )
-from tests.integration.recommendation_support import rows, scalar
+from tests.integration.recommendation_support import SOLAR, rows, scalar
 
 pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("migrated")]
 
@@ -135,32 +135,40 @@ async def test_a_second_running_run_for_a_source_is_refused(
     assert await scalar(sessionmaker, "SELECT count(*) FROM agent_runs") == 1
 
 
-async def test_reap_orphans_fails_running_runs_of_finished_batches(
+async def test_reap_orphans_fails_running_runs_of_every_other_batch(
     sessionmaker: SM, tmp_path: Path
 ) -> None:
+    """The caller holds the agent advisory lock, so a running run of ANY other batch is
+    orphaned -- including a hard crash whose job row still says 'running' (QA H2)."""
     ids = await plans_corpus(sessionmaker, tmp_path)
     runs = store(sessionmaker)
-    dead_job, live_job = await job_run(sessionmaker), await job_run(sessionmaker)
+    dead_job, crashed_job, current_job = (
+        await job_run(sessionmaker),
+        await job_run(sessionmaker),
+        await job_run(sessionmaker),
+    )
     orphan = await start(sessionmaker, ids[EV], job_id=dead_job)
     finished = await start(sessionmaker, ids[LI], job_id=dead_job)
     await runs.finish_run(run_id=finished.id, status=RS.COMPLETED, outcome=AO.NO_ACTION,
                           finished_at=T0 + timedelta(seconds=1))  # fmt: skip
-    alive = await start(sessionmaker, ids[CHARGING], job_id=live_job)
     await set_job_status(sessionmaker, dead_job, "failed")
+    crashed = await start(sessionmaker, ids[SOLAR], job_id=crashed_job)  # job row: running
+    alive = await start(sessionmaker, ids[CHARGING], job_id=current_job)
 
     now = T0 + timedelta(minutes=10)
-    assert await runs.reap_orphans(now=now) == 1
-    row = await _run_row(sessionmaker, orphan.id)
-    assert (row.status, row.outcome, row.error_code) == ("failed", "failed", "orphaned")
-    assert row.finished_at == now
+    assert await runs.reap_orphans(now=now, current_job_run_id=current_job) == 2
+    for reaped in (orphan, crashed):
+        row = await _run_row(sessionmaker, reaped.id)
+        assert (row.status, row.outcome, row.error_code) == ("failed", "failed", "orphaned")
+        assert row.finished_at == now
     assert (await _run_row(sessionmaker, finished.id)).outcome == "no_action"
     assert (await _run_row(sessionmaker, alive.id)).status == "running"
-    assert await runs.reap_orphans(now=now) == 0  # idempotent
-    # The reaped run is finished: the source can be reviewed again.
-    await start(sessionmaker, ids[EV], job_id=live_job)
+    assert await runs.reap_orphans(now=now, current_job_run_id=current_job) == 0  # idempotent
+    # The reaped sources can be reviewed again, by the current batch.
+    await start(sessionmaker, ids[SOLAR], job_id=current_job)
     # A clock behind started_at never produces finished_at < started_at.
-    await set_job_status(sessionmaker, live_job, "succeeded")
-    assert await runs.reap_orphans(now=T0 - timedelta(days=1)) == 2
+    next_job = await job_run(sessionmaker)
+    assert await runs.reap_orphans(now=T0 - timedelta(days=1), current_job_run_id=next_job) == 2
     assert not await rows(sessionmaker, "SELECT 1 FROM agent_runs WHERE finished_at < started_at")
 
 

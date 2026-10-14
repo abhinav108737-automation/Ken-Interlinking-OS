@@ -38,7 +38,6 @@ from ken_contracts.agents import (
 from ken_contracts.model import ModelRole
 from ken_contracts.recommendations import LinkPlanStatus
 from ken_core.db.models.agents import AgentRun, AgentRunPlan, AgentStep
-from ken_core.db.models.intelligence import JobRun
 from ken_core.db.models.inventory import Page
 from ken_core.db.models.recommendations import LinkPlan as LinkPlanRow
 
@@ -196,16 +195,14 @@ async def finish_run(
     return result.first() is not None
 
 
-async def reap_orphans(session: AsyncSession, *, now: datetime) -> int:
-    """``running`` runs whose job run is no longer running -> failed / orphaned."""
-    finished_job = (
-        select(JobRun.id)
-        .where(JobRun.id == AgentRun.job_run_id, JobRun.status != _JOB_RUNNING)
-        .correlate(AgentRun)
-    )
+async def reap_orphans(
+    session: AsyncSession, *, now: datetime, current_job_run_id: uuid.UUID
+) -> int:
+    """``running`` runs of any batch other than the current (lock-holding) one ->
+    failed / orphaned."""
     result = await session.execute(
         update(AgentRun)
-        .where(AgentRun.status == _RUNNING, exists(finished_job))
+        .where(AgentRun.status == _RUNNING, AgentRun.job_run_id != current_job_run_id)
         .values(
             status=AgentRunStatus.FAILED.value,
             outcome=AgentOutcome.FAILED.value,

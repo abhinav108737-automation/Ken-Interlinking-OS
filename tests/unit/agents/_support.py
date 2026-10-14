@@ -295,6 +295,7 @@ class FakeStore:
     finished: dict[uuid.UUID, dict[str, Any]] = field(default_factory=dict)
     reaped: int = 0
     reap_calls: int = 0
+    reaped_for: uuid.UUID | None = None
     refuse_start: bool = False
     fail_finish: bool = False
     sources_limit: int | None = None
@@ -303,8 +304,9 @@ class FakeStore:
         self.sources_limit = limit
         return self.sources[:limit]
 
-    async def reap_orphans(self, *, now: datetime) -> int:
+    async def reap_orphans(self, *, now: datetime, current_job_run_id: uuid.UUID) -> int:
         self.reap_calls += 1
+        self.reaped_for = current_job_run_id
         return self.reaped
 
     async def start_run(self, *, run: NewAgentRun) -> None:

@@ -1,15 +1,16 @@
 # Next Steps
 
-**Current state:** Phase 3 (Recommendation Engine) is **complete**; see
-[PHASE_3_REPORT.md](PHASE_3_REPORT.md). The earlier phases are covered in
-[PHASE_2_REPORT.md](PHASE_2_REPORT.md), [PHASE_1_REPORT.md](PHASE_1_REPORT.md) and
+**Current state:** Phase 4 (Agent Orchestration) is **complete**; see
+[PHASE_4_REPORT.md](PHASE_4_REPORT.md). The earlier phases are covered in
+[PHASE_3_REPORT.md](PHASE_3_REPORT.md), [PHASE_2_REPORT.md](PHASE_2_REPORT.md), [PHASE_1_REPORT.md](PHASE_1_REPORT.md) and
 [PHASE_0_REPORT.md](PHASE_0_REPORT.md).
 
 **Execution mode:** the user has authorised autonomous, sequential execution of Phases 3–9, an
 end-to-end local demo and a final report. Each phase has internal gates and a local commit plus
 tag. Execution stops only for ASK/BLOCK actions.
 
-**Next phase:** Phase 4 (LangGraph agent orchestration), proceeding under that authorisation.
+**Next phase:** Phase 5 (reviewer control plane, auth, feedback), proceeding under that
+authorisation.
 
 ## Needed from you before real production ingestion
 
@@ -29,6 +30,7 @@ any governing document, so none was guessed.
 | 6 | Is the site multilingual? | Language comes only from markup and headers (no detection library) | decision |
 | 7 | **Ken's real taxonomy**: markets/industries with aliases, geographies, a company/product gazetteer, page-type URL patterns, and protected-page rules | `policies/taxonomy/taxonomy.v1.yaml` is an illustrative seed. Classification quality on the real site depends on this. | data |
 | 9 | **Self-describing anchors (ADR-0011 §9.1):** should a same-market, cross-country pair (India cold-chain report → UAE cold-chain report) be linkable on the plain market name ("cold chain")? Today: only when the block also names the target's country/region, or on an article → report hop. 45 eval pairs were relabelled ACCEPTABLE accordingly (rule R5). | Editorial policy; one policy switch either way | decision (orchestrator default in place) |
+| 10 | **Does a model critic's `reject` filter a plan out of the human queue, or only annotate it?** Today it filters: the plan stays `proposed`, with its reasons visible. The local qwen3 critic kept 23 % of plans out of the queue on the demo, including 1 of 20 GOOD plans (evals/agents/README.md). | Editorial trust in a local model; a one-line policy/graph change either way | decision (orchestrator default: filter) |
 | 8 | **PRD v1.1 §17.1 wording:** "a genuine native degraded mode" now holds only for schema ≤ 0002 (pgvector is required from Phase 2, ADR-0010) | A product-document revision, for your approval | decision |
 
 ## Hard gates carried into later phases (from the Phase 3 QA review)
@@ -39,6 +41,17 @@ any governing document, so none was guessed.
 | **Deploy-time re-validation.** Before any CMS mutation, re-check freshness (`check_plan_freshness`), active protections and live eligibility of source and target, and the existing-link state. The recommendation run already expires invalid open plans, but a deploy may happen between runs. | 6 |
 | **DB-level status integrity.** A direct `UPDATE link_plans SET status = …` by the app role is possible (the content trigger only guards content). Route status changes through a SECURITY DEFINER function or a transition-validating trigger, and use a least-privilege role. | 6 |
 | Inline `style="display:none"` is not detected by placement (the `hidden` / `aria-hidden` attributes are). Post-publish verification must render the page. | 6 |
+
+## Phase 4 known limitations (accepted, documented)
+
+| Item | When |
+|---|---|
+| A plan that fails `check_invariants`, or conflicts at hand-off, gets no review row, even when the critic rejected it. A later run reviews it again, spending another model call, and may hand it off once the problem clears. This is by design, because state changed, but it is not free. | 8 (if it matters) |
+| The local REASONING critic takes about 10 s per source (qwen3 8B on this Mac); a 100-source batch takes about 15 min. The deterministic fallback keeps every run correct. | at scale |
+| Critic verdicts are uncalibrated, and the deterministic threshold uses raw confidence. | 8 |
+| The recorded eval fixture pins confidences to ±0.001. A ranking change shows up as fixture drift: re-record, never edit expectations. | — |
+| `langgraph-sdk` caps `websockets` below 17 (16.1.1 is locked). | on LangGraph upgrades |
+| The agents API has no endpoint that starts a run (CLI only). An authenticated, operator-only trigger is a Phase 5 decision. | 5 |
 
 ## Phase 3 known limitations (accepted, documented)
 
@@ -86,8 +99,7 @@ any governing document, so none was guessed.
 | Item | Target |
 |---|---|
 | Apply the identifier aliases (`PageId`, `DeploymentId`) to the remaining plain-`str` fields in `cms.py` (no wire change) | 3 |
-| Freeze `TaskStatus` (incl. `AWAITING_APPROVAL`, TRD §16) and the autonomy decision enum (BLOCK / REQUIRE_APPROVAL / AUTO_APPROVE) | 3–4 |
-| Extend mypy `strict` to `ken_agents` before LLM-boundary code lands there | before 4 |
+| Freeze the autonomy decision enum (BLOCK / REQUIRE_APPROVAL / AUTO_APPROVE). TRD §16 `AWAITING_APPROVAL` is now `AgentRunStatus` (ADR-0012 §3). | 9 |
 | **Version-aware event reads** (cleanup QA M1): `list_events` re-validates stored rows against today's rules | before 8 |
 | Bump `asyncpg` 0.31.0 → 0.32.x after soak; record in ADR-0004 | when convenient |
 | An ANN index; tuning channel weights on real labelled data | at scale / 8 |
@@ -106,6 +118,12 @@ any governing document, so none was guessed.
 | Re-verify the licence inventory of any packaged desktop bundle (`sharp` is LGPL) | before desktop distribution |
 | 5432 guard does not resolve DNS (`127.1`, decimal IPs) | optional |
 | Colima does not start at login: run `colima start` after a reboot | — |
+
+**Closed in Phase 4:**
+- mypy `strict` covers `ken_agents`.
+- TRD §16 approval suspension: no process waits; plans persist as `awaiting_approval`.
+- Agent evals with recorded fixtures (TRD §22): candidate selection, critic and no-action,
+  plus protected-content and stale-page-version.
 
 **Closed in Phase 3:**
 - Phase 2 relationships to gone or stale targets: recommendation eligibility is computed live.

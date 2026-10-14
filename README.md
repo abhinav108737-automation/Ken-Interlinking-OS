@@ -3,7 +3,20 @@
 A fully self-hosted, local-first system that will manage contextual internal body links across Ken Research
 pages: observe → understand → recommend → approve → publish → verify → measure → learn.
 
-**Current status: Phase 3 (recommendation engine) is complete**, built on Phases 1 and 2.
+**Current status: Phase 4 (agent review workflow) is complete**, built on Phases 1–3.
+
+Phase 4 adds a supervised LangGraph workflow that **reviews** the engine's proposals. For each
+page with unreviewed proposals it:
+- triages the page deterministically;
+- lets an optional local model (FAST role) choose which plans deserve a reviewer's time;
+- critiques each plan with an optional local model (REASONING role) under a strict, validated
+  output schema, falling back to a deterministic rule whenever the model is off, slow or wrong;
+- re-checks every plan's invariants against live state;
+- hands accepted and uncertain plans to the human queue (`awaiting_approval`) in one audited
+  transaction.
+
+Agents never create, approve, reject or publish a link. Every run, step, tool call, model call
+and review is recorded and inspectable at `/agents`.
 
 Phase 3 proposes contextual internal links deterministically. For each eligible page it:
 - retrieves candidates through semantic, lexical, taxonomy and link-graph channels;
@@ -35,7 +48,7 @@ It normalises pages deterministically, stores them with an immutable, hash-based
 extracts the links they already contain, and makes all of it inspectable through a read-only API and
 web screens. The API is GET-only; crawls and imports start from the command line. There is no
 recommendation intelligence, publishing or learning yet. See
-[PHASE_3_REPORT.md](PHASE_3_REPORT.md), [PHASE_2_REPORT.md](PHASE_2_REPORT.md), [PHASE_1_REPORT.md](PHASE_1_REPORT.md),
+[PHASE_4_REPORT.md](PHASE_4_REPORT.md), [PHASE_3_REPORT.md](PHASE_3_REPORT.md), [PHASE_2_REPORT.md](PHASE_2_REPORT.md), [PHASE_1_REPORT.md](PHASE_1_REPORT.md),
 [PHASE_0_REPORT.md](PHASE_0_REPORT.md) and
 [NEXT_STEPS.md](NEXT_STEPS.md).
 
@@ -50,6 +63,7 @@ make dev-web      # terminal 2 → http://127.0.0.1:3000/inventory
 make ingest-file FILE=tests/fixtures/demo/research_site.jsonl   # load the synthetic demo site
 make analyze      # Phase 2: classify, embed and relate (needs: ollama pull nomic-embed-text)
 make recommend    # Phase 3: propose contextual links (nothing is published)
+make agents       # Phase 4: agents review proposals → human queue (local model optional)
 make verify       # the full quality gate
 ```
 

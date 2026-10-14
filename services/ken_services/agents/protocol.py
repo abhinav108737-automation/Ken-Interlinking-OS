@@ -152,8 +152,11 @@ class AgentRunStore(Protocol):
         run, ordered by canonical URL then id (deterministic), at most ``limit``."""
         ...
 
-    async def reap_orphans(self, *, now: datetime) -> int:
-        """Mark ``running`` runs whose job run has finished as failed/orphaned."""
+    async def reap_orphans(self, *, now: datetime, current_job_run_id: UUID) -> int:
+        """Mark every ``running`` run that does not belong to ``current_job_run_id`` as
+        failed/orphaned. Sound because the calling batch holds the per-kind advisory lock:
+        no other agent batch can be live, so such a run's process is gone -- even when its
+        ``job_runs`` row still says ``running`` after a hard crash (QA H2)."""
         ...
 
     async def start_run(self, *, run: NewAgentRun) -> None:

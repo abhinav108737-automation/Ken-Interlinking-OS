@@ -6,6 +6,7 @@ import ast
 import dataclasses
 import inspect
 import socket
+import sys
 from pathlib import Path
 
 import pytest
@@ -35,7 +36,29 @@ FORBIDDEN_EVERYWHERE = (
     "ken_core.providers.model.ollama",
     "ken_core.providers.cms",
     "ken_contracts.cms",
+    # Dynamic import, native code, processes, shells and file trees (QA M1).
+    "importlib",
+    "ctypes",
+    "pty",
+    "shutil",
+    "multiprocessing",
+    "signal",
+    "pickle",
 )
+OS_ALLOWED_IN = frozenset({"tracing_guard.py"})
+"""``os`` (only ``os.environ``) is needed by the tracing guard and nowhere else."""
+FORBIDDEN_CALLS = frozenset({"__import__", "open", "exec", "eval", "compile", "breakpoint"})
+FORBIDDEN_ATTRIBUTE_PREFIXES = (
+    "system",
+    "popen",
+    "exec",
+    "spawn",
+    "posix_spawn",
+    "fork",
+    "create_subprocess",
+    "startfile",
+)
+"""Attribute names refused on ANY object, whatever the alias (``import os as o; o.system``)."""
 FORBIDDEN_OUTSIDE_ROOT = (
     "ken_core.db",
     "ken_core.providers",
@@ -76,17 +99,25 @@ def test_no_infrastructure_imports(path: Path) -> None:
 
 
 @pytest.mark.parametrize("path", _sources(), ids=lambda p: p.name)
+def test_no_os_module_outside_the_tracing_guard(path: Path) -> None:
+    if path.name not in OS_ALLOWED_IN:
+        assert _hits(_imports(path), ("os", "posix", "nt")) == []
+
+
+@pytest.mark.parametrize("path", _sources(), ids=lambda p: p.name)
 def test_no_shell_no_human_actor_no_approval(path: Path) -> None:
     text = path.read_text(encoding="utf-8")
     tree = ast.parse(text)
     for node in ast.walk(tree):
-        if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name):
-            assert (node.value.id, node.attr) not in {
-                ("os", "system"),
-                ("os", "popen"),
-                ("os", "exec"),
-                ("os", "spawn"),
-            }
+        if isinstance(node, ast.Attribute):
+            assert not node.attr.startswith(FORBIDDEN_ATTRIBUTE_PREFIXES), (path.name, node.attr)
+        if isinstance(node, ast.ImportFrom):
+            for alias in node.names:
+                assert not alias.name.startswith(FORBIDDEN_ATTRIBUTE_PREFIXES), alias.name
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+            assert node.func.id not in FORBIDDEN_CALLS, (path.name, node.func.id)
+        if isinstance(node, ast.Name):
+            assert node.id not in {"__import__", "__builtins__"}, (path.name, node.id)
     assert "user:" not in text, "agents never act as a human actor"
     assert "LinkPlanStatus.APPROVED" not in text and '"approved"' not in text
     assert "AUTO_APPROVE = True" not in text
@@ -153,3 +184,74 @@ async def test_full_graph_runs_with_outbound_sockets_blocked(
     )
     assert result.outcome is AgentOutcome.RECOMMEND
     assert attempts == [], "nothing tried to leave the machine"
+
+
+# --------------------------------------------------------------------------- #
+# Runtime: a process-wide audit hook watches a full graph run (QA M1)
+# --------------------------------------------------------------------------- #
+_AUDIT: dict[str, object] = {"on": False, "events": []}
+_WATCHED = (
+    "subprocess.Popen",
+    "os.system",
+    "os.exec",
+    "os.posix_spawn",
+    "os.spawn",
+    "os.fork",
+    "socket.connect",
+    "socket.getaddrinfo",
+    "ctypes.dlopen",
+)
+
+
+def _audit(event: str, args: tuple[object, ...]) -> None:
+    if not _AUDIT["on"]:
+        return
+    events = _AUDIT["events"]
+    assert isinstance(events, list)
+    if event.startswith(_WATCHED):
+        events.append(event)
+    elif (
+        event == "open"
+        and len(args) >= 2
+        and isinstance(args[1], str)
+        and any(flag in args[1] for flag in ("w", "a", "x", "+"))
+    ):
+        events.append(f"open-for-write:{args[0]!s}")
+
+
+sys.addaudithook(_audit)  # cannot be removed: inert unless a test switches it on
+
+
+async def test_a_full_graph_run_spawns_nothing_connects_nowhere_writes_no_file() -> None:
+    provider = MockModelProvider(dimensions=8)
+    provider.register(
+        CriticAssessment,
+        {"critiques": [{"ref": "c0", "verdict": "accept"}, {"ref": "c1", "verdict": "reject"}]},
+    )
+    _AUDIT["events"] = []
+    _AUDIT["on"] = True
+    try:
+        result = await run_source(
+            FakeBackend.ready([make_plan(0), make_plan(1)]),
+            FakeStore(),
+            provider,
+            make_policy(planner=False, critic=True),
+        )
+    finally:
+        _AUDIT["on"] = False
+    assert result.outcome is AgentOutcome.RECOMMEND
+    assert _AUDIT["events"] == [], _AUDIT["events"]
+
+
+def test_the_audit_hook_would_catch_a_subprocess() -> None:
+    """The runtime check is not vacuous: a real spawn attempt is recorded."""
+    import subprocess
+
+    _AUDIT["events"] = []
+    _AUDIT["on"] = True
+    try:
+        subprocess.run(["/usr/bin/true"], check=False)
+    finally:
+        _AUDIT["on"] = False
+    events = _AUDIT["events"]
+    assert isinstance(events, list) and "subprocess.Popen" in events

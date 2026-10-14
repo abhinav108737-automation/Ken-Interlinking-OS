@@ -5,9 +5,10 @@ short transaction.
 
 * ``sources_to_review`` -- sources with >= 1 unreviewed ``proposed`` plan (no
   ``agent_run_plans`` row) and no ``running`` agent run, by canonical URL then id.
-* ``reap_orphans`` -- ``running`` runs whose ``job_runs`` batch is no longer ``running`` (the
-  process died) become ``failed`` / ``orphaned``, with ``finished_at`` set. Called at each
-  batch start; returns how many were reaped.
+* ``reap_orphans`` -- ``running`` runs of any batch other than the CURRENT one become
+  ``failed`` / ``orphaned``, with ``finished_at`` set. Called at each batch start, while the
+  batch holds the per-kind advisory lock, so no other agent batch can be live (a hard
+  crash leaves its ``job_runs`` row ``running`` too; QA H2). Returns how many were reaped.
 * ``start_run`` -- inserts the ``running`` row. A second running run for the same source
   raises :class:`AgentRunAlreadyRunningError` (partial unique index); a duplicate
   ``correlation_id`` or run id raises :class:`~sqlalchemy.exc.IntegrityError`.
@@ -102,9 +103,9 @@ class DatabaseAgentRunStore:
         async with self._sessionmaker() as session:
             return await repo.sources_to_review(session, limit=limit)
 
-    async def reap_orphans(self, *, now: datetime) -> int:
+    async def reap_orphans(self, *, now: datetime, current_job_run_id: uuid.UUID) -> int:
         async with self._sessionmaker() as session, session.begin():
-            return await repo.reap_orphans(session, now=now)
+            return await repo.reap_orphans(session, now=now, current_job_run_id=current_job_run_id)
 
     async def start_run(self, *, run: NewAgentRun) -> None:
         try:

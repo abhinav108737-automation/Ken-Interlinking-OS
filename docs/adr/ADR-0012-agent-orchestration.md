@@ -44,7 +44,7 @@ load_page → triage → understand → discover → plan → critique → check
 | `plan` | Chooses which plans to review and in what order, at most `max_plans_per_run`. Rule: engine order. | FAST, optional (`PlannerSelection`) |
 | `critique` | Assesses each chosen plan: `accept`, `reject` or `uncertain`, with reasons. Rule: `accept` if raw confidence ≥ `accept_min_confidence`, else `uncertain`. | REASONING, optional (`CriticAssessment`) |
 | `check_invariants` | Re-checks each plan against live state: still `proposed`; source version unchanged or rebasable; anchor verbatim; source and target eligible; not already linked. A failing plan is not handed off and adds a review note. | — |
-| `policy_gate` | One `hand_off` service call, one transaction. It records every review in `agent_run_plans`. Each `accept` or `uncertain` plan that passed its checks moves `proposed → critiqued` (`agent:critic@graph-v1`) `→ policy_checked → awaiting_approval` (`system:agent-policy-gate`). | — |
+| `policy_gate` | One `hand_off` service call, one transaction. It records every review in `agent_run_plans`. Each `accept` or `uncertain` plan that passed its checks moves `proposed → critiqued` (`agent:critic@graph-v1`) `→ policy_checked → awaiting_approval` (`agent:policy-gate@graph-v1`). | — |
 | `finalize` | Outcome and status (below). | — |
 
 **Outcome rules:**
@@ -157,6 +157,14 @@ deterministic services.
 
 - Each node has a timeout (`node_timeout_seconds`) and each model call its own. READ tools get
   bounded retries.
+- The write path has no asyncio deadline: neither the `hand_off_plans` tool nor the
+  `policy_gate` node. A cancellation that landed after the hand-off committed would report a
+  failed run whose plans were already queued. The transaction is bounded by the database.
+- Model text may not contain control characters (`ModelText`). PostgreSQL rejects NUL, so
+  such an answer is a recorded schema-violation fallback, never a failed run.
+- A batch reaps every `running` run that belongs to another batch. It holds the per-kind
+  advisory lock, so that other batch is gone, even after a hard crash left its `job_runs` row
+  `running`.
 - A node that still fails routes to `finalize` with a typed `AgentErrorCode`. A concurrent
   status change found at hand-off (`make recommend` expired the plan) is reported per plan.
   When nothing was handed off, the run's code is `handoff_conflict`.
@@ -164,15 +172,21 @@ deterministic services.
 ### 9. No data leaves the machine
 
 Importing `langgraph.graph` loads `langsmith`, `langgraph_sdk`, `requests`, `httpx2` and
-`websockets`. The process therefore refuses to start an agent run when any of the following is
-set:
-- a truthy `LANGSMITH_TRACING`, `LANGCHAIN_TRACING_V2`, `LANGCHAIN_TRACING` or
-  `LANGSMITH_OTEL_ENABLED`;
-- any of `LANGSMITH_API_KEY`, `LANGCHAIN_API_KEY`, `LANGSMITH_ENDPOINT` or
-  `LANGCHAIN_ENDPOINT`.
+`websockets`. LangSmith resolves every setting through `get_env_var(name)`, which tries
+`LANGSMITH_<name>` and then `LANGCHAIN_<name>`. A name-by-name refusal list therefore always
+misses one. The QA review found `LANGSMITH_TRACING_V2`, which LangSmith reads before the
+`LANGCHAIN_TRACING_V2` that was being forced off.
 
-It forces tracing off before `langgraph` is first imported. A test runs the full graph with
-outbound sockets blocked.
+The rule is therefore **fail-closed by namespace**:
+- an agent run refuses to start while ANY `LANGSMITH_*` or `LANGCHAIN_*` variable has a
+  non-falsy value; the refusal message names the variables, never their values;
+- once that check passes, every tracing flag of both namespaces (`TRACING`, `TRACING_V2`,
+  `OTEL_ENABLED`, `OTEL_ONLY`) is overwritten with `"false"`;
+- LangSmith's cached environment lookups are cleared, before `langgraph` is first imported.
+
+Tests cover each name, the cache, a fresh process, the full graph with outbound sockets
+blocked, and a process-wide audit hook. The hook asserts that a graph run spawns no process,
+opens no socket and writes no file.
 
 ### 10. Policies
 
