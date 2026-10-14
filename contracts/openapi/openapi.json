@@ -579,6 +579,170 @@
         ],
         "type": "string"
       },
+      "ApproveRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "expected_status": {
+            "$ref": "#/components/schemas/LinkPlanStatus"
+          },
+          "note": {
+            "default": "",
+            "maxLength": 500,
+            "title": "Note",
+            "type": "string"
+          },
+          "operation_id": {
+            "description": "Client-generated idempotency key.",
+            "format": "uuid",
+            "title": "Operation Id",
+            "type": "string"
+          },
+          "reasons": {
+            "items": {
+              "$ref": "#/components/schemas/FeedbackReason"
+            },
+            "maxItems": 5,
+            "title": "Reasons",
+            "type": "array"
+          }
+        },
+        "required": [
+          "operation_id",
+          "expected_status"
+        ],
+        "title": "ApproveRequest",
+        "type": "object"
+      },
+      "BulkAction": {
+        "enum": [
+          "approve",
+          "reject"
+        ],
+        "title": "BulkAction",
+        "type": "string"
+      },
+      "BulkItemResult": {
+        "additionalProperties": false,
+        "properties": {
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "An ErrorCode value when not ok (e.g. conflict).",
+            "title": "Error Code"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "plan_id": {
+            "format": "uuid",
+            "title": "Plan Id",
+            "type": "string"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LinkPlanStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "plan_id",
+          "ok",
+          "status",
+          "error_code"
+        ],
+        "title": "BulkItemResult",
+        "type": "object"
+      },
+      "BulkReviewRequest": {
+        "additionalProperties": false,
+        "description": "Bulk review where safe: only ``awaiting_approval`` plans that are not stale; every\nplan is its own transaction; edits are never bulk.",
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/BulkAction"
+          },
+          "note": {
+            "default": "",
+            "maxLength": 500,
+            "title": "Note",
+            "type": "string"
+          },
+          "operation_id": {
+            "format": "uuid",
+            "title": "Operation Id",
+            "type": "string"
+          },
+          "plan_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "Plan Ids",
+            "type": "array"
+          },
+          "reasons": {
+            "items": {
+              "$ref": "#/components/schemas/FeedbackReason"
+            },
+            "maxItems": 5,
+            "title": "Reasons",
+            "type": "array"
+          }
+        },
+        "required": [
+          "operation_id",
+          "action",
+          "plan_ids"
+        ],
+        "title": "BulkReviewRequest",
+        "type": "object"
+      },
+      "BulkReviewResult": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/BulkAction"
+          },
+          "idempotent_replay": {
+            "default": false,
+            "title": "Idempotent Replay",
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/BulkItemResult"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "operation_id": {
+            "format": "uuid",
+            "title": "Operation Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "operation_id",
+          "action",
+          "items",
+          "idempotent_replay"
+        ],
+        "title": "BulkReviewResult",
+        "type": "object"
+      },
       "CandidateRejection": {
         "description": "Deterministic filters (FR-006), in EVALUATION ORDER; the first match is recorded.\n\nPair filters run first (self .. page type), then scoring (``below_min_relevance``),\nthen placement in rank order (``no_natural_anchor``, ``below_min_score`` on the\nFINAL score), then selection caps (density, per-source, diversity).",
         "enum": [
@@ -734,6 +898,107 @@
         "title": "CriticVerdict",
         "type": "string"
       },
+      "DashboardSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "agent_runs_by_outcome": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "description": "All time, by outcome.",
+            "title": "Agent Runs By Outcome",
+            "type": "object"
+          },
+          "auto_approve_enabled": {
+            "const": false,
+            "default": false,
+            "description": "Always false in v1 (TRD section 20).",
+            "title": "Auto Approve Enabled",
+            "type": "boolean"
+          },
+          "awaiting_approval": {
+            "minimum": 0.0,
+            "title": "Awaiting Approval",
+            "type": "integer"
+          },
+          "latest_jobs": {
+            "description": "The latest run of each job kind.",
+            "items": {
+              "$ref": "#/components/schemas/JobRunSummary"
+            },
+            "title": "Latest Jobs",
+            "type": "array"
+          },
+          "opportunities_by_kind": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Opportunities By Kind",
+            "type": "object"
+          },
+          "pages_analyzed": {
+            "description": "Current version has a current analysis.",
+            "minimum": 0.0,
+            "title": "Pages Analyzed",
+            "type": "integer"
+          },
+          "pages_live": {
+            "description": "Not gone.",
+            "minimum": 0.0,
+            "title": "Pages Live",
+            "type": "integer"
+          },
+          "pages_protected": {
+            "minimum": 0.0,
+            "title": "Pages Protected",
+            "type": "integer"
+          },
+          "pages_total": {
+            "minimum": 0.0,
+            "title": "Pages Total",
+            "type": "integer"
+          },
+          "plans_by_status": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Plans By Status",
+            "type": "object"
+          },
+          "recent_review_actions": {
+            "items": {
+              "$ref": "#/components/schemas/ReviewActionView"
+            },
+            "maxItems": 10,
+            "title": "Recent Review Actions",
+            "type": "array"
+          },
+          "reviews_by_action": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "description": "All time, by review action.",
+            "title": "Reviews By Action",
+            "type": "object"
+          }
+        },
+        "required": [
+          "pages_total",
+          "pages_live",
+          "pages_analyzed",
+          "pages_protected",
+          "plans_by_status",
+          "awaiting_approval",
+          "opportunities_by_kind",
+          "agent_runs_by_outcome",
+          "reviews_by_action",
+          "recent_review_actions",
+          "latest_jobs",
+          "auto_approve_enabled"
+        ],
+        "title": "DashboardSummary",
+        "type": "object"
+      },
       "DependencyCheck": {
         "additionalProperties": false,
         "description": "Result of probing exactly one dependency.",
@@ -789,6 +1054,66 @@
           "error"
         ],
         "title": "DependencyCheck",
+        "type": "object"
+      },
+      "EditAnchorRequest": {
+        "additionalProperties": false,
+        "description": "A new span ``[start, end)`` of the plan's block in the source's CURRENT version.",
+        "properties": {
+          "approve": {
+            "default": false,
+            "description": "Approve the edited plan in the same step.",
+            "title": "Approve",
+            "type": "boolean"
+          },
+          "block_context_hash": {
+            "description": "sha256 of the block text the reviewer saw (must still be current).",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Block Context Hash",
+            "type": "string"
+          },
+          "end": {
+            "exclusiveMinimum": 0.0,
+            "title": "End",
+            "type": "integer"
+          },
+          "expected_status": {
+            "$ref": "#/components/schemas/LinkPlanStatus"
+          },
+          "note": {
+            "default": "",
+            "maxLength": 500,
+            "title": "Note",
+            "type": "string"
+          },
+          "operation_id": {
+            "description": "Client-generated idempotency key.",
+            "format": "uuid",
+            "title": "Operation Id",
+            "type": "string"
+          },
+          "reasons": {
+            "items": {
+              "$ref": "#/components/schemas/FeedbackReason"
+            },
+            "maxItems": 5,
+            "title": "Reasons",
+            "type": "array"
+          },
+          "start": {
+            "minimum": 0.0,
+            "title": "Start",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "operation_id",
+          "expected_status",
+          "block_context_hash",
+          "start",
+          "end"
+        ],
+        "title": "EditAnchorRequest",
         "type": "object"
       },
       "EntityMention": {
@@ -935,6 +1260,115 @@
         "title": "ErrorResponse",
         "type": "object"
       },
+      "EventName": {
+        "description": "The TRD.md section 15 vocabulary, plus governed additions.\n\nPhase 0 emits only ``worker.heartbeat``. The remaining names are frozen\nhere so later phases cannot invent divergent spellings for the same fact.\n\nAdditions beyond TRD.md section 15, each an explicit decision:\n\n* ``skill.promoted`` -- added at the user's direction (post-Phase-0\n  cleanup, 2026-10-13). TRD.md had ``policy.promoted`` but no skill\n  equivalent, although AUTONOMY_AND_PERMISSIONS.md makes PROMOTE_SKILL an\n  ASK-level action, which therefore needs an audit event.\n* ``worker.heartbeat`` -- operational, recorded in docs/adr/ADR-0005.md.\n* ``job.completed`` -- operational, Phase 2 (docs/adr/ADR-0010-content-intelligence.md):\n  every finished generic job run (analysis, recommendation, verification,\n  analytics import, evaluation, autonomy shadow), including failed ones.\n  Ingestion keeps ``crawl.completed``.\n\nGoverned lifecycles (no learning behaviour is implemented yet)::\n\n    skill.proposed  -> offline/human evaluation -> skill.promoted\n    policy.proposed -> offline/human evaluation -> policy.promoted\n\nProposal is ALLOW for agents; promotion is ASK and requires a human. Both\n``*.promoted`` events must carry a :class:`PromotionAuditPayload`, which\n:class:`EventEnvelope` enforces.",
+        "enum": [
+          "page.created",
+          "page.updated",
+          "page.deleted",
+          "crawl.completed",
+          "link.proposed",
+          "link.approved",
+          "link.rejected",
+          "link.deployed",
+          "link.verified",
+          "link.failed",
+          "link.rolled_back",
+          "analytics.updated",
+          "skill.proposed",
+          "skill.promoted",
+          "policy.proposed",
+          "policy.promoted",
+          "worker.heartbeat",
+          "job.completed"
+        ],
+        "title": "EventName",
+        "type": "string"
+      },
+      "EventRecord": {
+        "additionalProperties": false,
+        "description": "One stored event (``events`` row), for the audit log.",
+        "properties": {
+          "correlation_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correlation Id"
+          },
+          "emitted_by": {
+            "title": "Emitted By",
+            "type": "string"
+          },
+          "event_id": {
+            "format": "uuid",
+            "title": "Event Id",
+            "type": "string"
+          },
+          "event_name": {
+            "$ref": "#/components/schemas/EventName"
+          },
+          "event_version": {
+            "title": "Event Version",
+            "type": "integer"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "occurred_at": {
+            "format": "date-time",
+            "title": "Occurred At",
+            "type": "string"
+          },
+          "payload": {
+            "additionalProperties": true,
+            "title": "Payload",
+            "type": "object"
+          },
+          "subject_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subject Id"
+          },
+          "subject_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subject Type"
+          }
+        },
+        "required": [
+          "id",
+          "event_id",
+          "event_name",
+          "event_version",
+          "occurred_at",
+          "emitted_by",
+          "subject_type",
+          "subject_id",
+          "payload",
+          "correlation_id"
+        ],
+        "title": "EventRecord",
+        "type": "object"
+      },
       "ExistingLinkView": {
         "additionalProperties": false,
         "description": "One body link as stored for a page version, with read-time resolution.",
@@ -1053,6 +1487,25 @@
           "schema_violation"
         ],
         "title": "FallbackReason",
+        "type": "string"
+      },
+      "FeedbackReason": {
+        "description": "Structured editorial reasons (PRD 7.9). Required for reject and edits.",
+        "enum": [
+          "good_as_is",
+          "irrelevant_destination",
+          "better_destination_exists",
+          "misleading_anchor",
+          "unnatural_anchor",
+          "wrong_placement",
+          "over_linking",
+          "duplicate_of_existing_link",
+          "outdated_or_changed_content",
+          "sensitive_or_protected",
+          "reader_journey_mismatch",
+          "other"
+        ],
+        "title": "FeedbackReason",
         "type": "string"
       },
       "GeographyMention": {
@@ -2299,6 +2752,27 @@
         "title": "ListResponse[CandidateView]",
         "type": "object"
       },
+      "ListResponse_EventRecord_": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/EventRecord"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          }
+        },
+        "required": [
+          "items",
+          "page"
+        ],
+        "title": "ListResponse[EventRecord]",
+        "type": "object"
+      },
       "ListResponse_ExistingLinkView_": {
         "additionalProperties": false,
         "properties": {
@@ -2488,6 +2962,27 @@
         "title": "ListResponse[PageVersionSummary]",
         "type": "object"
       },
+      "ListResponse_ReviewActionView_": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ReviewActionView"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          }
+        },
+        "required": [
+          "items",
+          "page"
+        ],
+        "title": "ListResponse[ReviewActionView]",
+        "type": "object"
+      },
       "ListResponse_SimilarPage_": {
         "additionalProperties": false,
         "properties": {
@@ -2507,6 +3002,31 @@
           "page"
         ],
         "title": "ListResponse[SimilarPage]",
+        "type": "object"
+      },
+      "LoginRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "password": {
+            "format": "password",
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Password",
+            "type": "string",
+            "writeOnly": true
+          },
+          "username": {
+            "maxLength": 64,
+            "minLength": 3,
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "username",
+          "password"
+        ],
+        "title": "LoginRequest",
         "type": "object"
       },
       "MetaResponse": {
@@ -3772,6 +4292,16 @@
         "title": "PageVersionSummary",
         "type": "object"
       },
+      "Permission": {
+        "enum": [
+          "read",
+          "review",
+          "read_audit",
+          "read_settings"
+        ],
+        "title": "Permission",
+        "type": "string"
+      },
       "PlacementLocator": {
         "additionalProperties": false,
         "description": "Where the anchor goes. Mirrors ``ken_contracts.cms.LinkLocator`` plus offsets.\n\n``block_id``/``block_kind`` come from the deterministic block walk of the\nSOURCE VERSION's stored body (Phase 1 ``extract_blocks``); ``start``/``end``\nare character offsets into that block's text; ``occurrence_index`` is which\noccurrence of ``anchor_text`` in the block. ``context_hash`` is the sha256\nof the full block text, so Phase 6 detects drift before mutating.",
@@ -3899,6 +4429,119 @@
           "occurred_at"
         ],
         "title": "PlanTransitionView",
+        "type": "object"
+      },
+      "PoliciesView": {
+        "additionalProperties": false,
+        "properties": {
+          "auto_approve_enabled": {
+            "const": false,
+            "default": false,
+            "title": "Auto Approve Enabled",
+            "type": "boolean"
+          },
+          "policies": {
+            "items": {
+              "$ref": "#/components/schemas/PolicyDocument"
+            },
+            "title": "Policies",
+            "type": "array"
+          }
+        },
+        "required": [
+          "policies",
+          "auto_approve_enabled"
+        ],
+        "title": "PoliciesView",
+        "type": "object"
+      },
+      "PolicyDocument": {
+        "additionalProperties": false,
+        "properties": {
+          "content": {
+            "additionalProperties": true,
+            "description": "The validated document (model dump).",
+            "title": "Content",
+            "type": "object"
+          },
+          "kind": {
+            "enum": [
+              "taxonomy",
+              "recommendation",
+              "ranking",
+              "agents"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "path": {
+            "description": "Repository-relative path of the active file.",
+            "title": "Path",
+            "type": "string"
+          },
+          "sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Sha256",
+            "type": "string"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Version"
+          }
+        },
+        "required": [
+          "kind",
+          "version",
+          "path",
+          "sha256",
+          "content"
+        ],
+        "title": "PolicyDocument",
+        "type": "object"
+      },
+      "PrincipalView": {
+        "additionalProperties": false,
+        "description": "``GET /auth/me``: who the caller is and what they may do (drives the UI).",
+        "properties": {
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "permissions": {
+            "items": {
+              "$ref": "#/components/schemas/Permission"
+            },
+            "title": "Permissions",
+            "type": "array"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          },
+          "session_expires_at": {
+            "format": "date-time",
+            "title": "Session Expires At",
+            "type": "string"
+          },
+          "username": {
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "username",
+          "display_name",
+          "role",
+          "permissions",
+          "session_expires_at"
+        ],
+        "title": "PrincipalView",
         "type": "object"
       },
       "ProtectionSource": {
@@ -4054,6 +4697,40 @@
         "title": "RecommendationSummary",
         "type": "object"
       },
+      "RejectRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "expected_status": {
+            "$ref": "#/components/schemas/LinkPlanStatus"
+          },
+          "note": {
+            "default": "",
+            "maxLength": 500,
+            "title": "Note",
+            "type": "string"
+          },
+          "operation_id": {
+            "description": "Client-generated idempotency key.",
+            "format": "uuid",
+            "title": "Operation Id",
+            "type": "string"
+          },
+          "reasons": {
+            "items": {
+              "$ref": "#/components/schemas/FeedbackReason"
+            },
+            "maxItems": 5,
+            "title": "Reasons",
+            "type": "array"
+          }
+        },
+        "required": [
+          "operation_id",
+          "expected_status"
+        ],
+        "title": "RejectRequest",
+        "type": "object"
+      },
       "RelationshipType": {
         "description": "Explainable page relationships (PRD section 7.3) plus semantic similarity.",
         "enum": [
@@ -4072,6 +4749,52 @@
         "title": "RelationshipType",
         "type": "string"
       },
+      "ReplaceTargetRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "approve": {
+            "default": false,
+            "description": "Approve the edited plan in the same step.",
+            "title": "Approve",
+            "type": "boolean"
+          },
+          "expected_status": {
+            "$ref": "#/components/schemas/LinkPlanStatus"
+          },
+          "note": {
+            "default": "",
+            "maxLength": 500,
+            "title": "Note",
+            "type": "string"
+          },
+          "operation_id": {
+            "description": "Client-generated idempotency key.",
+            "format": "uuid",
+            "title": "Operation Id",
+            "type": "string"
+          },
+          "reasons": {
+            "items": {
+              "$ref": "#/components/schemas/FeedbackReason"
+            },
+            "maxItems": 5,
+            "title": "Reasons",
+            "type": "array"
+          },
+          "target_page_id": {
+            "format": "uuid",
+            "title": "Target Page Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "operation_id",
+          "expected_status",
+          "target_page_id"
+        ],
+        "title": "ReplaceTargetRequest",
+        "type": "object"
+      },
       "RetrievalChannel": {
         "enum": [
           "semantic",
@@ -4080,6 +4803,227 @@
           "graph"
         ],
         "title": "RetrievalChannel",
+        "type": "string"
+      },
+      "ReviewAction": {
+        "enum": [
+          "approve",
+          "reject",
+          "edit_anchor",
+          "replace_target"
+        ],
+        "title": "ReviewAction",
+        "type": "string"
+      },
+      "ReviewActionView": {
+        "additionalProperties": false,
+        "description": "One ``review_actions`` row: the audit AND the editorial-feedback record.",
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/ReviewAction"
+          },
+          "actor": {
+            "title": "Actor",
+            "type": "string"
+          },
+          "anchor_after": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Anchor After"
+          },
+          "anchor_before": {
+            "title": "Anchor Before",
+            "type": "string"
+          },
+          "bulk_operation_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bulk Operation Id"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "from_status": {
+            "$ref": "#/components/schemas/LinkPlanStatus"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "new_plan_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "New Plan Id"
+          },
+          "new_plan_status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LinkPlanStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "note": {
+            "title": "Note",
+            "type": "string"
+          },
+          "operation_id": {
+            "format": "uuid",
+            "title": "Operation Id",
+            "type": "string"
+          },
+          "plan_id": {
+            "format": "uuid",
+            "title": "Plan Id",
+            "type": "string"
+          },
+          "reasons": {
+            "items": {
+              "$ref": "#/components/schemas/FeedbackReason"
+            },
+            "title": "Reasons",
+            "type": "array"
+          },
+          "target_after": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target After"
+          },
+          "target_before": {
+            "format": "uuid",
+            "title": "Target Before",
+            "type": "string"
+          },
+          "to_status": {
+            "$ref": "#/components/schemas/LinkPlanStatus"
+          }
+        },
+        "required": [
+          "id",
+          "operation_id",
+          "action",
+          "actor",
+          "plan_id",
+          "new_plan_id",
+          "new_plan_status",
+          "from_status",
+          "to_status",
+          "reasons",
+          "note",
+          "anchor_before",
+          "anchor_after",
+          "target_before",
+          "target_after",
+          "bulk_operation_id",
+          "created_at"
+        ],
+        "title": "ReviewActionView",
+        "type": "object"
+      },
+      "ReviewResult": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/ReviewAction"
+          },
+          "action_id": {
+            "title": "Action Id",
+            "type": "integer"
+          },
+          "idempotent_replay": {
+            "default": false,
+            "title": "Idempotent Replay",
+            "type": "boolean"
+          },
+          "new_plan_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The superseding plan (edits).",
+            "title": "New Plan Id"
+          },
+          "new_plan_status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LinkPlanStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "operation_id": {
+            "format": "uuid",
+            "title": "Operation Id",
+            "type": "string"
+          },
+          "plan_id": {
+            "format": "uuid",
+            "title": "Plan Id",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/LinkPlanStatus",
+            "description": "The reviewed plan's status afterwards."
+          }
+        },
+        "required": [
+          "action_id",
+          "operation_id",
+          "action",
+          "plan_id",
+          "status",
+          "new_plan_id",
+          "new_plan_status",
+          "idempotent_replay"
+        ],
+        "title": "ReviewResult",
+        "type": "object"
+      },
+      "Role": {
+        "enum": [
+          "viewer",
+          "reviewer",
+          "operator_admin"
+        ],
+        "title": "Role",
         "type": "string"
       },
       "RunCounters": {
@@ -4348,6 +5292,32 @@
         "title": "ServiceIdentity",
         "type": "object"
       },
+      "SessionView": {
+        "additionalProperties": false,
+        "description": "``POST /auth/login`` response. ``token`` is shown ONCE; only its hash is stored.",
+        "properties": {
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "token": {
+            "description": "Opaque bearer token (URL-safe, >= 43 chars).",
+            "title": "Token",
+            "type": "string"
+          },
+          "user": {
+            "$ref": "#/components/schemas/PrincipalView"
+          }
+        },
+        "required": [
+          "token",
+          "expires_at",
+          "user"
+        ],
+        "title": "SessionView",
+        "type": "object"
+      },
       "SimilarPage": {
         "additionalProperties": false,
         "properties": {
@@ -4430,6 +5400,78 @@
         ],
         "title": "StepStatus",
         "type": "string"
+      },
+      "TargetOption": {
+        "additionalProperties": false,
+        "description": "``GET /recommendations/{id}/target-options``: an eligible replacement destination for\nthe plan's anchor (passes the pair filters; never the current target or the source).",
+        "properties": {
+          "canonical_url": {
+            "title": "Canonical Url",
+            "type": "string"
+          },
+          "market_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Market Id"
+          },
+          "page_id": {
+            "format": "uuid",
+            "title": "Page Id",
+            "type": "string"
+          },
+          "page_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page Type"
+          },
+          "relevance": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Deterministic pair relevance (score_pair).",
+            "title": "Relevance"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "required": [
+          "page_id",
+          "canonical_url",
+          "title",
+          "page_type",
+          "market_id",
+          "relevance"
+        ],
+        "title": "TargetOption",
+        "type": "object"
       },
       "TaxonomyNodeView": {
         "additionalProperties": false,
@@ -4869,6 +5911,273 @@
         "summary": "One agent run with its step timeline and plan reviews.",
         "tags": [
           "agents"
+        ]
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "operationId": "login",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not authenticated."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid body."
+          }
+        },
+        "summary": "Exchange a username and password for a bearer session token.",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "operationId": "logout",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not authenticated."
+          }
+        },
+        "summary": "Revoke the current session.",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "operationId": "getCurrentUser",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrincipalView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not authenticated."
+          }
+        },
+        "summary": "The authenticated user, role and permissions.",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/dashboard": {
+      "get": {
+        "operationId": "getDashboard",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardSummary"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not authenticated."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The role lacks the permission."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A parameter is invalid."
+          }
+        },
+        "summary": "Reviewer home-screen summary.",
+        "tags": [
+          "control-plane"
+        ]
+      }
+    },
+    "/events": {
+      "get": {
+        "operationId": "listEvents",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "maximum": 10000000,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "event_name",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/EventName"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Event Name"
+            }
+          },
+          {
+            "in": "query",
+            "name": "subject_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Subject Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListResponse_EventRecord_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not authenticated."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The role lacks the permission."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A parameter is invalid."
+          }
+        },
+        "summary": "The append-only event log, newest first (audit).",
+        "tags": [
+          "control-plane"
         ]
       }
     },
@@ -6345,6 +7654,87 @@
         ]
       }
     },
+    "/recommendations/bulk-review": {
+      "post": {
+        "operationId": "bulkReviewPlans",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkReviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkReviewResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not authenticated."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The role lacks the permission."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such plan."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Status mismatch, stale plan, invalid pair or reused operation id."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A parameter or the body is invalid."
+          }
+        },
+        "summary": "Approve or reject up to 50 awaiting_approval plans (per-plan results).",
+        "tags": [
+          "review"
+        ]
+      }
+    },
     "/recommendations/candidates": {
       "get": {
         "operationId": "listLinkCandidates",
@@ -6596,6 +7986,705 @@
         "summary": "One link plan with its block text and status history.",
         "tags": [
           "recommendations"
+        ]
+      }
+    },
+    "/recommendations/{plan_id}/approve": {
+      "post": {
+        "operationId": "approvePlan",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "plan_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Plan Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApproveRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not authenticated."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The role lacks the permission."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such plan."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Status mismatch, stale plan, invalid pair or reused operation id."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A parameter or the body is invalid."
+          }
+        },
+        "summary": "Approve a plan (via awaiting_approval when needed).",
+        "tags": [
+          "review"
+        ]
+      }
+    },
+    "/recommendations/{plan_id}/edit-anchor": {
+      "post": {
+        "operationId": "editPlanAnchor",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "plan_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Plan Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EditAnchorRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not authenticated."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The role lacks the permission."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such plan."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Status mismatch, stale plan, invalid pair or reused operation id."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A parameter or the body is invalid."
+          }
+        },
+        "summary": "Supersede a plan with a new verbatim span in the same block.",
+        "tags": [
+          "review"
+        ]
+      }
+    },
+    "/recommendations/{plan_id}/reject": {
+      "post": {
+        "operationId": "rejectPlan",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "plan_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Plan Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RejectRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not authenticated."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The role lacks the permission."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such plan."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Status mismatch, stale plan, invalid pair or reused operation id."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A parameter or the body is invalid."
+          }
+        },
+        "summary": "Reject a plan (or reverse an approval) with structured reasons.",
+        "tags": [
+          "review"
+        ]
+      }
+    },
+    "/recommendations/{plan_id}/replace-target": {
+      "post": {
+        "operationId": "replacePlanTarget",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "plan_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Plan Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReplaceTargetRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not authenticated."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The role lacks the permission."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such plan."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Status mismatch, stale plan, invalid pair or reused operation id."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A parameter or the body is invalid."
+          }
+        },
+        "summary": "Supersede a plan with the same anchor span pointing at another page.",
+        "tags": [
+          "review"
+        ]
+      }
+    },
+    "/recommendations/{plan_id}/review-actions": {
+      "get": {
+        "operationId": "listPlanReviewActions",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "plan_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Plan Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ReviewActionView"
+                  },
+                  "title": "Response Listplanreviewactions",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not authenticated."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The role lacks the permission."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such plan."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A parameter or the body is invalid."
+          }
+        },
+        "summary": "The human review history of one plan.",
+        "tags": [
+          "review"
+        ]
+      }
+    },
+    "/recommendations/{plan_id}/target-options": {
+      "get": {
+        "operationId": "listPlanTargetOptions",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "plan_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Plan Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 50,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TargetOption"
+                  },
+                  "title": "Response Listplantargetoptions",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not authenticated."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The role lacks the permission."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such plan."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A parameter or the body is invalid."
+          }
+        },
+        "summary": "Eligible replacement destinations for a plan's anchor.",
+        "tags": [
+          "review"
+        ]
+      }
+    },
+    "/review/actions": {
+      "get": {
+        "operationId": "listReviewActions",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "maximum": 10000000,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "action",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/ReviewAction"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Action"
+            }
+          },
+          {
+            "in": "query",
+            "name": "actor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 210,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Actor"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListResponse_ReviewActionView_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not authenticated."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The role lacks the permission."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A parameter or the body is invalid."
+          }
+        },
+        "summary": "Every human review action, newest first (audit).",
+        "tags": [
+          "review"
+        ]
+      }
+    },
+    "/settings/policies": {
+      "get": {
+        "operationId": "getPolicies",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PoliciesView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not authenticated."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The role lacks the permission."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A parameter is invalid."
+          }
+        },
+        "summary": "The active, validated policy documents (read-only).",
+        "tags": [
+          "control-plane"
         ]
       }
     }

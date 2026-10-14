@@ -55,6 +55,91 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Exchange a username and password for a bearer session token. */
+        post: operations["login"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Revoke the current session. */
+        post: operations["logout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The authenticated user, role and permissions. */
+        get: operations["getCurrentUser"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dashboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Reviewer home-screen summary. */
+        get: operations["getDashboard"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The append-only event log, newest first (audit). */
+        get: operations["listEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -429,6 +514,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/recommendations/bulk-review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve or reject up to 50 awaiting_approval plans (per-plan results). */
+        post: operations["bulkReviewPlans"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/recommendations/candidates": {
         parameters: {
             query?: never;
@@ -489,6 +591,142 @@ export interface paths {
         };
         /** One link plan with its block text and status history. */
         get: operations["getLinkPlan"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/recommendations/{plan_id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve a plan (via awaiting_approval when needed). */
+        post: operations["approvePlan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/recommendations/{plan_id}/edit-anchor": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Supersede a plan with a new verbatim span in the same block. */
+        post: operations["editPlanAnchor"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/recommendations/{plan_id}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reject a plan (or reverse an approval) with structured reasons. */
+        post: operations["rejectPlan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/recommendations/{plan_id}/replace-target": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Supersede a plan with the same anchor span pointing at another page. */
+        post: operations["replacePlanTarget"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/recommendations/{plan_id}/review-actions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The human review history of one plan. */
+        get: operations["listPlanReviewActions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/recommendations/{plan_id}/target-options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Eligible replacement destinations for a plan's anchor. */
+        get: operations["listPlanTargetOptions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/review/actions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Every human review action, newest first (audit). */
+        get: operations["listReviewActions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/settings/policies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The active, validated policy documents (read-only). */
+        get: operations["getPolicies"];
         put?: never;
         post?: never;
         delete?: never;
@@ -744,6 +982,82 @@ export interface components {
         AgentTrigger: "manual" | "batch";
         /** @enum {string} */
         AnchorSource: "text" | "img_alt" | "aria_label" | "title" | "none";
+        /** ApproveRequest */
+        ApproveRequest: {
+            expected_status: components["schemas"]["LinkPlanStatus"];
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+            /**
+             * Operation Id
+             * Format: uuid
+             * @description Client-generated idempotency key.
+             */
+            operation_id: string;
+            /** Reasons */
+            reasons?: components["schemas"]["FeedbackReason"][];
+        };
+        /**
+         * BulkAction
+         * @enum {string}
+         */
+        BulkAction: "approve" | "reject";
+        /** BulkItemResult */
+        BulkItemResult: {
+            /**
+             * Error Code
+             * @description An ErrorCode value when not ok (e.g. conflict).
+             */
+            error_code: string | null;
+            /** Ok */
+            ok: boolean;
+            /**
+             * Plan Id
+             * Format: uuid
+             */
+            plan_id: string;
+            status: components["schemas"]["LinkPlanStatus"] | null;
+        };
+        /**
+         * BulkReviewRequest
+         * @description Bulk review where safe: only ``awaiting_approval`` plans that are not stale; every
+         *     plan is its own transaction; edits are never bulk.
+         */
+        BulkReviewRequest: {
+            action: components["schemas"]["BulkAction"];
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+            /**
+             * Operation Id
+             * Format: uuid
+             */
+            operation_id: string;
+            /** Plan Ids */
+            plan_ids: string[];
+            /** Reasons */
+            reasons?: components["schemas"]["FeedbackReason"][];
+        };
+        /** BulkReviewResult */
+        BulkReviewResult: {
+            action: components["schemas"]["BulkAction"];
+            /**
+             * Idempotent Replay
+             * @default false
+             */
+            idempotent_replay: boolean;
+            /** Items */
+            items: components["schemas"]["BulkItemResult"][];
+            /**
+             * Operation Id
+             * Format: uuid
+             */
+            operation_id: string;
+        };
         /**
          * CandidateRejection
          * @description Deterministic filters (FR-006), in EVALUATION ORDER; the first match is recorded.
@@ -823,6 +1137,61 @@ export interface components {
          * @enum {string}
          */
         CriticVerdict: "accept" | "reject" | "uncertain";
+        /** DashboardSummary */
+        DashboardSummary: {
+            /**
+             * Agent Runs By Outcome
+             * @description All time, by outcome.
+             */
+            agent_runs_by_outcome: {
+                [key: string]: number;
+            };
+            /**
+             * Auto Approve Enabled
+             * @description Always false in v1 (TRD section 20).
+             * @default false
+             * @constant
+             */
+            auto_approve_enabled: false;
+            /** Awaiting Approval */
+            awaiting_approval: number;
+            /**
+             * Latest Jobs
+             * @description The latest run of each job kind.
+             */
+            latest_jobs: components["schemas"]["JobRunSummary"][];
+            /** Opportunities By Kind */
+            opportunities_by_kind: {
+                [key: string]: number;
+            };
+            /**
+             * Pages Analyzed
+             * @description Current version has a current analysis.
+             */
+            pages_analyzed: number;
+            /**
+             * Pages Live
+             * @description Not gone.
+             */
+            pages_live: number;
+            /** Pages Protected */
+            pages_protected: number;
+            /** Pages Total */
+            pages_total: number;
+            /** Plans By Status */
+            plans_by_status: {
+                [key: string]: number;
+            };
+            /** Recent Review Actions */
+            recent_review_actions: components["schemas"]["ReviewActionView"][];
+            /**
+             * Reviews By Action
+             * @description All time, by review action.
+             */
+            reviews_by_action: {
+                [key: string]: number;
+            };
+        };
         /**
          * DependencyCheck
          * @description Result of probing exactly one dependency.
@@ -857,6 +1226,41 @@ export interface components {
              */
             required: boolean;
             status: components["schemas"]["HealthStatus"];
+        };
+        /**
+         * EditAnchorRequest
+         * @description A new span ``[start, end)`` of the plan's block in the source's CURRENT version.
+         */
+        EditAnchorRequest: {
+            /**
+             * Approve
+             * @description Approve the edited plan in the same step.
+             * @default false
+             */
+            approve: boolean;
+            /**
+             * Block Context Hash
+             * @description sha256 of the block text the reviewer saw (must still be current).
+             */
+            block_context_hash: string;
+            /** End */
+            end: number;
+            expected_status: components["schemas"]["LinkPlanStatus"];
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+            /**
+             * Operation Id
+             * Format: uuid
+             * @description Client-generated idempotency key.
+             */
+            operation_id: string;
+            /** Reasons */
+            reasons?: components["schemas"]["FeedbackReason"][];
+            /** Start */
+            start: number;
         };
         /** EntityMention */
         EntityMention: {
@@ -924,6 +1328,69 @@ export interface components {
             request_id: string | null;
         };
         /**
+         * EventName
+         * @description The TRD.md section 15 vocabulary, plus governed additions.
+         *
+         *     Phase 0 emits only ``worker.heartbeat``. The remaining names are frozen
+         *     here so later phases cannot invent divergent spellings for the same fact.
+         *
+         *     Additions beyond TRD.md section 15, each an explicit decision:
+         *
+         *     * ``skill.promoted`` -- added at the user's direction (post-Phase-0
+         *       cleanup, 2026-10-13). TRD.md had ``policy.promoted`` but no skill
+         *       equivalent, although AUTONOMY_AND_PERMISSIONS.md makes PROMOTE_SKILL an
+         *       ASK-level action, which therefore needs an audit event.
+         *     * ``worker.heartbeat`` -- operational, recorded in docs/adr/ADR-0005.md.
+         *     * ``job.completed`` -- operational, Phase 2 (docs/adr/ADR-0010-content-intelligence.md):
+         *       every finished generic job run (analysis, recommendation, verification,
+         *       analytics import, evaluation, autonomy shadow), including failed ones.
+         *       Ingestion keeps ``crawl.completed``.
+         *
+         *     Governed lifecycles (no learning behaviour is implemented yet)::
+         *
+         *         skill.proposed  -> offline/human evaluation -> skill.promoted
+         *         policy.proposed -> offline/human evaluation -> policy.promoted
+         *
+         *     Proposal is ALLOW for agents; promotion is ASK and requires a human. Both
+         *     ``*.promoted`` events must carry a :class:`PromotionAuditPayload`, which
+         *     :class:`EventEnvelope` enforces.
+         * @enum {string}
+         */
+        EventName: "page.created" | "page.updated" | "page.deleted" | "crawl.completed" | "link.proposed" | "link.approved" | "link.rejected" | "link.deployed" | "link.verified" | "link.failed" | "link.rolled_back" | "analytics.updated" | "skill.proposed" | "skill.promoted" | "policy.proposed" | "policy.promoted" | "worker.heartbeat" | "job.completed";
+        /**
+         * EventRecord
+         * @description One stored event (``events`` row), for the audit log.
+         */
+        EventRecord: {
+            /** Correlation Id */
+            correlation_id: string | null;
+            /** Emitted By */
+            emitted_by: string;
+            /**
+             * Event Id
+             * Format: uuid
+             */
+            event_id: string;
+            event_name: components["schemas"]["EventName"];
+            /** Event Version */
+            event_version: number;
+            /** Id */
+            id: number;
+            /**
+             * Occurred At
+             * Format: date-time
+             */
+            occurred_at: string;
+            /** Payload */
+            payload: {
+                [key: string]: unknown;
+            };
+            /** Subject Id */
+            subject_id: string | null;
+            /** Subject Type */
+            subject_type: string | null;
+        };
+        /**
          * ExistingLinkView
          * @description One body link as stored for a page version, with read-time resolution.
          */
@@ -969,6 +1436,12 @@ export interface components {
          * @enum {string}
          */
         FallbackReason: "model_disabled" | "model_unavailable" | "model_timeout" | "schema_violation";
+        /**
+         * FeedbackReason
+         * @description Structured editorial reasons (PRD 7.9). Required for reject and edits.
+         * @enum {string}
+         */
+        FeedbackReason: "good_as_is" | "irrelevant_destination" | "better_destination_exists" | "misleading_anchor" | "unnatural_anchor" | "wrong_placement" | "over_linking" | "duplicate_of_existing_link" | "outdated_or_changed_content" | "sensitive_or_protected" | "reader_journey_mismatch" | "other";
         /** GeographyMention */
         GeographyMention: {
             /** Geo Id */
@@ -1490,6 +1963,12 @@ export interface components {
             items: components["schemas"]["CandidateView"][];
             page: components["schemas"]["PageInfo"];
         };
+        /** ListResponse[EventRecord] */
+        ListResponse_EventRecord_: {
+            /** Items */
+            items: components["schemas"]["EventRecord"][];
+            page: components["schemas"]["PageInfo"];
+        };
         /** ListResponse[ExistingLinkView] */
         ListResponse_ExistingLinkView_: {
             /** Items */
@@ -1544,11 +2023,27 @@ export interface components {
             items: components["schemas"]["PageVersionSummary"][];
             page: components["schemas"]["PageInfo"];
         };
+        /** ListResponse[ReviewActionView] */
+        ListResponse_ReviewActionView_: {
+            /** Items */
+            items: components["schemas"]["ReviewActionView"][];
+            page: components["schemas"]["PageInfo"];
+        };
         /** ListResponse[SimilarPage] */
         ListResponse_SimilarPage_: {
             /** Items */
             items: components["schemas"]["SimilarPage"][];
             page: components["schemas"]["PageInfo"];
+        };
+        /** LoginRequest */
+        LoginRequest: {
+            /**
+             * Password
+             * Format: password
+             */
+            password: string;
+            /** Username */
+            username: string;
         };
         /**
          * MetaResponse
@@ -2083,6 +2578,11 @@ export interface components {
             word_count: number;
         };
         /**
+         * Permission
+         * @enum {string}
+         */
+        Permission: "read" | "review" | "read_audit" | "read_settings";
+        /**
          * PlacementLocator
          * @description Where the anchor goes. Mirrors ``ken_contracts.cms.LinkLocator`` plus offsets.
          *
@@ -2141,6 +2641,59 @@ export interface components {
              */
             plan_id: string;
             to_status: components["schemas"]["LinkPlanStatus"];
+        };
+        /** PoliciesView */
+        PoliciesView: {
+            /**
+             * Auto Approve Enabled
+             * @default false
+             * @constant
+             */
+            auto_approve_enabled: false;
+            /** Policies */
+            policies: components["schemas"]["PolicyDocument"][];
+        };
+        /** PolicyDocument */
+        PolicyDocument: {
+            /**
+             * Content
+             * @description The validated document (model dump).
+             */
+            content: {
+                [key: string]: unknown;
+            };
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "taxonomy" | "recommendation" | "ranking" | "agents";
+            /**
+             * Path
+             * @description Repository-relative path of the active file.
+             */
+            path: string;
+            /** Sha256 */
+            sha256: string;
+            /** Version */
+            version: number | string;
+        };
+        /**
+         * PrincipalView
+         * @description ``GET /auth/me``: who the caller is and what they may do (drives the UI).
+         */
+        PrincipalView: {
+            /** Display Name */
+            display_name: string;
+            /** Permissions */
+            permissions: components["schemas"]["Permission"][];
+            role: components["schemas"]["Role"];
+            /**
+             * Session Expires At
+             * Format: date-time
+             */
+            session_expires_at: string;
+            /** Username */
+            username: string;
         };
         /**
          * ProtectionSource
@@ -2230,17 +2783,149 @@ export interface components {
             /** Targets With Plans */
             targets_with_plans: number;
         };
+        /** RejectRequest */
+        RejectRequest: {
+            expected_status: components["schemas"]["LinkPlanStatus"];
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+            /**
+             * Operation Id
+             * Format: uuid
+             * @description Client-generated idempotency key.
+             */
+            operation_id: string;
+            /** Reasons */
+            reasons?: components["schemas"]["FeedbackReason"][];
+        };
         /**
          * RelationshipType
          * @description Explainable page relationships (PRD section 7.3) plus semantic similarity.
          * @enum {string}
          */
         RelationshipType: "same_market" | "parent_market" | "submarket" | "related_market" | "same_geography" | "regional_parent" | "supply_chain_upstream" | "supply_chain_downstream" | "complementary_market" | "industry_adjacency" | "semantic_similar";
+        /** ReplaceTargetRequest */
+        ReplaceTargetRequest: {
+            /**
+             * Approve
+             * @description Approve the edited plan in the same step.
+             * @default false
+             */
+            approve: boolean;
+            expected_status: components["schemas"]["LinkPlanStatus"];
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+            /**
+             * Operation Id
+             * Format: uuid
+             * @description Client-generated idempotency key.
+             */
+            operation_id: string;
+            /** Reasons */
+            reasons?: components["schemas"]["FeedbackReason"][];
+            /**
+             * Target Page Id
+             * Format: uuid
+             */
+            target_page_id: string;
+        };
         /**
          * RetrievalChannel
          * @enum {string}
          */
         RetrievalChannel: "semantic" | "lexical" | "taxonomy" | "graph";
+        /**
+         * ReviewAction
+         * @enum {string}
+         */
+        ReviewAction: "approve" | "reject" | "edit_anchor" | "replace_target";
+        /**
+         * ReviewActionView
+         * @description One ``review_actions`` row: the audit AND the editorial-feedback record.
+         */
+        ReviewActionView: {
+            action: components["schemas"]["ReviewAction"];
+            /** Actor */
+            actor: string;
+            /** Anchor After */
+            anchor_after: string | null;
+            /** Anchor Before */
+            anchor_before: string;
+            /** Bulk Operation Id */
+            bulk_operation_id: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            from_status: components["schemas"]["LinkPlanStatus"];
+            /** Id */
+            id: number;
+            /** New Plan Id */
+            new_plan_id: string | null;
+            new_plan_status: components["schemas"]["LinkPlanStatus"] | null;
+            /** Note */
+            note: string;
+            /**
+             * Operation Id
+             * Format: uuid
+             */
+            operation_id: string;
+            /**
+             * Plan Id
+             * Format: uuid
+             */
+            plan_id: string;
+            /** Reasons */
+            reasons: components["schemas"]["FeedbackReason"][];
+            /** Target After */
+            target_after: string | null;
+            /**
+             * Target Before
+             * Format: uuid
+             */
+            target_before: string;
+            to_status: components["schemas"]["LinkPlanStatus"];
+        };
+        /** ReviewResult */
+        ReviewResult: {
+            action: components["schemas"]["ReviewAction"];
+            /** Action Id */
+            action_id: number;
+            /**
+             * Idempotent Replay
+             * @default false
+             */
+            idempotent_replay: boolean;
+            /**
+             * New Plan Id
+             * @description The superseding plan (edits).
+             */
+            new_plan_id: string | null;
+            new_plan_status: components["schemas"]["LinkPlanStatus"] | null;
+            /**
+             * Operation Id
+             * Format: uuid
+             */
+            operation_id: string;
+            /**
+             * Plan Id
+             * Format: uuid
+             */
+            plan_id: string;
+            /** @description The reviewed plan's status afterwards. */
+            status: components["schemas"]["LinkPlanStatus"];
+        };
+        /**
+         * Role
+         * @enum {string}
+         */
+        Role: "viewer" | "reviewer" | "operator_admin";
         /**
          * RunCounters
          * @description Run accounting. Invariant (checked by tests)::
@@ -2403,6 +3088,23 @@ export interface components {
              */
             version: string;
         };
+        /**
+         * SessionView
+         * @description ``POST /auth/login`` response. ``token`` is shown ONCE; only its hash is stored.
+         */
+        SessionView: {
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /**
+             * Token
+             * @description Opaque bearer token (URL-safe, >= 43 chars).
+             */
+            token: string;
+            user: components["schemas"]["PrincipalView"];
+        };
         /** SimilarPage */
         SimilarPage: {
             /** Canonical Url */
@@ -2435,6 +3137,31 @@ export interface components {
          * @enum {string}
          */
         StepStatus: "succeeded" | "skipped" | "failed";
+        /**
+         * TargetOption
+         * @description ``GET /recommendations/{id}/target-options``: an eligible replacement destination for
+         *     the plan's anchor (passes the pair filters; never the current target or the source).
+         */
+        TargetOption: {
+            /** Canonical Url */
+            canonical_url: string;
+            /** Market Id */
+            market_id: string | null;
+            /**
+             * Page Id
+             * Format: uuid
+             */
+            page_id: string;
+            /** Page Type */
+            page_type: string | null;
+            /**
+             * Relevance
+             * @description Deterministic pair relevance (score_pair).
+             */
+            relevance: number | null;
+            /** Title */
+            title: string | null;
+        };
         /** TaxonomyNodeView */
         TaxonomyNodeView: {
             /** Depth */
@@ -2626,6 +3353,203 @@ export interface operations {
             };
             /** @description No such resource. */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A parameter is invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    login: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoginRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionView"];
+                };
+            };
+            /** @description Not authenticated. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Invalid body. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    logout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not authenticated. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    getCurrentUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrincipalView"];
+                };
+            };
+            /** @description Not authenticated. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    getDashboard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardSummary"];
+                };
+            };
+            /** @description Not authenticated. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The role lacks the permission. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A parameter is invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    listEvents: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+                event_name?: components["schemas"]["EventName"] | null;
+                subject_id?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListResponse_EventRecord_"];
+                };
+            };
+            /** @description Not authenticated. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The role lacks the permission. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3429,6 +4353,75 @@ export interface operations {
             };
         };
     };
+    bulkReviewPlans: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BulkReviewRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BulkReviewResult"];
+                };
+            };
+            /** @description Not authenticated. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The role lacks the permission. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No such plan. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Status mismatch, stale plan, invalid pair or reused operation id. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A parameter or the body is invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     listLinkCandidates: {
         parameters: {
             query?: {
@@ -3539,6 +4532,507 @@ export interface operations {
             };
             /** @description No such resource. */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A parameter is invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    approvePlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                plan_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApproveRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewResult"];
+                };
+            };
+            /** @description Not authenticated. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The role lacks the permission. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No such plan. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Status mismatch, stale plan, invalid pair or reused operation id. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A parameter or the body is invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    editPlanAnchor: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                plan_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EditAnchorRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewResult"];
+                };
+            };
+            /** @description Not authenticated. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The role lacks the permission. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No such plan. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Status mismatch, stale plan, invalid pair or reused operation id. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A parameter or the body is invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    rejectPlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                plan_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RejectRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewResult"];
+                };
+            };
+            /** @description Not authenticated. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The role lacks the permission. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No such plan. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Status mismatch, stale plan, invalid pair or reused operation id. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A parameter or the body is invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    replacePlanTarget: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                plan_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReplaceTargetRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewResult"];
+                };
+            };
+            /** @description Not authenticated. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The role lacks the permission. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No such plan. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Status mismatch, stale plan, invalid pair or reused operation id. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A parameter or the body is invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    listPlanReviewActions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                plan_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewActionView"][];
+                };
+            };
+            /** @description Not authenticated. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The role lacks the permission. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No such plan. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A parameter or the body is invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    listPlanTargetOptions: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                plan_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TargetOption"][];
+                };
+            };
+            /** @description Not authenticated. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The role lacks the permission. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No such plan. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A parameter or the body is invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    listReviewActions: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+                action?: components["schemas"]["ReviewAction"] | null;
+                actor?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListResponse_ReviewActionView_"];
+                };
+            };
+            /** @description Not authenticated. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The role lacks the permission. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A parameter or the body is invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    getPolicies: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PoliciesView"];
+                };
+            };
+            /** @description Not authenticated. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The role lacks the permission. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

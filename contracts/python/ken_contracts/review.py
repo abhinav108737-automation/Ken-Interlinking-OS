@@ -255,6 +255,20 @@ class BulkReviewResult(FrozenModel):
     idempotent_replay: bool = False
 
 
+class TargetOption(FrozenModel):
+    """``GET /recommendations/{id}/target-options``: an eligible replacement destination for
+    the plan's anchor (passes the pair filters; never the current target or the source)."""
+
+    page_id: UUID
+    canonical_url: str
+    title: str | None = None
+    page_type: str | None = None
+    market_id: str | None = None
+    relevance: float | None = Field(
+        default=None, ge=0, le=1, description="Deterministic pair relevance (score_pair)."
+    )
+
+
 class ReviewActionView(FrozenModel):
     """One ``review_actions`` row: the audit AND the editorial-feedback record."""
 
