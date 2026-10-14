@@ -272,7 +272,8 @@ Design: [ADR-0011](adr/ADR-0011-recommendation-engine.md). Module: `recommendati
 Design: [ADR-0012](adr/ADR-0012-agent-orchestration.md). Modules: `agents.py`;
 the runtime/backend interface is `services/ken_services/agents/protocol.py` (orchestrator-frozen).
 
-- **One plan producer.** Only the deterministic engine inserts plans. An agent run REVIEWS one
+- **Plan producers.** The deterministic engine produces plans; the Phase 5 review service
+  produces ONLY the superseding plan of a human edit (ADR-0013 §7). Agents never insert plans. An agent run REVIEWS one
   source's unreviewed `proposed` plans and hands accepted / uncertain ones to the human queue
   (`proposed → critiqued → policy_checked → awaiting_approval`) in ONE transaction
   (`hand_off`), with actors bound inside the service (`CRITIC_ACTOR`, `POLICY_GATE_ACTOR`).

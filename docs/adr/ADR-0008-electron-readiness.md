@@ -74,6 +74,10 @@ the top level of the lockfile. **Runtime safety in a future desktop build comes 
   2. move data fetching client-side with `createApiClient`, which requires CORS on FastAPI.
 
   Record the choice in a follow-up ADR.
+  **Constrained by ADR-0013 (Phase 5):** the web app keeps the session token in an HttpOnly
+  cookie and forwards it server-side, so option 1 (the local Next server as a sidecar) is the
+  path that works unchanged. Option 2 would need its own token-custody design (no token in
+  renderer-accessible storage).
 - **Licence check for desktop packaging:** `sharp` (LGPL) is excluded from the web runtime image by
   Next's output trace, but desktop packagers copy `node_modules` differently. Re-verify the packaged
   bundle's licence inventory before any distribution (see ADR-0004).

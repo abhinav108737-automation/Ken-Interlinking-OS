@@ -610,6 +610,10 @@ class LinkPlanEvent(FrozenModel):
     score: float
     run_id: UUID | None = None
     actor: str
+    supersedes: UUID | None = Field(
+        default=None,
+        description="Phase 5: the plan an edited plan replaces (additive; event_version 1).",
+    )
 
 
 class RecommendationSummary(FrozenModel):

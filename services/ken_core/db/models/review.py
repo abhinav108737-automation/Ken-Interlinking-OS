@@ -39,6 +39,9 @@ from ken_core.db.base import Base
 from ken_core.db.models.inventory import _one_of
 
 APPEND_ONLY_REVIEW_TABLES: Final = ("review_actions",)
+AUTH_SESSION_MUTABLE_COLUMNS: Final = ("revoked_at", "last_seen_at")
+"""``auth_sessions`` columns an UPDATE may change (trigger in 0006); DELETE only by the
+expired-session prune (sessions expired for > 30 days)."""
 USER_MUTABLE_COLUMNS: Final = (
     "display_name",
     "role",
@@ -121,6 +124,7 @@ class ReviewActionRow(Base):
     new_plan_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid(as_uuid=True), ForeignKey("link_plans.id", ondelete="RESTRICT"), nullable=True
     )
+    new_plan_status: Mapped[str | None] = mapped_column(Text, nullable=True)
     from_status: Mapped[str] = mapped_column(Text, nullable=False)
     to_status: Mapped[str] = mapped_column(Text, nullable=False)
     reasons: Mapped[list[str]] = mapped_column(
@@ -142,6 +146,13 @@ class ReviewActionRow(Base):
         CheckConstraint(_one_of("action", ReviewAction), name="action_valid"),
         CheckConstraint(_one_of("from_status", LinkPlanStatus), name="from_status_valid"),
         CheckConstraint(_one_of("to_status", LinkPlanStatus), name="to_status_valid"),
+        CheckConstraint(
+            "new_plan_status IS NULL OR " + _one_of("new_plan_status", LinkPlanStatus),
+            name="new_plan_status_valid",
+        ),
+        CheckConstraint(
+            "(new_plan_id IS NULL) = (new_plan_status IS NULL)", name="new_plan_status_iff"
+        ),
         CheckConstraint("actor ~ '^user:'", name="actor_is_user"),
         CheckConstraint(f"length(note) <= {MAX_NOTE_CHARS}", name="note_bounded"),
         CheckConstraint("jsonb_typeof(reasons) = 'array'", name="reasons_array"),
@@ -154,11 +165,13 @@ class ReviewActionRow(Base):
         Index("ix_review_actions_plan_id", "plan_id"),
         Index("ix_review_actions_created_at", text("created_at DESC")),
         Index("ix_review_actions_bulk_operation_id", "bulk_operation_id"),
+        Index("ix_review_actions_user_id_created_at", "user_id", text("created_at DESC")),
     )
 
 
 __all__ = [
     "APPEND_ONLY_REVIEW_TABLES",
+    "AUTH_SESSION_MUTABLE_COLUMNS",
     "USER_MUTABLE_COLUMNS",
     "AuthSession",
     "ReviewActionRow",

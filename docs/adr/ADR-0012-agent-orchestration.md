@@ -27,7 +27,9 @@ This settles the engine/agent coexistence question raised by the review:
 - no critic bypass. A plan the critic rejects stays `proposed` with its review recorded, and a
   re-run of the engine never re-inserts its pair, because it is still open.
 
-**Agents never insert, edit, reject, approve or expire a plan.**
+**Agents never insert, edit, reject, approve or expire a plan.** (Amended by ADR-0013: the
+Phase 5 review service also inserts the superseding plan of a HUMAN edit; agents still insert
+nothing.)
 
 ### 2. The graph
 

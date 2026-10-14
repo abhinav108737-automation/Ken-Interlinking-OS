@@ -17,6 +17,8 @@ or edit the placement; rejections and edits require structured reason codes.
   editorial feedback record Phase 8 learns from) and emits ``link.approved`` /
   ``link.rejected`` (or ``link.proposed`` for an edited plan). An approval is reversible
   by a later reject (``approved -> rejected``) until deployment (Phase 6).
+* **Two plan producers, one per purpose.** The engine produces plans; the review service
+  produces ONLY the superseding plan of a human edit (ADR-0013 section 4, amending ADR-0012).
 * **Edits never mutate a plan.** Editing the anchor/placement or replacing the destination
   SUPERSEDES the plan: the old one moves to ``superseded`` and a NEW plan
   (``anchor_source = "edited"``) is inserted in the same transaction, recorded by
@@ -36,6 +38,7 @@ from uuid import UUID
 
 from pydantic import AwareDatetime, Field, model_validator
 
+from ken_contracts.auth import Principal
 from ken_contracts.common import FrozenModel
 from ken_contracts.errors import ListResponse
 from ken_contracts.recommendations import LinkPlanStatus
@@ -58,6 +61,9 @@ REVIEWABLE_STATUSES: Final = frozenset(
 ``awaiting_approval``; earlier statuses are reachable from the plan list)."""
 REJECTABLE_STATUSES: Final = REVIEWABLE_STATUSES | {LinkPlanStatus.APPROVED}
 """``approved -> rejected`` reverses an approval before deployment."""
+EDITABLE_STATUSES: Final = REVIEWABLE_STATUSES | {LinkPlanStatus.APPROVED}
+"""``approved -> superseded`` exists: an approved plan may still be edited before deployment
+(without a reject, which would start the cool-down)."""
 
 
 class ReviewAction(StrEnum):
@@ -87,6 +93,35 @@ class FeedbackReason(StrEnum):
     """Requires a note."""
 
 
+APPROVE_REASONS: Final = frozenset({FeedbackReason.GOOD_AS_IS, FeedbackReason.OTHER})
+DESTINATION_REASONS: Final = frozenset(
+    {
+        FeedbackReason.IRRELEVANT_DESTINATION,
+        FeedbackReason.BETTER_DESTINATION_EXISTS,
+        FeedbackReason.READER_JOURNEY_MISMATCH,
+        FeedbackReason.DUPLICATE_OF_EXISTING_LINK,
+        FeedbackReason.SENSITIVE_OR_PROTECTED,
+        FeedbackReason.OTHER,
+    }
+)
+ANCHOR_REASONS: Final = frozenset(
+    {
+        FeedbackReason.MISLEADING_ANCHOR,
+        FeedbackReason.UNNATURAL_ANCHOR,
+        FeedbackReason.WRONG_PLACEMENT,
+        FeedbackReason.OVER_LINKING,
+        FeedbackReason.OTHER,
+    }
+)
+REASONS_BY_ACTION: Final = {
+    ReviewAction.APPROVE: APPROVE_REASONS,
+    ReviewAction.REJECT: frozenset(FeedbackReason) - {FeedbackReason.GOOD_AS_IS},
+    ReviewAction.EDIT_ANCHOR: ANCHOR_REASONS,
+    ReviewAction.REPLACE_TARGET: DESTINATION_REASONS,
+}
+"""Which structured reasons each action accepts (keeps the Phase 8 feedback data clean)."""
+
+
 class _ReviewRequest(FrozenModel):
     operation_id: UUID = Field(description="Client-generated idempotency key.")
     expected_status: LinkPlanStatus
@@ -105,7 +140,11 @@ class _ReviewRequest(FrozenModel):
 
 
 class ApproveRequest(_ReviewRequest):
-    pass
+    @model_validator(mode="after")
+    def _approve_reasons(self) -> Self:
+        if not set(self.reasons) <= APPROVE_REASONS:
+            raise ValueError("approve accepts only good_as_is / other")
+        return self
 
 
 class _RequiresReason(_ReviewRequest):
@@ -120,6 +159,11 @@ class _RequiresReason(_ReviewRequest):
 
 class RejectRequest(_RequiresReason):
     pass
+
+
+def _check_reasons(reasons: list[FeedbackReason], action: ReviewAction) -> None:
+    if not set(reasons) <= REASONS_BY_ACTION[action]:
+        raise ValueError(f"reasons not valid for {action.value}")
 
 
 class EditAnchorRequest(_RequiresReason):
@@ -137,12 +181,18 @@ class EditAnchorRequest(_RequiresReason):
     def _span(self) -> Self:
         if self.end <= self.start:
             raise ValueError("end must be after start")
+        _check_reasons(self.reasons, ReviewAction.EDIT_ANCHOR)
         return self
 
 
 class ReplaceTargetRequest(_RequiresReason):
     target_page_id: UUID
     approve: bool = Field(default=False, description="Approve the edited plan in the same step.")
+
+    @model_validator(mode="after")
+    def _destination_reasons(self) -> Self:
+        _check_reasons(self.reasons, ReviewAction.REPLACE_TARGET)
+        return self
 
 
 class BulkAction(StrEnum):
@@ -166,6 +216,11 @@ class BulkReviewRequest(FrozenModel):
             raise ValueError("plan_ids must be unique")
         if self.action is BulkAction.REJECT and not self.reasons:
             raise ValueError("a bulk reject requires at least one reason")
+        allowed = REASONS_BY_ACTION[
+            ReviewAction.APPROVE if self.action is BulkAction.APPROVE else ReviewAction.REJECT
+        ]
+        if not set(self.reasons) <= allowed:
+            raise ValueError(f"reasons not valid for bulk {self.action.value}")
         if FeedbackReason.OTHER in self.reasons and not self.note.strip():
             raise ValueError("reason 'other' requires a note")
         if "\x00" in self.note:
@@ -209,6 +264,7 @@ class ReviewActionView(FrozenModel):
     actor: str
     plan_id: UUID
     new_plan_id: UUID | None = None
+    new_plan_status: LinkPlanStatus | None = None
     from_status: LinkPlanStatus
     to_status: LinkPlanStatus
     reasons: list[FeedbackReason]
@@ -217,7 +273,7 @@ class ReviewActionView(FrozenModel):
     anchor_after: str | None = None
     target_before: UUID
     target_after: UUID | None = None
-    bulk: bool = False
+    bulk_operation_id: UUID | None = None
     created_at: AwareDatetime
 
 
@@ -254,22 +310,24 @@ class OperationConflictError(ReviewError):
 @runtime_checkable
 class ReviewService(Protocol):
     async def approve(
-        self, *, plan_id: UUID, request: ApproveRequest, actor: str
+        self, *, plan_id: UUID, request: ApproveRequest, principal: Principal
     ) -> ReviewResult: ...
 
     async def reject(
-        self, *, plan_id: UUID, request: RejectRequest, actor: str
+        self, *, plan_id: UUID, request: RejectRequest, principal: Principal
     ) -> ReviewResult: ...
 
     async def edit_anchor(
-        self, *, plan_id: UUID, request: EditAnchorRequest, actor: str
+        self, *, plan_id: UUID, request: EditAnchorRequest, principal: Principal
     ) -> ReviewResult: ...
 
     async def replace_target(
-        self, *, plan_id: UUID, request: ReplaceTargetRequest, actor: str
+        self, *, plan_id: UUID, request: ReplaceTargetRequest, principal: Principal
     ) -> ReviewResult: ...
 
-    async def bulk(self, *, request: BulkReviewRequest, actor: str) -> BulkReviewResult: ...
+    async def bulk(
+        self, *, request: BulkReviewRequest, principal: Principal
+    ) -> BulkReviewResult: ...
 
 
 @runtime_checkable
