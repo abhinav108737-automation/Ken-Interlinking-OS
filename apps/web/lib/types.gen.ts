@@ -4,6 +4,57 @@
  */
 
 export interface paths {
+    "/agents/plans/{plan_id}/reviews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The agent review(s) of one link plan (empty if no agent reviewed it). */
+        get: operations["listAgentPlanReviews"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agents/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Agent review runs, newest first. */
+        get: operations["listAgentRuns"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agents/runs/{run_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One agent run with its step timeline and plan reviews. */
+        get: operations["getAgentRun"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -450,6 +501,241 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * AgentErrorCode
+         * @description Typed, recoverable node failures (TRD section 9). Never exception text.
+         * @enum {string}
+         */
+        AgentErrorCode: "page_not_found" | "tool_failed" | "timeout" | "invariant_violated" | "handoff_conflict" | "orphaned" | "internal";
+        /**
+         * AgentNode
+         * @description Supervisor nodes, in graph order (TRD section 9 mapping in ADR-0012).
+         * @enum {string}
+         */
+        AgentNode: "load_page" | "triage" | "understand" | "discover" | "plan" | "critique" | "check_invariants" | "policy_gate" | "finalize";
+        /**
+         * AgentOutcome
+         * @enum {string}
+         */
+        AgentOutcome: "recommend" | "no_action" | "needs_human_review" | "failed";
+        /**
+         * AgentPlanReview
+         * @description One plan reviewed by one run (append-only ``agent_run_plans``; a plan is reviewed
+         *     by agents at most once).
+         */
+        AgentPlanReview: {
+            /**
+             * Explanation
+             * @default
+             */
+            explanation: string;
+            fallback_reason: components["schemas"]["FallbackReason"] | null;
+            /** Fallback Used */
+            fallback_used: boolean;
+            /**
+             * Handed Off
+             * @description Moved to awaiting_approval by this run.
+             */
+            handed_off: boolean;
+            /**
+             * Model
+             * @description Set only when a model answered.
+             */
+            model: string | null;
+            /**
+             * Plan Id
+             * Format: uuid
+             */
+            plan_id: string;
+            /** Reasons */
+            reasons: components["schemas"]["CriticReason"][];
+            /**
+             * Reviewed At
+             * Format: date-time
+             */
+            reviewed_at: string;
+            verdict: components["schemas"]["CriticVerdict"];
+        };
+        /** AgentRunDetail */
+        AgentRunDetail: {
+            /**
+             * Config Snapshot
+             * @description Secret-free: graph and policy versions, model roles enabled, timeouts.
+             */
+            config_snapshot: {
+                [key: string]: unknown;
+            };
+            /**
+             * Correlation Id
+             * Format: uuid
+             */
+            correlation_id: string;
+            error_code: components["schemas"]["AgentErrorCode"] | null;
+            /** Finished At */
+            finished_at: string | null;
+            /** Graph Version */
+            graph_version: string;
+            /** Handed Off Plan Ids */
+            handed_off_plan_ids: string[];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Job Run Id
+             * Format: uuid
+             */
+            job_run_id: string;
+            outcome: components["schemas"]["AgentOutcome"] | null;
+            /**
+             * Review Notes
+             * @description Why a human should look (needs_human_review).
+             */
+            review_notes: string[];
+            /** Reviews */
+            reviews: components["schemas"]["AgentPlanReview"][];
+            /**
+             * Source Page Id
+             * Format: uuid
+             */
+            source_page_id: string;
+            /** Source Page Version */
+            source_page_version: number | null;
+            /** Source Url */
+            source_url: string;
+            /**
+             * Started At
+             * Format: date-time
+             */
+            started_at: string;
+            status: components["schemas"]["AgentRunStatus"];
+            /** Steps */
+            steps: components["schemas"]["AgentStepView"][];
+            /**
+             * Trace Id
+             * @description ``correlation_id.hex``; every step carries it.
+             */
+            trace_id: string;
+            triage_decision: components["schemas"]["TriageDecision"] | null;
+            trigger: components["schemas"]["AgentTrigger"];
+        };
+        /**
+         * AgentRunStatus
+         * @enum {string}
+         */
+        AgentRunStatus: "running" | "awaiting_approval" | "completed" | "failed";
+        /** AgentRunSummary */
+        AgentRunSummary: {
+            /**
+             * Correlation Id
+             * Format: uuid
+             */
+            correlation_id: string;
+            error_code: components["schemas"]["AgentErrorCode"] | null;
+            /** Finished At */
+            finished_at: string | null;
+            /** Graph Version */
+            graph_version: string;
+            /** Handed Off Plan Ids */
+            handed_off_plan_ids: string[];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Job Run Id
+             * Format: uuid
+             */
+            job_run_id: string;
+            outcome: components["schemas"]["AgentOutcome"] | null;
+            /**
+             * Source Page Id
+             * Format: uuid
+             */
+            source_page_id: string;
+            /** Source Page Version */
+            source_page_version: number | null;
+            /** Source Url */
+            source_url: string;
+            /**
+             * Started At
+             * Format: date-time
+             */
+            started_at: string;
+            status: components["schemas"]["AgentRunStatus"];
+            /**
+             * Trace Id
+             * @description ``correlation_id.hex``; every step carries it.
+             */
+            trace_id: string;
+            triage_decision: components["schemas"]["TriageDecision"] | null;
+            trigger: components["schemas"]["AgentTrigger"];
+        };
+        /** AgentStepView */
+        AgentStepView: {
+            /** Attempt */
+            attempt: number;
+            /** Duration Ms */
+            duration_ms: number;
+            error_code: components["schemas"]["AgentErrorCode"] | null;
+            fallback_reason: components["schemas"]["FallbackReason"] | null;
+            /**
+             * Fallback Used
+             * @default false
+             */
+            fallback_used: boolean;
+            /**
+             * Finished At
+             * Format: date-time
+             */
+            finished_at: string;
+            /**
+             * Model
+             * @description As reported by the provider.
+             */
+            model: string | null;
+            model_role: components["schemas"]["ModelRole"] | null;
+            node: components["schemas"]["AgentNode"];
+            /**
+             * Output
+             * @description Validated, bounded node output (no raw prompts).
+             */
+            output: {
+                [key: string]: unknown;
+            };
+            /**
+             * Run Id
+             * Format: uuid
+             */
+            run_id: string;
+            /** Seq */
+            seq: number;
+            /**
+             * Span Id
+             * @description This step's span.
+             */
+            span_id: string;
+            /**
+             * Started At
+             * Format: date-time
+             */
+            started_at: string;
+            status: components["schemas"]["StepStatus"];
+            /** Tool Calls */
+            tool_calls: components["schemas"]["ToolCallRecord"][];
+            /**
+             * Trace Id
+             * @description The run's trace id.
+             */
+            trace_id: string;
+        };
+        /**
+         * AgentTrigger
+         * @enum {string}
+         */
+        AgentTrigger: "manual" | "batch";
         /** @enum {string} */
         AnchorSource: "text" | "img_alt" | "aria_label" | "title" | "none";
         /**
@@ -521,6 +807,16 @@ export interface components {
          * @enum {string}
          */
         CheckKind: "database" | "schema" | "extension" | "model_server" | "cms";
+        /**
+         * CriticReason
+         * @enum {string}
+         */
+        CriticReason: "natural_anchor" | "relevant_destination" | "misleading_anchor" | "weak_relevance" | "reader_journey_mismatch" | "over_linking" | "low_confidence";
+        /**
+         * CriticVerdict
+         * @enum {string}
+         */
+        CriticVerdict: "accept" | "reject" | "uncertain";
         /**
          * DependencyCheck
          * @description Result of probing exactly one dependency.
@@ -662,6 +958,11 @@ export interface components {
             /** Target Page Id */
             target_page_id: string | null;
         };
+        /**
+         * FallbackReason
+         * @enum {string}
+         */
+        FallbackReason: "model_disabled" | "model_unavailable" | "model_timeout" | "schema_violation";
         /** GeographyMention */
         GeographyMention: {
             /** Geo Id */
@@ -1171,6 +1472,12 @@ export interface components {
          * @enum {string}
          */
         LinkType: "internal" | "external" | "fragment" | "non_http" | "invalid";
+        /** ListResponse[AgentRunSummary] */
+        ListResponse_AgentRunSummary_: {
+            /** Items */
+            items: components["schemas"]["AgentRunSummary"][];
+            page: components["schemas"]["PageInfo"];
+        };
         /** ListResponse[CandidateView] */
         ListResponse_CandidateView_: {
             /** Items */
@@ -1266,6 +1573,12 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        /**
+         * ModelRole
+         * @description The configured role a call needs, resolved to a model by the provider.
+         * @enum {string}
+         */
+        ModelRole: "fast" | "reasoning" | "embedding";
         /**
          * OpportunityKind
          * @enum {string}
@@ -2111,6 +2424,11 @@ export interface components {
          * @enum {string}
          */
         SourceType: "public_web" | "file_export" | "cms";
+        /**
+         * StepStatus
+         * @enum {string}
+         */
+        StepStatus: "succeeded" | "skipped" | "failed";
         /** TaxonomyNodeView */
         TaxonomyNodeView: {
             /** Depth */
@@ -2149,6 +2467,39 @@ export interface components {
             /** Version */
             version: number;
         };
+        /** ToolCallRecord */
+        ToolCallRecord: {
+            /**
+             * Attempt
+             * @default 1
+             */
+            attempt: number;
+            /** Duration Ms */
+            duration_ms: number;
+            error_code: components["schemas"]["AgentErrorCode"] | null;
+            /** Ok */
+            ok: boolean;
+            permission: components["schemas"]["ToolPermission"];
+            /**
+             * Summary
+             * @description Secret-free, bounded summary of arguments/results.
+             */
+            summary: {
+                [key: string]: unknown;
+            };
+            tool: components["schemas"]["ToolName"];
+        };
+        /**
+         * ToolName
+         * @description The complete agent tool allowlist. Adding a tool is a governed contract change.
+         * @enum {string}
+         */
+        ToolName: "get_page" | "get_analysis" | "get_eligibility" | "list_proposed_plans" | "check_plan" | "hand_off_plans";
+        /**
+         * ToolPermission
+         * @enum {string}
+         */
+        ToolPermission: "read" | "review";
         /** TopicScore */
         TopicScore: {
             /**
@@ -2166,6 +2517,12 @@ export interface components {
              */
             score: number;
         };
+        /**
+         * TriageDecision
+         * @description TRD section 10 triage vocabulary. Deterministic in Phase 4.
+         * @enum {string}
+         */
+        TriageDecision: "no_action" | "reindex" | "optimize" | "repair_link" | "review_performance";
     };
     responses: never;
     parameters: never;
@@ -2175,6 +2532,112 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    listAgentPlanReviews: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                plan_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentPlanReview"][];
+                };
+            };
+            /** @description A parameter is invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    listAgentRuns: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+                status?: components["schemas"]["AgentRunStatus"] | null;
+                outcome?: components["schemas"]["AgentOutcome"] | null;
+                source_page_id?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListResponse_AgentRunSummary_"];
+                };
+            };
+            /** @description A parameter is invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    getAgentRun: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentRunDetail"];
+                };
+            };
+            /** @description No such resource. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A parameter is invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     getHealth: {
         parameters: {
             query?: never;

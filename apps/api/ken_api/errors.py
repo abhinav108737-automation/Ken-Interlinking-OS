@@ -16,6 +16,7 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from ken_api.middleware.request_id import REQUEST_ID_HEADER
+from ken_contracts.agents import AgentRunNotFoundError
 from ken_contracts.errors import ErrorCode, ErrorDetail, ErrorResponse
 from ken_contracts.intelligence import EmbeddingUnavailableError, IntelligenceNotFoundError
 from ken_contracts.inventory import InventoryNotFoundError
@@ -124,6 +125,8 @@ async def intelligence_not_found_handler(request: Request, exc: Exception) -> JS
         code, message = ErrorCode.NOT_FOUND, "Job run not found."
     elif isinstance(exc, PlanNotFoundError):
         code, message = ErrorCode.NOT_FOUND, "Link plan not found."
+    elif isinstance(exc, AgentRunNotFoundError):
+        code, message = ErrorCode.NOT_FOUND, "Agent run not found."
     else:  # registration guarantees one of the above
         return await unhandled_exception_handler(request, exc)
     return _respond(request, 404, ErrorResponse.of(code, message, request_id=_request_id(request)))
@@ -162,5 +165,6 @@ def install_exception_handlers(app: FastAPI) -> None:
     app.add_exception_handler(IntelligenceNotFoundError, intelligence_not_found_handler)
     app.add_exception_handler(JobRunNotFoundError, intelligence_not_found_handler)
     app.add_exception_handler(PlanNotFoundError, intelligence_not_found_handler)
+    app.add_exception_handler(AgentRunNotFoundError, intelligence_not_found_handler)
     app.add_exception_handler(EmbeddingUnavailableError, embedding_unavailable_handler)
     app.add_exception_handler(Exception, unhandled_exception_handler)

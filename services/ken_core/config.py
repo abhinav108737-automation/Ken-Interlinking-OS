@@ -221,6 +221,14 @@ class Settings(BaseSettings):
         description="A relative value is resolved against the repository root.",
     )
 
+    # ------------------------------------------------------ agent supervisor
+    # Phase 4. Model roles used, critic threshold, plans per run, timeouts and
+    # retries are versioned POLICY DATA (ADR-0012).
+    agents_policy_path: str = Field(
+        default=str(REPO_ROOT / "policies" / "agents" / "agents.v1.yaml"),
+        description="A relative value is resolved against the repository root.",
+    )
+
     # -------------------------------------------------------------- readiness
     require_pgvector: bool = Field(
         default=True,
@@ -269,7 +277,9 @@ class Settings(BaseSettings):
             )
         return value
 
-    @field_validator("alembic_ini_path", "taxonomy_path", "recommendation_policy_path")
+    @field_validator(
+        "alembic_ini_path", "taxonomy_path", "recommendation_policy_path", "agents_policy_path"
+    )
     @classmethod
     def _resolve_against_repo_root(cls, value: str) -> str:
         path = Path(value)

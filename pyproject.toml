@@ -87,9 +87,10 @@ show_error_codes = true
 exclude = ["^migrations/versions/", "^_research/", "^\\.venv/"]
 files = ["contracts/python", "services", "apps/api", "agents", "tests", "infrastructure/scripts"]
 
-# Strict where the frozen contracts and the deterministic services live — docs/CONTRACTS.md.
+# Strict where the frozen contracts and the deterministic services live — docs/CONTRACTS.md —
+# and, from Phase 4, the agent runtime (the LLM boundary).
 [[tool.mypy.overrides]]
-module = ["ken_contracts.*", "ken_core.*", "ken_services.*"]
+module = ["ken_contracts.*", "ken_core.*", "ken_services.*", "ken_agents.*"]
 strict = true
 
 [[tool.mypy.overrides]]

@@ -15,6 +15,7 @@ from typing import Annotated, Any, Final, cast
 from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from ken_contracts.agents import AgentReader
 from ken_contracts.cms import CMSProvider
 from ken_contracts.common import ServiceIdentity
 from ken_contracts.intelligence import IntelligenceReader
@@ -29,6 +30,7 @@ INVENTORY_READER: Final = "ken_services.inventory.reader"
 INTELLIGENCE_READER: Final = "ken_services.intelligence.reader"
 JOB_READER: Final = "ken_services.jobs.reader"
 RECOMMENDATION_READER: Final = "ken_services.recommendations.reader"
+AGENT_READER: Final = "ken_services.agents.reader"
 
 
 class AppStateNotInitialisedError(RuntimeError):
@@ -116,6 +118,14 @@ def get_recommendation_reader(
     return reader
 
 
+def get_agent_reader(
+    sessionmaker: Annotated[async_sessionmaker[AsyncSession], Depends(get_sessionmaker)],
+) -> AgentReader:
+    module: Any = importlib.import_module(AGENT_READER)
+    reader: AgentReader = module.DatabaseAgentReader(sessionmaker=sessionmaker)
+    return reader
+
+
 SettingsDep = Annotated[Settings, Depends(get_app_settings)]
 IdentityDep = Annotated[ServiceIdentity, Depends(get_identity)]
 ProbesDep = Annotated[list[Probe], Depends(get_probes)]
@@ -123,3 +133,4 @@ InventoryReaderDep = Annotated[InventoryReader, Depends(get_inventory_reader)]
 IntelligenceReaderDep = Annotated[IntelligenceReader, Depends(get_intelligence_reader)]
 JobReaderDep = Annotated[JobReader, Depends(get_job_reader)]
 RecommendationReaderDep = Annotated[RecommendationReader, Depends(get_recommendation_reader)]
+AgentReaderDep = Annotated[AgentReader, Depends(get_agent_reader)]

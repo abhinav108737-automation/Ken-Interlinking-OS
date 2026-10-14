@@ -21,7 +21,7 @@ export NEXT_TELEMETRY_DISABLED := 1
 .PHONY: help setup lock db-up db-down migrate dev dev-api dev-web \
         test test-integration test-all test-live web-test lint format types \
         compose-config compose-full-up compose-full-down doctor verify openapi \
-        ingest-file ingest-cms-mock crawl analyze recommend
+        ingest-file ingest-cms-mock crawl analyze recommend agents
 
 help: ## List targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "} {printf "  %-18s %s\n", $$1, $$2}'
@@ -108,6 +108,9 @@ analyze: ## Phase 2: analyse, embed and relate stale pages (ARGS="--force" | "--
 
 recommend: ## Phase 3: propose contextual links for eligible sources (ARGS="--source PAGE_ID ...")
 	$(VENV)/python -m ken_services.recommendations.cli recommend $(ARGS)
+
+agents: ## Phase 4: agents review proposed plans, hand off to the human queue (ARGS="--source PAGE_ID ...")
+	$(VENV)/python -m ken_agents.cli agents $(ARGS)
 
 crawl: ## Crawl the ONE site configured in KEN_CRAWL_BASE_URL (refuses if unset)
 	$(VENV)/python -m ken_services.inventory.cli crawl

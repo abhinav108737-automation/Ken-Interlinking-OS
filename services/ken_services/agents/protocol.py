@@ -17,8 +17,9 @@ Rules every implementation must keep:
   the plan is still ``proposed``, moves it ``proposed -> critiqued`` (``CRITIC_ACTOR``) ->
   ``policy_checked`` -> ``awaiting_approval`` (``POLICY_GATE_ACTOR``) through the Phase 3
   transition service with ``expected_from``. Each plan runs under a SAVEPOINT: a plan that
-  is no longer ``proposed`` (a concurrent ``make recommend`` expired it) is reported in
-  ``conflicts`` and gets no row; the rest commit. Actors are bound inside the service; no
+  is no longer ``proposed`` (a concurrent ``make recommend`` expired it), already reviewed,
+  or fails an invariant re-checked under its row lock is reported in ``conflicts`` and gets
+  no row; the rest commit. Actors are bound inside the service; no
   caller chooses one. There is no edge to ``approved``.
 * Every method is bounded and never returns secrets.
 """
@@ -96,7 +97,10 @@ class HandOffResult:
     recorded: tuple[UUID, ...]
     """Every plan that got its ``agent_run_plans`` row (handed off or not)."""
     conflicts: Mapping[UUID, str] = field(default_factory=dict)
-    """plan id -> stable code (``not_proposed``): nothing was written for it."""
+    """plan id -> stable code: nothing was written for it. ``not_proposed`` (a concurrent
+    status change), ``already_reviewed`` (another run reviewed it first), or the first
+    ``PlanCheck`` problem found when the invariants are RE-CHECKED under the plan's row lock
+    inside the hand-off transaction (closing the window after ``check_plan``)."""
 
 
 @runtime_checkable
@@ -142,6 +146,11 @@ class NewAgentRun:
 @runtime_checkable
 class AgentRunStore(Protocol):
     """Run/step persistence for the runner (never handed to nodes)."""
+
+    async def sources_to_review(self, *, limit: int) -> list[UUID]:
+        """Source pages that have >= 1 unreviewed ``proposed`` plan and no ``running`` agent
+        run, ordered by canonical URL then id (deterministic), at most ``limit``."""
+        ...
 
     async def reap_orphans(self, *, now: datetime) -> int:
         """Mark ``running`` runs whose job run has finished as failed/orphaned."""

@@ -19,6 +19,7 @@ from sqlalchemy.exc import DBAPIError, IntegrityError
 
 import ken_core.db.models  # noqa: F401 -- registers every model
 from ken_core.db.base import Base
+from ken_core.db.models.agents import APPEND_ONLY_AGENT_TABLES
 from ken_core.db.models.intelligence import IMMUTABLE_INTELLIGENCE_TABLES
 from ken_core.db.models.inventory import IMMUTABLE_TABLES
 from ken_core.db.models.recommendations import APPEND_ONLY_RECOMMENDATION_TABLES
@@ -221,11 +222,12 @@ def test_trigger_set_matches_the_orm_declaration(empty: SyncDb) -> None:
             ).scalars()
         )
     )
-    # Migrations 0003 and 0004 extend the same function to later history tables.
+    # Migrations 0003, 0004 and 0005 extend the same function to later history tables.
     assert set(rows) == (
         set(IMMUTABLE_TABLES)
         | set(IMMUTABLE_INTELLIGENCE_TABLES)
         | set(APPEND_ONLY_RECOMMENDATION_TABLES)
+        | set(APPEND_ONLY_AGENT_TABLES)
     )
 
 

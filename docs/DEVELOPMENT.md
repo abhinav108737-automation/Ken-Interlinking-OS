@@ -186,6 +186,8 @@ All settings use the `KEN_` prefix; see `.env.example` for every variable and it
 | `KEN_EMBEDDING_DOCUMENT_PREFIX` / `_QUERY_PREFIX` / `_MAX_CHARS` / `_BATCH_SIZE` | `search_document: ` / `search_query: ` / `6000` / `16` | embedding recipe (prefixes are the default model's convention) |
 | `KEN_SIMILARITY_TOP_K` / `KEN_SIMILARITY_MIN_SCORE` | `10` / `0.78` | `semantic_similar` edges; the threshold is model-specific |
 | `KEN_RELATIONSHIP_MAX_PER_TYPE` | `25` | cap on stored taxonomy edges per (source page, relationship type) |
+| `KEN_RECOMMENDATION_POLICY_PATH` | `policies/recommendation/recommendation.v1.yaml` | versioned recommendation policy (ADR-0011) |
+| `KEN_AGENTS_POLICY_PATH` | `policies/agents/agents.v1.yaml` | versioned agent supervisor policy (ADR-0012); cross-checked against the recommendation policy |
 | `KEN_REQUIRE_OLLAMA` | `false` | true ⇒ missing model server makes `/ready` 503 |
 | `KEN_AUTO_APPROVE_ENABLED` | `false` | **Must stay false.** The process refuses to start otherwise (TRD §20). |
 | `KEN_CRAWL_BASE_URL` | *unset* | The one site the crawler may visit. **No default, by design.** |

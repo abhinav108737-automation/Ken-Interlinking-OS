@@ -1,6 +1,567 @@
 {
   "components": {
     "schemas": {
+      "AgentErrorCode": {
+        "description": "Typed, recoverable node failures (TRD section 9). Never exception text.",
+        "enum": [
+          "page_not_found",
+          "tool_failed",
+          "timeout",
+          "invariant_violated",
+          "handoff_conflict",
+          "orphaned",
+          "internal"
+        ],
+        "title": "AgentErrorCode",
+        "type": "string"
+      },
+      "AgentNode": {
+        "description": "Supervisor nodes, in graph order (TRD section 9 mapping in ADR-0012).",
+        "enum": [
+          "load_page",
+          "triage",
+          "understand",
+          "discover",
+          "plan",
+          "critique",
+          "check_invariants",
+          "policy_gate",
+          "finalize"
+        ],
+        "title": "AgentNode",
+        "type": "string"
+      },
+      "AgentOutcome": {
+        "enum": [
+          "recommend",
+          "no_action",
+          "needs_human_review",
+          "failed"
+        ],
+        "title": "AgentOutcome",
+        "type": "string"
+      },
+      "AgentPlanReview": {
+        "additionalProperties": false,
+        "description": "One plan reviewed by one run (append-only ``agent_run_plans``; a plan is reviewed\nby agents at most once).",
+        "properties": {
+          "explanation": {
+            "default": "",
+            "maxLength": 300,
+            "title": "Explanation",
+            "type": "string"
+          },
+          "fallback_reason": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FallbackReason"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fallback_used": {
+            "title": "Fallback Used",
+            "type": "boolean"
+          },
+          "handed_off": {
+            "description": "Moved to awaiting_approval by this run.",
+            "title": "Handed Off",
+            "type": "boolean"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Set only when a model answered.",
+            "title": "Model"
+          },
+          "plan_id": {
+            "format": "uuid",
+            "title": "Plan Id",
+            "type": "string"
+          },
+          "reasons": {
+            "items": {
+              "$ref": "#/components/schemas/CriticReason"
+            },
+            "title": "Reasons",
+            "type": "array"
+          },
+          "reviewed_at": {
+            "format": "date-time",
+            "title": "Reviewed At",
+            "type": "string"
+          },
+          "verdict": {
+            "$ref": "#/components/schemas/CriticVerdict"
+          }
+        },
+        "required": [
+          "plan_id",
+          "verdict",
+          "reasons",
+          "explanation",
+          "handed_off",
+          "fallback_used",
+          "fallback_reason",
+          "model",
+          "reviewed_at"
+        ],
+        "title": "AgentPlanReview",
+        "type": "object"
+      },
+      "AgentRunDetail": {
+        "additionalProperties": false,
+        "properties": {
+          "config_snapshot": {
+            "additionalProperties": true,
+            "description": "Secret-free: graph and policy versions, model roles enabled, timeouts.",
+            "title": "Config Snapshot",
+            "type": "object"
+          },
+          "correlation_id": {
+            "format": "uuid",
+            "title": "Correlation Id",
+            "type": "string"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AgentErrorCode"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "graph_version": {
+            "title": "Graph Version",
+            "type": "string"
+          },
+          "handed_off_plan_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Handed Off Plan Ids",
+            "type": "array"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "job_run_id": {
+            "format": "uuid",
+            "title": "Job Run Id",
+            "type": "string"
+          },
+          "outcome": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AgentOutcome"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "review_notes": {
+            "description": "Why a human should look (needs_human_review).",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 20,
+            "title": "Review Notes",
+            "type": "array"
+          },
+          "reviews": {
+            "items": {
+              "$ref": "#/components/schemas/AgentPlanReview"
+            },
+            "title": "Reviews",
+            "type": "array"
+          },
+          "source_page_id": {
+            "format": "uuid",
+            "title": "Source Page Id",
+            "type": "string"
+          },
+          "source_page_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Page Version"
+          },
+          "source_url": {
+            "title": "Source Url",
+            "type": "string"
+          },
+          "started_at": {
+            "format": "date-time",
+            "title": "Started At",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AgentRunStatus"
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/AgentStepView"
+            },
+            "title": "Steps",
+            "type": "array"
+          },
+          "trace_id": {
+            "description": "``correlation_id.hex``; every step carries it.",
+            "title": "Trace Id",
+            "type": "string"
+          },
+          "triage_decision": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TriageDecision"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "trigger": {
+            "$ref": "#/components/schemas/AgentTrigger"
+          }
+        },
+        "required": [
+          "id",
+          "job_run_id",
+          "source_page_id",
+          "source_page_version",
+          "source_url",
+          "trigger",
+          "status",
+          "outcome",
+          "triage_decision",
+          "handed_off_plan_ids",
+          "correlation_id",
+          "trace_id",
+          "graph_version",
+          "started_at",
+          "finished_at",
+          "error_code",
+          "steps",
+          "reviews",
+          "config_snapshot",
+          "review_notes"
+        ],
+        "title": "AgentRunDetail",
+        "type": "object"
+      },
+      "AgentRunStatus": {
+        "enum": [
+          "running",
+          "awaiting_approval",
+          "completed",
+          "failed"
+        ],
+        "title": "AgentRunStatus",
+        "type": "string"
+      },
+      "AgentRunSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "correlation_id": {
+            "format": "uuid",
+            "title": "Correlation Id",
+            "type": "string"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AgentErrorCode"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "graph_version": {
+            "title": "Graph Version",
+            "type": "string"
+          },
+          "handed_off_plan_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Handed Off Plan Ids",
+            "type": "array"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "job_run_id": {
+            "format": "uuid",
+            "title": "Job Run Id",
+            "type": "string"
+          },
+          "outcome": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AgentOutcome"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "source_page_id": {
+            "format": "uuid",
+            "title": "Source Page Id",
+            "type": "string"
+          },
+          "source_page_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Page Version"
+          },
+          "source_url": {
+            "title": "Source Url",
+            "type": "string"
+          },
+          "started_at": {
+            "format": "date-time",
+            "title": "Started At",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AgentRunStatus"
+          },
+          "trace_id": {
+            "description": "``correlation_id.hex``; every step carries it.",
+            "title": "Trace Id",
+            "type": "string"
+          },
+          "triage_decision": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TriageDecision"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "trigger": {
+            "$ref": "#/components/schemas/AgentTrigger"
+          }
+        },
+        "required": [
+          "id",
+          "job_run_id",
+          "source_page_id",
+          "source_page_version",
+          "source_url",
+          "trigger",
+          "status",
+          "outcome",
+          "triage_decision",
+          "handed_off_plan_ids",
+          "correlation_id",
+          "trace_id",
+          "graph_version",
+          "started_at",
+          "finished_at",
+          "error_code"
+        ],
+        "title": "AgentRunSummary",
+        "type": "object"
+      },
+      "AgentStepView": {
+        "additionalProperties": false,
+        "properties": {
+          "attempt": {
+            "minimum": 1.0,
+            "title": "Attempt",
+            "type": "integer"
+          },
+          "duration_ms": {
+            "minimum": 0.0,
+            "title": "Duration Ms",
+            "type": "integer"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AgentErrorCode"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fallback_reason": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FallbackReason"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fallback_used": {
+            "default": false,
+            "title": "Fallback Used",
+            "type": "boolean"
+          },
+          "finished_at": {
+            "format": "date-time",
+            "title": "Finished At",
+            "type": "string"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "As reported by the provider.",
+            "title": "Model"
+          },
+          "model_role": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ModelRole"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "node": {
+            "$ref": "#/components/schemas/AgentNode"
+          },
+          "output": {
+            "additionalProperties": true,
+            "description": "Validated, bounded node output (no raw prompts).",
+            "title": "Output",
+            "type": "object"
+          },
+          "run_id": {
+            "format": "uuid",
+            "title": "Run Id",
+            "type": "string"
+          },
+          "seq": {
+            "minimum": 0.0,
+            "title": "Seq",
+            "type": "integer"
+          },
+          "span_id": {
+            "description": "This step's span.",
+            "pattern": "^[0-9a-f]{16}$",
+            "title": "Span Id",
+            "type": "string"
+          },
+          "started_at": {
+            "format": "date-time",
+            "title": "Started At",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/StepStatus"
+          },
+          "tool_calls": {
+            "items": {
+              "$ref": "#/components/schemas/ToolCallRecord"
+            },
+            "title": "Tool Calls",
+            "type": "array"
+          },
+          "trace_id": {
+            "description": "The run's trace id.",
+            "pattern": "^[0-9a-f]{32}$",
+            "title": "Trace Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "run_id",
+          "seq",
+          "node",
+          "status",
+          "attempt",
+          "started_at",
+          "finished_at",
+          "duration_ms",
+          "model_role",
+          "model",
+          "fallback_used",
+          "fallback_reason",
+          "error_code",
+          "tool_calls",
+          "output",
+          "trace_id",
+          "span_id"
+        ],
+        "title": "AgentStepView",
+        "type": "object"
+      },
+      "AgentTrigger": {
+        "enum": [
+          "manual",
+          "batch"
+        ],
+        "title": "AgentTrigger",
+        "type": "string"
+      },
       "AnchorSource": {
         "enum": [
           "text",
@@ -142,6 +703,28 @@
           "cms"
         ],
         "title": "CheckKind",
+        "type": "string"
+      },
+      "CriticReason": {
+        "enum": [
+          "natural_anchor",
+          "relevant_destination",
+          "misleading_anchor",
+          "weak_relevance",
+          "reader_journey_mismatch",
+          "over_linking",
+          "low_confidence"
+        ],
+        "title": "CriticReason",
+        "type": "string"
+      },
+      "CriticVerdict": {
+        "enum": [
+          "accept",
+          "reject",
+          "uncertain"
+        ],
+        "title": "CriticVerdict",
         "type": "string"
       },
       "DependencyCheck": {
@@ -452,6 +1035,16 @@
         ],
         "title": "ExistingLinkView",
         "type": "object"
+      },
+      "FallbackReason": {
+        "enum": [
+          "model_disabled",
+          "model_unavailable",
+          "model_timeout",
+          "schema_violation"
+        ],
+        "title": "FallbackReason",
+        "type": "string"
       },
       "GeographyMention": {
         "additionalProperties": false,
@@ -1655,6 +2248,27 @@
         "title": "LinkType",
         "type": "string"
       },
+      "ListResponse_AgentRunSummary_": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AgentRunSummary"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          }
+        },
+        "required": [
+          "items",
+          "page"
+        ],
+        "title": "ListResponse[AgentRunSummary]",
+        "type": "object"
+      },
       "ListResponse_CandidateView_": {
         "additionalProperties": false,
         "properties": {
@@ -1923,6 +2537,16 @@
         ],
         "title": "MetaResponse",
         "type": "object"
+      },
+      "ModelRole": {
+        "description": "The configured role a call needs, resolved to a model by the provider.",
+        "enum": [
+          "fast",
+          "reasoning",
+          "embedding"
+        ],
+        "title": "ModelRole",
+        "type": "string"
       },
       "OpportunityKind": {
         "enum": [
@@ -3789,6 +4413,15 @@
         "title": "SourceType",
         "type": "string"
       },
+      "StepStatus": {
+        "enum": [
+          "succeeded",
+          "skipped",
+          "failed"
+        ],
+        "title": "StepStatus",
+        "type": "string"
+      },
       "TaxonomyNodeView": {
         "additionalProperties": false,
         "properties": {
@@ -3897,6 +4530,80 @@
         "title": "TaxonomyView",
         "type": "object"
       },
+      "ToolCallRecord": {
+        "additionalProperties": false,
+        "properties": {
+          "attempt": {
+            "default": 1,
+            "minimum": 1.0,
+            "title": "Attempt",
+            "type": "integer"
+          },
+          "duration_ms": {
+            "minimum": 0.0,
+            "title": "Duration Ms",
+            "type": "integer"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AgentErrorCode"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "permission": {
+            "$ref": "#/components/schemas/ToolPermission"
+          },
+          "summary": {
+            "additionalProperties": true,
+            "description": "Secret-free, bounded summary of arguments/results.",
+            "title": "Summary",
+            "type": "object"
+          },
+          "tool": {
+            "$ref": "#/components/schemas/ToolName"
+          }
+        },
+        "required": [
+          "tool",
+          "permission",
+          "ok",
+          "duration_ms",
+          "attempt",
+          "error_code",
+          "summary"
+        ],
+        "title": "ToolCallRecord",
+        "type": "object"
+      },
+      "ToolName": {
+        "description": "The complete agent tool allowlist. Adding a tool is a governed contract change.",
+        "enum": [
+          "get_page",
+          "get_analysis",
+          "get_eligibility",
+          "list_proposed_plans",
+          "check_plan",
+          "hand_off_plans"
+        ],
+        "title": "ToolName",
+        "type": "string"
+      },
+      "ToolPermission": {
+        "enum": [
+          "read",
+          "review"
+        ],
+        "title": "ToolPermission",
+        "type": "string"
+      },
       "TopicScore": {
         "additionalProperties": false,
         "properties": {
@@ -3929,6 +4636,18 @@
         ],
         "title": "TopicScore",
         "type": "object"
+      },
+      "TriageDecision": {
+        "description": "TRD section 10 triage vocabulary. Deterministic in Phase 4.",
+        "enum": [
+          "no_action",
+          "reindex",
+          "optimize",
+          "repair_link",
+          "review_performance"
+        ],
+        "title": "TriageDecision",
+        "type": "string"
       }
     }
   },
@@ -3938,6 +4657,212 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/agents/plans/{plan_id}/reviews": {
+      "get": {
+        "operationId": "listAgentPlanReviews",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "plan_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Plan Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AgentPlanReview"
+                  },
+                  "title": "Response Listagentplanreviews",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A parameter is invalid."
+          }
+        },
+        "summary": "The agent review(s) of one link plan (empty if no agent reviewed it).",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/agents/runs": {
+      "get": {
+        "operationId": "listAgentRuns",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "maximum": 10000000,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/AgentRunStatus"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "outcome",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/AgentOutcome"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Outcome"
+            }
+          },
+          {
+            "in": "query",
+            "name": "source_page_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Source Page Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListResponse_AgentRunSummary_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A parameter is invalid."
+          }
+        },
+        "summary": "Agent review runs, newest first.",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/agents/runs/{run_id}": {
+      "get": {
+        "operationId": "getAgentRun",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentRunDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A parameter is invalid."
+          }
+        },
+        "summary": "One agent run with its step timeline and plan reviews.",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
     "/health": {
       "get": {
         "operationId": "getHealth",

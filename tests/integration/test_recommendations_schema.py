@@ -671,11 +671,15 @@ def test_downgrade_to_0003_restores_exactly_the_intelligence_schema(
     state = sync_db.run(_state)
     assert set(RECOMMENDATION_TABLES) <= state["tables"]
     assert "search_vector" in state["page_version_columns"]
-    assert state["functions"] == {"ken_reject_mutation", "ken_link_plan_content_guard"}
+    assert state["functions"] == {
+        "ken_reject_mutation",
+        "ken_link_plan_content_guard",
+        "ken_agent_run_guard",
+    }
     assert {
         "link_plans_content_immutable",
         "link_plans_no_delete",
         "link_plan_transitions_immutable",
         "link_candidates_immutable",
     } <= state["triggers"]
-    assert state["revision"] == "0004_recommendations"
+    assert state["revision"] == "0005_agent_runs"

@@ -1,1 +1,2 @@
-"""Agent runtime. Phase 0 contains the worker tick loop only; LangGraph arrives in Phase 4."""
+"""Agent runtime: the Phase 0 worker heartbeat and, from Phase 4, the LangGraph supervisor
+(ADR-0012). ``langgraph`` is imported lazily by ``ken_agents.graph.build_graph`` only."""

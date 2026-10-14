@@ -92,16 +92,20 @@ def test_operation_ids_and_tags(live: dict[str, Any]) -> None:
         "/recommendations/candidates": ("listLinkCandidates", ["recommendations"]),
         "/recommendations/opportunities": ("listOpportunities", ["recommendations"]),
         "/recommendations/{plan_id}": ("getLinkPlan", ["recommendations"]),
+        "/agents/runs": ("listAgentRuns", ["agents"]),
+        "/agents/runs/{run_id}": ("getAgentRun", ["agents"]),
+        "/agents/plans/{plan_id}/reviews": ("listAgentPlanReviews", ["agents"]),
     }
 
 
 def test_inventory_api_is_read_only(live: dict[str, Any]) -> None:
-    """Inventory, intelligence and job routes are read-only: runs start from the CLI."""
+    """Inventory, intelligence, job, recommendation and agent routes are read-only: runs
+    start from the CLI (agents: ADR-0012 section 11)."""
     methods = {
         method
         for path, item in live["paths"].items()
         for method in item
-        if path.startswith(("/inventory", "/intelligence", "/jobs", "/recommendations"))
+        if path.startswith(("/inventory", "/intelligence", "/jobs", "/recommendations", "/agents"))
     }
     assert methods == {"get"}
 

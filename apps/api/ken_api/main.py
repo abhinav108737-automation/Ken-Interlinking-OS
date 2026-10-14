@@ -24,6 +24,7 @@ from pydantic import TypeAdapter
 
 from ken_api.errors import install_exception_handlers
 from ken_api.middleware.request_id import RequestIdMiddleware
+from ken_api.routers.agents import router as agents_router
 from ken_api.routers.health import router as health_router
 from ken_api.routers.intelligence import jobs_router
 from ken_api.routers.intelligence import router as intelligence_router
@@ -163,6 +164,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(intelligence_router)
     app.include_router(jobs_router)
     app.include_router(recommendations_router)
+    app.include_router(agents_router)
     _install_openapi(app)
     return app
 

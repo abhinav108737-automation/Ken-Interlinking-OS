@@ -46,7 +46,8 @@ from tests.conftest import make_settings
 ALEMBIC_INI = Path(__file__).resolve().parents[2] / "alembic.ini"
 
 TRUNCATE_ALL = (
-    "TRUNCATE link_candidates, link_plan_transitions, link_plans, opportunities, "
+    "TRUNCATE agent_run_plans, agent_steps, agent_runs, "
+    "link_candidates, link_plan_transitions, link_plans, opportunities, "
     "page_relationships, page_protections, page_embeddings, page_analyses, job_runs, "
     "existing_links, known_urls, page_versions, pages, ingestion_issues, "
     "ingestion_runs, events RESTART IDENTITY CASCADE"
