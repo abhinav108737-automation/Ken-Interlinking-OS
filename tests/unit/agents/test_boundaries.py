@@ -44,10 +44,16 @@ FORBIDDEN_EVERYWHERE = (
     "multiprocessing",
     "signal",
     "pickle",
+    "builtins",
 )
 OS_ALLOWED_IN = frozenset({"tracing_guard.py"})
 """``os`` (only ``os.environ``) is needed by the tracing guard and nowhere else."""
-FORBIDDEN_CALLS = frozenset({"__import__", "open", "exec", "eval", "compile", "breakpoint"})
+FORBIDDEN_CALLS = frozenset(
+    {"__import__", "open", "exec", "eval", "compile", "breakpoint", "globals", "vars", "locals"}
+)
+DYNAMIC_ATTRIBUTE_ALLOWED_IN = frozenset({"state.py"})
+"""``getattr(obj, name)`` with a NON-literal name (QA re-review: ``getattr(builtins,
+"op" + "en")``). Only the state guard needs it, over a pydantic model's declared fields."""
 FORBIDDEN_ATTRIBUTE_PREFIXES = (
     "system",
     "popen",
@@ -118,6 +124,18 @@ def test_no_shell_no_human_actor_no_approval(path: Path) -> None:
             assert node.func.id not in FORBIDDEN_CALLS, (path.name, node.func.id)
         if isinstance(node, ast.Name):
             assert node.id not in {"__import__", "__builtins__"}, (path.name, node.id)
+        if (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id in {"getattr", "setattr", "delattr"}
+            and path.name not in DYNAMIC_ATTRIBUTE_ALLOWED_IN
+        ):
+            name_arg = node.args[1] if len(node.args) > 1 else None
+            assert isinstance(name_arg, ast.Constant) and isinstance(name_arg.value, str), (
+                path.name,
+                "dynamic attribute name",
+            )
+            assert not name_arg.value.startswith(FORBIDDEN_ATTRIBUTE_PREFIXES), name_arg.value
     assert "user:" not in text, "agents never act as a human actor"
     assert "LinkPlanStatus.APPROVED" not in text and '"approved"' not in text
     assert "AUTO_APPROVE = True" not in text

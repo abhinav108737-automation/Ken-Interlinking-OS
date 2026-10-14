@@ -443,6 +443,44 @@ async def test_a_concurrent_expiry_waiting_on_the_plan_lock_is_a_conflict(
     assert [h[1] for h in await _history(sessionmaker, gone.id)] == ["proposed", "expired"]
 
 
+async def test_a_plan_lock_held_too_long_aborts_the_hand_off_cleanly(
+    sessionmaker: SM, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """QA N1: the write path has no asyncio deadline, so the DATABASE bounds it. A plan row
+    locked elsewhere past ``lock_timeout`` aborts the whole hand-off before commit: an
+    error, and nothing written (no review row, no transition)."""
+    from sqlalchemy.exc import DBAPIError
+
+    import ken_services.agents.backend as backend_module
+
+    monkeypatch.setattr(backend_module, "HAND_OFF_LOCK_TIMEOUT_MS", 300)
+    ids = await plans_corpus(sessionmaker, tmp_path)
+    plans = await _ev_plans(sessionmaker)
+    held, other = plans[ids[LI]], plans[ids[CHARGING]]
+    run = await start(sessionmaker, ids[EV])
+    async with sessionmaker() as holder:
+        await holder.begin()
+        await holder.execute(
+            text("SELECT id FROM link_plans WHERE id = :i FOR UPDATE"), {"i": held.id}
+        )
+        with pytest.raises(DBAPIError):
+            await asyncio.wait_for(
+                backend(sessionmaker).hand_off(
+                    agent_run_id=run.id,
+                    reviews=[
+                        PlanReviewInput(plan_id=other.id, verdict=V.ACCEPT),
+                        PlanReviewInput(plan_id=held.id, verdict=V.ACCEPT),
+                    ],
+                    reviewed_at=T0,
+                ),
+                timeout=10,  # the test's own guard: the DB must abort well before this
+            )
+        await holder.rollback()
+    assert await scalar(sessionmaker, "SELECT count(*) FROM agent_run_plans") == 0
+    assert await _status(sessionmaker, other.id) == "proposed"
+    assert await _status(sessionmaker, held.id) == "proposed"
+
+
 async def test_invariants_are_rechecked_inside_the_hand_off(
     sessionmaker: SM, tmp_path: Path
 ) -> None:

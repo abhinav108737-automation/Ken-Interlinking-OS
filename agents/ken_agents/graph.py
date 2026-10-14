@@ -112,7 +112,8 @@ def _budget(node: AgentNode, ctx: NodeContext) -> float | None:
     if node is AgentNode.POLICY_GATE:
         # No asyncio deadline on the WRITE node: a cancellation landing after the hand-off
         # committed would report a failed run whose plans are already queued (QA L1). The
-        # transaction is bounded by the database (lock waits on a few plan rows).
+        # hand-off transaction is bounded by the DATABASE instead (SET LOCAL lock_timeout /
+        # statement_timeout in DatabaseAgentBackend.hand_off; QA N1).
         return None
     budget: float = ctx.policy.node_timeout_seconds
     if node is AgentNode.PLAN and ctx.policy.planner.use_model:

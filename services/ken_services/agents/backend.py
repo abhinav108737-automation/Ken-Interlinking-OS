@@ -51,7 +51,7 @@ from collections.abc import Callable, Sequence
 from datetime import datetime
 from typing import Final
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -147,6 +147,10 @@ def _eligibility(
         taxonomy=taxonomy,
     )
 
+
+HAND_OFF_LOCK_TIMEOUT_MS: Final = 5_000
+"""A plan row lock held longer than this aborts the hand-off (server-side, before commit)."""
+HAND_OFF_STATEMENT_TIMEOUT_MS: Final = 30_000
 
 _CONTROL_CHARS: Final = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
 """PostgreSQL text rejects NUL; models are validated upstream (ModelText), this is the backstop."""
@@ -332,6 +336,13 @@ class DatabaseAgentBackend:
         recorded: list[uuid.UUID] = []
         conflicts: dict[uuid.UUID, str] = {}
         async with self._sessionmaker() as session, session.begin():
+            # The write path has no asyncio deadline (a cancellation after COMMIT would
+            # misreport the run), so the DATABASE bounds it: a held plan lock or a slow
+            # statement aborts server-side, BEFORE commit -- a clean rollback (QA N1).
+            await session.execute(text(f"SET LOCAL lock_timeout = '{HAND_OFF_LOCK_TIMEOUT_MS}ms'"))
+            await session.execute(
+                text(f"SET LOCAL statement_timeout = '{HAND_OFF_STATEMENT_TIMEOUT_MS}ms'")
+            )
             run = await agent_repo.get_run(session, run_id=agent_run_id, lock=True)
             if run is None:
                 raise ValueError("unknown agent run")

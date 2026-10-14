@@ -159,7 +159,10 @@ deterministic services.
   bounded retries.
 - The write path has no asyncio deadline: neither the `hand_off_plans` tool nor the
   `policy_gate` node. A cancellation that landed after the hand-off committed would report a
-  failed run whose plans were already queued. The transaction is bounded by the database.
+  failed run whose plans were already queued. The transaction is bounded by the **database**
+  instead: `SET LOCAL lock_timeout` (5 s) and `statement_timeout` (30 s). A held plan lock
+  aborts it server-side BEFORE commit, giving a clean rollback with nothing written and a
+  `tool_failed` run (QA N1).
 - Model text may not contain control characters (`ModelText`). PostgreSQL rejects NUL, so
   such an answer is a recorded schema-violation fallback, never a failed run.
 - A batch reaps every `running` run that belongs to another batch. It holds the per-kind
