@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from sqlalchemy import text
 
 from ken_contracts.events import EventName
 from ken_contracts.intelligence import ProtectionSource, analysis_version
@@ -394,6 +395,76 @@ async def test_protected_pages_are_never_linked_to_or_from(
     assert named.counters["plans_created"] == 0
 
 
+async def test_open_plans_are_expired_when_a_page_becomes_protected_or_gone(
+    sessionmaker: SM, tmp_path: Path
+) -> None:
+    """QA H2 (fail closed): no open plan may keep waiting for review once its source or
+    target is protected, gone or otherwise ineligible."""
+    await seed_corpus(sessionmaker, tmp_path)
+    await recommend(sessionmaker)
+    ids = await page_ids(sessionmaker)
+    before = await _plans(sessionmaker)
+    sources = {s for s, _ in before}
+    targets = {t for _, t in before}
+    protected_target = sorted(targets - sources)[0] if targets - sources else sorted(targets)[0]
+    protected_source = sorted(sources - {protected_target})[0]
+    gone_target = sorted(targets - {protected_target, protected_source})[0]
+    involved = {protected_target, protected_source, gone_target}
+    expected = {pair for pair in before if involved & set(pair)}
+    assert expected
+    async with sessionmaker() as session, session.begin():
+        for path in (protected_target, protected_source):
+            await insert_protection(
+                session,
+                page_id=ids[path],
+                source=ProtectionSource.MANUAL.value,
+                rule_id=None,
+                reason="Legal review in progress.",
+                created_by="user:editor",
+                created_at=datetime.now(UTC),
+            )
+    async with sessionmaker() as session, session.begin():
+        await session.execute(
+            text("UPDATE pages SET gone_at = now() WHERE id = :i"), {"i": ids[gone_target]}
+        )
+    detail = await recommend(sessionmaker)
+    assert detail.status is RunStatus.SUCCEEDED
+    after = await _plans(sessionmaker)
+    assert not any(involved & set(pair) for pair in after)
+    assert detail.counters["plans_invalidated"] == len(expected)
+    notes = await rows(
+        sessionmaker,
+        "SELECT t.note, t.actor FROM link_plan_transitions t WHERE t.to_status = 'expired'",
+    )
+    assert len(notes) == len(expected)
+    assert all(n.actor == ENGINE_ACTOR and n.note.startswith("invalid: ") for n in notes)
+    assert any("target_ineligible" in n.note for n in notes)
+    assert any("source_ineligible" in n.note for n in notes)
+    # Untouched pairs keep their plans (no collateral expiry).
+    assert set(before) - expected <= set(after)
+
+
+async def test_analysis_lag_never_expires_open_plans(sessionmaker: SM, tmp_path: Path) -> None:
+    """QA re-review: after a re-ingest, a page's analysis is stale until ``make analyze``.
+    That lag pauses generation but must NOT expire (terminally) any open plan."""
+    from tests.integration.recommendation_support import CORPUS
+
+    await seed_corpus(sessionmaker, tmp_path)
+    await recommend(sessionmaker)
+    before = await _plans(sessionmaker)
+    edited = sorted({s for s, _ in before} | {t for _, t in before})[:2]
+    records = [
+        record(path, paragraphs=[*CORPUS[path][1], _p("A short closing note for readers.")])
+        for path in edited
+    ]
+    await import_records(sessionmaker, tmp_path, records, name="v2.jsonl")
+    detail = await recommend(sessionmaker)  # NO analysis run in between
+    assert detail.status is RunStatus.SUCCEEDED, detail.counters
+    assert detail.counters["plans_invalidated"] == 0
+    assert detail.counters["plans_expired"] == 0  # appended block: every plan is rebasable
+    assert set(await _plans(sessionmaker)) == set(before)
+
+
 async def test_an_experiment_lock_rejects_the_pair(sessionmaker: SM, tmp_path: Path) -> None:
     await seed_corpus(sessionmaker, tmp_path)
     ids = await page_ids(sessionmaker)
@@ -441,7 +512,7 @@ async def test_link_density_limit(sessionmaker: SM, tmp_path: Path) -> None:
 
 async def test_destination_diversity_limit(sessionmaker: SM, tmp_path: Path) -> None:
     await seed_corpus(sessionmaker, tmp_path)
-    detail = await recommend(sessionmaker, policy=_policy(max_plans_per_target_per_run=1))
+    detail = await recommend(sessionmaker, policy=_policy(max_open_plans_per_target=1))
     per_target = Counter(t for _, t in await _plans(sessionmaker))
     assert per_target and max(per_target.values()) == 1
     assert detail.counters["rejected_diversity_limit"] >= 1

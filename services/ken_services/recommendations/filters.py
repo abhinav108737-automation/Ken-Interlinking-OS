@@ -97,7 +97,9 @@ def pair_rejection(state: PairState, *, policy: RecommendationPolicy) -> Candida
         return R.DUPLICATE_RECOMMENDATION
     if state.previously_rejected:
         return R.PREVIOUSLY_REJECTED
-    if state.target_path_excluded or not _page_types_compatible(state, policy):
+    if state.target_path_excluded:
+        return R.TARGET_EXCLUDED
+    if not _page_types_compatible(state, policy):
         return R.PAGE_TYPE_INCOMPATIBLE
     return None
 

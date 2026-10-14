@@ -6,6 +6,7 @@ from collections.abc import Collection, Mapping, Sequence
 
 import pytest
 
+from ken_contracts.intelligence import Intent
 from ken_contracts.recommendations import RecommendationPolicy
 from ken_services.inventory.hashing import sha256_hex
 from ken_services.inventory.normalize import ContentBlock
@@ -20,6 +21,7 @@ from ken_services.recommendations.placement import (
     anchor_rule_ok,
     find_placement,
     keyword_bigrams,
+    market_phrases,
     phrase_occurrences,
     preview_for,
     span_is_safe,
@@ -495,9 +497,12 @@ def test_skip_first_block_skips_the_opening_paragraph() -> None:
 # --------------------------------------------------------------------------- #
 def test_rank_beats_length() -> None:
     phrases = [_phrase("solar power", rank=0), _phrase("rooftop solar power plants", rank=1)]
-    found = _place(INTRO + "<p>New rooftop solar power plants.</p>", phrases)
+    body = INTRO + "<p>New rooftop solar power plants; solar power demand grows.</p>"
+    found = _place(body, phrases)
     assert found is not None
     assert found.anchor_text == "solar power"
+    # The first "solar power" is inside the longer phrase: a fragment, never chosen.
+    assert found.locator.start == blocks(body)[1].text.index("; solar") + 2
 
 
 def test_length_beats_salience() -> None:
@@ -637,3 +642,133 @@ def test_own_market_anchor_needs_the_targets_geography_in_the_same_block() -> No
         source=source,
     )
     assert not any(p.source == "target_topic" for p in same)
+
+
+def test_a_fragment_of_the_sources_own_market_is_gated_like_the_market_itself() -> None:
+    """QA H1: 'Battery Energy' (a keyword bigram) is a fragment of the source's own market
+    'battery energy storage': it needs the target's geography exactly as the topic does."""
+    source = analysis(market_id="energy-storage", geographies=["uae"])
+    target = analysis(
+        market_id="energy-storage",
+        geographies=["india"],
+        keywords=["battery", "energy", "storage"],
+    )
+    phrases = anchor_phrases(
+        target=target,
+        target_title="Battery Energy Storage Market in India",
+        taxonomy=taxonomy(),
+        policy=policy(),
+        source=source,
+    )
+    by_text = {p.text.casefold(): p for p in phrases}
+    assert "battery energy" in by_text
+    for phrase in phrases:
+        assert phrase.context_terms, phrase  # every phrase names the source's market
+        assert any(term.casefold() == "india" for term in phrase.context_terms)
+    # A different source market leaves the same fragment ungated.
+    other = anchor_phrases(
+        target=target,
+        target_title="Battery Energy Storage Market in India",
+        taxonomy=taxonomy(),
+        policy=policy(),
+        source=analysis(market_id="cold-chain", geographies=["uae"]),
+    )
+    assert not any(p.context_terms for p in other)
+
+
+def test_a_strict_fragment_of_a_longer_market_phrase_is_never_an_anchor() -> None:
+    """QA H1: never '<a>battery energy</a> storage projects' -- that cuts a market name."""
+    keyword = _phrase("battery energy", "target_keyword", rank=2)
+    body = INTRO + "<p>New battery energy storage projects are planned.</p>"
+
+    def place(text: str, enclosing: Collection[str]) -> PlacementCandidate | None:
+        return find_placement(
+            blocks=blocks(text),
+            phrases=(keyword,),
+            links_per_block={},
+            blocks_linking_target=(),
+            taken_spans=(),
+            salience={},
+            policy=policy(),
+            enclosing_phrases=enclosing,
+        )
+
+    assert place(body, ()) is not None  # without the guard: the fragment would be linked
+    assert place(body, market_phrases(taxonomy())) is None
+    # A longer phrase of the SAME target guards too, with no taxonomy phrases passed.
+    longer = _phrase("battery energy storage", "target_topic", rank=0)
+    found = _place(body, (keyword, longer))
+    assert found is not None and found.anchor_text == "battery energy storage"
+    # Not a fragment where the longer phrase does not occur around it.
+    free = INTRO + "<p>Battery energy demand is rising.</p>"
+    assert place(free, market_phrases(taxonomy())) is not None
+
+
+@pytest.mark.parametrize(
+    "wrapper",
+    ["label", "del", "s", "small", "video", "audio", "canvas", "map", "footer", "details"],
+)
+def test_wrappers_media_fallbacks_and_non_body_regions_are_excluded(wrapper: str) -> None:
+    """QA M1: never an anchor in a form label, struck text, media fallback text or a footer."""
+    inline = INTRO + f"<p>Demand for <{wrapper}>solar power</{wrapper}> keeps rising.</p>"
+    block = INTRO + f"<{wrapper}><p>Demand for solar power keeps rising.</p></{wrapper}>"
+    assert _place(inline) is None
+    assert _place(block) is None
+    assert _place(INTRO + "<p>Demand for solar power keeps rising.</p>") is not None
+
+
+def test_a_parent_markets_topic_label_sharing_a_word_with_an_own_alias_is_kept() -> None:
+    """QA re-review: the fragment rule applies to title cores and keyword bigrams only.
+    'Logistics' (parent market) must survive on a cold-chain source whose alias is
+    'temperature-controlled logistics'."""
+    source = analysis(market_id="cold-chain", geographies=["india"])
+    target = analysis(market_id="logistics", geographies=["india"])
+    phrases = anchor_phrases(
+        target=target, target_title=None, taxonomy=taxonomy(), policy=policy(), source=source
+    )
+    topic = {p.text.casefold(): p for p in phrases if p.source == "target_topic"}
+    assert "logistics" in topic
+    assert topic["logistics"].context_terms == ()
+
+
+@pytest.mark.parametrize(
+    ("source_intent", "anchored"),
+    [
+        (Intent.INFORMATIONAL, True),  # article -> the report on its market: the hop
+        (Intent.COMMERCIAL_RESEARCH, False),  # report -> report: self-describing, dropped
+        (Intent.NAVIGATIONAL, False),
+        (Intent.TRANSACTIONAL, False),
+    ],
+)
+def test_the_commercial_hop_keeps_the_plain_market_anchor_only_for_articles(
+    source_intent: Intent, anchored: bool
+) -> None:
+    """ADR-0011 s9.1: same market AND geography, nothing distinctive -- only an
+    informational source keeps 'cold chain' (unconditioned) toward the report."""
+    source = analysis(
+        market_id="cold-chain", geographies=["india"], intent=source_intent, page_type="insight"
+    )
+    target = analysis(market_id="cold-chain", geographies=["india"])
+    phrases = anchor_phrases(
+        target=target, target_title=None, taxonomy=taxonomy(), policy=policy(), source=source
+    )
+    names = {p.text.casefold(): p for p in phrases if p.source == "target_topic"}
+    assert ("cold chain" in names) is anchored
+    if anchored:
+        assert names["cold chain"].context_terms == ()
+
+
+def test_the_commercial_hop_still_needs_a_distinctive_geography_when_there_is_one() -> None:
+    """India article -> UAE report: the plain phrase is kept, but only next to 'UAE'."""
+    source = analysis(
+        market_id="cold-chain",
+        geographies=["india"],
+        intent=Intent.INFORMATIONAL,
+        page_type="insight",
+    )
+    target = analysis(market_id="cold-chain", geographies=["uae"])
+    phrases = anchor_phrases(
+        target=target, target_title=None, taxonomy=taxonomy(), policy=policy(), source=source
+    )
+    cold = next(p for p in phrases if p.text.casefold() == "cold chain")
+    assert any(term.casefold() == "uae" for term in cold.context_terms)

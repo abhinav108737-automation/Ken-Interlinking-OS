@@ -1,6 +1,6 @@
 {
   "benchmark": "ken-phase3-recommendations",
-  "generated_at": "2026-10-14T08:08:34+00:00",
+  "generated_at": "2026-10-14T08:48:12+00:00",
   "host": {
     "python": "3.12.14",
     "machine": "arm64"
@@ -49,195 +49,195 @@
       "relationships_written": 1090
     },
     "analysis_status": "succeeded",
-    "setup_ms": 1747.5
+    "setup_ms": 1699.0
   },
   "summary": {
     "all": {
-      "plans": 46,
-      "sources_with_plans": 27,
-      "precision_at_3_macro": 0.9815,
-      "precision_at_3_micro": 0.9783,
-      "recall_good_macro": 0.2009,
-      "bad_rate": 0.0217,
+      "plans": 48,
+      "sources_with_plans": 30,
+      "precision_at_3_macro": 0.9833,
+      "precision_at_3_micro": 0.9792,
+      "recall_good_macro": 0.7833,
+      "bad_rate": 0.0208,
       "unjudged_rate": 0.0,
       "anchor_exact_match": 1.0,
       "anchor_pairs_proposed": "11/24",
-      "anchor_names_target_market_rate": 0.8913,
-      "mean_total_score": 0.5718,
+      "anchor_names_target_market_rate": 0.8958,
+      "mean_total_score": 0.5768,
       "must_not_violations": 0,
       "plans_vs_all": {
-        "same": 46,
+        "same": 48,
         "only_here": 0,
         "only_in_all": 0
       }
     },
     "no_semantic": {
-      "plans": 45,
-      "sources_with_plans": 27,
-      "precision_at_3_macro": 0.9815,
-      "precision_at_3_micro": 0.9778,
-      "recall_good_macro": 0.2009,
-      "bad_rate": 0.0222,
+      "plans": 47,
+      "sources_with_plans": 30,
+      "precision_at_3_macro": 0.9833,
+      "precision_at_3_micro": 0.9787,
+      "recall_good_macro": 0.7833,
+      "bad_rate": 0.0213,
       "unjudged_rate": 0.0,
       "anchor_exact_match": 1.0,
       "anchor_pairs_proposed": "11/24",
-      "anchor_names_target_market_rate": 0.8889,
-      "mean_total_score": 0.5743,
+      "anchor_names_target_market_rate": 0.8936,
+      "mean_total_score": 0.5793,
       "must_not_violations": 0,
       "plans_vs_all": {
-        "same": 45,
+        "same": 47,
         "only_here": 0,
         "only_in_all": 1
       }
     },
     "no_lexical": {
-      "plans": 46,
-      "sources_with_plans": 27,
-      "precision_at_3_macro": 0.9815,
-      "precision_at_3_micro": 0.9783,
-      "recall_good_macro": 0.2009,
-      "bad_rate": 0.0217,
+      "plans": 48,
+      "sources_with_plans": 30,
+      "precision_at_3_macro": 0.9833,
+      "precision_at_3_micro": 0.9792,
+      "recall_good_macro": 0.7833,
+      "bad_rate": 0.0208,
       "unjudged_rate": 0.0,
       "anchor_exact_match": 1.0,
       "anchor_pairs_proposed": "11/24",
-      "anchor_names_target_market_rate": 0.8913,
-      "mean_total_score": 0.5718,
+      "anchor_names_target_market_rate": 0.8958,
+      "mean_total_score": 0.5768,
       "must_not_violations": 0,
       "plans_vs_all": {
-        "same": 46,
+        "same": 48,
         "only_here": 0,
         "only_in_all": 0
       }
     },
     "no_taxonomy": {
-      "plans": 46,
-      "sources_with_plans": 27,
-      "precision_at_3_macro": 0.9815,
-      "precision_at_3_micro": 0.9783,
-      "recall_good_macro": 0.2009,
-      "bad_rate": 0.0217,
+      "plans": 48,
+      "sources_with_plans": 30,
+      "precision_at_3_macro": 0.9833,
+      "precision_at_3_micro": 0.9792,
+      "recall_good_macro": 0.7833,
+      "bad_rate": 0.0208,
       "unjudged_rate": 0.0,
       "anchor_exact_match": 1.0,
       "anchor_pairs_proposed": "11/24",
-      "anchor_names_target_market_rate": 0.8913,
-      "mean_total_score": 0.5718,
+      "anchor_names_target_market_rate": 0.8958,
+      "mean_total_score": 0.5768,
       "must_not_violations": 0,
       "plans_vs_all": {
-        "same": 46,
+        "same": 48,
         "only_here": 0,
         "only_in_all": 0
       }
     },
     "no_graph": {
-      "plans": 46,
-      "sources_with_plans": 27,
-      "precision_at_3_macro": 0.9815,
-      "precision_at_3_micro": 0.9783,
-      "recall_good_macro": 0.2009,
-      "bad_rate": 0.0217,
+      "plans": 48,
+      "sources_with_plans": 30,
+      "precision_at_3_macro": 0.9833,
+      "precision_at_3_micro": 0.9792,
+      "recall_good_macro": 0.7833,
+      "bad_rate": 0.0208,
       "unjudged_rate": 0.0,
       "anchor_exact_match": 1.0,
       "anchor_pairs_proposed": "11/24",
-      "anchor_names_target_market_rate": 0.8913,
-      "mean_total_score": 0.5718,
+      "anchor_names_target_market_rate": 0.8958,
+      "mean_total_score": 0.5768,
       "must_not_violations": 0,
       "plans_vs_all": {
-        "same": 46,
+        "same": 48,
         "only_here": 0,
         "only_in_all": 0
       }
     },
     "only_semantic": {
-      "plans": 44,
-      "sources_with_plans": 26,
-      "precision_at_3_macro": 0.9808,
-      "precision_at_3_micro": 0.9773,
-      "recall_good_macro": 0.2009,
-      "bad_rate": 0.0227,
+      "plans": 46,
+      "sources_with_plans": 30,
+      "precision_at_3_macro": 0.9833,
+      "precision_at_3_micro": 0.9783,
+      "recall_good_macro": 0.7833,
+      "bad_rate": 0.0217,
       "unjudged_rate": 0.0,
       "anchor_exact_match": 1.0,
       "anchor_pairs_proposed": "10/24",
-      "anchor_names_target_market_rate": 0.8864,
-      "mean_total_score": 0.5728,
+      "anchor_names_target_market_rate": 0.8913,
+      "mean_total_score": 0.578,
       "must_not_violations": 0,
       "plans_vs_all": {
-        "same": 44,
+        "same": 46,
         "only_here": 0,
         "only_in_all": 2
       }
     },
     "only_lexical": {
-      "plans": 45,
-      "sources_with_plans": 27,
-      "precision_at_3_macro": 0.9815,
-      "precision_at_3_micro": 0.9778,
-      "recall_good_macro": 0.2009,
-      "bad_rate": 0.0222,
+      "plans": 47,
+      "sources_with_plans": 30,
+      "precision_at_3_macro": 0.9833,
+      "precision_at_3_micro": 0.9787,
+      "recall_good_macro": 0.7833,
+      "bad_rate": 0.0213,
       "unjudged_rate": 0.0,
       "anchor_exact_match": 1.0,
       "anchor_pairs_proposed": "11/24",
-      "anchor_names_target_market_rate": 0.8889,
-      "mean_total_score": 0.5743,
+      "anchor_names_target_market_rate": 0.8936,
+      "mean_total_score": 0.5793,
       "must_not_violations": 0,
       "plans_vs_all": {
-        "same": 45,
+        "same": 47,
         "only_here": 0,
         "only_in_all": 1
       }
     },
     "only_taxonomy": {
-      "plans": 39,
-      "sources_with_plans": 25,
+      "plans": 41,
+      "sources_with_plans": 29,
       "precision_at_3_macro": 1.0,
       "precision_at_3_micro": 1.0,
-      "recall_good_macro": 0.1752,
+      "recall_good_macro": 0.7167,
       "bad_rate": 0.0,
       "unjudged_rate": 0.0,
       "anchor_exact_match": 1.0,
       "anchor_pairs_proposed": "9/24",
-      "anchor_names_target_market_rate": 0.8718,
-      "mean_total_score": 0.5869,
+      "anchor_names_target_market_rate": 0.878,
+      "mean_total_score": 0.592,
       "must_not_violations": 0,
       "plans_vs_all": {
-        "same": 38,
+        "same": 40,
         "only_here": 1,
         "only_in_all": 8
       }
     },
     "only_graph": {
-      "plans": 31,
-      "sources_with_plans": 21,
+      "plans": 35,
+      "sources_with_plans": 26,
       "precision_at_3_macro": 1.0,
       "precision_at_3_micro": 1.0,
-      "recall_good_macro": 0.1453,
+      "recall_good_macro": 0.625,
       "bad_rate": 0.0,
       "unjudged_rate": 0.0,
       "anchor_exact_match": 1.0,
       "anchor_pairs_proposed": "7/24",
-      "anchor_names_target_market_rate": 0.8387,
-      "mean_total_score": 0.5821,
+      "anchor_names_target_market_rate": 0.8857,
+      "mean_total_score": 0.5939,
       "must_not_violations": 0,
       "plans_vs_all": {
-        "same": 27,
-        "only_here": 4,
-        "only_in_all": 19
+        "same": 33,
+        "only_here": 2,
+        "only_in_all": 15
       }
     },
     "graph_weight_0": {
-      "plans": 45,
-      "sources_with_plans": 27,
-      "precision_at_3_macro": 0.9815,
-      "precision_at_3_micro": 0.9778,
-      "recall_good_macro": 0.2009,
-      "bad_rate": 0.0222,
+      "plans": 47,
+      "sources_with_plans": 30,
+      "precision_at_3_macro": 0.9833,
+      "precision_at_3_micro": 0.9787,
+      "recall_good_macro": 0.7833,
+      "bad_rate": 0.0213,
       "unjudged_rate": 0.0,
       "anchor_exact_match": 1.0,
       "anchor_pairs_proposed": "11/24",
-      "anchor_names_target_market_rate": 0.9111,
-      "mean_total_score": 0.508,
+      "anchor_names_target_market_rate": 0.9149,
+      "mean_total_score": 0.5217,
       "must_not_violations": 0,
       "plans_vs_all": {
-        "same": 45,
+        "same": 47,
         "only_here": 0,
         "only_in_all": 1
       }
@@ -248,103 +248,103 @@
     "only_first": [],
     "only_second": [],
     "first_counters": {
-      "candidates": 1810,
+      "candidates": 1808,
       "opportunities": 80,
-      "plans_created": 46,
+      "plans_created": 48,
       "rejected_already_linked": 29,
       "rejected_below_min_relevance": 14,
       "rejected_below_min_score": 1,
-      "rejected_diversity_limit": 3,
-      "rejected_no_natural_anchor": 1622,
-      "rejected_page_type_incompatible": 27,
-      "rejected_target_ineligible": 27,
-      "rejected_target_protected": 41,
+      "rejected_diversity_limit": 2,
+      "rejected_no_natural_anchor": 1617,
+      "rejected_target_excluded": 26,
+      "rejected_target_ineligible": 28,
+      "rejected_target_protected": 43,
       "sources_considered": 64,
       "sources_skipped_ineligible": 18
     },
     "second_counters": {
       "candidates": 1809,
       "opportunities": 80,
-      "plans_created": 46,
+      "plans_created": 48,
       "rejected_already_linked": 29,
       "rejected_below_min_relevance": 14,
       "rejected_below_min_score": 1,
-      "rejected_diversity_limit": 3,
-      "rejected_no_natural_anchor": 1619,
-      "rejected_page_type_incompatible": 27,
-      "rejected_target_ineligible": 29,
+      "rejected_diversity_limit": 2,
+      "rejected_no_natural_anchor": 1620,
+      "rejected_target_excluded": 26,
+      "rejected_target_ineligible": 28,
       "rejected_target_protected": 41,
       "sources_considered": 64,
       "sources_skipped_ineligible": 18
     },
     "second_metrics": {
-      "plans": 46,
-      "sources_with_plans": 27,
-      "precision_at_3_macro": 0.9815,
-      "precision_at_3_micro": 0.9783,
-      "recall_good_macro": 0.2009,
-      "bad_rate": 0.0217,
+      "plans": 48,
+      "sources_with_plans": 30,
+      "precision_at_3_macro": 0.9833,
+      "precision_at_3_micro": 0.9792,
+      "recall_good_macro": 0.7833,
+      "bad_rate": 0.0208,
       "unjudged_rate": 0.0,
       "anchor_exact_match": 1.0,
       "anchor_pairs_proposed": "11/24",
-      "anchor_names_target_market_rate": 0.8913,
-      "mean_total_score": 0.5718
+      "anchor_names_target_market_rate": 0.8958,
+      "mean_total_score": 0.5768
     }
   },
   "configs": {
     "all": {
       "status": "succeeded",
-      "run_ms": 2021.1,
+      "run_ms": 3110.0,
       "counters": {
-        "candidates": 1810,
+        "candidates": 1808,
         "opportunities": 80,
-        "plans_created": 46,
+        "plans_created": 48,
         "rejected_already_linked": 29,
         "rejected_below_min_relevance": 14,
         "rejected_below_min_score": 1,
-        "rejected_diversity_limit": 3,
-        "rejected_no_natural_anchor": 1622,
-        "rejected_page_type_incompatible": 27,
-        "rejected_target_ineligible": 27,
-        "rejected_target_protected": 41,
+        "rejected_diversity_limit": 2,
+        "rejected_no_natural_anchor": 1617,
+        "rejected_target_excluded": 26,
+        "rejected_target_ineligible": 28,
+        "rejected_target_protected": 43,
         "sources_considered": 64,
         "sources_skipped_ineligible": 18
       },
       "must_not_violations": {},
       "graph_component_values": {
-        "0.5": 1,
-        "1.0": 45
+        "0.5": 5,
+        "1.0": 43
       },
       "metrics": {
-        "plans": 46,
-        "sources_with_plans": 27,
+        "plans": 48,
+        "sources_with_plans": 30,
         "judged_sources": 46,
-        "judged_sources_with_plans": 27,
-        "precision_at_3_macro": 0.9815,
-        "precision_at_3_micro": 0.9783,
-        "recall_good_macro": 0.2009,
-        "bad_rate": 0.0217,
+        "judged_sources_with_plans": 30,
+        "precision_at_3_macro": 0.9833,
+        "precision_at_3_micro": 0.9792,
+        "recall_good_macro": 0.7833,
+        "bad_rate": 0.0208,
         "unjudged_rate": 0.0,
         "label_counts": {
-          "acceptable": 28,
+          "acceptable": 26,
           "bad": 1,
-          "good": 17
+          "good": 21
         },
         "anchor_exact_match": 1.0,
         "anchor_pairs_proposed": "11/24",
-        "anchor_names_target_market_rate": 0.8913,
+        "anchor_names_target_market_rate": 0.8958,
         "anchor_source_counts": {
-          "target_keyword": 4,
-          "target_title": 1,
-          "target_topic": 41
+          "target_keyword": 3,
+          "target_title": 2,
+          "target_topic": 43
         },
         "channel_counts": {
-          "graph": 29,
-          "lexical": 45,
-          "semantic": 44,
-          "taxonomy": 38
+          "graph": 33,
+          "lexical": 47,
+          "semantic": 46,
+          "taxonomy": 40
         },
-        "mean_total_score": 0.5718,
+        "mean_total_score": 0.5768,
         "bad_examples": [
           "https://research.example.com/industry-reports/india-cold-chain-market -> https://research.example.com/industry-reports/saudi-arabia-solar-power-market ['solar panels'] (unrelated_market)"
         ],
@@ -354,26 +354,26 @@
     },
     "no_semantic": {
       "status": "succeeded",
-      "run_ms": 1724.9,
+      "run_ms": 3388.2,
       "counters": {
-        "candidates": 1461,
+        "candidates": 1460,
         "opportunities": 80,
-        "plans_created": 45,
+        "plans_created": 47,
         "rejected_already_linked": 29,
         "rejected_below_min_relevance": 14,
         "rejected_below_min_score": 1,
-        "rejected_diversity_limit": 3,
-        "rejected_no_natural_anchor": 1293,
-        "rejected_page_type_incompatible": 27,
-        "rejected_target_ineligible": 25,
-        "rejected_target_protected": 24,
+        "rejected_diversity_limit": 2,
+        "rejected_no_natural_anchor": 1289,
+        "rejected_target_excluded": 26,
+        "rejected_target_ineligible": 26,
+        "rejected_target_protected": 26,
         "sources_considered": 64,
         "sources_skipped_ineligible": 18
       },
       "must_not_violations": {},
       "graph_component_values": {
-        "0.5": 1,
-        "1.0": 44
+        "0.5": 5,
+        "1.0": 42
       },
       "diff_vs_all": {
         "only_here": [],
@@ -382,34 +382,34 @@
         ]
       },
       "metrics": {
-        "plans": 45,
-        "sources_with_plans": 27,
+        "plans": 47,
+        "sources_with_plans": 30,
         "judged_sources": 46,
-        "judged_sources_with_plans": 27,
-        "precision_at_3_macro": 0.9815,
-        "precision_at_3_micro": 0.9778,
-        "recall_good_macro": 0.2009,
-        "bad_rate": 0.0222,
+        "judged_sources_with_plans": 30,
+        "precision_at_3_macro": 0.9833,
+        "precision_at_3_micro": 0.9787,
+        "recall_good_macro": 0.7833,
+        "bad_rate": 0.0213,
         "unjudged_rate": 0.0,
         "label_counts": {
-          "acceptable": 27,
+          "acceptable": 25,
           "bad": 1,
-          "good": 17
+          "good": 21
         },
         "anchor_exact_match": 1.0,
         "anchor_pairs_proposed": "11/24",
-        "anchor_names_target_market_rate": 0.8889,
+        "anchor_names_target_market_rate": 0.8936,
         "anchor_source_counts": {
-          "target_keyword": 4,
-          "target_title": 1,
-          "target_topic": 40
+          "target_keyword": 3,
+          "target_title": 2,
+          "target_topic": 42
         },
         "channel_counts": {
-          "graph": 29,
-          "lexical": 45,
-          "taxonomy": 38
+          "graph": 33,
+          "lexical": 47,
+          "taxonomy": 40
         },
-        "mean_total_score": 0.5743,
+        "mean_total_score": 0.5793,
         "bad_examples": [
           "https://research.example.com/industry-reports/india-cold-chain-market -> https://research.example.com/industry-reports/saudi-arabia-solar-power-market ['solar panels'] (unrelated_market)"
         ],
@@ -419,16 +419,16 @@
     },
     "no_lexical": {
       "status": "succeeded",
-      "run_ms": 1654.0,
+      "run_ms": 2634.8,
       "counters": {
         "candidates": 1476,
         "opportunities": 80,
-        "plans_created": 46,
+        "plans_created": 48,
         "rejected_already_linked": 29,
         "rejected_below_min_score": 1,
-        "rejected_diversity_limit": 3,
-        "rejected_no_natural_anchor": 1332,
-        "rejected_page_type_incompatible": 11,
+        "rejected_diversity_limit": 2,
+        "rejected_no_natural_anchor": 1331,
+        "rejected_target_excluded": 11,
         "rejected_target_ineligible": 20,
         "rejected_target_protected": 34,
         "sources_considered": 64,
@@ -436,38 +436,38 @@
       },
       "must_not_violations": {},
       "graph_component_values": {
-        "0.5": 1,
-        "1.0": 45
+        "0.5": 5,
+        "1.0": 43
       },
       "metrics": {
-        "plans": 46,
-        "sources_with_plans": 27,
+        "plans": 48,
+        "sources_with_plans": 30,
         "judged_sources": 46,
-        "judged_sources_with_plans": 27,
-        "precision_at_3_macro": 0.9815,
-        "precision_at_3_micro": 0.9783,
-        "recall_good_macro": 0.2009,
-        "bad_rate": 0.0217,
+        "judged_sources_with_plans": 30,
+        "precision_at_3_macro": 0.9833,
+        "precision_at_3_micro": 0.9792,
+        "recall_good_macro": 0.7833,
+        "bad_rate": 0.0208,
         "unjudged_rate": 0.0,
         "label_counts": {
-          "acceptable": 28,
+          "acceptable": 26,
           "bad": 1,
-          "good": 17
+          "good": 21
         },
         "anchor_exact_match": 1.0,
         "anchor_pairs_proposed": "11/24",
-        "anchor_names_target_market_rate": 0.8913,
+        "anchor_names_target_market_rate": 0.8958,
         "anchor_source_counts": {
-          "target_keyword": 4,
-          "target_title": 1,
-          "target_topic": 41
+          "target_keyword": 3,
+          "target_title": 2,
+          "target_topic": 43
         },
         "channel_counts": {
-          "graph": 29,
-          "semantic": 44,
-          "taxonomy": 38
+          "graph": 33,
+          "semantic": 46,
+          "taxonomy": 40
         },
-        "mean_total_score": 0.5718,
+        "mean_total_score": 0.5768,
         "bad_examples": [
           "https://research.example.com/industry-reports/india-cold-chain-market -> https://research.example.com/industry-reports/saudi-arabia-solar-power-market ['solar panels'] (unrelated_market)"
         ],
@@ -477,56 +477,56 @@
     },
     "no_taxonomy": {
       "status": "succeeded",
-      "run_ms": 1847.3,
+      "run_ms": 3084.4,
       "counters": {
-        "candidates": 1809,
+        "candidates": 1807,
         "opportunities": 80,
-        "plans_created": 46,
+        "plans_created": 48,
         "rejected_already_linked": 29,
         "rejected_below_min_relevance": 14,
         "rejected_below_min_score": 1,
-        "rejected_diversity_limit": 3,
-        "rejected_no_natural_anchor": 1621,
-        "rejected_page_type_incompatible": 27,
-        "rejected_target_ineligible": 27,
-        "rejected_target_protected": 41,
+        "rejected_diversity_limit": 2,
+        "rejected_no_natural_anchor": 1616,
+        "rejected_target_excluded": 26,
+        "rejected_target_ineligible": 28,
+        "rejected_target_protected": 43,
         "sources_considered": 64,
         "sources_skipped_ineligible": 18
       },
       "must_not_violations": {},
       "graph_component_values": {
-        "0.5": 1,
-        "1.0": 45
+        "0.5": 5,
+        "1.0": 43
       },
       "metrics": {
-        "plans": 46,
-        "sources_with_plans": 27,
+        "plans": 48,
+        "sources_with_plans": 30,
         "judged_sources": 46,
-        "judged_sources_with_plans": 27,
-        "precision_at_3_macro": 0.9815,
-        "precision_at_3_micro": 0.9783,
-        "recall_good_macro": 0.2009,
-        "bad_rate": 0.0217,
+        "judged_sources_with_plans": 30,
+        "precision_at_3_macro": 0.9833,
+        "precision_at_3_micro": 0.9792,
+        "recall_good_macro": 0.7833,
+        "bad_rate": 0.0208,
         "unjudged_rate": 0.0,
         "label_counts": {
-          "acceptable": 28,
+          "acceptable": 26,
           "bad": 1,
-          "good": 17
+          "good": 21
         },
         "anchor_exact_match": 1.0,
         "anchor_pairs_proposed": "11/24",
-        "anchor_names_target_market_rate": 0.8913,
+        "anchor_names_target_market_rate": 0.8958,
         "anchor_source_counts": {
-          "target_keyword": 4,
-          "target_title": 1,
-          "target_topic": 41
+          "target_keyword": 3,
+          "target_title": 2,
+          "target_topic": 43
         },
         "channel_counts": {
-          "graph": 29,
-          "lexical": 45,
-          "semantic": 44
+          "graph": 33,
+          "lexical": 47,
+          "semantic": 46
         },
-        "mean_total_score": 0.5718,
+        "mean_total_score": 0.5768,
         "bad_examples": [
           "https://research.example.com/industry-reports/india-cold-chain-market -> https://research.example.com/industry-reports/saudi-arabia-solar-power-market ['solar panels'] (unrelated_market)"
         ],
@@ -536,56 +536,56 @@
     },
     "no_graph": {
       "status": "succeeded",
-      "run_ms": 1755.7,
+      "run_ms": 3010.0,
       "counters": {
-        "candidates": 1793,
+        "candidates": 1791,
         "opportunities": 80,
-        "plans_created": 46,
+        "plans_created": 48,
         "rejected_already_linked": 29,
         "rejected_below_min_relevance": 14,
         "rejected_below_min_score": 1,
-        "rejected_diversity_limit": 3,
-        "rejected_no_natural_anchor": 1611,
-        "rejected_page_type_incompatible": 24,
-        "rejected_target_ineligible": 24,
-        "rejected_target_protected": 41,
+        "rejected_diversity_limit": 2,
+        "rejected_no_natural_anchor": 1606,
+        "rejected_target_excluded": 23,
+        "rejected_target_ineligible": 25,
+        "rejected_target_protected": 43,
         "sources_considered": 64,
         "sources_skipped_ineligible": 18
       },
       "must_not_violations": {},
       "graph_component_values": {
-        "0.5": 1,
-        "1.0": 45
+        "0.5": 5,
+        "1.0": 43
       },
       "metrics": {
-        "plans": 46,
-        "sources_with_plans": 27,
+        "plans": 48,
+        "sources_with_plans": 30,
         "judged_sources": 46,
-        "judged_sources_with_plans": 27,
-        "precision_at_3_macro": 0.9815,
-        "precision_at_3_micro": 0.9783,
-        "recall_good_macro": 0.2009,
-        "bad_rate": 0.0217,
+        "judged_sources_with_plans": 30,
+        "precision_at_3_macro": 0.9833,
+        "precision_at_3_micro": 0.9792,
+        "recall_good_macro": 0.7833,
+        "bad_rate": 0.0208,
         "unjudged_rate": 0.0,
         "label_counts": {
-          "acceptable": 28,
+          "acceptable": 26,
           "bad": 1,
-          "good": 17
+          "good": 21
         },
         "anchor_exact_match": 1.0,
         "anchor_pairs_proposed": "11/24",
-        "anchor_names_target_market_rate": 0.8913,
+        "anchor_names_target_market_rate": 0.8958,
         "anchor_source_counts": {
-          "target_keyword": 4,
-          "target_title": 1,
-          "target_topic": 41
+          "target_keyword": 3,
+          "target_title": 2,
+          "target_topic": 43
         },
         "channel_counts": {
-          "lexical": 45,
-          "semantic": 44,
-          "taxonomy": 38
+          "lexical": 47,
+          "semantic": 46,
+          "taxonomy": 40
         },
-        "mean_total_score": 0.5718,
+        "mean_total_score": 0.5768,
         "bad_examples": [
           "https://research.example.com/industry-reports/india-cold-chain-market -> https://research.example.com/industry-reports/saudi-arabia-solar-power-market ['solar panels'] (unrelated_market)"
         ],
@@ -595,16 +595,16 @@
     },
     "only_semantic": {
       "status": "succeeded",
-      "run_ms": 1275.1,
+      "run_ms": 2356.5,
       "counters": {
         "candidates": 1380,
         "opportunities": 80,
-        "plans_created": 44,
+        "plans_created": 46,
         "rejected_already_linked": 29,
         "rejected_below_min_score": 1,
-        "rejected_diversity_limit": 3,
-        "rejected_no_natural_anchor": 1260,
-        "rejected_page_type_incompatible": 1,
+        "rejected_diversity_limit": 2,
+        "rejected_no_natural_anchor": 1259,
+        "rejected_target_excluded": 1,
         "rejected_target_ineligible": 9,
         "rejected_target_protected": 33,
         "sources_considered": 64,
@@ -612,8 +612,8 @@
       },
       "must_not_violations": {},
       "graph_component_values": {
-        "0.5": 1,
-        "1.0": 43
+        "0.5": 5,
+        "1.0": 41
       },
       "diff_vs_all": {
         "only_here": [],
@@ -623,32 +623,32 @@
         ]
       },
       "metrics": {
-        "plans": 44,
-        "sources_with_plans": 26,
+        "plans": 46,
+        "sources_with_plans": 30,
         "judged_sources": 46,
-        "judged_sources_with_plans": 26,
-        "precision_at_3_macro": 0.9808,
-        "precision_at_3_micro": 0.9773,
-        "recall_good_macro": 0.2009,
-        "bad_rate": 0.0227,
+        "judged_sources_with_plans": 30,
+        "precision_at_3_macro": 0.9833,
+        "precision_at_3_micro": 0.9783,
+        "recall_good_macro": 0.7833,
+        "bad_rate": 0.0217,
         "unjudged_rate": 0.0,
         "label_counts": {
-          "acceptable": 26,
+          "acceptable": 24,
           "bad": 1,
-          "good": 17
+          "good": 21
         },
         "anchor_exact_match": 1.0,
         "anchor_pairs_proposed": "10/24",
-        "anchor_names_target_market_rate": 0.8864,
+        "anchor_names_target_market_rate": 0.8913,
         "anchor_source_counts": {
-          "target_keyword": 4,
-          "target_title": 1,
-          "target_topic": 39
+          "target_keyword": 3,
+          "target_title": 2,
+          "target_topic": 41
         },
         "channel_counts": {
-          "semantic": 44
+          "semantic": 46
         },
-        "mean_total_score": 0.5728,
+        "mean_total_score": 0.578,
         "bad_examples": [
           "https://research.example.com/industry-reports/india-cold-chain-market -> https://research.example.com/industry-reports/saudi-arabia-solar-power-market ['solar panels'] (unrelated_market)"
         ],
@@ -658,26 +658,26 @@
     },
     "only_lexical": {
       "status": "succeeded",
-      "run_ms": 1404.8,
+      "run_ms": 2525.1,
       "counters": {
         "candidates": 1380,
         "opportunities": 80,
-        "plans_created": 45,
+        "plans_created": 47,
         "rejected_already_linked": 29,
         "rejected_below_min_relevance": 14,
         "rejected_below_min_score": 1,
-        "rejected_diversity_limit": 3,
-        "rejected_no_natural_anchor": 1233,
-        "rejected_page_type_incompatible": 20,
-        "rejected_target_ineligible": 14,
-        "rejected_target_protected": 21,
+        "rejected_diversity_limit": 2,
+        "rejected_no_natural_anchor": 1230,
+        "rejected_target_excluded": 19,
+        "rejected_target_ineligible": 15,
+        "rejected_target_protected": 23,
         "sources_considered": 64,
         "sources_skipped_ineligible": 18
       },
       "must_not_violations": {},
       "graph_component_values": {
-        "0.5": 1,
-        "1.0": 44
+        "0.5": 5,
+        "1.0": 42
       },
       "diff_vs_all": {
         "only_here": [],
@@ -686,32 +686,32 @@
         ]
       },
       "metrics": {
-        "plans": 45,
-        "sources_with_plans": 27,
+        "plans": 47,
+        "sources_with_plans": 30,
         "judged_sources": 46,
-        "judged_sources_with_plans": 27,
-        "precision_at_3_macro": 0.9815,
-        "precision_at_3_micro": 0.9778,
-        "recall_good_macro": 0.2009,
-        "bad_rate": 0.0222,
+        "judged_sources_with_plans": 30,
+        "precision_at_3_macro": 0.9833,
+        "precision_at_3_micro": 0.9787,
+        "recall_good_macro": 0.7833,
+        "bad_rate": 0.0213,
         "unjudged_rate": 0.0,
         "label_counts": {
-          "acceptable": 27,
+          "acceptable": 25,
           "bad": 1,
-          "good": 17
+          "good": 21
         },
         "anchor_exact_match": 1.0,
         "anchor_pairs_proposed": "11/24",
-        "anchor_names_target_market_rate": 0.8889,
+        "anchor_names_target_market_rate": 0.8936,
         "anchor_source_counts": {
-          "target_keyword": 4,
-          "target_title": 1,
-          "target_topic": 40
+          "target_keyword": 3,
+          "target_title": 2,
+          "target_topic": 42
         },
         "channel_counts": {
-          "lexical": 45
+          "lexical": 47
         },
-        "mean_total_score": 0.5743,
+        "mean_total_score": 0.5793,
         "bad_examples": [
           "https://research.example.com/industry-reports/india-cold-chain-market -> https://research.example.com/industry-reports/saudi-arabia-solar-power-market ['solar panels'] (unrelated_market)"
         ],
@@ -721,15 +721,14 @@
     },
     "only_taxonomy": {
       "status": "succeeded",
-      "run_ms": 896.1,
+      "run_ms": 1473.6,
       "counters": {
         "candidates": 361,
         "opportunities": 80,
-        "plans_created": 39,
+        "plans_created": 41,
         "rejected_already_linked": 29,
-        "rejected_diversity_limit": 1,
-        "rejected_no_natural_anchor": 270,
-        "rejected_page_type_incompatible": 4,
+        "rejected_no_natural_anchor": 269,
+        "rejected_target_excluded": 4,
         "rejected_target_ineligible": 13,
         "rejected_target_protected": 5,
         "sources_considered": 64,
@@ -737,8 +736,8 @@
       },
       "must_not_violations": {},
       "graph_component_values": {
-        "0.5": 1,
-        "1.0": 38
+        "0.5": 5,
+        "1.0": 36
       },
       "diff_vs_all": {
         "only_here": [
@@ -756,31 +755,31 @@
         ]
       },
       "metrics": {
-        "plans": 39,
-        "sources_with_plans": 25,
+        "plans": 41,
+        "sources_with_plans": 29,
         "judged_sources": 46,
-        "judged_sources_with_plans": 25,
+        "judged_sources_with_plans": 29,
         "precision_at_3_macro": 1.0,
         "precision_at_3_micro": 1.0,
-        "recall_good_macro": 0.1752,
+        "recall_good_macro": 0.7167,
         "bad_rate": 0.0,
         "unjudged_rate": 0.0,
         "label_counts": {
-          "acceptable": 25,
-          "good": 14
+          "acceptable": 23,
+          "good": 18
         },
         "anchor_exact_match": 1.0,
         "anchor_pairs_proposed": "9/24",
-        "anchor_names_target_market_rate": 0.8718,
+        "anchor_names_target_market_rate": 0.878,
         "anchor_source_counts": {
-          "target_keyword": 4,
-          "target_title": 1,
-          "target_topic": 34
+          "target_keyword": 3,
+          "target_title": 2,
+          "target_topic": 36
         },
         "channel_counts": {
-          "taxonomy": 39
+          "taxonomy": 41
         },
-        "mean_total_score": 0.5869,
+        "mean_total_score": 0.592,
         "bad_examples": [],
         "unjudged_examples": [],
         "anchor_mismatches": []
@@ -788,15 +787,14 @@
     },
     "only_graph": {
       "status": "succeeded",
-      "run_ms": 1043.4,
+      "run_ms": 1364.3,
       "counters": {
         "candidates": 362,
         "opportunities": 80,
-        "plans_created": 31,
+        "plans_created": 35,
         "rejected_already_linked": 28,
-        "rejected_diversity_limit": 1,
-        "rejected_no_natural_anchor": 270,
-        "rejected_page_type_incompatible": 10,
+        "rejected_no_natural_anchor": 267,
+        "rejected_target_excluded": 10,
         "rejected_target_ineligible": 17,
         "rejected_target_protected": 5,
         "sources_considered": 64,
@@ -804,18 +802,17 @@
       },
       "must_not_violations": {},
       "graph_component_values": {
+        "0.5": 4,
         "1.0": 31
       },
       "diff_vs_all": {
         "only_here": [
           "/industry-reports/india-electric-vehicle-market -> /industry-reports/india-auto-components-market ['Auto parts'] good",
-          "/industry-reports/thailand-ecommerce-logistics-market -> /industry-reports/qatar-logistics-market ['logistics'] acceptable",
-          "/industry-reports/vietnam-ecommerce-logistics-market -> /industry-reports/qatar-logistics-market ['logistics'] acceptable",
           "/insights/indonesia-nickel-battery-materials -> /industry-reports/india-lithium-ion-battery-manufacturing-market ['battery cells'] acceptable"
         ],
         "only_in_all": [
           "/industry-reports/gcc-energy-storage-market -> /industry-reports/india-lithium-ion-battery-manufacturing-market ['battery manufacturing'] acceptable",
-          "/industry-reports/india-battery-energy-storage-market -> /industry-reports/india-lithium-ion-battery-manufacturing-market ['battery manufacturing'] good",
+          "/industry-reports/india-battery-energy-storage-market -> /industry-reports/india-lithium-ion-battery-manufacturing-market ['lithium-ion battery manufacturing'] good",
           "/industry-reports/india-cold-chain-market -> /industry-reports/saudi-arabia-solar-power-market ['solar panels'] bad",
           "/industry-reports/india-electric-two-wheeler-market -> /industry-reports/india-lithium-ion-battery-manufacturing-market ['lithium-ion battery'] good",
           "/industry-reports/india-electric-vehicle-market -> /industry-reports/india-lithium-ion-battery-manufacturing-market ['lithium-ion battery'] good",
@@ -824,43 +821,39 @@
           "/industry-reports/india-lithium-ion-battery-manufacturing-market -> /industry-reports/india-electric-two-wheeler-market ['electric two-wheelers'] good",
           "/industry-reports/india-pharmaceutical-market -> /industry-reports/india-cold-chain-market ['cold chain'] good",
           "/industry-reports/indonesia-ev-charging-infrastructure-market -> /industry-reports/southeast-asia-battery-materials-market ['battery materials'] acceptable",
-          "/industry-reports/thailand-ecommerce-logistics-market -> /industry-reports/indonesia-ecommerce-market ['e-commerce'] acceptable",
           "/industry-reports/thailand-ecommerce-logistics-market -> /industry-reports/philippines-fintech-market ['digital payments'] acceptable",
-          "/industry-reports/thailand-ecommerce-logistics-market -> /industry-reports/qatar-logistics-market ['logistics'] acceptable",
           "/industry-reports/uae-cold-chain-market -> /industry-reports/bangladesh-pharmaceutical-market ['pharmaceutical'] acceptable",
-          "/industry-reports/vietnam-ecommerce-logistics-market -> /industry-reports/indonesia-ecommerce-market ['e-commerce'] acceptable",
-          "/industry-reports/vietnam-ecommerce-logistics-market -> /industry-reports/qatar-logistics-market ['logistics'] acceptable",
           "/insights/cold-chain-vaccine-distribution-india -> /industry-reports/bangladesh-pharmaceutical-market ['pharmaceutical'] acceptable",
           "/insights/gcc-data-center-power-demand -> /industry-reports/saudi-arabia-solar-power-market ['solar power'] acceptable",
           "/insights/indonesia-nickel-battery-materials -> /industry-reports/indonesia-electric-two-wheeler-market ['electric motorcycles'] acceptable"
         ]
       },
       "metrics": {
-        "plans": 31,
-        "sources_with_plans": 21,
+        "plans": 35,
+        "sources_with_plans": 26,
         "judged_sources": 46,
-        "judged_sources_with_plans": 21,
+        "judged_sources_with_plans": 26,
         "precision_at_3_macro": 1.0,
         "precision_at_3_micro": 1.0,
-        "recall_good_macro": 0.1453,
+        "recall_good_macro": 0.625,
         "bad_rate": 0.0,
         "unjudged_rate": 0.0,
         "label_counts": {
           "acceptable": 20,
-          "good": 11
+          "good": 15
         },
         "anchor_exact_match": 1.0,
         "anchor_pairs_proposed": "7/24",
-        "anchor_names_target_market_rate": 0.8387,
+        "anchor_names_target_market_rate": 0.8857,
         "anchor_source_counts": {
-          "target_keyword": 4,
+          "target_keyword": 3,
           "target_title": 1,
-          "target_topic": 26
+          "target_topic": 31
         },
         "channel_counts": {
-          "graph": 31
+          "graph": 35
         },
-        "mean_total_score": 0.5821,
+        "mean_total_score": 0.5939,
         "bad_examples": [],
         "unjudged_examples": [],
         "anchor_mismatches": []
@@ -868,19 +861,19 @@
     },
     "graph_weight_0": {
       "status": "succeeded",
-      "run_ms": 1730.7,
+      "run_ms": 3104.1,
       "counters": {
-        "candidates": 1810,
+        "candidates": 1808,
         "opportunities": 80,
-        "plans_created": 45,
+        "plans_created": 47,
         "rejected_already_linked": 29,
-        "rejected_below_min_relevance": 471,
+        "rejected_below_min_relevance": 470,
         "rejected_below_min_score": 2,
-        "rejected_diversity_limit": 3,
-        "rejected_no_natural_anchor": 1165,
-        "rejected_page_type_incompatible": 27,
-        "rejected_target_ineligible": 27,
-        "rejected_target_protected": 41,
+        "rejected_diversity_limit": 2,
+        "rejected_no_natural_anchor": 1161,
+        "rejected_target_excluded": 26,
+        "rejected_target_ineligible": 28,
+        "rejected_target_protected": 43,
         "sources_considered": 64,
         "sources_skipped_ineligible": 18
       },
@@ -893,35 +886,35 @@
         ]
       },
       "metrics": {
-        "plans": 45,
-        "sources_with_plans": 27,
+        "plans": 47,
+        "sources_with_plans": 30,
         "judged_sources": 46,
-        "judged_sources_with_plans": 27,
-        "precision_at_3_macro": 0.9815,
-        "precision_at_3_micro": 0.9778,
-        "recall_good_macro": 0.2009,
-        "bad_rate": 0.0222,
+        "judged_sources_with_plans": 30,
+        "precision_at_3_macro": 0.9833,
+        "precision_at_3_micro": 0.9787,
+        "recall_good_macro": 0.7833,
+        "bad_rate": 0.0213,
         "unjudged_rate": 0.0,
         "label_counts": {
-          "acceptable": 27,
+          "acceptable": 25,
           "bad": 1,
-          "good": 17
+          "good": 21
         },
         "anchor_exact_match": 1.0,
         "anchor_pairs_proposed": "11/24",
-        "anchor_names_target_market_rate": 0.9111,
+        "anchor_names_target_market_rate": 0.9149,
         "anchor_source_counts": {
-          "target_keyword": 3,
-          "target_title": 1,
-          "target_topic": 41
+          "target_keyword": 2,
+          "target_title": 2,
+          "target_topic": 43
         },
         "channel_counts": {
-          "graph": 28,
-          "lexical": 44,
-          "semantic": 43,
-          "taxonomy": 37
+          "graph": 32,
+          "lexical": 46,
+          "semantic": 45,
+          "taxonomy": 39
         },
-        "mean_total_score": 0.508,
+        "mean_total_score": 0.5217,
         "bad_examples": [
           "https://research.example.com/industry-reports/india-cold-chain-market -> https://research.example.com/industry-reports/saudi-arabia-solar-power-market ['solar panels'] (unrelated_market)"
         ],
@@ -933,7 +926,7 @@
   "per_source_all": {
     "https://research.example.com/industry-reports/bangladesh-pharmaceutical-market": {
       "plans": [],
-      "good": 1
+      "good": 0
     },
     "https://research.example.com/industry-reports/gcc-energy-storage-market": {
       "plans": [
@@ -948,15 +941,9 @@
           "anchor": "battery manufacturing",
           "label": "acceptable",
           "score": 0.5465626655882128
-        },
-        {
-          "target": "https://research.example.com/industry-reports/india-battery-energy-storage-market",
-          "anchor": "battery energy",
-          "label": "good",
-          "score": 0.46389808218819756
         }
       ],
-      "good": 2
+      "good": 1
     },
     "https://research.example.com/industry-reports/india-auto-components-market": {
       "plans": [
@@ -973,18 +960,18 @@
       "plans": [
         {
           "target": "https://research.example.com/industry-reports/india-lithium-ion-battery-manufacturing-market",
-          "anchor": "battery manufacturing",
+          "anchor": "lithium-ion battery manufacturing",
           "label": "good",
-          "score": 0.6783266724035458
+          "score": 0.6104940051631913
         }
       ],
-      "good": 2
+      "good": 1
     },
     "https://research.example.com/industry-reports/india-cold-chain-market": {
       "plans": [
         {
           "target": "https://research.example.com/industry-reports/qatar-logistics-market",
-          "anchor": "logistics",
+          "anchor": "Logistics",
           "label": "acceptable",
           "score": 0.5866116521002486
         },
@@ -995,15 +982,15 @@
           "score": 0.5086703965026401
         }
       ],
-      "good": 2
+      "good": 0
     },
     "https://research.example.com/industry-reports/india-diagnostics-market": {
       "plans": [],
-      "good": 1
+      "good": 0
     },
     "https://research.example.com/industry-reports/india-digital-lending-market": {
       "plans": [],
-      "good": 1
+      "good": 0
     },
     "https://research.example.com/industry-reports/india-electric-two-wheeler-market": {
       "plans": [
@@ -1016,11 +1003,11 @@
         {
           "target": "https://research.example.com/insights/battery-swapping-electric-two-wheelers-india",
           "anchor": "Battery swapping",
-          "label": "good",
+          "label": "acceptable",
           "score": 0.528200605034354
         }
       ],
-      "good": 4
+      "good": 2
     },
     "https://research.example.com/industry-reports/india-electric-vehicle-market": {
       "plans": [
@@ -1037,7 +1024,7 @@
           "score": 0.6411617174705553
         }
       ],
-      "good": 4
+      "good": 3
     },
     "https://research.example.com/industry-reports/india-ev-charging-infrastructure-market": {
       "plans": [
@@ -1048,7 +1035,7 @@
           "score": 0.5392616745836926
         }
       ],
-      "good": 4
+      "good": 2
     },
     "https://research.example.com/industry-reports/india-health-insurance-market": {
       "plans": [],
@@ -1080,15 +1067,15 @@
           "score": 0.6739771374161508
         }
       ],
-      "good": 3
+      "good": 2
     },
     "https://research.example.com/industry-reports/india-rooftop-solar-market": {
       "plans": [],
-      "good": 3
+      "good": 0
     },
     "https://research.example.com/industry-reports/india-semiconductor-market": {
       "plans": [],
-      "good": 2
+      "good": 0
     },
     "https://research.example.com/industry-reports/indonesia-ecommerce-market": {
       "plans": [],
@@ -1096,7 +1083,7 @@
     },
     "https://research.example.com/industry-reports/indonesia-electric-two-wheeler-market": {
       "plans": [],
-      "good": 2
+      "good": 0
     },
     "https://research.example.com/industry-reports/indonesia-ev-charging-infrastructure-market": {
       "plans": [
@@ -1119,7 +1106,7 @@
           "score": 0.3706090532663437
         }
       ],
-      "good": 2
+      "good": 0
     },
     "https://research.example.com/industry-reports/malaysia-data-center-market": {
       "plans": [
@@ -1136,26 +1123,26 @@
           "score": 0.4483422110807215
         }
       ],
-      "good": 2
+      "good": 0
     },
     "https://research.example.com/industry-reports/malaysia-semiconductor-market": {
       "plans": [],
-      "good": 1
+      "good": 0
     },
     "https://research.example.com/industry-reports/philippines-cold-chain-market": {
       "plans": [
         {
           "target": "https://research.example.com/industry-reports/qatar-logistics-market",
-          "anchor": "logistics",
+          "anchor": "Logistics",
           "label": "acceptable",
           "score": 0.612172196259002
         }
       ],
-      "good": 3
+      "good": 0
     },
     "https://research.example.com/industry-reports/philippines-fintech-market": {
       "plans": [],
-      "good": 1
+      "good": 0
     },
     "https://research.example.com/industry-reports/qatar-logistics-market": {
       "plans": [],
@@ -1163,11 +1150,11 @@
     },
     "https://research.example.com/industry-reports/saudi-arabia-data-center-market": {
       "plans": [],
-      "good": 2
+      "good": 0
     },
     "https://research.example.com/industry-reports/saudi-arabia-solar-power-market": {
       "plans": [],
-      "good": 3
+      "good": 0
     },
     "https://research.example.com/industry-reports/singapore-cloud-computing-market": {
       "plans": [],
@@ -1187,16 +1174,10 @@
     "https://research.example.com/industry-reports/thailand-ecommerce-logistics-market": {
       "plans": [
         {
-          "target": "https://research.example.com/industry-reports/indonesia-ecommerce-market",
-          "anchor": "e-commerce",
-          "label": "acceptable",
-          "score": 0.6539345256210787
-        },
-        {
           "target": "https://research.example.com/industry-reports/qatar-logistics-market",
           "anchor": "logistics",
           "label": "acceptable",
-          "score": 0.5890814536526215
+          "score": 0.5301733082873594
         },
         {
           "target": "https://research.example.com/industry-reports/philippines-fintech-market",
@@ -1205,7 +1186,7 @@
           "score": 0.45723984723684474
         }
       ],
-      "good": 1
+      "good": 0
     },
     "https://research.example.com/industry-reports/thailand-electric-vehicle-market": {
       "plans": [
@@ -1222,7 +1203,7 @@
           "score": 0.5215017656310731
         }
       ],
-      "good": 2
+      "good": 1
     },
     "https://research.example.com/industry-reports/uae-cold-chain-market": {
       "plans": [
@@ -1239,7 +1220,7 @@
           "score": 0.5362608043536685
         }
       ],
-      "good": 3
+      "good": 0
     },
     "https://research.example.com/industry-reports/uae-data-center-market": {
       "plans": [
@@ -1250,28 +1231,22 @@
           "score": 0.5224463025112458
         }
       ],
-      "good": 2
+      "good": 0
     },
     "https://research.example.com/industry-reports/uae-diagnostics-market": {
       "plans": [],
-      "good": 1
+      "good": 0
     },
     "https://research.example.com/industry-reports/vietnam-ecommerce-logistics-market": {
       "plans": [
         {
-          "target": "https://research.example.com/industry-reports/indonesia-ecommerce-market",
-          "anchor": "e-commerce",
-          "label": "acceptable",
-          "score": 0.6344407089160055
-        },
-        {
           "target": "https://research.example.com/industry-reports/qatar-logistics-market",
           "anchor": "logistics",
           "label": "acceptable",
-          "score": 0.5903510336014043
+          "score": 0.5313159302412639
         }
       ],
-      "good": 1
+      "good": 0
     },
     "https://research.example.com/industry-reports/vietnam-solar-power-market": {
       "plans": [
@@ -1288,7 +1263,7 @@
           "score": 0.5497327020923677
         }
       ],
-      "good": 3
+      "good": 1
     },
     "https://research.example.com/industry-reports/vietnam-wind-power-market": {
       "plans": [
@@ -1344,6 +1319,12 @@
     "https://research.example.com/insights/cold-chain-vaccine-distribution-india": {
       "plans": [
         {
+          "target": "https://research.example.com/industry-reports/india-cold-chain-market",
+          "anchor": "temperature-controlled logistics",
+          "label": "good",
+          "score": 0.7056037752808267
+        },
+        {
           "target": "https://research.example.com/industry-reports/bangladesh-pharmaceutical-market",
           "anchor": "pharmaceutical",
           "label": "acceptable",
@@ -1363,6 +1344,12 @@
           "anchor": "insurance",
           "label": "acceptable",
           "score": 0.5766666666666667
+        },
+        {
+          "target": "https://research.example.com/industry-reports/india-digital-lending-market",
+          "anchor": "digital payments",
+          "label": "good",
+          "score": 0.5619348382838557
         }
       ],
       "good": 1
@@ -1374,18 +1361,18 @@
           "anchor": "charging stations",
           "label": "good",
           "score": 0.6203210668244526
-        },
-        {
-          "target": "https://research.example.com/industries/automotive",
-          "anchor": "mobility",
-          "label": "acceptable",
-          "score": 0.5197559743541524
         }
       ],
       "good": 1
     },
     "https://research.example.com/insights/gcc-data-center-power-demand": {
       "plans": [
+        {
+          "target": "https://research.example.com/industry-reports/saudi-arabia-data-center-market",
+          "anchor": "data centers",
+          "label": "good",
+          "score": 0.597974964842951
+        },
         {
           "target": "https://research.example.com/industry-reports/saudi-arabia-solar-power-market",
           "anchor": "solar power",
@@ -1407,15 +1394,36 @@
       "good": 0
     },
     "https://research.example.com/insights/last-mile-delivery-economics-thailand-vietnam": {
-      "plans": [],
+      "plans": [
+        {
+          "target": "https://research.example.com/industry-reports/vietnam-ecommerce-logistics-market",
+          "anchor": "Last-mile delivery",
+          "label": "good",
+          "score": 0.5949238109432543
+        }
+      ],
       "good": 1
     },
     "https://research.example.com/insights/perovskite-solar-cells-commercialisation": {
-      "plans": [],
+      "plans": [
+        {
+          "target": "https://research.example.com/industry-reports/vietnam-solar-power-market",
+          "anchor": "rooftop solar",
+          "label": "good",
+          "score": 0.7285157754123389
+        }
+      ],
       "good": 1
     },
     "https://research.example.com/insights/semiconductor-supply-chain-shift-malaysia": {
-      "plans": [],
+      "plans": [
+        {
+          "target": "https://research.example.com/industry-reports/india-semiconductor-market",
+          "anchor": "wafer fabrication",
+          "label": "good",
+          "score": 0.6509656126288688
+        }
+      ],
       "good": 1
     }
   }

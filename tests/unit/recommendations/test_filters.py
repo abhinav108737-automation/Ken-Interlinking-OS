@@ -97,6 +97,7 @@ ALL_FAILING: dict[str, Any] = {
     "already_linked": True,
     "duplicate": True,
     "previously_rejected": True,
+    "target_path_excluded": True,
     "target_page_type": "other",
 }
 ORDER = [
@@ -109,6 +110,7 @@ ORDER = [
     ("already_linked", R.ALREADY_LINKED),
     ("duplicate", R.DUPLICATE_RECOMMENDATION),
     ("previously_rejected", R.PREVIOUSLY_REJECTED),
+    ("target_path_excluded", R.TARGET_EXCLUDED),
     ("target_page_type", R.PAGE_TYPE_INCOMPATIBLE),
 ]
 
@@ -158,9 +160,9 @@ def test_pair_state_is_frozen() -> None:
         _state().duplicate = True  # type: ignore[misc]
 
 
-def test_an_excluded_target_path_is_page_type_incompatible() -> None:
+def test_an_excluded_target_path_has_its_own_rejection_code() -> None:
     """policy.excluded_target_paths (the home page): never a link target (eval finding)."""
     assert pair_rejection(_state(target_path_excluded=True), policy=policy()) is (
-        CandidateRejection.PAGE_TYPE_INCOMPATIBLE
+        CandidateRejection.TARGET_EXCLUDED
     )
     assert pair_rejection(_state(), policy=policy()) is None

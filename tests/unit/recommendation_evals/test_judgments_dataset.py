@@ -60,7 +60,20 @@ def _linked_targets(page: NormalizedPage) -> set[str]:
 def test_inventory_meets_the_task_minimums() -> None:
     assert len(SOURCES) >= 25
     assert len(EXPECTED) >= 15
-    assert sum(len(e["good"]) for e in SOURCES.values()) >= 50
+    # Positive judgments: GOOD, plus the GOOD pairs relabelled ACCEPTABLE by rule R5
+    # (self-describing anchors, Phase 3 QA M3) -- still judged positives, kept in the set.
+    relabelled = sum(
+        1
+        for e in SOURCES.values()
+        for item in e["acceptable"]
+        if item.get("why", "").startswith("[Relabelled GOOD->ACCEPTABLE")
+    )
+    good = sum(len(e["good"]) for e in SOURCES.values())
+    assert good >= 25
+    assert good + relabelled >= 50
+    assert relabelled == sum(
+        1 for e in SOURCES.values() for item in e["acceptable"] if "mention" in item
+    )  # every relabelled entry keeps its mention and relationship
     kinds = {b["kind"] for e in SOURCES.values() for b in e["bad"]}
     assert {"geography_only", "shared_word", "intent_mismatch"} <= kinds <= KINDS
 

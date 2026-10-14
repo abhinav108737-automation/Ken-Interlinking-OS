@@ -193,6 +193,7 @@ const CANDIDATE_REJECTION_LABEL: Readonly<Record<CandidateRejection, string>> = 
   already_linked: "Source already links to the target",
   duplicate_recommendation: "An open or live plan already exists for this pair",
   previously_rejected: "Rejected by a reviewer recently (cool-down)",
+  target_excluded: "Target path is never a link target (e.g. the home page)",
   page_type_incompatible: "Page types or intents are incompatible",
   below_min_relevance: "Relevance below the policy minimum",
   no_natural_anchor: "No natural anchor text in the source",

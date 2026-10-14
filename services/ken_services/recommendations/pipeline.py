@@ -4,15 +4,19 @@ One run, through the generic job runner (advisory lock, counters, ``job.complete
 
     load policies + taxonomy; resolve the embedding identity (optional provider)
     live facts of every page (+ eligibility, inbound link counts)
-    for every source in scope, in page-id order, in ONE transaction per source:
-        open plans on an OLDER source version: check_plan_freshness
+    for every source in scope, in canonical-URL order, in ONE transaction per source:
+        every open plan of the source whose source or target is now DURABLY ineligible
+            (protected, gone, unpublished, noindex, alias, thin, excluded type), or whose
+            pair is now already linked -> EXPIRED ("invalid: ...", fail closed); analysis
+            lag and HTTP errors only pause generation
+        other open plans on an OLDER source version: check_plan_freshness
             stale     -> transition to EXPIRED (system:recommendation-engine)
             rebasable -> unchanged (still occupies its pair and span)
         if the source is eligible (as_source):
             retrieve (channels) -> candidates
             pair stage (PairState -> pair_rejection), in retrieval order
             score (score_pair) -> below_min_relevance
-            in rank order (relevance desc, target id):
+            in rank order (relevance desc, target canonical URL, target id):
                 place (find_placement) -> no_natural_anchor
                 final score (with_placement) -> below_min_score
                 caps: link_density_exceeded, per_source_limit, diversity_limit
@@ -33,7 +37,7 @@ analysis (current version AND current analysis version); protections are the ACT
 (redirects and aliases count); inbound counts come from current versions of live pages.
 
 **Scope.** By default every page is considered and ineligible sources are skipped
-(``sources_skipped_ineligible``; their stale plans are still expired). Sources named
+(``sources_skipped_ineligible``; their open plans are still expired as invalid). Sources named
 explicitly (``source_page_ids``) are always processed, so an ineligible one records its
 candidates with ``source_protected`` / ``source_ineligible`` and gets no plan.
 
@@ -44,7 +48,7 @@ together or not at all.
 
 Counters: ``sources_considered``, ``sources_skipped_ineligible``, ``candidates``,
 ``rejected_<code>`` for every ``CandidateRejection``, ``plans_created``, ``plans_expired``,
-``opportunities``, ``errors``.
+``plans_invalidated``, ``opportunities``, ``errors``.
 """
 
 from __future__ import annotations
@@ -63,6 +67,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from ken_contracts.events import EventEnvelope, EventName
 from ken_contracts.intelligence import (
+    IneligibilityReason,
     Intent,
     LinkEligibility,
     PageAnalysis,
@@ -108,6 +113,7 @@ from ken_services.recommendations.placement import (
     PlacementCandidate,
     anchor_phrases,
     find_placement,
+    market_phrases,
 )
 from ken_services.recommendations.policy import (
     load_recommendation_policy,
@@ -144,10 +150,33 @@ RECOMMENDATION_COUNTERS: Final = (
     *(f"rejected_{code.value}" for code in CandidateRejection),
     "plans_created",
     "plans_expired",
+    "plans_invalidated",
     "opportunities",
     "errors",
 )
 _R = CandidateRejection
+DURABLE_INELIGIBILITY: Final = frozenset(
+    {
+        IneligibilityReason.NOT_PUBLISHED,
+        IneligibilityReason.GONE,
+        IneligibilityReason.PROTECTED,
+        IneligibilityReason.NOINDEX,
+        IneligibilityReason.NOT_CANONICAL,
+        IneligibilityReason.THIN_CONTENT,
+        IneligibilityReason.PAGE_TYPE_EXCLUDED,
+    }
+)
+"""Ineligibility reasons that expire an OPEN plan. ``not_analyzed``, ``stale_analysis``
+(analysis lag) and ``http_not_ok`` (possibly a transient 5xx) do not: they only stop new
+plans being generated."""
+MAX_TARGET_TITLE_CHARS: Final = 300
+"""A plan copies at most this much of the target title (QA: ingestion does not cap it)."""
+
+
+def _bounded_title(title: str | None) -> str | None:
+    if title is None or len(title) <= MAX_TARGET_TITLE_CHARS:
+        return title
+    return title[: MAX_TARGET_TITLE_CHARS - 1].rstrip() + "\u2026"
 
 
 # --------------------------------------------------------------------------- #
@@ -221,6 +250,7 @@ class _Recommend:
         self.policy = policy
         self.ranking = ranking
         self.taxonomy = taxonomy
+        self.market_phrases = market_phrases(taxonomy)
         self.embedding = embedding
         self.guard = guard
         self.tools = toolkit
@@ -279,7 +309,7 @@ class _Recommend:
             self.per_target.update(await repo.open_plan_target_counts(session))
 
         # Deterministic order by canonical URL (then id): caps such as
-        # max_plans_per_target_per_run are consumed in this order, so random page
+        # max_open_plans_per_target are consumed in this order, so random page
         # UUIDs must not decide which source gets a contested target (eval finding).
         def by_url(pid: uuid.UUID) -> tuple[str, str]:
             return (world.facts[pid].canonical_url, str(pid))
@@ -308,36 +338,91 @@ class _Recommend:
     # --------------------------------------------------------------- source
     async def _source(self, world: _World, source: repo.PageFacts) -> None:
         eligible = world.eligibility[source.id].as_source
+        outcome: _Outcome | None = None
         async with self.job.transaction() as tx:
             session = tx.session
             body = await repo.version_body(
                 session, page_id=source.id, version=source.current_version
             )
             blocks = tuple(self.tools.extract_blocks(body or ""))
-            await self._expire_stale(tx, source, blocks)
+            expired = await self._expire_invalid(tx, world, source, blocks)
             if not eligible and self.source_page_ids is None:
                 tx.increment("sources_skipped_ineligible")
-                return
-            outcome = await self._generate(session, world, source, blocks)
-            now = self.job.clock()
-            for plan in outcome.plans:
-                await self._insert_plan(session, plan, now)
-            await repo.insert_candidates(
-                session, run_id=self.job.run_id, candidates=outcome.candidates, created_at=now
-            )
-            tx.increment("candidates", len(outcome.candidates))
-            tx.increment("plans_created", len(outcome.plans))
-            for item in outcome.candidates:
-                if item.rejection is not None:
-                    tx.increment(f"rejected_{item.rejection.value}")
-        # Committed: only now does this source's output count toward diversity.
-        for plan in outcome.plans:
+            else:
+                outcome = await self._generate(session, world, source, blocks)
+                await self._commit_outcome(tx, outcome)
+        # Committed: only now do expiries free, and new plans take, a diversity slot.
+        for target_id in expired:
+            self.per_target[target_id] -= 1
+        for plan in () if outcome is None else outcome.plans:
             self.per_target[plan.target_page_id] += 1
 
-    async def _expire_stale(
-        self, tx: JobTransaction, source: repo.PageFacts, blocks: Sequence[ContentBlock]
-    ) -> None:
+    async def _commit_outcome(self, tx: JobTransaction, outcome: _Outcome) -> None:
+        session = tx.session
+        now = self.job.clock()
+        for plan in outcome.plans:
+            await self._insert_plan(session, plan, now)
+        await repo.insert_candidates(
+            session, run_id=self.job.run_id, candidates=outcome.candidates, created_at=now
+        )
+        tx.increment("candidates", len(outcome.candidates))
+        tx.increment("plans_created", len(outcome.plans))
+        for item in outcome.candidates:
+            if item.rejection is not None:
+                tx.increment(f"rejected_{item.rejection.value}")
+
+    def _invalidity(
+        self, world: _World, source: repo.PageFacts, target_id: uuid.UUID, linked: set[uuid.UUID]
+    ) -> str | None:
+        """Why an OPEN plan may no longer stand, whatever its freshness (fail closed: a
+        plan must never wait in the review queue for a protected, gone or unlinkable page).
+
+        Only DURABLE reasons expire a plan (``DURABLE_INELIGIBILITY``). Expiry is terminal,
+        so lag (``stale_analysis`` / ``not_analyzed`` after a recrawl or a taxonomy bump,
+        before ``make analyze``) and a possibly transient ``http_not_ok`` keep the plan open:
+        no new plans are generated meanwhile, and deployment re-validates (QA re-review)."""
+        source_reasons = DURABLE_INELIGIBILITY.intersection(
+            world.eligibility[source.id].source_reasons
+        )
+        if source_reasons:
+            return f"source_ineligible ({', '.join(sorted(r.value for r in source_reasons))})"
+        target_eligibility = world.eligibility.get(target_id)
+        if target_eligibility is None:
+            return "target_ineligible (unknown)"  # the page no longer exists in the inventory
+        target_reasons = DURABLE_INELIGIBILITY.intersection(target_eligibility.target_reasons)
+        if target_reasons:
+            return f"target_ineligible ({', '.join(sorted(r.value for r in target_reasons))})"
+        if target_id in linked:
+            return "already_linked"
+        return None
+
+    async def _expire_invalid(
+        self,
+        tx: JobTransaction,
+        world: _World,
+        source: repo.PageFacts,
+        blocks: Sequence[ContentBlock],
+    ) -> list[uuid.UUID]:
+        """Expire the source's open plans that became invalid or stale; their target ids."""
+        expired: list[uuid.UUID] = []
+        links = await repo.version_links(
+            tx.session, page_id=source.id, version=source.current_version
+        )
+        linked = {link.target_page_id for link in links if link.target_page_id}
         for plan in await repo.open_plans_for_source(tx.session, source_page_id=source.id):
+            invalid = self._invalidity(world, source, plan.target_page_id, linked)
+            if invalid is not None:
+                await transition(
+                    tx.session,
+                    plan_id=plan.id,
+                    to_status=LinkPlanStatus.EXPIRED,
+                    actor=ENGINE_ACTOR,
+                    note="invalid: " + invalid,
+                    clock=self.job.clock,
+                )
+                tx.increment("plans_invalidated")
+                expired.append(plan.target_page_id)
+                continue
             if plan.source_page_version >= source.current_version:
                 continue
             check = self.tools.check_plan_freshness(
@@ -359,6 +444,8 @@ class _Recommend:
                 clock=self.job.clock,
             )
             tx.increment("plans_expired")
+            expired.append(plan.target_page_id)
+        return expired
 
     async def _generate(
         self,
@@ -512,7 +599,10 @@ class _Recommend:
                     scored=scored,
                 )
             )
-        ranked.sort(key=lambda r: (-r.scored.breakdown.relevance, r.target.id))
+        # Ties break on the target's canonical URL, never a random UUID (determinism).
+        ranked.sort(
+            key=lambda r: (-r.scored.breakdown.relevance, r.target.canonical_url, r.target.id)
+        )
 
         # ---- placement + final score + caps, in rank order
         salience = {b.block_id: float(b.score) for b in source_analysis.salient_blocks}
@@ -536,6 +626,7 @@ class _Recommend:
                 taken_spans=frozenset(taken),
                 salience=salience,
                 policy=self.policy,
+                enclosing_phrases=self.market_phrases,
             )
             if placement is None:
                 record(candidate, target.current_version, rejection=_R.NO_NATURAL_ANCHOR,
@@ -579,7 +670,7 @@ class _Recommend:
             return _R.PER_SOURCE_LIMIT
         # A source holds at most one open plan per target, so only OTHER sources' plans of
         # this run count here (committed ones: see _source).
-        if self.per_target[target_id] >= selection.max_plans_per_target_per_run:
+        if self.per_target[target_id] >= selection.max_open_plans_per_target:
             return _R.DIVERSITY_LIMIT
         return None
 
@@ -607,7 +698,7 @@ class _Recommend:
             target_page_id=target.id,
             target_page_version=target.current_version,
             target_url=target.canonical_url,
-            target_title=target.title,
+            target_title=_bounded_title(target.title),
             relationship_type=scored.relationship_type,
             channels=item.candidate.channels,
             anchor_text=placement.anchor_text,
@@ -620,7 +711,7 @@ class _Recommend:
             reason_codes=reason_codes,
             rationale=self.tools.render_rationale(
                 reason_codes=reason_codes,
-                target_title=target.title,
+                target_title=_bounded_title(target.title),
                 relationship_type=scored.relationship_type,
                 anchor_text=placement.anchor_text,
             ),

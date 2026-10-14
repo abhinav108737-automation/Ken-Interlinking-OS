@@ -74,6 +74,8 @@ class CandidateRejection(StrEnum):
     DUPLICATE_RECOMMENDATION = "duplicate_recommendation"
     PREVIOUSLY_REJECTED = "previously_rejected"
     """A reviewer rejected this pair within ``selection.rejection_cooldown_days``."""
+    TARGET_EXCLUDED = "target_excluded"
+    """The target's URL path matches ``excluded_target_paths`` (e.g. the home page)."""
     PAGE_TYPE_INCOMPATIBLE = "page_type_incompatible"
     BELOW_MIN_RELEVANCE = "below_min_relevance"
     NO_NATURAL_ANCHOR = "no_natural_anchor"
@@ -179,6 +181,48 @@ ACTOR_PATTERN: Final = (
 
 def is_allowed_transition(current: LinkPlanStatus, target: LinkPlanStatus) -> bool:
     return target in ALLOWED_TRANSITIONS[current]
+
+
+type ActorClass = Literal["user", "agent", "system"]
+
+TRANSITION_AUTHORITY: Final[Mapping[LinkPlanStatus, frozenset[ActorClass]]] = {
+    _S.PROPOSED: frozenset({"system", "agent"}),
+    _S.CRITIQUED: frozenset({"system", "agent"}),
+    _S.POLICY_CHECKED: frozenset({"system", "agent"}),
+    _S.AWAITING_APPROVAL: frozenset({"system", "agent", "user"}),
+    # Editorial decisions are HUMAN decisions (AUTONOMY_AND_PERMISSIONS: approval is ASK).
+    _S.APPROVED: frozenset({"user"}),
+    _S.REJECTED: frozenset({"user"}),
+    _S.SUPERSEDED: frozenset({"user"}),
+    # Deployment outcomes are written only by the deployment service (Phase 6), which
+    # records the requesting user in its own audit trail.
+    _S.VALIDATED: frozenset({"system"}),
+    _S.DEPLOYED: frozenset({"system"}),
+    _S.VERIFIED: frozenset({"system"}),
+    _S.FAILED: frozenset({"system"}),
+    _S.ROLLED_BACK: frozenset({"system"}),
+    _S.EXPIRED: frozenset({"system"}),
+    _S.MEASURED: frozenset({"system"}),
+    _S.LEARNING_CAPTURED: frozenset({"system"}),
+}
+"""Which actor CLASS may move a plan INTO each status (QA review, Phase 3). The class is
+the actor prefix; that a ``user:`` actor is authenticated is the API's job (Phase 5)."""
+
+
+def actor_class(actor: str) -> ActorClass:
+    """The class of an actor that already matches ``ACTOR_PATTERN``."""
+    prefix = actor.split(":", 1)[0]
+    if prefix == "user":
+        return "user"
+    if prefix == "agent":
+        return "agent"
+    if prefix == "system":
+        return "system"
+    raise ValueError("actor has no known class")
+
+
+def may_transition(actor: str, target: LinkPlanStatus) -> bool:
+    return actor_class(actor) in TRANSITION_AUTHORITY[target]
 
 
 class ScoreComponent(FrozenModel):
@@ -294,7 +338,7 @@ class SelectionPolicy(FrozenModel):
         default=90, ge=0, description="A reviewer-rejected pair is not re-proposed for this long."
     )
     max_plans_per_source: int = Field(default=3, ge=1, le=50)
-    max_plans_per_target_per_run: int = Field(
+    max_open_plans_per_target: int = Field(
         default=5,
         ge=1,
         le=1000,
@@ -335,6 +379,8 @@ class PlacementPolicy(FrozenModel):
             "a", "table", "thead", "tbody", "tr", "td", "th", "blockquote", "figure",
             "figcaption", "pre", "code", "kbd", "samp", "cite", "q", "sup", "sub",
             "h1", "h2", "h3", "h4", "h5", "h6", "caption",
+            "label", "legend", "del", "s", "small", "video", "audio", "canvas", "math", "map",
+            "header", "footer", "dialog", "address", "details", "summary", "fieldset",
         ),
         description="The anchor span may not sit under any of these (PRD v1.1 section 12.4).",
     )  # fmt: skip

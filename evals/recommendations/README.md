@@ -19,7 +19,7 @@ proposes or promotes a policy, skill or setting.
 
 | File | What it is |
 |---|---|
-| `tests/fixtures/demo/recommendation_judgments.json` | Spec-derived judgments for **all 46 eligible sources**. Holds 75 GOOD targets, each with the unlinked mention expected as its anchor, the relationship and why. Also 158 ACCEPTABLE and 928 BAD targets (BAD includes the rule-expanded R1–R4 entries). Also: the 19 **must-not** rules; **24 expected anchors**, pairs whose source has exactly one natural candidate phrase; and one synthetic **placement-safety page**. |
+| `tests/fixtures/demo/recommendation_judgments.json` | Spec-derived judgments for **all 46 eligible sources**. Holds 30 GOOD targets, each with the unlinked mention expected as its anchor, the relationship and why. Also 203 ACCEPTABLE (45 of them GOOD pairs relabelled by rule R5) and 928 BAD targets (BAD includes the rule-expanded R1–R4 entries). Also: the 20 **must-not** rules; **24 expected anchors**, pairs whose source has exactly one natural candidate phrase; and one synthetic **placement-safety page**. |
 | `tests/fixtures/demo/stale_context_cases.json` | 13 `check_plan_freshness` cases: fresh, rebasable (identical body, block moved down or up, another block edited, second occurrence) and stale (context changed, block missing, block deleted with its id reused, anchor moved, anchor removed, anchor wrapped in a link, paragraph moved into a table). |
 
 ### How the judgments were written
@@ -41,7 +41,13 @@ the corpus text, **before** the engine existed. Engine output was never pasted i
   - R1: relatedness `unrelated` pairs are BAD;
   - R2: listing hubs and the market-less digest are BAD;
   - R3: an industry hub is ACCEPTABLE for its own industry and BAD otherwise;
-  - R4: pages that are not linkable targets are BAD.
+  - R4: pages that are not linkable targets are BAD;
+  - R5 (Phase 3, QA M3): a pair whose natural mention is the SOURCE's own market name, or a word
+    fragment of one, is ACCEPTABLE, not GOOD, unless it is a commercial hop (article →
+    commercial-research report). The engine links such a pair only in a block that also names the
+    target's distinctive geography (ADR-0011 §9.1), so a GOOD label for it contradicted the rule.
+    The 45 relabelled entries keep their mention and relationship and are tagged in `why`; they
+    still count as judged positives.
 
 **Two pairs were added after an engine run surfaced them as unjudged.** They were judged by the
 same rubric and are flagged in their `why`:
@@ -60,7 +66,7 @@ corpus:
 
 | Eval | File | Kind |
 |---|---|---|
-| Must-not rules (19) | `tests/integration/test_recommendation_evals.py` | hard gate, zero tolerance, over every plan |
+| Must-not rules (20) | `tests/integration/test_recommendation_evals.py` | hard gate, zero tolerance, over every plan |
 | Quality metrics | same | regression floors |
 | Idempotency and locator round-trip | same | pass/fail |
 | Placement safety (excluded markup) | same, second test | pass/fail |
@@ -93,7 +99,9 @@ Its anchor must never:
 - sit under an excluded ancestor. The block's `enclosing` and the span's run are checked, and the
   safety page proves it with tables, captions, blockquotes, figures, `pre`/`code`, `cite`, `q`,
   `sup` and `sub`;
-- overlap an existing link, or push a block over `max_links_per_block`.
+- overlap an existing link, or push a block over `max_links_per_block`;
+- be a strict fragment of a longer market label or alias occurring around it ("battery energy"
+  inside "battery energy storage").
 
 The verbatim slice, the context hash and the occurrence index must hold. The run must respect:
 - the per-source, per-target and link-density caps;
@@ -122,22 +130,25 @@ floor to 0.3, because feature-hashing cosines are low. Ollama mode keeps the cal
 
 | Config | Provider | Plans | Sources with plans | P@3 | Recall GOOD | BAD rate | Anchor exact | Must-not |
 |---|---|---|---|---|---|---|---|---|
-| all | mock | 46 | 27 | 0.98 | 0.20 | 0.022 | 1.00 (11/24) | 0 |
-| only_taxonomy | mock | 39 | — | 1.00 | 0.18 | 0.000 | 1.00 | 0 |
-| only_graph | mock | 31 | — | 1.00 | 0.15 | 0.000 | 1.00 | 0 |
-| no_* (any one channel off) / graph_weight_0 | mock | 45–46 | 27 | 0.98 | 0.20 | ≤ 0.022 | 1.00 | 0 |
-| all | ollama `nomic-embed-text` | 46 | 27 | 1.00 | 0.21 | 0.000 | 1.00 (13/24) | 0 |
+| all | mock | 48 | 30 | 0.98 | 0.78 | 0.021 | 1.00 (11/24) | 0 |
+| only_taxonomy | mock | 41 | — | 1.00 | 0.72 | 0.000 | 1.00 | 0 |
+| only_graph | mock | 35 | — | 1.00 | 0.63 | 0.000 | 1.00 | 0 |
+| no_* (any one channel off) / graph_weight_0 | mock | 47–48 | 30 | 0.98 | 0.78 | ≤ 0.022 | 1.00 | 0 |
+| all | ollama `nomic-embed-text` | 48 | 30 | 1.00 | 0.80 | 0.000 | 1.00 (13/24) | 0 |
 
-**The anchor rule behind these numbers.** This is a reviewed decision; see ADR-0011 §5 and
-`FLOORS` in the integration test.
-- **Before the rule (107 plans, recall 0.94):** most plans were same-market, cross-country links
-  anchored on the source page's *own* market phrase, such as "cold chain" on the India report
-  linking to the UAE report. That anchor describes the page the reader is already on, which is
-  misleading (PRD v1.1 §12.4).
-- **The rule:** such a phrase is a valid anchor only when the same block names one of the
-  target's distinctive geographies, such as "electric vehicles … in Thailand". The engine
-  dropped about 60 plans, and recall of the GOOD judgments fell to 0.20. Every safety gate
-  stayed green, and precision rose or held.
+Recall is over the 30 GOOD pairs left after rule R5.
+
+**The anchor rule behind these numbers.** See ADR-0011 §9.1; flagged for product-owner review.
+- **Before the rule (107 plans, recall 0.94 on the original 75 GOOD):** most plans were
+  same-market, cross-country links anchored on the source page's *own* market phrase, such as
+  "cold chain" on the India report linking to the UAE report. That anchor describes the page the
+  reader is already on, which is misleading (PRD v1.1 §12.4).
+- **The rule:** such a phrase, or a word fragment of it, is a valid anchor only when the same
+  block names one of the target's distinctive geographies, such as "electric vehicles … in
+  Thailand", except on a commercial hop (an article linking to the report on its market).
+- **The labels:** recall on the original GOOD set fell to 0.20, because those labels expected the
+  self-describing anchor. QA found the contradiction; rule R5 relabelled those 45 pairs
+  ACCEPTABLE, and the recall floor was restored to 0.70.
 - **The dropped relationships are still visible:** `same_market` edges on every page's
   Intelligence panel.
 - **Recovering them needs natural text.** The source must name the target's country or region
@@ -147,13 +158,14 @@ floor to 0.3, because feature-hashing cosines are low. Ollama mode keeps the cal
 **Determinism:**
 - With the mock provider, two independent ingestions give identical plans
   (`determinism_after_reingest.identical = true`).
-- With nomic, 1 of 46 plans differed between ingestions. Local embedding inference has small
-  floating-point noise, which flips a near-tie in the k-nearest-neighbour search. That is model
-  nondeterminism, not engine order. Sources are processed by canonical URL.
+- With nomic, the final run was also identical. Earlier runs saw 1 of 46 plans differ, because
+  local embedding inference has small floating-point noise that can flip a near-tie in the
+  k-nearest-neighbour search. That is model nondeterminism, not engine order: sources are
+  processed by canonical URL and ties break on the target's canonical URL.
 
 **Ablations:** each channel alone keeps precision. On this 46-target corpus, any single channel
 off changes almost nothing, because k = 30 is nearly exhaustive. The `graph` complementarity
-component shows no measurable value here (weight 0 changes one plan). Re-weighting it is a
+component shows little measurable value here (weight 0 changes one plan with mock, six with nomic). Re-weighting it is a
 policy v2 decision, which needs a human.
 
 ## Regression floors (integration test)
@@ -161,16 +173,16 @@ policy v2 decision, which needs a human.
 | Metric | Floor | Measured (mock) |
 |---|---|---|
 | precision@3 (macro) | ≥ 0.90 | 0.98 |
-| recall of GOOD (macro) | ≥ 0.15 (lowered from 0.80, a reviewed decision; see Results) | 0.20 |
+| recall of GOOD (macro) | ≥ 0.70 (on the 30 GOOD pairs after R5) | 0.78 |
 | anchor exact match | ≥ 0.85, with ≥ 5 pairs proposed | 1.00 (11 pairs) |
-| BAD rate | ≤ 0.03 | 0.022 (nomic 0.00) |
+| BAD rate | ≤ 0.03 | 0.021 (nomic 0.00) |
 | unjudged rate | ≤ 0.05 | 0.00 |
-| sources with plans | ≥ 25 of 46 | 27 |
+| sources with plans | ≥ 25 of 46 | 30 |
 
 Floors sit a little below the measured values. They are a regression gate, not a target, and
-lowering one is a reviewed decision. The recall floor was lowered once, for the self-describing
-anchor rule; the reason is in Results above and in `FLOORS` in the test. Every must-not rule is
-zero-tolerance.
+changing one is a reviewed decision. History: the recall floor was lowered to 0.15 when the
+self-describing-anchor rule landed, then restored to 0.70 once QA showed the labels, not the
+engine, were inconsistent (rule R5). Every must-not rule is zero-tolerance.
 
 ## Caveats
 
@@ -183,9 +195,7 @@ zero-tolerance.
   regression checks, not as editorial quality.
 - **Raw confidence.** `confidence` is the raw `total` (`calibration_version = null`). No metric here
   is a calibration measurement, and no threshold may treat these numbers as calibrated (Phase 8).
-- **Small sample.** With 46 sources and about 105 plans, one plan moves precision by about 0.01
-  and recall by about 0.02.
-- **The freshness reason `anchor_moved`.** The engine reports `context_changed` when the anchor
-  moved or vanished inside an edited block. The fixture expects `anchor_moved`, and these cases
-  are strict xfails. The verdict is `stale` either way, so the behaviour is safe; only the
-  diagnostic differs.
+- **Small sample.** With 46 sources and about 48 plans, one plan moves precision by about 0.01
+  and recall by about 0.03.
+- **The freshness reason `anchor_moved`.** Resolved: an edited block whose anchor moved or
+  vanished now reports both `context_changed` and `anchor_moved`, and no case is an xfail.

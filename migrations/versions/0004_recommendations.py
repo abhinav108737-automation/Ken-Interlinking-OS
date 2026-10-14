@@ -53,7 +53,7 @@ _OPEN = "status IN ('proposed', 'critiqued', 'policy_checked', 'awaiting_approva
 _REJECTIONS = (
     "rejection IN ('self_link', 'source_protected', 'target_protected', 'experiment_locked', "
     "'source_ineligible', 'target_ineligible', 'already_linked', 'duplicate_recommendation', "
-    "'previously_rejected', 'page_type_incompatible', 'below_min_relevance', "
+    "'previously_rejected', 'target_excluded', 'page_type_incompatible', 'below_min_relevance', "
     "'no_natural_anchor', 'below_min_score', 'link_density_exceeded', 'per_source_limit', "
     "'diversity_limit')"
 )

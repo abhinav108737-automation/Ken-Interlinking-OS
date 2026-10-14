@@ -23,6 +23,7 @@
           "already_linked",
           "duplicate_recommendation",
           "previously_rejected",
+          "target_excluded",
           "page_type_incompatible",
           "below_min_relevance",
           "no_natural_anchor",

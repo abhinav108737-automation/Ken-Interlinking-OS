@@ -26,15 +26,9 @@ CASES: list[dict[str, Any]] = stale_cases()["cases"]
 IDS = [case["id"] for case in CASES]
 VOCABULARY = frozenset(stale_cases()["reason_vocabulary"])
 
-_ANCHOR_MOVED_GAP = (
-    "Engine reports context_changed, not anchor_moved, when the anchor moved or vanished inside "
-    "an EDITED block: its anchor_moved fires only when the context hash still matches (which a "
-    "consistent locator cannot produce). Verdict is stale either way (safe); only the "
-    "diagnostic reason differs. Reported to the orchestrator; remove once decided."
-)
 KNOWN_REASON_MISMATCHES: dict[str, str] = {}
-# Resolved by the orchestrator: an edited block whose anchor moved or vanished now reports
-# context_changed AND anchor_moved (freshness.py). _ANCHOR_MOVED_GAP kept for the record.
+# Resolved in Phase 3: an edited block whose anchor moved or vanished now reports
+# context_changed AND anchor_moved (freshness.py).
 """Case id -> why the engine's reason code differs from the fixture (reported, not hidden).
 Strict xfail: if the engine starts reporting the fixture's reason, the XPASS fails and the
 entry must be removed."""

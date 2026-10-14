@@ -121,6 +121,29 @@ make analyze ARGS="--force"        # recompute relationships/protections for eve
 - **Evals:** `.venv/bin/pytest tests/unit/intelligence_evals`. Benchmark:
   `.venv/bin/python evals/intelligence/benchmark.py --provider ollama`.
 
+## Recommendation engine (Phase 3)
+
+```bash
+make recommend                         # propose links for every eligible source (idempotent)
+make recommend ARGS="--source <id>"    # one or more specific source pages
+```
+
+- Run it after `make analyze`; it needs fresh analyses. Embeddings are optional, and the
+  semantic channel switches off without them.
+- **Policy is data:** `policies/recommendation/recommendation.v1.yaml` holds retrieval sizes,
+  caps, density, intent and page-type compatibility, and anchor rules. Weights live in
+  `policies/ranking/ranking_weights.v1.yaml`. Change them by adding a `v2` file, never by editing
+  in place.
+- **Read-only endpoints:** `GET /recommendations` (filters: status, source, target, minimum
+  score), `/recommendations/{id}`, `/recommendations/candidates`,
+  `/recommendations/opportunities` and `/recommendations/summary`. Approve, reject and edit come
+  in Phase 5.
+- **Screens:** `/recommendations`, the plan detail (highlighted placement, score breakdown,
+  reasons, history), opportunities, candidates, and per-page sections on page detail.
+- **Evals:** `KEN_REQUIRE_INTEGRATION_DB=1 .venv/bin/pytest tests/integration/test_recommendation_evals.py -rA`
+  and `.venv/bin/python evals/recommendations/benchmark.py`. The benchmark refuses any database
+  not named `*_test`.
+
 ## Quality gates
 
 ```bash

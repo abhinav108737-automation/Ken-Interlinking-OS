@@ -10,11 +10,12 @@
   moved (new id, same text) is still rebasable.
 * **stale** -- anything else, with reasons, in this order:
 
-  ``version_changed`` always, then exactly one of
+  ``version_changed`` always, then one or more of
   ``block_missing``   no block has the hash, and no block has the hinted id;
   ``context_changed`` no block has the hash but the hinted id exists (its text changed),
                       or the hash matches only blocks whose kind or safety changed;
-  ``anchor_moved``    a hash-matching block exists but ``text[start:end]`` is not the anchor.
+  ``anchor_moved``    ``text[start:end]`` is not the anchor -- in a hash-matching block, or
+                      (together with ``context_changed``) in the edited hinted block.
 
 Pure: the caller supplies ``extract_blocks`` of the CURRENT version's body.
 """

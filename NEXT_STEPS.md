@@ -1,14 +1,15 @@
 # Next Steps
 
-**Current state:** Phase 2 (Content Intelligence) is **complete**; see
-[PHASE_2_REPORT.md](PHASE_2_REPORT.md). The earlier phases are covered in
-[PHASE_1_REPORT.md](PHASE_1_REPORT.md) and [PHASE_0_REPORT.md](PHASE_0_REPORT.md).
+**Current state:** Phase 3 (Recommendation Engine) is **complete**; see
+[PHASE_3_REPORT.md](PHASE_3_REPORT.md). The earlier phases are covered in
+[PHASE_2_REPORT.md](PHASE_2_REPORT.md), [PHASE_1_REPORT.md](PHASE_1_REPORT.md) and
+[PHASE_0_REPORT.md](PHASE_0_REPORT.md).
 
 **Execution mode:** the user has authorised autonomous, sequential execution of Phases 3–9, an
 end-to-end local demo and a final report. Each phase has internal gates and a local commit plus
 tag. Execution stops only for ASK/BLOCK actions.
 
-**Next phase:** Phase 3 (Recommendation Engine), in progress under that authorisation.
+**Next phase:** Phase 4 (LangGraph agent orchestration), proceeding under that authorisation.
 
 ## Needed from you before real production ingestion
 
@@ -27,7 +28,27 @@ any governing document, so none was guessed.
 | 5 | **Scope:** which sections are in scope (e.g. only `/industry-reports/…`), which are excluded, and which pages are **protected** (never to be modified later) | Phase 3 eligibility and Phase 6 safety depend on it | decision |
 | 6 | Is the site multilingual? | Language comes only from markup and headers (no detection library) | decision |
 | 7 | **Ken's real taxonomy**: markets/industries with aliases, geographies, a company/product gazetteer, page-type URL patterns, and protected-page rules | `policies/taxonomy/taxonomy.v1.yaml` is an illustrative seed. Classification quality on the real site depends on this. | data |
+| 9 | **Self-describing anchors (ADR-0011 §9.1):** should a same-market, cross-country pair (India cold-chain report → UAE cold-chain report) be linkable on the plain market name ("cold chain")? Today: only when the block also names the target's country/region, or on an article → report hop. 45 eval pairs were relabelled ACCEPTABLE accordingly (rule R5). | Editorial policy; one policy switch either way | decision (orchestrator default in place) |
 | 8 | **PRD v1.1 §17.1 wording:** "a genuine native degraded mode" now holds only for schema ≤ 0002 (pgvector is required from Phase 2, ADR-0010) | A product-document revision, for your approval | decision |
+
+## Hard gates carried into later phases (from the Phase 3 QA review)
+
+| Gate | Phase |
+|---|---|
+| **Authenticated actors.** The transition service enforces actor CLASS authority (`TRANSITION_AUTHORITY`: only `user:` approves/rejects/supersedes), but trusts its caller about who the user is. Every mutating endpoint must derive `user:<id>` from the authenticated session, never from the request body. | 5 |
+| **Deploy-time re-validation.** Before any CMS mutation, re-check freshness (`check_plan_freshness`), active protections and live eligibility of source and target, and the existing-link state. The recommendation run already expires invalid open plans, but a deploy may happen between runs. | 6 |
+| **DB-level status integrity.** A direct `UPDATE link_plans SET status = …` by the app role is possible (the content trigger only guards content). Route status changes through a SECURITY DEFINER function or a transition-validating trigger, and use a least-privilege role. | 6 |
+| Inline `style="display:none"` is not detected by placement (the `hidden` / `aria-hidden` attributes are). Post-publish verification must render the page. | 6 |
+
+## Phase 3 known limitations (accepted, documented)
+
+| Item | When |
+|---|---|
+| The semantic channel is an exact KNN scan per source, O(N²) per run; the graph channel runs a correlated inbound-count subquery per candidate (`world.inbound` already holds the counts). Fine for the demo; add an HNSW/ivfflat index (pgvector, no new service). | at scale |
+| `recommendation.v1` and migration 0004 were amended in place before release (ADR-0011 §9.8); both are immutable from the `phase-3-complete` tag. Any local DB at 0004 from before the tag must be rebuilt (`downgrade 0003_content_intelligence`, `upgrade head`). | — |
+| Channel ablations barely move the metrics on the 65-page demo (k = 30 is nearly exhaustive); placement is the binding constraint. Re-measure on Ken's content before re-weighting. | 8 |
+| Raw confidence only (`calibration_version = null`). | 8 |
+| Adding `page_versions.search_vector` rewrites the table under ACCESS EXCLUSIVE: schedule the migration on a large production table. | before production |
 
 ## Phase 2 known limitations (accepted, documented)
 
@@ -41,7 +62,6 @@ any governing document, so none was guessed.
 | `page_protections` "never deleted" is enforced by the application. Add a trigger rejecting DELETE and non-deactivating UPDATEs. | 5 (with RBAC) |
 | A job run whose finishing step itself fails stays `running` (no reaper). Losing the advisory-lock connection mid-run silently drops the lock. | 6 (scheduler) |
 | Analysis has no per-page time budget (linear, about 1.6 s/MB of hostile text). | optional |
-| Relationships do not filter gone targets or old `analysis_version` edges at read time. Phase 3 eligibility applies. | 3 |
 
 ## Phase 1 known limitations (accepted, documented)
 
@@ -70,14 +90,14 @@ any governing document, so none was guessed.
 | Extend mypy `strict` to `ken_agents` before LLM-boundary code lands there | before 4 |
 | **Version-aware event reads** (cleanup QA M1): `list_events` re-validates stored rows against today's rules | before 8 |
 | Bump `asyncpg` 0.31.0 → 0.32.x after soak; record in ADR-0004 | when convenient |
-| An ANN index; tuning channel weights on real labelled data | 3 / 8 |
+| An ANN index; tuning channel weights on real labelled data | at scale / 8 |
 | Starlette deprecation warning: `starlette.testclient` with `httpx` | when upgrading Starlette |
 | CI workflow authored but never run (no git remote; pushing is ASK) | when a remote exists |
 | Non-editable wheel build across the package roots (now five) not yet verified | before any distribution |
 | `GET /meta`, `/docs`, `/ready` and `/inventory/*` are unauthenticated: fine locally; RBAC (TRD §23) before any shared environment | 5 |
 | QA L1: unlisted 4xx map to `validation_failed` (e.g. 405); map 401/403 → `permission_denied`, add a 405 code | before auth (5) |
 | QA L5: append-only `events` not enforced in the DB (unlike `page_versions`/`existing_links`, which now are); app connects as superuser `ken` | 5 / 6 |
-| QA L6: links **to** protected pages, `javascript:` hrefs and empty anchors must be rejected by Phase 3 eligibility / the Phase 6 validator | 3 / 6 |
+| QA L6: `javascript:` hrefs and empty anchors must be rejected by the Phase 6 validator (links **to** protected pages are now rejected by Phase 3: `target_protected`, and open plans expire) | 6 |
 | QA L7: a second (no-op) rollback returns the first caller's `actor` | 6 |
 | QA L8: floating image tags; CI actions pinned by tag; three identical compose images | before any shared env |
 | QA L9: `/ready` unauthenticated, 3 DB sessions per call | 5 |
@@ -86,6 +106,13 @@ any governing document, so none was guessed.
 | Re-verify the licence inventory of any packaged desktop bundle (`sharp` is LGPL) | before desktop distribution |
 | 5432 guard does not resolve DNS (`127.1`, decimal IPs) | optional |
 | Colima does not start at login: run `colima start` after a reboot | — |
+
+**Closed in Phase 3:**
+- Phase 2 relationships to gone or stale targets: recommendation eligibility is computed live.
+- QA L6 (part): no plan targets a protected page, and an open plan expires when its page becomes
+  protected, gone or ineligible.
+- Freshness diagnostics: an edited block whose anchor moved reports `context_changed` and
+  `anchor_moved`.
 
 **Closed in Phase 2:**
 - The embedding model is pulled and used (`nomic-embed-text`, Apache-2.0), with the dimension
@@ -102,7 +129,8 @@ any governing document, so none was guessed.
 
 ## Operating reminders
 
-- Work one phase at a time; stop at the phase boundary (CLAUDE.md).
+- Work one phase at a time. Under the current authorisation, continue to the next phase after
+  each phase gate passes; stop only for ASK/BLOCK actions.
 - Frozen contracts change only through the orchestrator (docs/CONTRACTS.md).
 - Never add Qdrant, Neo4j, Redis, Kafka, Celery, Temporal or a paid API without an explicit user decision.
 - Before crawling anything other than a local fixture, get the site approved. Before binding a test

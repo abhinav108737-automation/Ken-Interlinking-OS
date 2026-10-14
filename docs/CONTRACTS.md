@@ -22,6 +22,7 @@ convention, not a freeze.
 | `errors.py` | `ErrorResponse`, `ErrorCode`, `ListResponse[T]`, `PageInfo` |
 | `intelligence.py` | Phase 2. Taxonomy policy schema (`TaxonomyPolicy`), `PageAnalysis`, embeddings/relationships/protections views, `LinkEligibility`, `IntelligenceReader` |
 | `jobs.py` | Phase 2. `JobKind`, `JobRunSummary` / `JobRunDetail`, `JobCompletedPayload`, `JobReader` — the run record of every batch job from Phase 2 on |
+| `recommendations.py` | Phase 3. `LinkPlan` / `LinkCandidate` views, `CandidateRejection`, `LinkPlanStatus` + `ALLOWED_TRANSITIONS` / `TRANSITION_AUTHORITY`, `ACTOR_PATTERN`, `RecommendationPolicy` / `RankingPolicy`, `PlacementLocator`, `FreshnessCheck`, `ExperimentGuard`, `RecommendationReader` |
 | `inventory.py` | Phase 1. `ContentSourceProvider` + `CMSInventoryReader` protocols, `SourceDocument` / `SourceIssue`, `SiteScope`, `CrawlConfig`, `NormalizedPage`, the JSONL export format, inventory event payloads, API read models, `InventoryReader` (the API's only route to persistence) |
 
 ## Rules
@@ -240,6 +241,23 @@ Design: [ADR-0011](adr/ADR-0011-recommendation-engine.md). Module: `recommendati
   confidence as calibrated.
 - **Actors** on transitions and events are `user:<id>`, `agent:<name>@<version>` or
   `system:<component>` (`ACTOR_PATTERN`).
+- **Actor authority** (`TRANSITION_AUTHORITY`, `may_transition`): only `user:` moves a plan to
+  approved / rejected / superseded; only `system:` to validated / deployed / verified / failed /
+  rolled_back / expired / measured / learning_captured; `agent:` only to critiqued /
+  policy_checked / awaiting_approval. The transition service raises `UnauthorizedActorError`.
+  Authenticating a `user:` actor is the API's responsibility (Phase 5).
+- **Open plans fail closed on DURABLE reasons.** Every run expires (`invalid: …`) an open plan
+  whose source or target is protected, gone, unpublished, noindex, a canonical alias, thin or an
+  excluded page type, or whose pair is now already linked. Analysis lag and HTTP errors only pause
+  generation (`DURABLE_INELIGIBILITY` in the pipeline).
+- **Rejection codes** are evaluated in `CandidateRejection` order; `target_excluded` is a target
+  path in `excluded_target_paths` (default the home page).
+- **Destination diversity** (`max_open_plans_per_target`) counts OPEN plans from every source,
+  seeded from the database each run, so re-runs are idempotent.
+- **`FreshnessCheck.block_id`** is the matched CURRENT block (fresh or rebasable), for Phase 6
+  relocation; stale results carry their reasons.
+- **Policy `recommendation.v1` and migration 0004 are immutable from the Phase 3 tag** (they were
+  amended pre-release; ADR-0011 §9.8).
 - **The recommendations API is GET-only in Phase 3.** Approve, reject and edit arrive in Phase 5,
   behind authentication.
 

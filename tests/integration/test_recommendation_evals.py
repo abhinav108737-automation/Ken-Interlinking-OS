@@ -50,27 +50,27 @@ SM = async_sessionmaker[AsyncSession]
 
 FLOORS: dict[str, float] = {
     "precision_at_3_macro": 0.90,
-    "recall_good_macro": 0.15,
+    "recall_good_macro": 0.70,
     "anchor_exact_match": 0.85,
 }
 """Regression floors (a gate, not a target).
 
-REVIEWED DECISION (orchestrator, Phase 3 integration, 2026-10-14): the engine no longer
-anchors a link on a phrase naming the SOURCE page's own market unless the same block
-names one of the target's distinctive geographies (ADR-0011 section 5; PRD v1.1 section
-12.4, "no misleading anchor text"). Most GOOD judgments are same-market, cross-country
-pairs whose only natural phrase is that generic market name ("cold chain" on the India
-report -> the UAE report), so recall of GOOD fell from 0.92 to 0.20 while precision@3
-stayed 0.98 and every hard gate stayed green. The recall floor was lowered from 0.80 to
-0.15 for that reason -- not to make a failing build pass: the dropped pairs are exactly
-the misleading anchors the rule exists to prevent. Measured now (mock): precision@3
-0.98, recall 0.20, anchor exact match 1.00 on 11 of 24 pairs."""
+History (Phase 3, 2026-10-14): the self-describing-anchor rule (ADR-0011 section 9.1: no
+link anchored on the SOURCE page's own market name unless the block names the target's
+distinctive geography, except on a commercial hop) dropped recall of the ORIGINAL GOOD set
+from 0.92 to 0.20, because most of those GOOD pairs expected exactly that anchor. QA (M3)
+found the labels contradicted the rule; the 45 affected pairs were relabelled ACCEPTABLE by
+the deterministic rule R5 in the judgments file (tagged in ``why``; still judged positives,
+so precision is unchanged) and the recall floor was RESTORED to a meaningful 0.70 on the
+remaining 30 GOOD pairs. Measured (mock): precision@3 0.98, recall 0.78, anchor exact
+match 1.00, BAD rate 0.021. Whether same-market cross-country links deserve an anchor at
+all is an open editorial decision for the product owner (NEXT_STEPS)."""
 MAX_BAD_RATE = 0.03
 """Ceiling on the share of judged plans whose target is BAD (mock 0.022, nomic see README)."""
 MAX_UNJUDGED_RATE = 0.05
 """Ceiling on plans to targets the judgments do not cover (keeps the metrics meaningful)."""
 MIN_SOURCES_WITH_PLANS = 25
-"""Of 46 judged sources, 27 receive plans under the context rule (42-43 before it)."""
+"""Of 46 judged sources, 30 receive plans under the context rule (42-43 before it)."""
 MIN_ANCHOR_PAIRS_PROPOSED = 5
 """The exact-anchor metric needs enough of its 24 pairs to be proposed to mean anything."""
 

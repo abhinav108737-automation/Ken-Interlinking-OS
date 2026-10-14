@@ -214,6 +214,10 @@ def must_not_violations(
     select = policy.selection
     forbidden = {a.lower() for a in place.forbidden_anchors}
     excluded = frozenset(place.excluded_ancestors)
+    all_market_phrases = sorted(
+        {" ".join(p.split()).lower() for m in taxonomy.markets for p in (m.label, *m.aliases)},
+        key=len,
+    )
 
     def bad(rule: str, plan: PlanRecord, detail: str) -> None:
         found[rule].append(
@@ -293,6 +297,14 @@ def must_not_violations(
                 bad("MN-excluded-ancestor", plan, "span is not inside exactly one text run")
             elif inside[0].ancestors & excluded:
                 bad("MN-excluded-ancestor", plan, f"span under {sorted(inside[0].ancestors)}")
+        # Never a strict fragment of a longer market phrase occurring around the anchor.
+        for phrase in all_market_phrases:
+            if len(phrase) <= len(low) or low not in phrase:
+                continue
+            for s in _occurrences(phrase, block.text):
+                covers = s <= plan.start and plan.end <= s + len(phrase)
+                if covers and (s, s + len(phrase)) != (plan.start, plan.end):
+                    bad("MN-fragment-anchor", plan, f"fragment of {phrase!r}")
         # Existing links: no overlap, and block capacity (existing + planned).
         existing = src.links_by_block.get(block.block_id, ())
         for text in existing:
@@ -340,7 +352,7 @@ def must_not_violations(
         if n > select.max_plans_per_source:
             found["MN-per-source"].append(f"{pages[source].canonical_url}: {n} plans in one run")
     for (_run, target), n in per_run_target.items():
-        if n > select.max_plans_per_target_per_run:
+        if n > select.max_open_plans_per_target:
             found["MN-per-target"].append(f"{pages[target].canonical_url}: {n} plans in one run")
     for (source, target), n in pairs.items():
         if n > 1:

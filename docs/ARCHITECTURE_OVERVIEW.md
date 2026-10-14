@@ -1,6 +1,6 @@
 # Architecture Overview
 
-How the Ken Research Agentic Interlinking OS is put together, and what Phases 0–2 actually built.
+How the Ken Research Agentic Interlinking OS is put together, and what Phases 0–3 actually built.
 The governing specification is TRD.md; this page maps it onto the repository.
 
 ## The target architecture (TRD §3)
@@ -90,6 +90,27 @@ start one. Design and rules: [ADR-0009](adr/ADR-0009-content-inventory.md).
 - Similarity is an exact cosine KNN; an ANN index is deferred until latency is measured.
 - Design: [ADR-0010](adr/ADR-0010-content-intelligence.md).
 
+## What Phase 3 added: the recommendation engine
+
+```
+ eligible source ──▶ channels: semantic (pgvector) · lexical (tsvector FTS) · taxonomy (edges) · graph (under-linked)
+                 ──▶ pair filters: self · protected · experiment hook · eligibility · already linked · duplicate/live
+                                   · previously rejected · page type/intent · excluded target paths
+                 ──▶ score: relevance = Σ policy weight × component  (ranking_weights.v1)
+                 ──▶ placement: a verbatim phrase in a safe text run (never headings/tables/quotes/code/links,
+                                never the source's own market without the target's geography in context)
+                 ──▶ total = relevance × placement_quality ──▶ caps: density · per source · open plans per target
+                 ──▶ link_plans* (content immutable; status via ALLOWED_TRANSITIONS → link_plan_transitions*)
+                     link_candidates* (audit of every candidate) · opportunities · link.proposed events
+ GET /recommendations* ◀── SqlRecommendationReader      * immutable / append-only (DB triggers)
+ apps/web: /recommendations · /recommendations/[id] · /recommendations/opportunities · /recommendations/candidates
+```
+
+- Recommendations are deterministic: no LLM is involved, and every number is checkable from the
+  plan record.
+- `plan.id` is the stable link id for Phase 6 deployment and Phase 7 analytics.
+- Design: [ADR-0011](adr/ADR-0011-recommendation-engine.md).
+
 ## Boundaries that are enforced in code, not by convention
 
 | Boundary | Where enforced |
@@ -145,4 +166,5 @@ Proposing one requires stopping and asking the user (CLAUDE.md), with an ADR.
 | [0007](adr/ADR-0007.md) | Hybrid local topology; host Ollama preferred |
 | [0008](adr/ADR-0008-electron-readiness.md) | Electron readiness: web UI canonical, typed bridge, Electron deferred |
 | [0009](adr/ADR-0009-content-inventory.md) | Phase 1 content inventory: sources, identity, immutable versions, read-time link resolution, crawler politeness |
+| [0011](adr/ADR-0011-recommendation-engine.md) | Phase 3 recommendation engine: four retrieval channels, ordered filters, transparent policy-weighted score, verbatim context-supported placement, immutable LinkPlans with an allowed-transition lifecycle |
 | [0010](adr/ADR-0010-content-intelligence.md) | Phase 2 content intelligence: pgvector required from 0003, taxonomy-policy analysis, provider-defined embeddings, version-stamped relationships, protections, read-time eligibility, generic job runs |

@@ -461,7 +461,7 @@ export interface components {
          *     FINAL score), then selection caps (density, per-source, diversity).
          * @enum {string}
          */
-        CandidateRejection: "self_link" | "source_protected" | "target_protected" | "experiment_locked" | "source_ineligible" | "target_ineligible" | "already_linked" | "duplicate_recommendation" | "previously_rejected" | "page_type_incompatible" | "below_min_relevance" | "no_natural_anchor" | "below_min_score" | "link_density_exceeded" | "per_source_limit" | "diversity_limit";
+        CandidateRejection: "self_link" | "source_protected" | "target_protected" | "experiment_locked" | "source_ineligible" | "target_ineligible" | "already_linked" | "duplicate_recommendation" | "previously_rejected" | "target_excluded" | "page_type_incompatible" | "below_min_relevance" | "no_natural_anchor" | "below_min_score" | "link_density_exceeded" | "per_source_limit" | "diversity_limit";
         /**
          * CandidateView
          * @description A retrieved candidate, kept or rejected, for explainability and evals.

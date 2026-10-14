@@ -28,8 +28,8 @@ selection:
   min_relevance: 0.30                    # pruned BEFORE placement
   min_score: 0.35                        # FINAL score (after placement) below this is never proposed
   rejection_cooldown_days: 90            # a reviewer-rejected pair is not re-proposed for this long
-  max_plans_per_source: 3                # per run
-  max_plans_per_target_per_run: 5        # destination diversity
+  max_plans_per_source: 3                # OPEN plans per source (across runs)
+  max_open_plans_per_target: 5        # destination diversity
   max_internal_links_per_100_words: 2.0  # existing + proposed (over-linking guard)
   max_links_per_block: 1                 # a block that already holds a link is not used
 
@@ -43,8 +43,12 @@ placement:
   skip_first_block: false
   # The anchor span may not sit under any of these (PRD v1.1 12.4): links, tables,
   # quotes, figures, code, citations, footnote markers, headings.
+  # QA (Phase 3, pre-release amendment): also form/semantic wrappers, non-rendered media
+  # fallback text (a hidden-link risk) and non-body regions (PRD v1.1 s12.4 body only).
   excluded_ancestors: [a, table, thead, tbody, tr, td, th, blockquote, figure, figcaption,
-                       pre, code, kbd, samp, cite, q, sup, sub, h1, h2, h3, h4, h5, h6, caption]
+                       pre, code, kbd, samp, cite, q, sup, sub, h1, h2, h3, h4, h5, h6, caption,
+                       label, legend, del, s, small, video, audio, canvas, math, map,
+                       header, footer, dialog, address, details, summary, fieldset]
 
 # source intent -> target intent -> compatibility in [0, 1] (missing = 0 = reject).
 intent_compatibility:

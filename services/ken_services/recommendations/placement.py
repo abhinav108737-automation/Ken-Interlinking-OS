@@ -22,7 +22,9 @@ excluded element (``<td><p>``, ``<blockquote><p>``) and, with ``skip_first_block
 opening block. Occurrences are whole-phrase and case-insensitive
 (:func:`phrase_occurrences`). A span must lie inside ONE text run with no excluded
 ancestor (so never inside an existing link: nested links are impossible), and must not
-overlap a span already taken for this source (same ``context_hash``). The anchor is copied
+overlap a span already taken for this source (same ``context_hash``), and must not be a
+strict FRAGMENT of a longer market phrase or anchor phrase occurring there ("battery
+energy" inside "battery energy storage"). The anchor is copied
 VERBATIM from ``block.text[start:end]`` and re-checked against the anchor rules.
 
 **Choice**: the minimum of (phrase rank, anchor length descending, block salience
@@ -41,7 +43,7 @@ from collections.abc import Collection, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Final, Literal
 
-from ken_contracts.intelligence import PageAnalysis, TaxonomyPolicy
+from ken_contracts.intelligence import Intent, PageAnalysis, TaxonomyPolicy
 from ken_contracts.recommendations import (
     PlacementLocator,
     PlacementPolicy,
@@ -67,6 +69,7 @@ __all__ = [
     "anchor_rule_ok",
     "find_placement",
     "keyword_bigrams",
+    "market_phrases",
     "phrase_occurrences",
     "preview_for",
     "span_is_safe",
@@ -110,7 +113,8 @@ class AnchorPhrase:
     rank: int
     context_terms: tuple[str, ...] = ()
     """If non-empty, the phrase is only a valid anchor in a block that ALSO names one of
-    these (whole-phrase, case-insensitive): the surrounding sentence must support it."""
+    these (whole-phrase, case-insensitive): the surrounding BLOCK (paragraph or list item)
+    must support it. Per block, not per sentence."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -278,17 +282,29 @@ def anchor_phrases(
     """The target's anchor candidates in rank order (module docstring). Pure.
 
     With ``source``, a phrase that names the SOURCE page's own market (its label or
-    an alias) describes that page itself: on the India cold-chain report, "cold
+    an alias) can describe that page itself: on the India cold-chain report, "cold
     chain" alone must not link to the UAE cold-chain report (PRD v1.1 section 12.4,
     no misleading anchors). Such a phrase is kept ONLY with ``context_terms`` = the
     target's distinctive geographies (those the source does not cover), so it is a
     valid anchor only in a block that also names one of them ("cold chain capacity
-    in the UAE"). If the target has no distinctive geography, the phrase is dropped.
+    in the UAE"). If the target has no distinctive geography, the phrase is dropped --
+    EXCEPT on a commercial hop (an INFORMATIONAL page linking to the commercial-research
+    page on that market), where it is the natural anchor. A title core or keyword bigram
+    that is a word fragment of an own-market name is treated as that name.
     """
     index = taxonomy_index(taxonomy)
     geo = _geography_phrases(taxonomy)
     own: set[str] = set()
     distinctive: tuple[str, ...] = ()
+    # An article (informational intent) linking to the commercial-research page on the
+    # SAME market and geography is the core reader journey -- from discussion to the
+    # authoritative report -- not a misleading anchor: "cold chain" in an India vaccine
+    # cold-chain article may link to the India cold-chain market report (ADR-0011 s9.1).
+    commercial_hop = (
+        source is not None
+        and target.intent is Intent.COMMERCIAL_RESEARCH
+        and source.intent is Intent.INFORMATIONAL
+    )
     if source is not None and source.market_id is not None and index.has_market(source.market_id):
         own_node = index.market(source.market_id)
         own = {fold(_collapse(p)) for p in (own_node.label, *own_node.aliases) if _collapse(p)}
@@ -361,13 +377,57 @@ def anchor_phrases(
             if not anchor_rule_ok(phrase, kind, policy=rules):
                 continue
             context: tuple[str, ...] = ()
-            if key in own:
-                if not distinctive:
-                    continue  # self-describing and nothing distinguishes the target
-                context = distinctive
+            # The source's own market name -- or, for a title core / keyword bigram, a word
+            # fragment of one (QA H1). Topic phrases match exactly: a parent or related
+            # market's label ("logistics") may share a word with an own alias
+            # ("temperature-controlled logistics") and still name a different page.
+            own_name = key in own if kind == "target_topic" else _within_any(key, own)
+            if own_name:
+                if distinctive:
+                    context = distinctive  # the block must name the target's geography
+                elif not commercial_hop:
+                    continue  # self-describing, and nothing distinguishes the target
             seen.add(key)
             out.append(AnchorPhrase(text=phrase, source=kind, rank=rank, context_terms=context))
     return tuple(out)
+
+
+def _within_any(key: str, phrases: Collection[str]) -> bool:
+    """``key`` (folded) equals, or is a contiguous word sub-span of, one of ``phrases``."""
+    words = key.split()
+    n = len(words)
+    for phrase in phrases:
+        other = phrase.split()
+        if any(other[i : i + n] == words for i in range(len(other) - n + 1)):
+            return True
+    return False
+
+
+def market_phrases(taxonomy: TaxonomyPolicy) -> tuple[str, ...]:
+    """Every market label and alias (collapsed): the phrases an anchor must not be a
+    strict fragment of (:func:`find_placement` ``enclosing_phrases``)."""
+    return tuple(
+        sorted(
+            {_collapse(p) for m in taxonomy.markets for p in (m.label, *m.aliases) if _collapse(p)}
+        )
+    )
+
+
+def _is_fragment(
+    text: str, start: int, end: int, enclosing: Sequence[tuple[str, re.Pattern[str]]]
+) -> bool:
+    """``text[start:end]`` lies strictly inside an occurrence of a longer enclosing phrase
+    ("battery energy" inside "battery energy storage"): linking it would cut a name."""
+    key = fold(text[start:end])
+    for folded, pattern in enclosing:
+        if len(folded) <= len(key) or key not in folded:
+            continue
+        for match in pattern.finditer(text):
+            if match.start() > start:
+                break
+            if end <= match.end() and (match.start(), match.end()) != (start, end):
+                return True
+    return False
 
 
 # --------------------------------------------------------------------------- #
@@ -432,8 +492,12 @@ def find_placement(
     taken_spans: Collection[tuple[str, int, int]],
     salience: Mapping[str, float],
     policy: RecommendationPolicy,
+    enclosing_phrases: Collection[str] = (),
 ) -> PlacementCandidate | None:
     """The best natural placement of any phrase in the source blocks, or ``None``.
+
+    ``enclosing_phrases`` (with the phrases themselves): a match strictly inside an
+    occurrence of a longer one of these is a FRAGMENT and never an anchor.
 
     ``links_per_block``: block_id -> existing (+ already proposed) links in that block.
     ``blocks_linking_target``: block ids that already link to the target.
@@ -447,6 +511,11 @@ def find_placement(
     opening = next((b.block_id for b in blocks if b.kind in kinds and b.text), None)
     compiled = [
         (phrase, _phrase_pattern(phrase.text)) for phrase in phrases if _collapse(phrase.text)
+    ]
+    enclosing = [
+        (fold(text), _phrase_pattern(text))
+        for text in sorted({_collapse(t) for t in (*enclosing_phrases, *(p.text for p in phrases))})
+        if text
     ]
 
     best: tuple[tuple[int, int, float, int, int, int], PlacementCandidate] | None = None
@@ -476,6 +545,8 @@ def find_placement(
                 if not anchor_rule_ok(anchor, phrase.source, policy=rules):
                     continue
                 if not span_is_safe(block, start, end, excluded_ancestors=excluded):
+                    continue
+                if _is_fragment(block.text, start, end, enclosing):
                     continue
                 if any(start < t_end and t_start < end for t_start, t_end in taken):
                     continue

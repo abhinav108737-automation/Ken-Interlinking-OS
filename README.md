@@ -3,7 +3,18 @@
 A fully self-hosted, local-first system that will manage contextual internal body links across Ken Research
 pages: observe → understand → recommend → approve → publish → verify → measure → learn.
 
-**Current status: Phase 2 — content intelligence complete** (Phase 1 inventory beneath it).
+**Current status: Phase 3 (recommendation engine) is complete**, built on Phases 1 and 2.
+
+Phase 3 proposes contextual internal links deterministically. For each eligible page it:
+- retrieves candidates through semantic, lexical, taxonomy and link-graph channels;
+- applies safety and eligibility filters;
+- scores them transparently from versioned policy data;
+- places each link on a natural phrase **copied verbatim** from the page, never fabricated or
+  misleading.
+
+Each proposal is an immutable `LinkPlan`, with its rationale, score breakdown and history,
+inspectable at `/recommendations`. **Nothing is published:** review is Phase 5 and publishing is
+Phase 6.
 
 Phase 2 adds deterministic understanding of every page from a versioned taxonomy policy:
 - page type, intent, market, geography, entities, keywords and an extractive summary;
@@ -24,7 +35,7 @@ It normalises pages deterministically, stores them with an immutable, hash-based
 extracts the links they already contain, and makes all of it inspectable through a read-only API and
 web screens. The API is GET-only; crawls and imports start from the command line. There is no
 recommendation intelligence, publishing or learning yet. See
-[PHASE_2_REPORT.md](PHASE_2_REPORT.md), [PHASE_1_REPORT.md](PHASE_1_REPORT.md),
+[PHASE_3_REPORT.md](PHASE_3_REPORT.md), [PHASE_2_REPORT.md](PHASE_2_REPORT.md), [PHASE_1_REPORT.md](PHASE_1_REPORT.md),
 [PHASE_0_REPORT.md](PHASE_0_REPORT.md) and
 [NEXT_STEPS.md](NEXT_STEPS.md).
 
@@ -38,6 +49,7 @@ make dev-api      # terminal 1 → http://127.0.0.1:8000/ready
 make dev-web      # terminal 2 → http://127.0.0.1:3000/inventory
 make ingest-file FILE=tests/fixtures/demo/research_site.jsonl   # load the synthetic demo site
 make analyze      # Phase 2: classify, embed and relate (needs: ollama pull nomic-embed-text)
+make recommend    # Phase 3: propose contextual links (nothing is published)
 make verify       # the full quality gate
 ```
 

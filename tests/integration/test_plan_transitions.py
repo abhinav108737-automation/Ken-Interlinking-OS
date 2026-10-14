@@ -1,7 +1,8 @@
 """The single plan transition service against the ``*_test`` database.
 
 Every allowed edge moves the plan and appends one history row; every illegal edge raises
-and changes nothing; actors are validated; concurrent movers serialise on FOR UPDATE.
+and changes nothing; actors are validated and must hold authority over the target status
+(``TRANSITION_AUTHORITY``); concurrent movers serialise on FOR UPDATE.
 """
 
 from __future__ import annotations
@@ -16,12 +17,14 @@ import pytest
 from ken_contracts.recommendations import (
     ALLOWED_TRANSITIONS,
     OPEN_STATUSES,
+    TRANSITION_AUTHORITY,
     LinkPlanStatus,
     PlanNotFoundError,
 )
 from ken_services.recommendations.transitions import (
     IllegalTransitionError,
     InvalidActorError,
+    UnauthorizedActorError,
     transition,
 )
 from tests.integration.recommendation_support import (
@@ -43,6 +46,14 @@ ALLOWED = sorted(
     ((a, b) for a, targets in ALLOWED_TRANSITIONS.items() for b in targets),
     key=lambda e: (e[0].value, e[1].value),
 )
+ACTORS = {"user": "user:reviewer-1", "agent": "agent:critic@1.0.0", "system": "system:test"}
+
+
+def authorized(to: LinkPlanStatus) -> str:
+    """An actor whose class may move a plan into ``to`` (system first, then agent, user)."""
+    return next(ACTORS[c] for c in ("system", "agent", "user") if c in TRANSITION_AUTHORITY[to])
+
+
 ILLEGAL_BY_SOURCE = {
     a: sorted((b for b in S if b not in ALLOWED_TRANSITIONS[a]), key=lambda s: s.value) for a in S
 }
@@ -71,12 +82,12 @@ async def test_every_allowed_edge_moves_the_plan_and_appends_history(
                 session,
                 plan_id=plan.id,
                 to_status=to,
-                actor="agent:critic@1.0.0",
+                actor=authorized(to),
                 note=f"{current.value} to {to.value}",
                 expected_from=current,
             )
         assert (view.plan_id, view.from_status, view.to_status) == (plan.id, current, to)
-        assert view.actor == "agent:critic@1.0.0"
+        assert view.actor == authorized(to)
         state = (
             await rows(
                 sessionmaker, "SELECT status, updated_at FROM link_plans WHERE id = :i", i=plan.id
@@ -110,7 +121,7 @@ async def test_illegal_edges_raise_and_change_nothing(
     for to in ILLEGAL_BY_SOURCE[current]:
         with pytest.raises(IllegalTransitionError) as info:
             async with sessionmaker() as session, session.begin():
-                await transition(session, plan_id=plan.id, to_status=to, actor="system:test")
+                await transition(session, plan_id=plan.id, to_status=to, actor=authorized(to))
         assert (info.value.current, info.value.target) == (current, to)
     assert (
         await scalar(sessionmaker, "SELECT status FROM link_plans WHERE id = :i", i=plan.id)
@@ -187,8 +198,58 @@ async def test_valid_actor_forms(sessionmaker: SM, tmp_path: Path, actor: str) -
     plan = make_plan(source, target)
     await insert_plans(sessionmaker, plan)
     async with sessionmaker() as session, session.begin():
-        view = await transition(session, plan_id=plan.id, to_status=S.CRITIQUED, actor=actor)
+        view = await transition(
+            session, plan_id=plan.id, to_status=S.AWAITING_APPROVAL, actor=actor
+        )
     assert view.actor == actor
+
+
+def test_authority_table_covers_every_status_and_keeps_decisions_human() -> None:
+    assert set(TRANSITION_AUTHORITY) == set(S)
+    for decision in (S.APPROVED, S.REJECTED, S.SUPERSEDED):
+        assert TRANSITION_AUTHORITY[decision] == {"user"}
+    for outcome in (S.VALIDATED, S.DEPLOYED, S.VERIFIED, S.FAILED, S.ROLLED_BACK, S.EXPIRED):
+        assert TRANSITION_AUTHORITY[outcome] == {"system"}
+    assert not any("agent" in TRANSITION_AUTHORITY[s] for s in (S.APPROVED, S.DEPLOYED))
+
+
+UNAUTHORIZED = sorted(
+    (
+        (current, to, actor_class)
+        for current, to in ALLOWED
+        for actor_class in ACTORS
+        if actor_class not in TRANSITION_AUTHORITY[to]
+    ),
+    key=lambda e: (e[0].value, e[1].value, e[2]),
+)
+
+
+async def test_an_actor_class_without_authority_is_refused_and_nothing_changes(
+    sessionmaker: SM, tmp_path: Path
+) -> None:
+    """QA H3: e.g. ``agent:critic@1`` may not approve, nor ``user:`` deploy."""
+    source, target = await _pages(sessionmaker, tmp_path)
+    assert UNAUTHORIZED  # the table is not permissive
+    by_status: dict[LinkPlanStatus, uuid.UUID] = {}
+    for current, to, actor_class in UNAUTHORIZED:
+        if current not in by_status:
+            plan = make_plan(source, target, status=current, created_at=T0)
+            await insert_plans(sessionmaker, plan)
+            by_status[current] = plan.id
+        plan_id = by_status[current]
+        with pytest.raises(UnauthorizedActorError) as info:
+            async with sessionmaker() as session, session.begin():
+                await transition(session, plan_id=plan_id, to_status=to, actor=ACTORS[actor_class])
+        assert info.value.target is to
+        assert (
+            await scalar(sessionmaker, "SELECT status FROM link_plans WHERE id = :i", i=plan_id)
+            == current.value
+        )
+        if current in OPEN_STATUSES:
+            # Free the pair so the next status may open a plan on it.
+            async with sessionmaker() as session, session.begin():
+                await transition(session, plan_id=plan_id, to_status=S.EXPIRED, actor="system:t")
+            by_status.pop(current)
 
 
 async def test_unknown_plan_and_long_note(sessionmaker: SM, tmp_path: Path) -> None:
@@ -243,7 +304,9 @@ async def test_concurrent_movers_serialise_on_the_row_lock(
         await a_moved.wait()
         async with sessionmaker() as session, session.begin():
             b_started.set()
-            await transition(session, plan_id=plan.id, to_status=S.CRITIQUED, actor="user:b")
+            await transition(
+                session, plan_id=plan.id, to_status=S.CRITIQUED, actor="agent:critic@1"
+            )
 
     task_a = asyncio.create_task(mover_a())
     task_b = asyncio.create_task(mover_b())
