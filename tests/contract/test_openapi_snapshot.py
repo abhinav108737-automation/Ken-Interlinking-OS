@@ -87,6 +87,11 @@ def test_operation_ids_and_tags(live: dict[str, Any]) -> None:
         "/intelligence/search": ("semanticSearch", ["intelligence"]),
         "/jobs/runs": ("listJobRuns", ["jobs"]),
         "/jobs/runs/{run_id}": ("getJobRun", ["jobs"]),
+        "/recommendations": ("listLinkPlans", ["recommendations"]),
+        "/recommendations/summary": ("getRecommendationSummary", ["recommendations"]),
+        "/recommendations/candidates": ("listLinkCandidates", ["recommendations"]),
+        "/recommendations/opportunities": ("listOpportunities", ["recommendations"]),
+        "/recommendations/{plan_id}": ("getLinkPlan", ["recommendations"]),
     }
 
 
@@ -96,7 +101,7 @@ def test_inventory_api_is_read_only(live: dict[str, Any]) -> None:
         method
         for path, item in live["paths"].items()
         for method in item
-        if path.startswith(("/inventory", "/intelligence", "/jobs"))
+        if path.startswith(("/inventory", "/intelligence", "/jobs", "/recommendations"))
     }
     assert methods == {"get"}
 

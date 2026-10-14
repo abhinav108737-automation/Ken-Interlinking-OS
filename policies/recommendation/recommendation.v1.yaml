@@ -1,0 +1,71 @@
+# Recommendation policy v1 — Phase 3 recommendation engine (ADR-0011).
+#
+# DATA, NOT CODE: retrieval sizes, selection caps, link-density limits, intent
+# and page-type compatibility, anchor/placement rules. Validated on load by
+# ken_contracts.recommendations.RecommendationPolicy. Component WEIGHTS live in
+# the TRD section 12 ranking policy referenced below.
+#
+# Every LinkPlan records the policy and ranking-policy versions that produced it
+# (PRD 7.8), so a past recommendation stays reproducible. Changing anything means
+# recommendation.v2.yaml, never an in-place edit. Policy lifecycle (PRD v1.1
+# Appendix C): PROPOSED -> OFFLINE_TEST -> SHADOW -> CANARY -> EXPERIMENT ->
+# PROMOTED. No agent may promote a policy.
+
+policy: recommendation
+version: 1
+status: baseline
+source: ADR-0011 (initial, tuned on the synthetic demo corpus)
+ranking_policy: policies/ranking/ranking_weights.v1.yaml
+
+retrieval:
+  semantic_k: 30          # nearest pages by embedding
+  lexical_k: 30           # PostgreSQL full-text matches on the source's keywords
+  graph_k: 20             # under-linked important pages in the source's industry
+  max_candidates_per_source: 80
+  channels_enabled: [semantic, lexical, taxonomy, graph]
+
+selection:
+  min_score: 0.35                        # final score below this is never proposed
+  max_plans_per_source: 3                # per run
+  max_plans_per_target_per_run: 5        # destination diversity
+  max_internal_links_per_100_words: 2.0  # existing + proposed (over-linking guard)
+  max_links_per_block: 1                 # a block that already holds a link is not used
+
+placement:
+  block_kinds: [p, li]                   # never headings, tables, captions, quotes, code
+  min_anchor_words: 1
+  max_anchor_words: 8
+  min_anchor_chars: 4
+  forbidden_anchors: [click here, here, read more, learn more, this page, this report, this article]
+  skip_first_block: false
+
+# source intent -> target intent -> compatibility in [0, 1] (missing = 0 = reject).
+intent_compatibility:
+  informational:
+    commercial_research: 1.0
+    informational: 0.8
+    navigational: 0.3
+  commercial_research:
+    commercial_research: 0.9
+    informational: 0.7
+    navigational: 0.3
+  navigational:
+    commercial_research: 0.8
+    informational: 0.6
+  unknown:
+    commercial_research: 0.5
+    informational: 0.5
+
+# source page type -> page types it may link to.
+page_type_targets:
+  report: [report, insight, hub]
+  insight: [report, insight, hub]
+  other: [report, insight]
+
+underlinked_inbound_threshold: 3
+
+geography_scores:
+  same_country: 1.0
+  region_contains_source: 0.6
+  same_region: 0.5
+  global_target: 0.3

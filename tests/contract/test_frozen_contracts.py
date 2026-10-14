@@ -23,6 +23,7 @@ from ken_contracts import (
     inventory,
     jobs,
     model,
+    recommendations,
 )
 from ken_contracts.common import AsyncClosable, ContractModel
 
@@ -37,6 +38,7 @@ CONTRACT_MODULES = [
     inventory,
     jobs,
     model,
+    recommendations,
 ]
 
 
@@ -123,6 +125,10 @@ def test_provider_protocols_are_closable(protocol: type) -> None:
         (intelligence.IntelligenceReader, "semantic_search"),
         (jobs.JobReader, "list_runs"),
         (jobs.JobReader, "get_run"),
+        (recommendations.RecommendationReader, "list_plans"),
+        (recommendations.RecommendationReader, "get_plan"),
+        (recommendations.RecommendationReader, "list_candidates"),
+        (recommendations.RecommendationReader, "list_opportunities"),
     ],
 )
 def test_protocol_methods_are_async_and_keyword_only(protocol: type, method: str) -> None:

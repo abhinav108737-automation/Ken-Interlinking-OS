@@ -11,6 +11,110 @@
         ],
         "type": "string"
       },
+      "CandidateRejection": {
+        "description": "Deterministic eligibility filters (FR-006). Ordered; first match is recorded.",
+        "enum": [
+          "self_link",
+          "source_ineligible",
+          "target_ineligible",
+          "target_protected",
+          "already_linked",
+          "duplicate_recommendation",
+          "page_type_incompatible",
+          "link_density_exceeded",
+          "below_min_score",
+          "diversity_limit",
+          "per_source_limit",
+          "no_natural_anchor"
+        ],
+        "title": "CandidateRejection",
+        "type": "string"
+      },
+      "CandidateView": {
+        "additionalProperties": false,
+        "description": "A retrieved candidate, kept or rejected, for explainability and evals.",
+        "properties": {
+          "channel_scores": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Channel Scores",
+            "type": "object"
+          },
+          "channels": {
+            "items": {
+              "$ref": "#/components/schemas/RetrievalChannel"
+            },
+            "title": "Channels",
+            "type": "array"
+          },
+          "plan_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plan Id"
+          },
+          "rejection": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CandidateRejection"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "run_id": {
+            "format": "uuid",
+            "title": "Run Id",
+            "type": "string"
+          },
+          "source_page_id": {
+            "format": "uuid",
+            "title": "Source Page Id",
+            "type": "string"
+          },
+          "target_page_id": {
+            "format": "uuid",
+            "title": "Target Page Id",
+            "type": "string"
+          },
+          "target_url": {
+            "title": "Target Url",
+            "type": "string"
+          },
+          "total_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Score"
+          }
+        },
+        "required": [
+          "run_id",
+          "source_page_id",
+          "target_page_id",
+          "target_url",
+          "channels",
+          "channel_scores",
+          "total_score",
+          "rejection",
+          "plan_id"
+        ],
+        "title": "CandidateView",
+        "type": "object"
+      },
       "CanonicalStatus": {
         "description": "How the page's identity URL was chosen.\n\n``self``          declared canonical equals the page's own URL\n``declared``      a different, in-scope canonical was declared and is used\n``missing``       none declared; the normalised final URL is used\n``out_of_scope``  declared canonical is off-site; ignored, final URL used\n``invalid``       declared canonical is unparseable; ignored, final URL used\n\nPrecedence at persistence (prevents identity flip-flop): a ``self`` or\n``missing`` document is the AUTHORITY for its identity URL. A ``declared``\n(alias) document may create identity X only while X has no version from an\nauthoritative document; once it has, the alias records ``known_urls`` Y -> X\nplus a ``duplicate_canonical`` issue and writes no version. Within one run,\nthe authoritative document for X always wins over aliases of X.",
         "enum": [
@@ -1000,6 +1104,473 @@
         "title": "LinkEligibility",
         "type": "object"
       },
+      "LinkPlan": {
+        "additionalProperties": false,
+        "description": "A proposed contextual link (PRD 7.8). Content immutable; status in transitions.",
+        "properties": {
+          "analysis_version": {
+            "title": "Analysis Version",
+            "type": "string"
+          },
+          "anchor_source": {
+            "enum": [
+              "target_topic",
+              "target_title",
+              "target_keyword",
+              "edited"
+            ],
+            "title": "Anchor Source",
+            "type": "string"
+          },
+          "anchor_text": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Anchor Text",
+            "type": "string"
+          },
+          "channels": {
+            "items": {
+              "$ref": "#/components/schemas/RetrievalChannel"
+            },
+            "title": "Channels",
+            "type": "array"
+          },
+          "confidence": {
+            "description": "Raw in Phase 3; calibrated from Phase 8.",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence",
+            "type": "number"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "embedding_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Provider-reported identity used.",
+            "title": "Embedding Model"
+          },
+          "engine_version": {
+            "title": "Engine Version",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "locator": {
+            "$ref": "#/components/schemas/PlacementLocator"
+          },
+          "policy_version": {
+            "description": "Recommendation policy version.",
+            "minimum": 1.0,
+            "title": "Policy Version",
+            "type": "integer"
+          },
+          "preview": {
+            "$ref": "#/components/schemas/PlacementPreview"
+          },
+          "ranking_policy_version": {
+            "minimum": 1.0,
+            "title": "Ranking Policy Version",
+            "type": "integer"
+          },
+          "rationale": {
+            "description": "Deterministic sentence(s) rendered from reason codes.",
+            "title": "Rationale",
+            "type": "string"
+          },
+          "reason_codes": {
+            "items": {
+              "$ref": "#/components/schemas/ReasonCode"
+            },
+            "title": "Reason Codes",
+            "type": "array"
+          },
+          "relationship_type": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RelationshipType"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "run_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Id"
+          },
+          "score": {
+            "$ref": "#/components/schemas/ScoreBreakdown"
+          },
+          "source_page_id": {
+            "format": "uuid",
+            "title": "Source Page Id",
+            "type": "string"
+          },
+          "source_page_version": {
+            "minimum": 1.0,
+            "title": "Source Page Version",
+            "type": "integer"
+          },
+          "source_url": {
+            "title": "Source Url",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/LinkPlanStatus"
+          },
+          "supersedes": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supersedes"
+          },
+          "target_page_id": {
+            "format": "uuid",
+            "title": "Target Page Id",
+            "type": "string"
+          },
+          "target_page_version": {
+            "minimum": 1.0,
+            "title": "Target Page Version",
+            "type": "integer"
+          },
+          "target_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Title"
+          },
+          "target_url": {
+            "title": "Target Url",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "run_id",
+          "source_page_id",
+          "source_page_version",
+          "source_url",
+          "target_page_id",
+          "target_page_version",
+          "target_url",
+          "target_title",
+          "relationship_type",
+          "channels",
+          "anchor_text",
+          "anchor_source",
+          "locator",
+          "preview",
+          "score",
+          "confidence",
+          "reason_codes",
+          "rationale",
+          "engine_version",
+          "policy_version",
+          "ranking_policy_version",
+          "embedding_model",
+          "analysis_version",
+          "supersedes",
+          "status",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "LinkPlan",
+        "type": "object"
+      },
+      "LinkPlanDetail": {
+        "additionalProperties": false,
+        "properties": {
+          "analysis_version": {
+            "title": "Analysis Version",
+            "type": "string"
+          },
+          "anchor_source": {
+            "enum": [
+              "target_topic",
+              "target_title",
+              "target_keyword",
+              "edited"
+            ],
+            "title": "Anchor Source",
+            "type": "string"
+          },
+          "anchor_text": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Anchor Text",
+            "type": "string"
+          },
+          "channels": {
+            "items": {
+              "$ref": "#/components/schemas/RetrievalChannel"
+            },
+            "title": "Channels",
+            "type": "array"
+          },
+          "confidence": {
+            "description": "Raw in Phase 3; calibrated from Phase 8.",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence",
+            "type": "number"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "embedding_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Provider-reported identity used.",
+            "title": "Embedding Model"
+          },
+          "engine_version": {
+            "title": "Engine Version",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "locator": {
+            "$ref": "#/components/schemas/PlacementLocator"
+          },
+          "policy_version": {
+            "description": "Recommendation policy version.",
+            "minimum": 1.0,
+            "title": "Policy Version",
+            "type": "integer"
+          },
+          "preview": {
+            "$ref": "#/components/schemas/PlacementPreview"
+          },
+          "ranking_policy_version": {
+            "minimum": 1.0,
+            "title": "Ranking Policy Version",
+            "type": "integer"
+          },
+          "rationale": {
+            "description": "Deterministic sentence(s) rendered from reason codes.",
+            "title": "Rationale",
+            "type": "string"
+          },
+          "reason_codes": {
+            "items": {
+              "$ref": "#/components/schemas/ReasonCode"
+            },
+            "title": "Reason Codes",
+            "type": "array"
+          },
+          "relationship_type": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RelationshipType"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "run_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Id"
+          },
+          "score": {
+            "$ref": "#/components/schemas/ScoreBreakdown"
+          },
+          "source_block_text": {
+            "description": "Full block text at the source version.",
+            "title": "Source Block Text",
+            "type": "string"
+          },
+          "source_page_id": {
+            "format": "uuid",
+            "title": "Source Page Id",
+            "type": "string"
+          },
+          "source_page_version": {
+            "minimum": 1.0,
+            "title": "Source Page Version",
+            "type": "integer"
+          },
+          "source_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Title"
+          },
+          "source_url": {
+            "title": "Source Url",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/LinkPlanStatus"
+          },
+          "supersedes": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supersedes"
+          },
+          "target_page_id": {
+            "format": "uuid",
+            "title": "Target Page Id",
+            "type": "string"
+          },
+          "target_page_version": {
+            "minimum": 1.0,
+            "title": "Target Page Version",
+            "type": "integer"
+          },
+          "target_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Title"
+          },
+          "target_url": {
+            "title": "Target Url",
+            "type": "string"
+          },
+          "transitions": {
+            "items": {
+              "$ref": "#/components/schemas/PlanTransitionView"
+            },
+            "title": "Transitions",
+            "type": "array"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "run_id",
+          "source_page_id",
+          "source_page_version",
+          "source_url",
+          "target_page_id",
+          "target_page_version",
+          "target_url",
+          "target_title",
+          "relationship_type",
+          "channels",
+          "anchor_text",
+          "anchor_source",
+          "locator",
+          "preview",
+          "score",
+          "confidence",
+          "reason_codes",
+          "rationale",
+          "engine_version",
+          "policy_version",
+          "ranking_policy_version",
+          "embedding_model",
+          "analysis_version",
+          "supersedes",
+          "status",
+          "created_at",
+          "updated_at",
+          "transitions",
+          "source_title",
+          "source_block_text"
+        ],
+        "title": "LinkPlanDetail",
+        "type": "object"
+      },
+      "LinkPlanStatus": {
+        "description": "PRD v1.1 Appendix C recommendation lifecycle.",
+        "enum": [
+          "proposed",
+          "critiqued",
+          "policy_checked",
+          "awaiting_approval",
+          "approved",
+          "rejected",
+          "superseded",
+          "validated",
+          "deployed",
+          "verified",
+          "failed",
+          "rolled_back",
+          "expired"
+        ],
+        "title": "LinkPlanStatus",
+        "type": "string"
+      },
       "LinkResolution": {
         "description": "Whether an internal link's destination is known (computed at read time).\n\n``resolved``        the destination URL has led to a known, live page (the mapping\n                    survives a later transient failure such as a timeout)\n``broken``          the destination's latest answer was 404/410, or it leads to a gone page\n``unresolved``      never led to a page: beyond crawl limits, robots-blocked or errored\n``not_applicable``  the link is not internal",
         "enum": [
@@ -1022,6 +1593,27 @@
         ],
         "title": "LinkType",
         "type": "string"
+      },
+      "ListResponse_CandidateView_": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CandidateView"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          }
+        },
+        "required": [
+          "items",
+          "page"
+        ],
+        "title": "ListResponse[CandidateView]",
+        "type": "object"
       },
       "ListResponse_ExistingLinkView_": {
         "additionalProperties": false,
@@ -1105,6 +1697,48 @@
           "page"
         ],
         "title": "ListResponse[JobRunSummary]",
+        "type": "object"
+      },
+      "ListResponse_LinkPlan_": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/LinkPlan"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          }
+        },
+        "required": [
+          "items",
+          "page"
+        ],
+        "title": "ListResponse[LinkPlan]",
+        "type": "object"
+      },
+      "ListResponse_OpportunityView_": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/OpportunityView"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          }
+        },
+        "required": [
+          "items",
+          "page"
+        ],
+        "title": "ListResponse[OpportunityView]",
         "type": "object"
       },
       "ListResponse_PageRelationshipView_": {
@@ -1227,6 +1861,76 @@
           "settings"
         ],
         "title": "MetaResponse",
+        "type": "object"
+      },
+      "OpportunityKind": {
+        "enum": [
+          "orphan",
+          "underlinked",
+          "link_capacity"
+        ],
+        "title": "OpportunityKind",
+        "type": "string"
+      },
+      "OpportunityView": {
+        "additionalProperties": false,
+        "properties": {
+          "canonical_url": {
+            "title": "Canonical Url",
+            "type": "string"
+          },
+          "computed_at": {
+            "format": "date-time",
+            "title": "Computed At",
+            "type": "string"
+          },
+          "evidence": {
+            "additionalProperties": true,
+            "title": "Evidence",
+            "type": "object"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/OpportunityKind"
+          },
+          "page_id": {
+            "format": "uuid",
+            "title": "Page Id",
+            "type": "string"
+          },
+          "run_id": {
+            "format": "uuid",
+            "title": "Run Id",
+            "type": "string"
+          },
+          "score": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Score",
+            "type": "number"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "required": [
+          "page_id",
+          "canonical_url",
+          "title",
+          "kind",
+          "score",
+          "evidence",
+          "run_id",
+          "computed_at"
+        ],
+        "title": "OpportunityView",
         "type": "object"
       },
       "PageAnalysis": {
@@ -2374,6 +3078,135 @@
         "title": "PageVersionSummary",
         "type": "object"
       },
+      "PlacementLocator": {
+        "additionalProperties": false,
+        "description": "Where the anchor goes. Mirrors ``ken_contracts.cms.LinkLocator`` plus offsets.\n\n``block_id``/``block_kind`` come from the deterministic block walk of the\nSOURCE VERSION's stored body (Phase 1 ``extract_blocks``); ``start``/``end``\nare character offsets into that block's text; ``occurrence_index`` is which\noccurrence of ``anchor_text`` in the block. ``context_hash`` is the sha256\nof the full block text, so Phase 6 detects drift before mutating.",
+        "properties": {
+          "block_id": {
+            "title": "Block Id",
+            "type": "string"
+          },
+          "block_kind": {
+            "title": "Block Kind",
+            "type": "string"
+          },
+          "context_hash": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Context Hash",
+            "type": "string"
+          },
+          "end": {
+            "exclusiveMinimum": 0.0,
+            "title": "End",
+            "type": "integer"
+          },
+          "occurrence_index": {
+            "minimum": 0.0,
+            "title": "Occurrence Index",
+            "type": "integer"
+          },
+          "start": {
+            "minimum": 0.0,
+            "title": "Start",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "block_id",
+          "block_kind",
+          "occurrence_index",
+          "start",
+          "end",
+          "context_hash"
+        ],
+        "title": "PlacementLocator",
+        "type": "object"
+      },
+      "PlacementPreview": {
+        "additionalProperties": false,
+        "properties": {
+          "after": {
+            "description": "Block text after the anchor (trimmed to ~200 chars).",
+            "title": "After",
+            "type": "string"
+          },
+          "anchor": {
+            "title": "Anchor",
+            "type": "string"
+          },
+          "before": {
+            "description": "Block text before the anchor (trimmed to ~200 chars).",
+            "title": "Before",
+            "type": "string"
+          }
+        },
+        "required": [
+          "before",
+          "anchor",
+          "after"
+        ],
+        "title": "PlacementPreview",
+        "type": "object"
+      },
+      "PlanTransitionView": {
+        "additionalProperties": false,
+        "properties": {
+          "actor": {
+            "title": "Actor",
+            "type": "string"
+          },
+          "from_status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LinkPlanStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "occurred_at": {
+            "format": "date-time",
+            "title": "Occurred At",
+            "type": "string"
+          },
+          "plan_id": {
+            "format": "uuid",
+            "title": "Plan Id",
+            "type": "string"
+          },
+          "to_status": {
+            "$ref": "#/components/schemas/LinkPlanStatus"
+          }
+        },
+        "required": [
+          "id",
+          "plan_id",
+          "from_status",
+          "to_status",
+          "actor",
+          "note",
+          "occurred_at"
+        ],
+        "title": "PlanTransitionView",
+        "type": "object"
+      },
       "ProtectionSource": {
         "description": "Who declared a page protected. Any active protection blocks every mutation.",
         "enum": [
@@ -2443,6 +3276,90 @@
         "title": "ReadinessStatus",
         "type": "string"
       },
+      "ReasonCode": {
+        "description": "Why a plan exists: structured, explainable, never free-form model text.",
+        "enum": [
+          "semantically_similar",
+          "lexical_overlap",
+          "same_market",
+          "parent_market",
+          "submarket",
+          "related_market",
+          "supply_chain",
+          "complementary_market",
+          "industry_adjacency",
+          "same_geography",
+          "regional_context",
+          "high_commercial_value",
+          "underlinked_target",
+          "orphan_target",
+          "anchor_matches_target_topic",
+          "anchor_matches_target_title"
+        ],
+        "title": "ReasonCode",
+        "type": "string"
+      },
+      "RecommendationSummary": {
+        "additionalProperties": false,
+        "description": "Counts for the dashboard.",
+        "properties": {
+          "last_run_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Run Id"
+          },
+          "opportunities_by_kind": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Opportunities By Kind",
+            "type": "object"
+          },
+          "plans_by_status": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Plans By Status",
+            "type": "object"
+          },
+          "policy_version": {
+            "title": "Policy Version",
+            "type": "integer"
+          },
+          "ranking_policy_version": {
+            "title": "Ranking Policy Version",
+            "type": "integer"
+          },
+          "sources_with_plans": {
+            "minimum": 0.0,
+            "title": "Sources With Plans",
+            "type": "integer"
+          },
+          "targets_with_plans": {
+            "minimum": 0.0,
+            "title": "Targets With Plans",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "plans_by_status",
+          "sources_with_plans",
+          "targets_with_plans",
+          "opportunities_by_kind",
+          "last_run_id",
+          "policy_version",
+          "ranking_policy_version"
+        ],
+        "title": "RecommendationSummary",
+        "type": "object"
+      },
       "RelationshipType": {
         "description": "Explainable page relationships (PRD section 7.3) plus semantic similarity.",
         "enum": [
@@ -2459,6 +3376,16 @@
           "semantic_similar"
         ],
         "title": "RelationshipType",
+        "type": "string"
+      },
+      "RetrievalChannel": {
+        "enum": [
+          "semantic",
+          "lexical",
+          "taxonomy",
+          "graph"
+        ],
+        "title": "RetrievalChannel",
         "type": "string"
       },
       "RunCounters": {
@@ -2583,6 +3510,85 @@
           "text"
         ],
         "title": "SalientBlock",
+        "type": "object"
+      },
+      "ScoreBreakdown": {
+        "additionalProperties": false,
+        "properties": {
+          "components": {
+            "items": {
+              "$ref": "#/components/schemas/ScoreComponent"
+            },
+            "title": "Components",
+            "type": "array"
+          },
+          "penalties": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Penalties",
+            "type": "object"
+          },
+          "policy_name": {
+            "title": "Policy Name",
+            "type": "string"
+          },
+          "policy_version": {
+            "title": "Policy Version",
+            "type": "integer"
+          },
+          "total": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Total",
+            "type": "number"
+          }
+        },
+        "required": [
+          "components",
+          "penalties",
+          "total",
+          "policy_name",
+          "policy_version"
+        ],
+        "title": "ScoreBreakdown",
+        "type": "object"
+      },
+      "ScoreComponent": {
+        "additionalProperties": false,
+        "description": "One weighted component of the transparent score (FR-007).",
+        "properties": {
+          "contribution": {
+            "description": "value x weight.",
+            "minimum": 0.0,
+            "title": "Contribution",
+            "type": "number"
+          },
+          "name": {
+            "description": "Ranking-policy weight key, e.g. 'semantic'.",
+            "title": "Name",
+            "type": "string"
+          },
+          "value": {
+            "description": "Normalised component value.",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Value",
+            "type": "number"
+          },
+          "weight": {
+            "minimum": 0.0,
+            "title": "Weight",
+            "type": "number"
+          }
+        },
+        "required": [
+          "name",
+          "value",
+          "weight",
+          "contribution"
+        ],
+        "title": "ScoreComponent",
         "type": "object"
       },
       "ServiceIdentity": {
@@ -4194,6 +5200,385 @@
         "summary": "Readiness. Probes every dependency.",
         "tags": [
           "system"
+        ]
+      }
+    },
+    "/recommendations": {
+      "get": {
+        "operationId": "listLinkPlans",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "maximum": 10000000,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/LinkPlanStatus"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "source_page_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Source Page Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "target_page_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Target Page Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "min_score",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 1.0,
+                  "minimum": 0.0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Min Score"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListResponse_LinkPlan_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A parameter is invalid."
+          }
+        },
+        "summary": "Link plans (recommendations), highest score first.",
+        "tags": [
+          "recommendations"
+        ]
+      }
+    },
+    "/recommendations/candidates": {
+      "get": {
+        "operationId": "listLinkCandidates",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "maximum": 10000000,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "run_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Run Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "source_page_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Source Page Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "rejected",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rejected"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListResponse_CandidateView_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A parameter is invalid."
+          }
+        },
+        "summary": "Retrieved candidates of a run or source page, kept or rejected.",
+        "tags": [
+          "recommendations"
+        ]
+      }
+    },
+    "/recommendations/opportunities": {
+      "get": {
+        "operationId": "listOpportunities",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "maximum": 10000000,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "kind",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/OpportunityKind"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Kind"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListResponse_OpportunityView_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A parameter is invalid."
+          }
+        },
+        "summary": "Orphan, under-linked and link-capacity pages, strongest first.",
+        "tags": [
+          "recommendations"
+        ]
+      }
+    },
+    "/recommendations/summary": {
+      "get": {
+        "operationId": "getRecommendationSummary",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecommendationSummary"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Plan counts by status, coverage and opportunity counts.",
+        "tags": [
+          "recommendations"
+        ]
+      }
+    },
+    "/recommendations/{plan_id}": {
+      "get": {
+        "operationId": "getLinkPlan",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "plan_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Plan Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LinkPlanDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A parameter is invalid."
+          }
+        },
+        "summary": "One link plan with its block text and status history.",
+        "tags": [
+          "recommendations"
         ]
       }
     }

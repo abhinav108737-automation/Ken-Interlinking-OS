@@ -361,12 +361,137 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/recommendations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Link plans (recommendations), highest score first. */
+        get: operations["listLinkPlans"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/recommendations/candidates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Retrieved candidates of a run or source page, kept or rejected. */
+        get: operations["listLinkCandidates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/recommendations/opportunities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Orphan, under-linked and link-capacity pages, strongest first. */
+        get: operations["listOpportunities"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/recommendations/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Plan counts by status, coverage and opportunity counts. */
+        get: operations["getRecommendationSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/recommendations/{plan_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One link plan with its block text and status history. */
+        get: operations["getLinkPlan"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         /** @enum {string} */
         AnchorSource: "text" | "img_alt" | "aria_label" | "title" | "none";
+        /**
+         * CandidateRejection
+         * @description Deterministic eligibility filters (FR-006). Ordered; first match is recorded.
+         * @enum {string}
+         */
+        CandidateRejection: "self_link" | "source_ineligible" | "target_ineligible" | "target_protected" | "already_linked" | "duplicate_recommendation" | "page_type_incompatible" | "link_density_exceeded" | "below_min_score" | "diversity_limit" | "per_source_limit" | "no_natural_anchor";
+        /**
+         * CandidateView
+         * @description A retrieved candidate, kept or rejected, for explainability and evals.
+         */
+        CandidateView: {
+            /** Channel Scores */
+            channel_scores: {
+                [key: string]: number;
+            };
+            /** Channels */
+            channels: components["schemas"]["RetrievalChannel"][];
+            /** Plan Id */
+            plan_id: string | null;
+            rejection: components["schemas"]["CandidateRejection"] | null;
+            /**
+             * Run Id
+             * Format: uuid
+             */
+            run_id: string;
+            /**
+             * Source Page Id
+             * Format: uuid
+             */
+            source_page_id: string;
+            /**
+             * Target Page Id
+             * Format: uuid
+             */
+            target_page_id: string;
+            /** Target Url */
+            target_url: string;
+            /** Total Score */
+            total_score: number | null;
+        };
         /**
          * CanonicalStatus
          * @description How the page's identity URL was chosen.
@@ -817,6 +942,192 @@ export interface components {
             target_reasons: components["schemas"]["IneligibilityReason"][];
         };
         /**
+         * LinkPlan
+         * @description A proposed contextual link (PRD 7.8). Content immutable; status in transitions.
+         */
+        LinkPlan: {
+            /** Analysis Version */
+            analysis_version: string;
+            /**
+             * Anchor Source
+             * @enum {string}
+             */
+            anchor_source: "target_topic" | "target_title" | "target_keyword" | "edited";
+            /** Anchor Text */
+            anchor_text: string;
+            /** Channels */
+            channels: components["schemas"]["RetrievalChannel"][];
+            /**
+             * Confidence
+             * @description Raw in Phase 3; calibrated from Phase 8.
+             */
+            confidence: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Embedding Model
+             * @description Provider-reported identity used.
+             */
+            embedding_model: string | null;
+            /** Engine Version */
+            engine_version: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            locator: components["schemas"]["PlacementLocator"];
+            /**
+             * Policy Version
+             * @description Recommendation policy version.
+             */
+            policy_version: number;
+            preview: components["schemas"]["PlacementPreview"];
+            /** Ranking Policy Version */
+            ranking_policy_version: number;
+            /**
+             * Rationale
+             * @description Deterministic sentence(s) rendered from reason codes.
+             */
+            rationale: string;
+            /** Reason Codes */
+            reason_codes: components["schemas"]["ReasonCode"][];
+            relationship_type: components["schemas"]["RelationshipType"] | null;
+            /** Run Id */
+            run_id: string | null;
+            score: components["schemas"]["ScoreBreakdown"];
+            /**
+             * Source Page Id
+             * Format: uuid
+             */
+            source_page_id: string;
+            /** Source Page Version */
+            source_page_version: number;
+            /** Source Url */
+            source_url: string;
+            status: components["schemas"]["LinkPlanStatus"];
+            /** Supersedes */
+            supersedes: string | null;
+            /**
+             * Target Page Id
+             * Format: uuid
+             */
+            target_page_id: string;
+            /** Target Page Version */
+            target_page_version: number;
+            /** Target Title */
+            target_title: string | null;
+            /** Target Url */
+            target_url: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** LinkPlanDetail */
+        LinkPlanDetail: {
+            /** Analysis Version */
+            analysis_version: string;
+            /**
+             * Anchor Source
+             * @enum {string}
+             */
+            anchor_source: "target_topic" | "target_title" | "target_keyword" | "edited";
+            /** Anchor Text */
+            anchor_text: string;
+            /** Channels */
+            channels: components["schemas"]["RetrievalChannel"][];
+            /**
+             * Confidence
+             * @description Raw in Phase 3; calibrated from Phase 8.
+             */
+            confidence: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Embedding Model
+             * @description Provider-reported identity used.
+             */
+            embedding_model: string | null;
+            /** Engine Version */
+            engine_version: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            locator: components["schemas"]["PlacementLocator"];
+            /**
+             * Policy Version
+             * @description Recommendation policy version.
+             */
+            policy_version: number;
+            preview: components["schemas"]["PlacementPreview"];
+            /** Ranking Policy Version */
+            ranking_policy_version: number;
+            /**
+             * Rationale
+             * @description Deterministic sentence(s) rendered from reason codes.
+             */
+            rationale: string;
+            /** Reason Codes */
+            reason_codes: components["schemas"]["ReasonCode"][];
+            relationship_type: components["schemas"]["RelationshipType"] | null;
+            /** Run Id */
+            run_id: string | null;
+            score: components["schemas"]["ScoreBreakdown"];
+            /**
+             * Source Block Text
+             * @description Full block text at the source version.
+             */
+            source_block_text: string;
+            /**
+             * Source Page Id
+             * Format: uuid
+             */
+            source_page_id: string;
+            /** Source Page Version */
+            source_page_version: number;
+            /** Source Title */
+            source_title: string | null;
+            /** Source Url */
+            source_url: string;
+            status: components["schemas"]["LinkPlanStatus"];
+            /** Supersedes */
+            supersedes: string | null;
+            /**
+             * Target Page Id
+             * Format: uuid
+             */
+            target_page_id: string;
+            /** Target Page Version */
+            target_page_version: number;
+            /** Target Title */
+            target_title: string | null;
+            /** Target Url */
+            target_url: string;
+            /** Transitions */
+            transitions: components["schemas"]["PlanTransitionView"][];
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /**
+         * LinkPlanStatus
+         * @description PRD v1.1 Appendix C recommendation lifecycle.
+         * @enum {string}
+         */
+        LinkPlanStatus: "proposed" | "critiqued" | "policy_checked" | "awaiting_approval" | "approved" | "rejected" | "superseded" | "validated" | "deployed" | "verified" | "failed" | "rolled_back" | "expired";
+        /**
          * LinkResolution
          * @description Whether an internal link's destination is known (computed at read time).
          *
@@ -834,6 +1145,12 @@ export interface components {
          * @enum {string}
          */
         LinkType: "internal" | "external" | "fragment" | "non_http" | "invalid";
+        /** ListResponse[CandidateView] */
+        ListResponse_CandidateView_: {
+            /** Items */
+            items: components["schemas"]["CandidateView"][];
+            page: components["schemas"]["PageInfo"];
+        };
         /** ListResponse[ExistingLinkView] */
         ListResponse_ExistingLinkView_: {
             /** Items */
@@ -856,6 +1173,18 @@ export interface components {
         ListResponse_JobRunSummary_: {
             /** Items */
             items: components["schemas"]["JobRunSummary"][];
+            page: components["schemas"]["PageInfo"];
+        };
+        /** ListResponse[LinkPlan] */
+        ListResponse_LinkPlan_: {
+            /** Items */
+            items: components["schemas"]["LinkPlan"][];
+            page: components["schemas"]["PageInfo"];
+        };
+        /** ListResponse[OpportunityView] */
+        ListResponse_OpportunityView_: {
+            /** Items */
+            items: components["schemas"]["OpportunityView"][];
             page: components["schemas"]["PageInfo"];
         };
         /** ListResponse[PageRelationshipView] */
@@ -910,6 +1239,40 @@ export interface components {
             settings: {
                 [key: string]: unknown;
             };
+        };
+        /**
+         * OpportunityKind
+         * @enum {string}
+         */
+        OpportunityKind: "orphan" | "underlinked" | "link_capacity";
+        /** OpportunityView */
+        OpportunityView: {
+            /** Canonical Url */
+            canonical_url: string;
+            /**
+             * Computed At
+             * Format: date-time
+             */
+            computed_at: string;
+            /** Evidence */
+            evidence: {
+                [key: string]: unknown;
+            };
+            kind: components["schemas"]["OpportunityKind"];
+            /**
+             * Page Id
+             * Format: uuid
+             */
+            page_id: string;
+            /**
+             * Run Id
+             * Format: uuid
+             */
+            run_id: string;
+            /** Score */
+            score: number;
+            /** Title */
+            title: string | null;
         };
         /**
          * PageAnalysis
@@ -1375,6 +1738,66 @@ export interface components {
             word_count: number;
         };
         /**
+         * PlacementLocator
+         * @description Where the anchor goes. Mirrors ``ken_contracts.cms.LinkLocator`` plus offsets.
+         *
+         *     ``block_id``/``block_kind`` come from the deterministic block walk of the
+         *     SOURCE VERSION's stored body (Phase 1 ``extract_blocks``); ``start``/``end``
+         *     are character offsets into that block's text; ``occurrence_index`` is which
+         *     occurrence of ``anchor_text`` in the block. ``context_hash`` is the sha256
+         *     of the full block text, so Phase 6 detects drift before mutating.
+         */
+        PlacementLocator: {
+            /** Block Id */
+            block_id: string;
+            /** Block Kind */
+            block_kind: string;
+            /** Context Hash */
+            context_hash: string;
+            /** End */
+            end: number;
+            /** Occurrence Index */
+            occurrence_index: number;
+            /** Start */
+            start: number;
+        };
+        /** PlacementPreview */
+        PlacementPreview: {
+            /**
+             * After
+             * @description Block text after the anchor (trimmed to ~200 chars).
+             */
+            after: string;
+            /** Anchor */
+            anchor: string;
+            /**
+             * Before
+             * @description Block text before the anchor (trimmed to ~200 chars).
+             */
+            before: string;
+        };
+        /** PlanTransitionView */
+        PlanTransitionView: {
+            /** Actor */
+            actor: string;
+            from_status: components["schemas"]["LinkPlanStatus"] | null;
+            /** Id */
+            id: number;
+            /** Note */
+            note: string | null;
+            /**
+             * Occurred At
+             * Format: date-time
+             */
+            occurred_at: string;
+            /**
+             * Plan Id
+             * Format: uuid
+             */
+            plan_id: string;
+            to_status: components["schemas"]["LinkPlanStatus"];
+        };
+        /**
          * ProtectionSource
          * @description Who declared a page protected. Any active protection blocks every mutation.
          * @enum {string}
@@ -1433,11 +1856,46 @@ export interface components {
          */
         ReadinessStatus: "ready" | "degraded" | "not_ready";
         /**
+         * ReasonCode
+         * @description Why a plan exists: structured, explainable, never free-form model text.
+         * @enum {string}
+         */
+        ReasonCode: "semantically_similar" | "lexical_overlap" | "same_market" | "parent_market" | "submarket" | "related_market" | "supply_chain" | "complementary_market" | "industry_adjacency" | "same_geography" | "regional_context" | "high_commercial_value" | "underlinked_target" | "orphan_target" | "anchor_matches_target_topic" | "anchor_matches_target_title";
+        /**
+         * RecommendationSummary
+         * @description Counts for the dashboard.
+         */
+        RecommendationSummary: {
+            /** Last Run Id */
+            last_run_id: string | null;
+            /** Opportunities By Kind */
+            opportunities_by_kind: {
+                [key: string]: number;
+            };
+            /** Plans By Status */
+            plans_by_status: {
+                [key: string]: number;
+            };
+            /** Policy Version */
+            policy_version: number;
+            /** Ranking Policy Version */
+            ranking_policy_version: number;
+            /** Sources With Plans */
+            sources_with_plans: number;
+            /** Targets With Plans */
+            targets_with_plans: number;
+        };
+        /**
          * RelationshipType
          * @description Explainable page relationships (PRD section 7.3) plus semantic similarity.
          * @enum {string}
          */
         RelationshipType: "same_market" | "parent_market" | "submarket" | "related_market" | "same_geography" | "regional_parent" | "supply_chain_upstream" | "supply_chain_downstream" | "complementary_market" | "industry_adjacency" | "semantic_similar";
+        /**
+         * RetrievalChannel
+         * @enum {string}
+         */
+        RetrievalChannel: "semantic" | "lexical" | "taxonomy" | "graph";
         /**
          * RunCounters
          * @description Run accounting. Invariant (checked by tests)::
@@ -1520,6 +1978,44 @@ export interface components {
             score: number;
             /** Text */
             text: string;
+        };
+        /** ScoreBreakdown */
+        ScoreBreakdown: {
+            /** Components */
+            components: components["schemas"]["ScoreComponent"][];
+            /** Penalties */
+            penalties: {
+                [key: string]: number;
+            };
+            /** Policy Name */
+            policy_name: string;
+            /** Policy Version */
+            policy_version: number;
+            /** Total */
+            total: number;
+        };
+        /**
+         * ScoreComponent
+         * @description One weighted component of the transparent score (FR-007).
+         */
+        ScoreComponent: {
+            /**
+             * Contribution
+             * @description value x weight.
+             */
+            contribution: number;
+            /**
+             * Name
+             * @description Ranking-policy weight key, e.g. 'semantic'.
+             */
+            name: string;
+            /**
+             * Value
+             * @description Normalised component value.
+             */
+            value: number;
+            /** Weight */
+            weight: number;
         };
         /**
          * ServiceIdentity
@@ -2383,6 +2879,170 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ReadinessResponse"];
+                };
+            };
+        };
+    };
+    listLinkPlans: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+                status?: components["schemas"]["LinkPlanStatus"] | null;
+                source_page_id?: string | null;
+                target_page_id?: string | null;
+                min_score?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListResponse_LinkPlan_"];
+                };
+            };
+            /** @description A parameter is invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    listLinkCandidates: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+                run_id?: string | null;
+                source_page_id?: string | null;
+                rejected?: boolean | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListResponse_CandidateView_"];
+                };
+            };
+            /** @description A parameter is invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    listOpportunities: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+                kind?: components["schemas"]["OpportunityKind"] | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListResponse_OpportunityView_"];
+                };
+            };
+            /** @description A parameter is invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    getRecommendationSummary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecommendationSummary"];
+                };
+            };
+        };
+    };
+    getLinkPlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                plan_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LinkPlanDetail"];
+                };
+            };
+            /** @description No such resource. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A parameter is invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };

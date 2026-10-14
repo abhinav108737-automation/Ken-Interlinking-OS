@@ -20,6 +20,7 @@ from ken_contracts.errors import ErrorCode, ErrorDetail, ErrorResponse
 from ken_contracts.intelligence import EmbeddingUnavailableError, IntelligenceNotFoundError
 from ken_contracts.inventory import InventoryNotFoundError
 from ken_contracts.jobs import JobRunNotFoundError
+from ken_contracts.recommendations import PlanNotFoundError
 from ken_core.logging import get_logger
 
 logger = get_logger(__name__)
@@ -121,6 +122,8 @@ async def intelligence_not_found_handler(request: Request, exc: Exception) -> JS
         )
     elif isinstance(exc, JobRunNotFoundError):
         code, message = ErrorCode.NOT_FOUND, "Job run not found."
+    elif isinstance(exc, PlanNotFoundError):
+        code, message = ErrorCode.NOT_FOUND, "Link plan not found."
     else:  # registration guarantees one of the above
         return await unhandled_exception_handler(request, exc)
     return _respond(request, 404, ErrorResponse.of(code, message, request_id=_request_id(request)))
@@ -158,5 +161,6 @@ def install_exception_handlers(app: FastAPI) -> None:
     app.add_exception_handler(InventoryNotFoundError, inventory_not_found_handler)
     app.add_exception_handler(IntelligenceNotFoundError, intelligence_not_found_handler)
     app.add_exception_handler(JobRunNotFoundError, intelligence_not_found_handler)
+    app.add_exception_handler(PlanNotFoundError, intelligence_not_found_handler)
     app.add_exception_handler(EmbeddingUnavailableError, embedding_unavailable_handler)
     app.add_exception_handler(Exception, unhandled_exception_handler)

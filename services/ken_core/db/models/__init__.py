@@ -20,6 +20,12 @@ from ken_core.db.models.inventory import (
     Page,
     PageVersion,
 )
+from ken_core.db.models.recommendations import (
+    LinkCandidate,
+    LinkPlan,
+    LinkPlanTransition,
+    Opportunity,
+)
 
 __all__ = [
     "Event",
@@ -28,6 +34,10 @@ __all__ = [
     "IngestionRun",
     "JobRun",
     "KnownUrl",
+    "LinkCandidate",
+    "LinkPlan",
+    "LinkPlanTransition",
+    "Opportunity",
     "Page",
     "PageAnalysis",
     "PageEmbedding",

@@ -21,12 +21,14 @@ from ken_contracts.intelligence import IntelligenceReader
 from ken_contracts.inventory import InventoryReader
 from ken_contracts.jobs import JobReader
 from ken_contracts.model import ModelProvider
+from ken_contracts.recommendations import RecommendationReader
 from ken_core.config import Settings
 from ken_core.health.probes import Probe, build_probes
 
 INVENTORY_READER: Final = "ken_services.inventory.reader"
 INTELLIGENCE_READER: Final = "ken_services.intelligence.reader"
 JOB_READER: Final = "ken_services.jobs.reader"
+RECOMMENDATION_READER: Final = "ken_services.recommendations.reader"
 
 
 class AppStateNotInitialisedError(RuntimeError):
@@ -103,9 +105,21 @@ def get_job_reader(
     return reader
 
 
+def get_recommendation_reader(
+    settings: Annotated[Settings, Depends(get_app_settings)],
+    sessionmaker: Annotated[async_sessionmaker[AsyncSession], Depends(get_sessionmaker)],
+) -> RecommendationReader:
+    module: Any = importlib.import_module(RECOMMENDATION_READER)
+    reader: RecommendationReader = module.SqlRecommendationReader(
+        sessionmaker=sessionmaker, settings=settings
+    )
+    return reader
+
+
 SettingsDep = Annotated[Settings, Depends(get_app_settings)]
 IdentityDep = Annotated[ServiceIdentity, Depends(get_identity)]
 ProbesDep = Annotated[list[Probe], Depends(get_probes)]
 InventoryReaderDep = Annotated[InventoryReader, Depends(get_inventory_reader)]
 IntelligenceReaderDep = Annotated[IntelligenceReader, Depends(get_intelligence_reader)]
 JobReaderDep = Annotated[JobReader, Depends(get_job_reader)]
+RecommendationReaderDep = Annotated[RecommendationReader, Depends(get_recommendation_reader)]

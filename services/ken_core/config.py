@@ -114,7 +114,7 @@ class Settings(BaseSettings):
     # ---------------------------------------------------------------- service
     service_name: str = "ken-api"
     environment: Literal["local", "ci", "staging", "production"] = "local"
-    phase: int = 2
+    phase: int = 3
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
     log_format: Literal["json", "console"] = "console"
 
@@ -213,6 +213,14 @@ class Settings(BaseSettings):
     # stored graph is bounded by pages x materialised types x this cap.
     relationship_max_per_type: int = Field(default=25, ge=1, le=500)
 
+    # ---------------------------------------------------- recommendation engine
+    # Phase 3. Thresholds, caps and compatibility matrices are versioned POLICY
+    # DATA (ADR-0011); weights are the TRD section 12 ranking policy it references.
+    recommendation_policy_path: str = Field(
+        default=str(REPO_ROOT / "policies" / "recommendation" / "recommendation.v1.yaml"),
+        description="A relative value is resolved against the repository root.",
+    )
+
     # -------------------------------------------------------------- readiness
     require_pgvector: bool = Field(
         default=True,
@@ -261,7 +269,7 @@ class Settings(BaseSettings):
             )
         return value
 
-    @field_validator("alembic_ini_path", "taxonomy_path")
+    @field_validator("alembic_ini_path", "taxonomy_path", "recommendation_policy_path")
     @classmethod
     def _resolve_against_repo_root(cls, value: str) -> str:
         path = Path(value)

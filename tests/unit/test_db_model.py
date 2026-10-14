@@ -61,7 +61,7 @@ def test_the_only_vector_column_is_the_dimensionless_page_embedding() -> None:
         (table.name, column.name, _ddl_type(column))
         for table in Base.metadata.sorted_tables
         for column in table.columns
-        if "vector" in _ddl_type(column).lower()
+        if _ddl_type(column).lower().startswith("vector")  # pgvector, not full-text TSVECTOR
     ]
     assert vector_columns == [("page_embeddings", "embedding", "vector")]
     table = Base.metadata.tables["page_embeddings"]

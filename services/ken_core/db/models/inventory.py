@@ -39,6 +39,7 @@ from typing import Any, Final
 from sqlalchemy import (
     BigInteger,
     CheckConstraint,
+    Computed,
     DateTime,
     ForeignKey,
     ForeignKeyConstraint,
@@ -51,7 +52,7 @@ from sqlalchemy import (
     func,
     text,
 )
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ken_contracts.inventory import (
@@ -251,6 +252,20 @@ class PageVersion(Base):
     external_link_count: Mapped[int] = mapped_column(Integer, nullable=False)
     fetched_at: Mapped[datetime] = _timestamp()
     created_at: Mapped[datetime] = _timestamp(default_now=True)
+    # Phase 3 lexical retrieval (migration 0004): built-in full-text search over
+    # title (A), description (B) and the first 100k characters of body text (C;
+    # a tsvector is capped at 1 MB). STORED and generated, so it is computed on
+    # insert and never needs an UPDATE of this append-only table.
+    search_vector: Mapped[Any] = mapped_column(
+        TSVECTOR,
+        Computed(
+            "setweight(to_tsvector('english'::regconfig, coalesce(title, '')), 'A') || "
+            "setweight(to_tsvector('english'::regconfig, coalesce(meta_description, '')), 'B') || "
+            "setweight(to_tsvector('english'::regconfig, left(body_text, 100000)), 'C')",
+            persisted=True,
+        ),
+        nullable=True,
+    )
 
     __table_args__ = (
         UniqueConstraint("page_id", "version"),
@@ -263,6 +278,7 @@ class PageVersion(Base):
             _one_of("canonical_status", CanonicalStatus), name="canonical_status_valid"
         ),
         Index("ix_page_versions_run_id", "run_id"),
+        Index("ix_page_versions_search_vector", "search_vector", postgresql_using="gin"),
     )
 
 
