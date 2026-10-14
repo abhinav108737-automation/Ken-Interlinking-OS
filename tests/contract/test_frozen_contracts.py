@@ -421,8 +421,8 @@ def test_agent_policy_file_validates_and_tools_are_allowlisted() -> None:
     policy = AgentPolicy.model_validate(raw)
     assert policy.version == 1
     assert set(TOOL_PERMISSIONS) == set(ToolName)
-    writers = {t for t, p in TOOL_PERMISSIONS.items() if p is ToolPermission.PROPOSE}
-    assert writers == {ToolName.PROPOSE_PLANS, ToolName.TRANSITION_PLAN}
+    writers = {t for t, p in TOOL_PERMISSIONS.items() if p is not ToolPermission.READ}
+    assert writers == {ToolName.HAND_OFF_PLANS}  # agents never insert, approve or deploy
 
 
 def test_llm_boundary_models_are_bounded_and_strict() -> None:
@@ -437,12 +437,27 @@ def test_llm_boundary_models_are_bounded_and_strict() -> None:
     with pytest.raises(ValidationError):
         PlannerSelection.model_validate({"selected": ["a"], "anchor_text": "invented"})
     with pytest.raises(ValidationError):
-        PlannerSelection(selected=[str(i) for i in range(MAX_CANDIDATES_FOR_MODEL + 1)])
+        PlannerSelection(selected=[f"c{i}" for i in range(MAX_CANDIDATES_FOR_MODEL + 1)])
+    for bad_ref in ("c1x", "1", "c123", "2b1e6a9c-0000-0000-0000-000000000000", "/reports/x"):
+        with pytest.raises(ValidationError):
+            PlannerSelection(selected=[bad_ref])
+    with pytest.raises(ValidationError):
+        PlannerSelection(selected=["c1", "c1"])
     with pytest.raises(ValidationError):
         CriticAssessment.model_validate(
-            {"critiques": [{"ref": "a", "verdict": "approve", "reasons": []}]}
+            {
+                "critiques": [
+                    {"ref": "c0", "verdict": "accept"},
+                    {"ref": "c0", "verdict": "reject"},
+                ]
+            }
+        )
+    assert PlannerSelection(selected=["c0", "c9", "c10"]).selected == ["c0", "c9", "c10"]
+    with pytest.raises(ValidationError):
+        CriticAssessment.model_validate(
+            {"critiques": [{"ref": "c0", "verdict": "approve", "reasons": []}]}
         )
     with pytest.raises(ValidationError):
         CriticAssessment.model_validate(
-            {"critiques": [{"ref": "a", "verdict": "accept", "explanation": "x" * 301}]}
+            {"critiques": [{"ref": "c0", "verdict": "accept", "explanation": "x" * 301}]}
         )

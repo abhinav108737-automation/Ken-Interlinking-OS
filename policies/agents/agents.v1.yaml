@@ -1,14 +1,22 @@
-# Agent supervisor policy v1 (Phase 4, ADR-0012). Versioned data: a change is a new
-# version file, never an in-place edit once released. Validated by AgentPolicy.
+# Agent supervisor policy v1 — Phase 4 agent review workflow (ADR-0012).
+#
+# DATA, NOT CODE: which model roles are used, the deterministic critic threshold, how
+# many proposed plans a run reviews, timeouts and retries. Validated on load by
+# ken_contracts.agents.AgentPolicy, and cross-checked against the recommendation policy
+# (max_plans_per_run <= selection.max_plans_per_source). Every agent run records this
+# version in its config snapshot. Changing anything means agents.v2.yaml, never an
+# in-place edit once released. Policy lifecycle (PRD v1.1 Appendix C): PROPOSED ->
+# OFFLINE_TEST -> SHADOW -> CANARY -> EXPERIMENT -> PROMOTED. No agent may promote a
+# policy.
 version: 1
 
-# FAST role: may re-order / choose among the engine's deterministic candidates.
+# FAST role: may choose / re-order which of the source's proposed plans to review.
 # Off by default: the engine's rank order is the deterministic rule.
 planner:
   use_model: false
   timeout_seconds: 30
 
-# REASONING role: assesses each planned candidate (accept / reject / uncertain).
+# REASONING role: assesses each chosen plan (accept / reject / uncertain).
 # Deterministic rule when off or on any model failure: accept at or above
 # accept_min_confidence (RAW, uncalibrated until Phase 8), else uncertain.
 critic:
@@ -16,7 +24,7 @@ critic:
   timeout_seconds: 90
   accept_min_confidence: 0.5
 
-max_plans_per_run: 3          # per source; never above selection.max_plans_per_source
+max_plans_per_run: 3          # plans reviewed per source per run
 node_timeout_seconds: 30      # every non-model node
 tool_retries: 1               # retries of a failed READ tool call
 max_sources_per_batch: 100    # make agents

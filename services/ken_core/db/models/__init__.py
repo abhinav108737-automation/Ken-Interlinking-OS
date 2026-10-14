@@ -4,7 +4,7 @@ Every model must be imported here so that ``Base.metadata`` is complete when
 Alembic's env.py imports this package for autogenerate comparison.
 """
 
-from ken_core.db.models.agents import AgentRun, AgentStep
+from ken_core.db.models.agents import AgentRun, AgentRunPlan, AgentStep
 from ken_core.db.models.event import Event
 from ken_core.db.models.intelligence import (
     JobRun,
@@ -30,6 +30,7 @@ from ken_core.db.models.recommendations import (
 
 __all__ = [
     "AgentRun",
+    "AgentRunPlan",
     "AgentStep",
     "Event",
     "ExistingLink",

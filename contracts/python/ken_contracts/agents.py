@@ -2,40 +2,45 @@
 
 FROZEN CONTRACT (orchestrator).
 
-One **agent run** is one supervised workflow over ONE source page, executed by the LangGraph
-supervisor (TRD sections 8-10)::
+One **agent run** is one supervised review workflow over ONE source page, executed by the
+LangGraph supervisor (TRD sections 8-10)::
 
-    load_page -> triage -> understand -> discover -> plan -> critique -> verify -> policy_gate
-        -> finalize
-
-Every node is recorded as one APPEND-ONLY ``agent_steps`` row. A batch of runs is one
-``job_runs`` row of kind ``agent``.
+    load_page -> triage -> understand -> discover -> plan -> critique -> check_invariants
+        -> policy_gate -> finalize
 
 Boundaries this module fixes:
 
-* **Outcomes.** A run ends ``recommend`` (plans persisted and queued for human approval),
-  ``no_action``, ``needs_human_review`` or ``failed``. Approval is never decided here: the
-  run stops at ``awaiting_approval`` (TRD section 16: no live process waits for a human).
-* **LLM boundary.** A model may only CHOOSE AMONG and ASSESS deterministic candidates. Its
-  output is one of the models below (``PlannerSelection``, ``CriticAssessment``), validated
-  with Pydantic and then re-validated against the candidate set (unknown refs are dropped and
-  recorded). Anchors, offsets, URLs and scores never come from a model.
-* **Deterministic fallback.** When the model is disabled, unavailable, slow or returns an
-  invalid shape, the node uses its deterministic rule and records ``fallback_used`` with a
-  ``FallbackReason``. A fallback never fails the run.
+* **One plan producer.** The deterministic engine (``make recommend``, ADR-0011) is the ONLY
+  producer of ``proposed`` plans. An agent run REVIEWS the source's existing ``proposed``
+  plans: ``discover`` lists them, ``plan`` chooses which to review, ``critique`` assesses them
+  and ``policy_gate`` hands the accepted and uncertain ones to the human queue
+  (``proposed -> critiqued -> policy_checked -> awaiting_approval``) in ONE deterministic
+  service call. Agents never insert, edit, reject, approve or expire a plan; a plan the
+  critic rejects stays ``proposed`` with its review recorded.
+* **Outcomes.** ``recommend`` (>= 1 accepted plan handed off), ``needs_human_review`` (only
+  uncertain plans handed off, or an invariant problem), ``no_action``, ``failed``. The run
+  ENDS when it hands off (status ``awaiting_approval`` = handed off; TRD section 16: no
+  process waits for a human, and nothing resumes the graph).
+* **LLM boundary.** A model may only CHOOSE AMONG and ASSESS plans, referred to by opaque
+  refs (``c0``, ``c1`` ...). Output is one of the frozen models below, validated with
+  Pydantic and then against the offered refs. A ref the model omits gets the deterministic
+  rule. Anchors, offsets, URLs and scores never come from a model.
+* **Deterministic fallback.** Model disabled / unavailable / slow / invalid: the node uses
+  its rule and records ``fallback_used`` + ``FallbackReason``. A model problem never fails a
+  run.
 * **Tools.** Nodes receive narrow, typed, allowlisted tools (``ToolName``), never sessions,
-  credentials, a filesystem or a shell. Every call is recorded on its step.
+  credentials, a filesystem, a shell or a CMS client, and never choose an actor.
 * **Models by role.** Steps record the ROLE they asked for and the model the provider
-  reported, never a hard-coded name.
+  reported.
 """
 
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import Any, Final, Protocol, runtime_checkable
+from typing import Annotated, Any, Final, Protocol, Self, runtime_checkable
 from uuid import UUID
 
-from pydantic import AwareDatetime, Field
+from pydantic import AwareDatetime, Field, model_validator
 
 from ken_contracts.common import FrozenModel
 from ken_contracts.errors import ListResponse
@@ -46,20 +51,31 @@ GRAPH_VERSION: Final = "graph-v1"
 
 MAX_EXPLANATION_CHARS: Final = 300
 MAX_CANDIDATES_FOR_MODEL: Final = 10
-"""At most this many deterministic candidates are shown to a model in one call."""
+"""At most this many plans are shown to a model in one call."""
+MAX_STEP_OUTPUT_BYTES: Final = 16_384
+"""Bound on the JSON of a step's ``output`` and ``tool_calls`` (also a DB CHECK)."""
+MAX_REVIEW_NOTES: Final = 20
+MAX_REVIEW_NOTE_CHARS: Final = 300
+REF_PATTERN: Final = r"^c[0-9]{1,2}$"
+"""Opaque per-call plan reference shown to a model: never a UUID or URL."""
+
+PLANNER_ACTOR: Final = "agent:planner@graph-v1"
+CRITIC_ACTOR: Final = "agent:critic@graph-v1"
+POLICY_GATE_ACTOR: Final = "system:agent-policy-gate"
+"""Actors are bound by the services, never chosen by a node."""
+
+type PlanRef = Annotated[str, Field(pattern=REF_PATTERN)]
 
 
 class AgentTrigger(StrEnum):
     MANUAL = "manual"
-    """An operator asked for this page (CLI / API)."""
+    """An operator asked for these pages (CLI): a batch of the named sources."""
     BATCH = "batch"
-    """Part of a ``make agents`` batch over eligible sources."""
-    PAGE_CHANGED = "page_changed"
-    """The source has a newer version than its last agent run."""
+    """``make agents`` over sources that have unreviewed proposed plans."""
 
 
 class AgentNode(StrEnum):
-    """Supervisor nodes, in graph order."""
+    """Supervisor nodes, in graph order (TRD section 9 mapping in ADR-0012)."""
 
     LOAD_PAGE = "load_page"
     TRIAGE = "triage"
@@ -67,7 +83,7 @@ class AgentNode(StrEnum):
     DISCOVER = "discover"
     PLAN = "plan"
     CRITIQUE = "critique"
-    VERIFY = "verify"
+    CHECK_INVARIANTS = "check_invariants"
     POLICY_GATE = "policy_gate"
     FINALIZE = "finalize"
 
@@ -76,22 +92,23 @@ class TriageDecision(StrEnum):
     """TRD section 10 triage vocabulary. Deterministic in Phase 4."""
 
     NO_ACTION = "no_action"
+    """Ineligible source, or no unreviewed proposed plan."""
     REINDEX = "reindex"
-    """The page's analysis is missing or stale: run analysis first (never done by an agent)."""
+    """Analysis missing or stale: run ``make analyze`` (never done by an agent)."""
     OPTIMIZE = "optimize"
-    """Eligible, analysed, has capacity: look for links."""
+    """Eligible, analysed, has unreviewed proposed plans: review them."""
     REPAIR_LINK = "repair_link"
     """Reserved (Phase 6): a deployed link is broken."""
     REVIEW_PERFORMANCE = "review_performance"
-    """Reserved (Phase 7/8): measured links under-perform."""
+    """Reserved (Phases 7-8): measured links under-perform."""
 
 
 class AgentRunStatus(StrEnum):
     RUNNING = "running"
     AWAITING_APPROVAL = "awaiting_approval"
-    """Plans are queued for a human; the run itself has ENDED (TRD section 16)."""
+    """Ended by handing >= 1 plan to the human queue (terminal for the run)."""
     COMPLETED = "completed"
-    """Ended with no plan awaiting approval (no action, or review requested)."""
+    """Ended without handing off a plan."""
     FAILED = "failed"
 
 
@@ -105,9 +122,9 @@ class AgentOutcome(StrEnum):
 class StepStatus(StrEnum):
     SUCCEEDED = "succeeded"
     SKIPPED = "skipped"
-    """The node did not apply (e.g. no candidates to critique)."""
+    """The node did not apply (e.g. nothing to critique)."""
     FAILED = "failed"
-    """A recoverable failure was handled by routing (the run continues or ends cleanly)."""
+    """A recoverable failure, handled by routing (the run continues or ends cleanly)."""
 
 
 class FallbackReason(StrEnum):
@@ -115,7 +132,7 @@ class FallbackReason(StrEnum):
     MODEL_UNAVAILABLE = "model_unavailable"
     MODEL_TIMEOUT = "model_timeout"
     SCHEMA_VIOLATION = "schema_violation"
-    """The model output did not validate, or referenced no known candidate."""
+    """The output did not validate, or covered none of the offered refs."""
 
 
 class AgentErrorCode(StrEnum):
@@ -125,9 +142,10 @@ class AgentErrorCode(StrEnum):
     TOOL_FAILED = "tool_failed"
     TIMEOUT = "timeout"
     INVARIANT_VIOLATED = "invariant_violated"
-    """Verification found a candidate that breaks a deterministic invariant."""
-    PERSIST_CONFLICT = "persist_conflict"
-    """A plan could not be persisted (e.g. a concurrent run took the pair)."""
+    HANDOFF_CONFLICT = "handoff_conflict"
+    """A plan changed status concurrently (e.g. expired by ``make recommend``)."""
+    ORPHANED = "orphaned"
+    """The process died while the run was ``running`` (reaped at the next batch start)."""
     INTERNAL = "internal"
 
 
@@ -137,47 +155,52 @@ class ToolName(StrEnum):
     GET_PAGE = "get_page"
     GET_ANALYSIS = "get_analysis"
     GET_ELIGIBILITY = "get_eligibility"
-    DISCOVER_CANDIDATES = "discover_candidates"
-    """Dry run of the deterministic engine for one source: writes nothing."""
-    VERIFY_CANDIDATE = "verify_candidate"
-    PROPOSE_PLANS = "propose_plans"
-    """The ONLY writing tool: persists plans through the engine's insert path."""
-    TRANSITION_PLAN = "transition_plan"
-    """Moves a plan through the transition service, as the calling agent's actor."""
+    LIST_PROPOSED_PLANS = "list_proposed_plans"
+    CHECK_PLAN = "check_plan"
+    """Deterministic invariants of one plan, re-checked right before the hand-off."""
+    HAND_OFF_PLANS = "hand_off_plans"
+    """The ONLY writing tool: the atomic policy-gate service call (actors bound inside)."""
 
 
 class ToolPermission(StrEnum):
     READ = "read"
-    PROPOSE = "propose"
-    """Writes recommendation records only (link_plans and their history). Never CMS."""
+    REVIEW = "review"
+    """Moves reviewed plans proposed -> awaiting_approval and records the review. Never
+    inserts, approves or deploys; never touches a CMS."""
 
 
 TOOL_PERMISSIONS: Final = {
     ToolName.GET_PAGE: ToolPermission.READ,
     ToolName.GET_ANALYSIS: ToolPermission.READ,
     ToolName.GET_ELIGIBILITY: ToolPermission.READ,
-    ToolName.DISCOVER_CANDIDATES: ToolPermission.READ,
-    ToolName.VERIFY_CANDIDATE: ToolPermission.READ,
-    ToolName.PROPOSE_PLANS: ToolPermission.PROPOSE,
-    ToolName.TRANSITION_PLAN: ToolPermission.PROPOSE,
+    ToolName.LIST_PROPOSED_PLANS: ToolPermission.READ,
+    ToolName.CHECK_PLAN: ToolPermission.READ,
+    ToolName.HAND_OFF_PLANS: ToolPermission.REVIEW,
 }
 
 
 # --------------------------------------------------------------------------- #
-# LLM boundary (validated with Pydantic, then against the candidate set)
+# LLM boundary (validated with Pydantic, then against the offered refs)
 # --------------------------------------------------------------------------- #
 class PlannerSelection(FrozenModel):
-    """FAST-role output: an ordered subset of the offered candidate refs."""
+    """FAST-role output: an ordered subset of the offered refs, without duplicates."""
 
-    selected: list[str] = Field(default_factory=list, max_length=MAX_CANDIDATES_FOR_MODEL)
+    selected: list[PlanRef] = Field(default_factory=list, max_length=MAX_CANDIDATES_FOR_MODEL)
     explanation: str = Field(default="", max_length=MAX_EXPLANATION_CHARS)
+
+    @model_validator(mode="after")
+    def _unique(self) -> Self:
+        if len(set(self.selected)) != len(self.selected):
+            raise ValueError("selected refs must be unique")
+        return self
 
 
 class CriticVerdict(StrEnum):
     ACCEPT = "accept"
     REJECT = "reject"
+    """The plan is NOT handed off (it stays proposed; only a human rejects)."""
     UNCERTAIN = "uncertain"
-    """Routes the plan to human review with the critic's note."""
+    """Handed off with the critic's note: a human must look closely."""
 
 
 class CriticReason(StrEnum):
@@ -191,16 +214,23 @@ class CriticReason(StrEnum):
 
 
 class CandidateCritique(FrozenModel):
-    ref: str
+    ref: PlanRef
     verdict: CriticVerdict
     reasons: list[CriticReason] = Field(default_factory=list, max_length=4)
     explanation: str = Field(default="", max_length=MAX_EXPLANATION_CHARS)
 
 
 class CriticAssessment(FrozenModel):
-    """REASONING-role output: one critique per offered candidate ref."""
+    """REASONING-role output: at most one critique per offered ref."""
 
     critiques: list[CandidateCritique] = Field(max_length=MAX_CANDIDATES_FOR_MODEL)
+
+    @model_validator(mode="after")
+    def _unique(self) -> Self:
+        refs = [c.ref for c in self.critiques]
+        if len(set(refs)) != len(refs):
+            raise ValueError("at most one critique per ref")
+        return self
 
 
 # --------------------------------------------------------------------------- #
@@ -211,6 +241,7 @@ class ToolCallRecord(FrozenModel):
     permission: ToolPermission
     ok: bool
     duration_ms: int = Field(ge=0)
+    attempt: int = Field(default=1, ge=1)
     error_code: AgentErrorCode | None = None
     summary: dict[str, Any] = Field(
         default_factory=dict, description="Secret-free, bounded summary of arguments/results."
@@ -235,13 +266,28 @@ class AgentStepView(FrozenModel):
     output: dict[str, Any] = Field(
         default_factory=dict, description="Validated, bounded node output (no raw prompts)."
     )
-    trace_id: str = Field(description="32 hex chars: the run's trace (W3C trace-context form).")
-    span_id: str = Field(description="16 hex chars: this step's span.")
+    trace_id: str = Field(pattern=r"^[0-9a-f]{32}$", description="The run's trace id.")
+    span_id: str = Field(pattern=r"^[0-9a-f]{16}$", description="This step's span.")
+
+
+class AgentPlanReview(FrozenModel):
+    """One plan reviewed by one run (append-only ``agent_run_plans``; a plan is reviewed
+    by agents at most once)."""
+
+    plan_id: UUID
+    verdict: CriticVerdict
+    reasons: list[CriticReason] = Field(default_factory=list)
+    explanation: str = Field(default="", max_length=MAX_EXPLANATION_CHARS)
+    handed_off: bool = Field(description="Moved to awaiting_approval by this run.")
+    fallback_used: bool
+    fallback_reason: FallbackReason | None = None
+    model: str | None = Field(default=None, description="Set only when a model answered.")
+    reviewed_at: AwareDatetime
 
 
 class AgentRunSummary(FrozenModel):
     id: UUID
-    job_run_id: UUID | None = None
+    job_run_id: UUID
     source_page_id: UUID
     source_page_version: int | None = None
     source_url: str
@@ -249,9 +295,9 @@ class AgentRunSummary(FrozenModel):
     status: AgentRunStatus
     outcome: AgentOutcome | None = None
     triage_decision: TriageDecision | None = None
-    plan_ids: list[UUID] = Field(default_factory=list)
+    handed_off_plan_ids: list[UUID] = Field(default_factory=list)
     correlation_id: UUID
-    trace_id: str = Field(description="32 hex chars; every step's trace_id equals it.")
+    trace_id: str = Field(description="``correlation_id.hex``; every step carries it.")
     graph_version: str
     started_at: AwareDatetime
     finished_at: AwareDatetime | None = None
@@ -260,11 +306,14 @@ class AgentRunSummary(FrozenModel):
 
 class AgentRunDetail(AgentRunSummary):
     steps: list[AgentStepView]
+    reviews: list[AgentPlanReview]
     config_snapshot: dict[str, Any] = Field(
-        description="Secret-free: graph version, model roles enabled, timeouts, policy versions."
+        description="Secret-free: graph and policy versions, model roles enabled, timeouts."
     )
     review_notes: list[str] = Field(
-        default_factory=list, description="Why a human should look (needs_human_review)."
+        default_factory=list,
+        max_length=MAX_REVIEW_NOTES,
+        description="Why a human should look (needs_human_review).",
     )
 
 
@@ -285,6 +334,10 @@ class AgentReader(Protocol):
     ) -> ListResponse[AgentRunSummary]: ...
 
     async def get_run(self, *, run_id: UUID) -> AgentRunDetail: ...
+
+    async def reviews_for_plan(self, *, plan_id: UUID) -> list[AgentPlanReview]:
+        """The agent review(s) of a plan, for the Phase 5 reviewer (empty if none)."""
+        ...
 
 
 # --------------------------------------------------------------------------- #
@@ -309,8 +362,11 @@ class AgentPolicy(FrozenModel):
     planner: ModelUsePolicy
     critic: CriticPolicy
     max_plans_per_run: int = Field(
-        default=3, ge=1, le=10, description="Never more than the engine's per-source cap."
+        default=3,
+        ge=1,
+        le=MAX_CANDIDATES_FOR_MODEL,
+        description="Plans reviewed per source per run; at most the engine's per-source cap.",
     )
     node_timeout_seconds: float = Field(default=30.0, gt=0, le=600)
-    tool_retries: int = Field(default=1, ge=0, le=3)
+    tool_retries: int = Field(default=1, ge=0, le=3, description="Retries of READ tools only.")
     max_sources_per_batch: int = Field(default=100, ge=1, le=10_000)
