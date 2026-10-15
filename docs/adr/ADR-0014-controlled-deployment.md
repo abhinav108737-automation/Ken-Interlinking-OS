@@ -1,6 +1,6 @@
 # ADR-0014 — Phase 6 controlled deployment: deterministic HTML mutation through the CMS adapter
 
-- **Status:** Accepted (Phase 6)
+- **Status:** Accepted (Phase 6); amended before fan-out by the pre-fan-out architecture review (§8, binding; it supersedes conflicting text in §§1–6)
 - **Date:** 2026-10-14
 - **Deciders:** orchestrator (under the user's 2026-10-14 autonomous-delivery authorisation)
 - **Related:** PRD §§7.10, 7.11; TRD §§11, 13, 15, 23; ADR-0011 (plans, locators), ADR-0013
@@ -149,7 +149,7 @@ The CMS is chosen by `KEN_CMS_PROVIDER` (`mock` | `simulated` | `http`). The def
 - **Job reaper.** `make jobs-reap` fails `running` `job_runs` whose kind's advisory lock is not
   held, closing the Phase 1/2 "stays running" gap.
 
-### 6. Verification transport: HTTP/HTML, not Playwright
+### 6. Verification transport: HTTP/HTML now; browser verification deferred
 
 Verification parses the served HTML with the same block walk. Inline styles and the hidden
 attributes cover the documented `display:none` gap. A headless browser (Playwright) is **not**
@@ -168,6 +168,144 @@ UI:
   the dry-run preview as text, and rollback with a reason);
 - a "Deploy" flow on approved plans (dry-run preview → confirm), visible to `deploy` only;
 - the plan's deployment state shown on plan detail.
+
+### 8. Amendments from the pre-fan-out architecture review (binding)
+
+**Durable intent and reconciliation.** A deployment uses two transactions around the CMS
+call, under the source deployment lock below.
+1. **Transaction 1:**
+   - validate;
+   - move the plans `approved → validated`;
+   - insert the `deployments` row as `applying`, storing the EXACT serialised
+     `LinkChangeRequest` and its fingerprint;
+   - commit.
+2. **The CMS call.**
+3. **Transaction 2:** record the outcome, and emit its events in the same transaction:
+   - applied → `applied`, plans `deployed`;
+   - a validation error → `failed`, plans `failed`;
+   - a version conflict → `conflict`, plans `expired`.
+
+**A timeout or unknown outcome leaves the row `applying`.** It is never `failed`.
+
+**Reconciliation.**
+- `make deployments-reconcile` resends the STORED request byte for byte for `applying` (and
+  `rolling_back`) rows older than T:
+  - a replay result → `applied`;
+  - a conflict → `conflict` / `expired`;
+  - a validation error → `failed`.
+- **Provider contract** (contract-tested for every provider): replaying an applied
+  `operation_id` with the identical request returns the stored result, even if the page has
+  moved since.
+
+**Per-source deployment lock.** A session-level `pg_advisory_lock("ken.deploy.source:<id>")`
+on a dedicated connection is held across transaction 1, the CMS call and transaction 2. A
+concurrent request gets a retryable 409 `deployment_in_progress`, and its plans are left
+unchanged, never expired. Inside each transaction, the ADR-0013 per-source plan-writer xact
+lock is also taken.
+
+**`VALIDATED` belongs to the deployment service.** The pipeline's invalidity and stale expiry
+and the review service SKIP `validated` plans. They stay in `OPEN_STATUSES` for the uniqueness
+indexes. The race is tested.
+
+**Rollback semantics** (supersede §1.8 / §2):
+- Rollback is an inverse splice of OUR links on the CMS's CURRENT HTML, done under the CMS's
+  own lock. It is safe after unrelated later edits, including our own later deployments.
+- It is refused only when one of our links itself changed: 409 `rollback_conflict`, with the
+  plan and deployment status unchanged.
+- A snapshot restore is used only when `current_version == new_version`.
+- **This supersedes** the Phase 0 `cms.py` / `MockCMSProvider` docstring ("page moved →
+  conflict"). The mock and simulated providers implement the new semantics, and
+  `HttpCMSProvider` sends `LinkOperation.REMOVE` changes, or the TRD §13 rollback endpoint
+  when the CMS supports it.
+- Rolling back a `failed` or `conflict` deployment (nothing applied) is refused with
+  `nothing_to_roll_back`, and the UI hides the button.
+- Rollback is two-phase like apply (`rolling_back` → `rolled_back`), with reconciliation.
+
+**Pair occupancy (amends ADR-0011's live rule).** A plan whose link is physically on the page
+occupies its pair REGARDLESS of `source_page_version`, until it is `rolled_back`:
+- `deployed`, `verified`, `measured` and `learning_captured`;
+- `failed` when its deployment was `applied`.
+
+The engine's `duplicate_recommendation` check uses this. The `source_page_version >= current`
+window is dropped.
+
+**Verification outcomes.** `VerificationOutcome` = `passed | failed | skipped | inconclusive`.
+- Inconclusive: an HTTP network error, a 5xx, a timeout, or publish/CDN lag. The plan stays
+  `deployed`; a bounded retry happens at deploy time, and `POST …/verify` re-runs on demand.
+- Only a deterministic CMS-side or HTML failure moves `deployed → failed`.
+- Re-verifying a `verified` deployment records a run and may move the DEPLOYMENT to
+  `verification_failed`, but makes NO plan transition (`verified → failed` is not allowed).
+- The deployment state machine is the one in `DeploymentStatus`. Rows are frozen in
+  `failed`, `conflict` and `rolled_back`.
+
+**Locator robustness.**
+- The mutator accepts a fragment or a full document, and matches by `context_hash` only.
+- Fixture tests show that, for the same page, `extract_blocks(full_rendered_html)`,
+  `extract_blocks(stored_body_html)` and `extract_blocks(cms_fragment)` give the same
+  content-block hashes, including a fragment without `<main>`.
+- The parser is `HTMLParser(convert_charrefs=False)`. Only the span's two boundaries must map
+  exactly; interior whitespace and entities are preserved verbatim.
+- The self-check also asserts that every other block is unchanged, that the existing
+  `<a href>` set is unchanged apart from ours, and that `remove(insert(x)) == x`.
+
+**Identity without `data-*`.** Our link is identified by (block hash, anchor span, href).
+`data-ken-link-id` is only a hint, because a CMS sanitiser may strip it. Each provider records
+whether `data-*` survives. For Phase 7, attribution must not depend on the attribute: links
+map to plans through (source page, anchor, href).
+
+**Complete deploy-time checks.**
+- Link density against the CMS's CURRENT HTML plus this batch (`density_exceeded`).
+- The target not already linked in the CMS HTML (`already_linked`).
+- CMS page resolution: the page's `external_id` for CMS-sourced pages, else the simulated
+  provider's URL mapping, else `cms_page_unmapped`.
+- The target fetch follows no off-host redirects (a 3xx is a failure) and reuses the Phase 1
+  scope and SSRF guards.
+
+**Dry run and operation id.**
+- A dry run never records or consumes an `operation_id`.
+- The deploy fingerprint is {sorted `plan_ids`, note, user}.
+- A replay of an operation that ended in conflict or failure returns the stored outcome, with
+  the same status code.
+
+**Typed events.** `LinkDeployedPayload`, `LinkVerifiedPayload`, `LinkFailedPayload` and
+`LinkRolledBackPayload` (`event_version` 1) are emitted in the same transaction as the status
+change, with `correlation_id = operation_id`.
+
+**Status-integrity trigger (migration 0007).**
+- `AFTER UPDATE OF status … WHEN (OLD.status IS DISTINCT FROM NEW.status)`, as a DEFERRABLE
+  INITIALLY DEFERRED constraint trigger.
+- The migration embeds a literal transition table, with a parity test against
+  `ALLOWED_TRANSITIONS`.
+- A matching `link_plan_transitions` row must exist: (`plan_id`, from, to, `txid`), using a new
+  `link_plan_transitions.txid xid8 DEFAULT pg_current_xact_id()` column (not `xmin`, which
+  breaks under savepoints).
+- The test that does a raw `UPDATE … SET status` is rewritten to expect the refusal. Tests that
+  roll back use `SET CONSTRAINTS ALL IMMEDIATE`.
+- Known limitation: a direct INSERT at a non-initial status (test fixtures) is not covered.
+
+**Simulated CMS isolation.**
+- `SimulatedCMSProvider` uses its OWN engine and connections and commits independently of the
+  app session. It has fault-injection hooks for "CMS committed, app failed" and the reverse.
+- Its storage lives OUTSIDE the app's Alembic chain: a separate database, `ken_cms_sim` on the
+  project PostgreSQL, created and seeded by `make cms-sim-seed` (a disposable,
+  project-local database).
+- `make cms-sim-serve` binds loopback on port 0 (never 8765) and prints the verified URL.
+
+**`HttpCMSProvider` gating.** Every network call, reads included, is refused before any I/O
+unless the base URL is loopback or the user explicitly opts in to a remote base URL
+(`KEN_CMS_ALLOW_REMOTE=true`). Connecting to the real CMS is an ASK action, and it is not done.
+Writes additionally need `KEN_CMS_WRITES_ENABLED=true`. The token is never logged.
+`config.cms_provider` widens to `mock | simulated | http`.
+
+**Sessions.** The read-only GET session factory is used by readers only. The auth provider
+keeps the read-write factory, because it writes `last_seen_at`. A test proves that a reader's
+write fails.
+
+**Reaper.** `make jobs-reap` takes the kind's lock with `pg_try_advisory_lock` before marking a
+run failed, releases it afterwards, and never touches deployments.
+
+**Optional, adopted:** per-plan rollback is a REMOVE-change deployment (an editorial reversal
+of one link does not roll back the batch).
 
 ## Consequences
 

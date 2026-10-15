@@ -33,6 +33,19 @@ SNIPPET_CHARS: Final = 400
 
 
 class DeploymentStatus(StrEnum):
+    """Deployment state machine (ADR-0014 section 8)::
+
+        applying -> applied | failed | conflict      (applying is the durable intent)
+        applied  -> verified | verification_failed | rolling_back
+        verified -> verification_failed (re-verify) | rolling_back
+        verification_failed -> verified (re-verify) | rolling_back
+        rolling_back -> rolled_back | (back to the prior status on a rollback conflict)
+
+    ``failed``, ``conflict`` and ``rolled_back`` are terminal (row frozen)."""
+
+    APPLYING = "applying"
+    """Intent recorded and plans validated; the CMS call is in flight or its outcome is
+    unknown (timeout). Never reaped: reconciled by resending the STORED request."""
     APPLIED = "applied"
     """The CMS accepted the change; verification pending or not yet run."""
     VERIFIED = "verified"
@@ -41,6 +54,8 @@ class DeploymentStatus(StrEnum):
     """The CMS refused the change (validation), or the apply errored: nothing applied."""
     CONFLICT = "conflict"
     """``expected_version`` mismatch: nothing applied; the plans were expired."""
+    ROLLING_BACK = "rolling_back"
+    """Rollback intent recorded; the CMS call is in flight or its outcome unknown."""
     ROLLED_BACK = "rolled_back"
 
 
@@ -69,6 +84,15 @@ class DeploymentIssueCode(StrEnum):
     ALREADY_APPLIED = "already_applied"
     CONFLICTING_LINK = "conflicting_link"
     SELF_CHECK_FAILED = "self_check_failed"
+    DEPLOYMENT_IN_PROGRESS = "deployment_in_progress"
+    """Another deployment of the same source is running: retry later (plans unchanged)."""
+    DENSITY_EXCEEDED = "density_exceeded"
+    ALREADY_LINKED = "already_linked"
+    """The CMS's CURRENT HTML already links the target from this page."""
+    CMS_PAGE_UNMAPPED = "cms_page_unmapped"
+    ROLLBACK_CONFLICT = "rollback_conflict"
+    """Our link was itself changed on the page since deployment: not removed."""
+    NOTHING_TO_ROLL_BACK = "nothing_to_roll_back"
 
 
 class DeploymentIssue(FrozenModel):
@@ -87,10 +111,19 @@ class VerificationCheckName(StrEnum):
     """Only when HTTP verification is configured; otherwise ``skipped``."""
 
 
+class VerificationOutcome(StrEnum):
+    PASSED = "passed"
+    FAILED = "failed"
+    """Deterministic: the HTML/CMS state is wrong."""
+    SKIPPED = "skipped"
+    INCONCLUSIVE = "inconclusive"
+    """Transient: network error, timeout, 5xx, publish/CDN lag. Never fails a plan."""
+
+
 class VerificationCheck(FrozenModel):
     plan_id: UUID
     check: VerificationCheckName
-    outcome: str = Field(pattern=r"^(passed|failed|skipped)$")
+    outcome: VerificationOutcome
     detail: str | None = Field(default=None, max_length=200, description="Fixed-vocabulary code.")
 
 
@@ -152,9 +185,16 @@ class RollbackRequest(FrozenModel):
     operation_id: UUID
     reason: RollbackReason
     note: str = Field(default="", max_length=MAX_NOTE_CHARS)
+    plan_ids: list[UUID] | None = Field(
+        default=None,
+        max_length=MAX_PLANS_PER_DEPLOYMENT,
+        description="Roll back only these plans of the deployment (REMOVE changes); None = all.",
+    )
 
     @model_validator(mode="after")
     def _valid(self) -> Self:
+        if self.plan_ids is not None and len(set(self.plan_ids)) != len(self.plan_ids):
+            raise ValueError("plan_ids must be unique")
         if self.reason is RollbackReason.OTHER and not self.note.strip():
             raise ValueError("reason 'other' requires a note")
         reject_unstorable_text(self.note)
@@ -192,6 +232,7 @@ class VerificationRun(FrozenModel):
     id: int
     run_at: AwareDatetime
     passed: bool
+    inconclusive: bool = False
     http_checked: bool
     checks: list[VerificationCheck]
 
@@ -261,3 +302,47 @@ class DeploymentReader(Protocol):
     async def get_deployment(self, *, deployment_id: UUID) -> DeploymentDetail: ...
 
     async def deployments_for_plan(self, *, plan_id: UUID) -> list[DeploymentView]: ...
+
+
+# --------------------------------------------------------------------------- #
+# Typed event payloads (event_version 1; ADR-0014 section 8). correlation_id = operation_id.
+# --------------------------------------------------------------------------- #
+class LinkDeployedPayload(FrozenModel):
+    plan_id: UUID
+    """The stable link id (Phase 7 analytics)."""
+    deployment_id: UUID
+    operation_id: UUID
+    source_page_id: UUID
+    target_page_id: UUID
+    cms_provider: str
+    cms_page_id: str
+    previous_version: str
+    new_version: str
+    anchor_text: str
+    href: str
+    engine_version: str
+    policy_version: int
+    ranking_policy_version: int
+    actor: str
+
+
+class LinkVerifiedPayload(FrozenModel):
+    plan_id: UUID
+    deployment_id: UUID
+    verification_run_id: int
+    http_checked: bool
+
+
+class LinkFailedPayload(FrozenModel):
+    plan_id: UUID
+    deployment_id: UUID
+    stage: str = Field(pattern=r"^(apply|verify)$")
+    codes: list[str] = Field(max_length=20)
+
+
+class LinkRolledBackPayload(FrozenModel):
+    plan_id: UUID
+    deployment_id: UUID
+    reason: RollbackReason
+    restored_version: str
+    actor: str

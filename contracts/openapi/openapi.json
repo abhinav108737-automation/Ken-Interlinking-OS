@@ -1386,7 +1386,13 @@
           "overlapping_changes",
           "already_applied",
           "conflicting_link",
-          "self_check_failed"
+          "self_check_failed",
+          "deployment_in_progress",
+          "density_exceeded",
+          "already_linked",
+          "cms_page_unmapped",
+          "rollback_conflict",
+          "nothing_to_roll_back"
         ],
         "title": "DeploymentIssueCode",
         "type": "string"
@@ -1421,12 +1427,15 @@
         "type": "object"
       },
       "DeploymentStatus": {
+        "description": "Deployment state machine (ADR-0014 section 8)::\n\n    applying -> applied | failed | conflict      (applying is the durable intent)\n    applied  -> verified | verification_failed | rolling_back\n    verified -> verification_failed (re-verify) | rolling_back\n    verification_failed -> verified (re-verify) | rolling_back\n    rolling_back -> rolled_back | (back to the prior status on a rollback conflict)\n\n``failed``, ``conflict`` and ``rolled_back`` are terminal (row frozen).",
         "enum": [
+          "applying",
           "applied",
           "verified",
           "verification_failed",
           "failed",
           "conflict",
+          "rolling_back",
           "rolled_back"
         ],
         "title": "DeploymentStatus",
@@ -5695,6 +5704,23 @@
             "title": "Operation Id",
             "type": "string"
           },
+          "plan_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                "maxItems": 20,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Roll back only these plans of the deployment (REMOVE changes); None = all.",
+            "title": "Plan Ids"
+          },
           "reason": {
             "$ref": "#/components/schemas/RollbackReason"
           }
@@ -6400,9 +6426,7 @@
             "title": "Detail"
           },
           "outcome": {
-            "pattern": "^(passed|failed|skipped)$",
-            "title": "Outcome",
-            "type": "string"
+            "$ref": "#/components/schemas/VerificationOutcome"
           },
           "plan_id": {
             "format": "uuid",
@@ -6432,6 +6456,16 @@
         "title": "VerificationCheckName",
         "type": "string"
       },
+      "VerificationOutcome": {
+        "enum": [
+          "passed",
+          "failed",
+          "skipped",
+          "inconclusive"
+        ],
+        "title": "VerificationOutcome",
+        "type": "string"
+      },
       "VerificationRun": {
         "additionalProperties": false,
         "properties": {
@@ -6450,6 +6484,11 @@
             "title": "Id",
             "type": "integer"
           },
+          "inconclusive": {
+            "default": false,
+            "title": "Inconclusive",
+            "type": "boolean"
+          },
           "passed": {
             "title": "Passed",
             "type": "boolean"
@@ -6464,6 +6503,7 @@
           "id",
           "run_at",
           "passed",
+          "inconclusive",
           "http_checked",
           "checks"
         ],

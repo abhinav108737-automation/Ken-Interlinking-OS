@@ -1444,7 +1444,7 @@ export interface components {
          * @description Why a plan (or the whole request) cannot be deployed. Fixed vocabulary.
          * @enum {string}
          */
-        DeploymentIssueCode: "plan_not_approved" | "plan_stale" | "plan_invalid" | "mixed_sources" | "cms_page_not_found" | "cms_page_protected" | "cms_unavailable" | "cms_validation_failed" | "href_invalid" | "broken_target" | "block_not_found" | "ambiguous_block" | "anchor_not_found" | "anchor_not_in_single_text_node" | "unmappable_span" | "unsafe_placement" | "overlapping_changes" | "already_applied" | "conflicting_link" | "self_check_failed";
+        DeploymentIssueCode: "plan_not_approved" | "plan_stale" | "plan_invalid" | "mixed_sources" | "cms_page_not_found" | "cms_page_protected" | "cms_unavailable" | "cms_validation_failed" | "href_invalid" | "broken_target" | "block_not_found" | "ambiguous_block" | "anchor_not_found" | "anchor_not_in_single_text_node" | "unmappable_span" | "unsafe_placement" | "overlapping_changes" | "already_applied" | "conflicting_link" | "self_check_failed" | "deployment_in_progress" | "density_exceeded" | "already_linked" | "cms_page_unmapped" | "rollback_conflict" | "nothing_to_roll_back";
         /** DeploymentItemView */
         DeploymentItemView: {
             /** Anchor Text */
@@ -1460,9 +1460,18 @@ export interface components {
         };
         /**
          * DeploymentStatus
+         * @description Deployment state machine (ADR-0014 section 8)::
+         *
+         *         applying -> applied | failed | conflict      (applying is the durable intent)
+         *         applied  -> verified | verification_failed | rolling_back
+         *         verified -> verification_failed (re-verify) | rolling_back
+         *         verification_failed -> verified (re-verify) | rolling_back
+         *         rolling_back -> rolled_back | (back to the prior status on a rollback conflict)
+         *
+         *     ``failed``, ``conflict`` and ``rolled_back`` are terminal (row frozen).
          * @enum {string}
          */
-        DeploymentStatus: "applied" | "verified" | "verification_failed" | "failed" | "conflict" | "rolled_back";
+        DeploymentStatus: "applying" | "applied" | "verified" | "verification_failed" | "failed" | "conflict" | "rolling_back" | "rolled_back";
         /** DeploymentView */
         DeploymentView: {
             /** Actor */
@@ -3266,6 +3275,11 @@ export interface components {
              * Format: uuid
              */
             operation_id: string;
+            /**
+             * Plan Ids
+             * @description Roll back only these plans of the deployment (REMOVE changes); None = all.
+             */
+            plan_ids?: string[] | null;
             reason: components["schemas"]["RollbackReason"];
         };
         /**
@@ -3606,8 +3620,7 @@ export interface components {
              * @description Fixed-vocabulary code.
              */
             detail: string | null;
-            /** Outcome */
-            outcome: string;
+            outcome: components["schemas"]["VerificationOutcome"];
             /**
              * Plan Id
              * Format: uuid
@@ -3619,6 +3632,11 @@ export interface components {
          * @enum {string}
          */
         VerificationCheckName: "link_present_once" | "href_matches" | "anchor_matches" | "in_expected_block" | "not_hidden" | "not_nested" | "target_reachable";
+        /**
+         * VerificationOutcome
+         * @enum {string}
+         */
+        VerificationOutcome: "passed" | "failed" | "skipped" | "inconclusive";
         /** VerificationRun */
         VerificationRun: {
             /** Checks */
@@ -3627,6 +3645,11 @@ export interface components {
             http_checked: boolean;
             /** Id */
             id: number;
+            /**
+             * Inconclusive
+             * @default false
+             */
+            inconclusive: boolean;
             /** Passed */
             passed: boolean;
             /**

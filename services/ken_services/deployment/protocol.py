@@ -7,20 +7,28 @@ every CMS provider that mutates HTML (mock, simulated) call ONLY these.
 
 Rules (binding):
 
-* Work on the CMS page's FULL HTML string; locate blocks with the inventory block walk
-  (``extract_blocks`` semantics over the same content root and boilerplate rules), by
-  ``context_hash`` (sha256 of block text), ``block_id`` as a tie-break hint only.
+* Accept either a FRAGMENT (``<main>...</main>``, as the Phase 1 export carries) or a FULL
+  document as ``CMSPage.body_html``. Work on that string; locate blocks with the inventory
+  block walk (``extract_blocks`` semantics over the same content root and boilerplate), by
+  ``context_hash`` (sha256 of block text) ONLY: zero matches -> ``block_not_found``; several
+  -> the ``block_id`` hint, else ``ambiguous_block``.
 * The anchor is ``phrase_occurrences(anchor_text, block.text)[occurrence_index]`` and must
   equal ``[start, end)``; it must pass ``span_is_safe`` with the given excluded ancestors and
   must not sit under a hidden ancestor (``hidden``, ``aria-hidden="true"``, inline
   ``display:none`` / ``visibility:hidden``).
-* Map the span to EXACT offsets in the original string (stdlib ``html.parser`` positions);
-  the span must lie in one text node with no character/entity reference, else refuse.
+* Map the span to EXACT offsets in the original string (stdlib
+  ``html.parser.HTMLParser(convert_charrefs=False)`` positions); the span must lie in one
+  text node, and its two BOUNDARIES must map exactly (interior whitespace runs and entity
+  references are preserved verbatim, never rewritten), else refuse.
 * SPLICE -- never re-serialise. The output equals the input except the inserted
   ``<a href="ESCAPED" data-ken-link-id="UUID">`` and ``</a>`` (or their removal).
-* Idempotent: an existing ``data-ken-link-id`` with the same href+anchor -> ``already_applied``
-  (no change); with different content -> ``conflicting_link``.
-* Self-check after splicing: block texts unchanged; each inserted span now a run under ``a``.
+* Identify OUR link by (block ``context_hash`` of its text, anchor span, href) -- NOT by the
+  ``data-ken-link-id`` attribute, which is only a hint (a CMS sanitiser may strip ``data-*``).
+* Idempotent: our link already present -> ``already_applied`` (no change); an ``<a>`` at the
+  span with a different href, or our id with different content -> ``conflicting_link``.
+* Self-check after splicing: every block's text and hash unchanged; the set of existing
+  ``<a href>`` elements unchanged except the new ones; each inserted span is now a run under
+  ``a``; and ``remove_links(insert_links(x)) == x`` byte for byte.
 * Total: return issues, never raise, for any input string.
 """
 
@@ -57,9 +65,15 @@ class LinkInsertion:
 
 @dataclass(frozen=True, slots=True)
 class LinkRemoval:
+    """Our link, located like an insertion (the block text is unchanged by our link)."""
+
     plan_id: UUID
     expected_href: str
     expected_anchor_text: str
+    context_hash: str
+    block_id_hint: str
+    start: int
+    end: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -88,8 +102,9 @@ class Mutator(Protocol):
         ...
 
     def remove_links(self, html: str, removals: Sequence[LinkRemoval]) -> MutationResult:
-        """Unwrap the ``data-ken-link-id`` anchors (inverse splice). All-or-nothing; a link
-        already absent is ``already_applied`` (idempotent rollback)."""
+        """Unwrap OUR anchors (inverse splice) on the CURRENT html -- safe after unrelated later
+        edits. All-or-nothing; a link already absent is ``already_applied`` (idempotent
+        rollback); a link whose href or anchor changed is ``rollback_conflict``."""
         ...
 
 
