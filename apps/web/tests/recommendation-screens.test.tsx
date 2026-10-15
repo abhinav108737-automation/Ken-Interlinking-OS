@@ -25,6 +25,8 @@ import {
 import { principal } from "./fixtures/review";
 
 const api = vi.hoisted(() => ({
+  // Phase 6: the plan detail screen's deployment panel.
+  listPlanDeployments: vi.fn(),
   listLinkPlans: vi.fn(),
   getLinkPlan: vi.fn(),
   listLinkCandidates: vi.fn(),
@@ -74,6 +76,7 @@ function fail(error: Partial<ApiError> & Pick<ApiError, "kind">): ApiResult<neve
 
 beforeEach(() => {
   for (const mock of Object.values(api)) mock.mockReset();
+  api.listPlanDeployments.mockResolvedValue({ ok: true, data: [], status: 200 });
   nav.notFound.mockClear();
   api.getRecommendationSummary.mockResolvedValue(ok(recommendationSummary()));
   api.listAgentPlanReviews.mockResolvedValue(ok([]));

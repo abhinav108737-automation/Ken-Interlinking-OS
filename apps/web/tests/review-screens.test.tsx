@@ -17,6 +17,8 @@ import { ANCHOR, PLAN_ID, linkPlan, linkPlanDetail, recommendationSummary } from
 import { NEW_PLAN_ID, dashboardSummary, eventRecord, policiesView, principal, reviewAction, targetOption } from "./fixtures/review";
 
 const api = vi.hoisted(() => ({
+  // Phase 6: the plan detail screen's deployment panel.
+  listPlanDeployments: vi.fn(),
   getSessionUser: vi.fn(),
   requireSessionUser: vi.fn(),
   getDashboard: vi.fn(),
@@ -56,6 +58,7 @@ function as(role: Role) {
 
 beforeEach(() => {
   for (const mock of Object.values(api)) mock.mockReset();
+  api.listPlanDeployments.mockResolvedValue({ ok: true, data: [], status: 200 });
   as("reviewer");
   api.getRecommendationSummary.mockResolvedValue(ok(recommendationSummary()));
   api.listAgentPlanReviews.mockResolvedValue(ok([]));

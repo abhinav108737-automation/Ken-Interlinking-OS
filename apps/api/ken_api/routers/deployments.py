@@ -6,8 +6,9 @@ from __future__ import annotations
 from typing import Annotated, Any, Final
 from uuid import UUID
 
-from fastapi import APIRouter, Path, Query
+from fastapi import APIRouter, HTTPException, Path, Query
 
+from ken_api.deps import DeploymentReaderDep, DeploymentServiceDep
 from ken_api.security import Deployer, Reader
 from ken_contracts.deployment import (
     DeploymentDetail,
@@ -46,8 +47,13 @@ DeploymentId = Annotated[UUID, Path()]
     response_model=DryRunResult,
     responses=_MUTATION,
 )
-async def dry_run(principal: Deployer, body: DryRunRequest) -> DryRunResult:
-    raise NotImplementedError
+async def dry_run(
+    principal: Deployer, body: DryRunRequest, service: DeploymentServiceDep
+) -> DryRunResult:
+    try:
+        return await service.dry_run(request=body, principal=principal)
+    except PermissionError:  # the service's defence in depth (DeploymentPermissionError)
+        raise HTTPException(status_code=403) from None
 
 
 @router.post(
@@ -57,8 +63,13 @@ async def dry_run(principal: Deployer, body: DryRunRequest) -> DryRunResult:
     response_model=DeploymentDetail,
     responses=_MUTATION,
 )
-async def deploy(principal: Deployer, body: DeployRequest) -> DeploymentDetail:
-    raise NotImplementedError
+async def deploy(
+    principal: Deployer, body: DeployRequest, service: DeploymentServiceDep
+) -> DeploymentDetail:
+    try:
+        return await service.deploy(request=body, principal=principal)
+    except PermissionError:
+        raise HTTPException(status_code=403) from None
 
 
 @router.post(
@@ -68,8 +79,13 @@ async def deploy(principal: Deployer, body: DeployRequest) -> DeploymentDetail:
     response_model=DeploymentDetail,
     responses=_MUTATION,
 )
-async def verify(principal: Deployer, deployment_id: DeploymentId) -> DeploymentDetail:
-    raise NotImplementedError
+async def verify(
+    principal: Deployer, deployment_id: DeploymentId, service: DeploymentServiceDep
+) -> DeploymentDetail:
+    try:
+        return await service.verify(deployment_id=deployment_id, principal=principal)
+    except PermissionError:
+        raise HTTPException(status_code=403) from None
 
 
 @router.post(
@@ -80,9 +96,17 @@ async def verify(principal: Deployer, deployment_id: DeploymentId) -> Deployment
     responses=_MUTATION,
 )
 async def rollback(
-    principal: Deployer, deployment_id: DeploymentId, body: RollbackRequest
+    principal: Deployer,
+    deployment_id: DeploymentId,
+    body: RollbackRequest,
+    service: DeploymentServiceDep,
 ) -> DeploymentDetail:
-    raise NotImplementedError
+    try:
+        return await service.rollback(
+            deployment_id=deployment_id, request=body, principal=principal
+        )
+    except PermissionError:
+        raise HTTPException(status_code=403) from None
 
 
 @router.get(
@@ -98,8 +122,12 @@ async def list_deployments(
     offset: Annotated[int, Query(ge=0, le=10_000_000)] = 0,
     status: DeploymentStatus | None = None,
     source_page_id: UUID | None = None,
+    *,
+    reader: DeploymentReaderDep,
 ) -> ListResponse[DeploymentView]:
-    raise NotImplementedError
+    return await reader.list_deployments(
+        limit=limit, offset=offset, status=status, source_page_id=source_page_id
+    )
 
 
 @router.get(
@@ -109,8 +137,10 @@ async def list_deployments(
     response_model=DeploymentDetail,
     responses={**_AUTH, 404: {"model": ErrorResponse, "description": "No such deployment."}},
 )
-async def get_deployment(principal: Reader, deployment_id: DeploymentId) -> DeploymentDetail:
-    raise NotImplementedError
+async def get_deployment(
+    principal: Reader, deployment_id: DeploymentId, reader: DeploymentReaderDep
+) -> DeploymentDetail:
+    return await reader.get_deployment(deployment_id=deployment_id)
 
 
 @router.get(
@@ -121,6 +151,6 @@ async def get_deployment(principal: Reader, deployment_id: DeploymentId) -> Depl
     responses={**_AUTH, 404: {"model": ErrorResponse, "description": "No such plan."}},
 )
 async def plan_deployments(
-    principal: Reader, plan_id: Annotated[UUID, Path()]
+    principal: Reader, plan_id: Annotated[UUID, Path()], reader: DeploymentReaderDep
 ) -> list[DeploymentView]:
-    raise NotImplementedError
+    return await reader.deployments_for_plan(plan_id=plan_id)

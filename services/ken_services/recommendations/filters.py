@@ -13,7 +13,8 @@ first that fires (``None`` = the pair proceeds to scoring):
 5     ``source_ineligible``      ``LinkEligibility.as_source`` is false (computed live)
 6     ``target_ineligible``      ``LinkEligibility.as_target`` is false
 7     ``already_linked``         the source's current version already links to the target
-8     ``duplicate_recommendation``  an open plan, or a live plan not yet re-read, holds the pair
+8     ``duplicate_recommendation``  an open plan, or a plan whose link is on the page
+                                  (ADR-0014 s8), holds the pair
 9     ``previously_rejected``    a reviewer rejected the pair within the cooldown
 10    ``page_type_incompatible`` the target type is not allowed for the source type (an
                                  unknown/missing type on either side is incompatible), or

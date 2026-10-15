@@ -71,6 +71,9 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["S101", "S105", "S106"]
 "infrastructure/scripts/*" = ["S603", "S607"]
+# The simulated CMS interpolates only its own constant schema name (cms_sim) into SQL;
+# every value is a bound parameter.
+"services/ken_core/providers/cms/simulated.py" = ["S608"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["ken_contracts", "ken_core", "ken_services", "ken_api", "ken_agents"]

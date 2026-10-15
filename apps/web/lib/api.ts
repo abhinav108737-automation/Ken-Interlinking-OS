@@ -92,6 +92,14 @@ import {
   type ReviewResult,
   type SessionView,
   type TargetOptionList,
+  type DeployRequest,
+  type DeploymentDetail,
+  type DeploymentList,
+  type DryRunRequest,
+  type DryRunResult,
+  type ListDeploymentsQuery,
+  type PlanDeploymentList,
+  type RollbackRequest,
   DEFAULT_API_BASE_URL,
   PUBLIC_API_PATHS,
   configError,
@@ -202,6 +210,26 @@ export type {
   Role,
   TargetOption,
   TargetOptionList,
+  ApiErrorDetailCode,
+  ChangePreview,
+  DeployRequest,
+  DeploymentDetail,
+  DeploymentIssue,
+  DeploymentIssueCode,
+  DeploymentItemView,
+  DeploymentList,
+  DeploymentStatus,
+  DeploymentView,
+  DryRunRequest,
+  DryRunResult,
+  ListDeploymentsQuery,
+  PlanDeploymentList,
+  RollbackReason,
+  RollbackRequest,
+  VerificationCheck,
+  VerificationCheckName,
+  VerificationOutcome,
+  VerificationRun,
 } from "./api-client";
 export {
   DEFAULT_API_BASE_URL,
@@ -662,4 +690,56 @@ export function listEvents(query: ListEventsQuery = {}): Promise<ApiResult<Event
 /** `GET /settings/policies`. */
 export function getPolicies(): Promise<ApiResult<PoliciesView>> {
   return withServerClient("/settings/policies", (client) => client.getPolicies());
+}
+
+// ---------------------------------------------------------------------------
+// Phase 6 controlled deployment (ADR-0014 section 7). Mutations are called ONLY
+// from server actions (app/deployments/actions.ts); each deploy and rollback
+// carries a form-minted operation_id. Nothing here deploys on its own.
+// ---------------------------------------------------------------------------
+
+/** A dry run reads the CMS page and validates every plan; it writes nothing. */
+const DRY_RUN_TIMEOUT_MS = 30_000;
+/** Deploy and rollback hold the source lock across the CMS call, then verify (bounded retry). */
+const DEPLOY_TIMEOUT_MS = 60_000;
+
+/** `POST /deployments/dry-run`. */
+export function dryRunDeployment(body: DryRunRequest): Promise<ApiResult<DryRunResult>> {
+  return withServerClient("/deployments/dry-run", (client) =>
+    client.dryRunDeployment(body, { timeoutMs: DRY_RUN_TIMEOUT_MS }),
+  );
+}
+
+/** `POST /deployments`. */
+export function createDeployment(body: DeployRequest): Promise<ApiResult<DeploymentDetail>> {
+  return withServerClient("/deployments", (client) => client.createDeployment(body, { timeoutMs: DEPLOY_TIMEOUT_MS }));
+}
+
+/** `POST /deployments/{deployment_id}/verify`. */
+export function verifyDeployment(deploymentId: string): Promise<ApiResult<DeploymentDetail>> {
+  return withServerClient("/deployments/{deployment_id}/verify", (client) =>
+    client.verifyDeployment(deploymentId, { timeoutMs: DRY_RUN_TIMEOUT_MS }),
+  );
+}
+
+/** `POST /deployments/{deployment_id}/rollback`. */
+export function rollbackDeployment(deploymentId: string, body: RollbackRequest): Promise<ApiResult<DeploymentDetail>> {
+  return withServerClient("/deployments/{deployment_id}/rollback", (client) =>
+    client.rollbackDeployment(deploymentId, body, { timeoutMs: DEPLOY_TIMEOUT_MS }),
+  );
+}
+
+/** `GET /deployments`. */
+export function listDeployments(query: ListDeploymentsQuery = {}): Promise<ApiResult<DeploymentList>> {
+  return withServerClient("/deployments", (client) => client.listDeployments(query));
+}
+
+/** `GET /deployments/{deployment_id}`. */
+export function getDeployment(deploymentId: string): Promise<ApiResult<DeploymentDetail>> {
+  return withServerClient("/deployments/{deployment_id}", (client) => client.getDeployment(deploymentId));
+}
+
+/** `GET /recommendations/{plan_id}/deployments`. */
+export function listPlanDeployments(planId: string): Promise<ApiResult<PlanDeploymentList>> {
+  return withServerClient("/recommendations/{plan_id}/deployments", (client) => client.listPlanDeployments(planId));
 }

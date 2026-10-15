@@ -5,6 +5,7 @@ Alembic's env.py imports this package for autogenerate comparison.
 """
 
 from ken_core.db.models.agents import AgentRun, AgentRunPlan, AgentStep
+from ken_core.db.models.deployment import Deployment, DeploymentItem, DeploymentVerification
 from ken_core.db.models.event import Event
 from ken_core.db.models.intelligence import (
     JobRun,
@@ -34,6 +35,9 @@ __all__ = [
     "AgentRunPlan",
     "AgentStep",
     "AuthSession",
+    "Deployment",
+    "DeploymentItem",
+    "DeploymentVerification",
     "Event",
     "ExistingLink",
     "IngestionIssue",

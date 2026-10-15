@@ -30,6 +30,10 @@ export interface RecommendationTableProps {
    * sessions; bulk review applies to nothing else.
    */
   readonly selectFormId?: string;
+  /** The status whose plans get a checkbox (default: awaiting approval, for bulk review). */
+  readonly selectStatus?: string;
+  /** What the selection is for, in each checkbox's accessible name. */
+  readonly selectPurpose?: string;
 }
 
 function TargetCell({ plan }: { readonly plan: LinkPlan }) {
@@ -65,6 +69,8 @@ export function RecommendationTable({
   emptyMessage = "No recommendations.",
   variant = "full",
   selectFormId,
+  selectStatus = BULK_STATUS,
+  selectPurpose = "bulk review",
 }: RecommendationTableProps) {
   const full = variant === "full";
   const columns = [
@@ -90,13 +96,14 @@ export function RecommendationTable({
               <tr key={plan.id} className={ROW}>
                 {selectFormId !== undefined && (
                   <td className={CELL}>
-                    {plan.status === BULK_STATUS ? (
+                    {plan.status === selectStatus ? (
                       <input
                         type="checkbox"
                         name="plan_ids"
                         value={plan.id}
                         form={selectFormId}
-                        aria-label={`Select “${plan.anchor_text}” for bulk review`}
+                        data-source-page-id={plan.source_page_id}
+                        aria-label={`Select “${plan.anchor_text}” for ${selectPurpose}`}
                       />
                     ) : (
                       <span className="text-xs text-slate-600">—</span>

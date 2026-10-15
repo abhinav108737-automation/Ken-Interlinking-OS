@@ -283,25 +283,174 @@ def test_search_vector_cannot_be_written(db: SyncDb) -> None:
 # --------------------------------------------------------------------------- #
 # Plan content guard
 # --------------------------------------------------------------------------- #
-def test_plan_status_and_updated_at_may_change(db: SyncDb) -> None:
+def _status(db: SyncDb, plan: uuid.UUID) -> Any:
+    return db.run(
+        lambda c: c.execute(
+            text("SELECT status FROM link_plans WHERE id = :id"), {"id": plan}
+        ).scalar_one()
+    )
+
+
+def _transition_row(c: Connection, plan: uuid.UUID, from_status: str, to_status: str) -> None:
+    c.execute(
+        text(
+            "INSERT INTO link_plan_transitions (plan_id, from_status, to_status, actor) "
+            "VALUES (:p, :f, :t, 'system:test')"
+        ),
+        {"p": plan, "f": from_status, "t": to_status},
+    )
+
+
+def test_a_raw_status_update_is_refused_at_commit(db: SyncDb) -> None:
+    """Migration 0007 (ADR-0014 s8, Phase 3 QA M2): status moves only with a transition row
+    written by the same transaction. The deferred trigger fires at COMMIT."""
     db.run(_seed)
     plan = db.run(_plan)
     assert PLAN_MUTABLE_COLUMNS == ("status", "updated_at")
-    db.run(
+    error = _fails(
+        db,
         lambda c: c.execute(
             text(
                 "UPDATE link_plans SET status = 'critiqued', updated_at = now() + interval '1 s' "
                 "WHERE id = :id"
             ),
             {"id": plan},
+        ),
+    )
+    assert getattr(error.orig, "sqlstate", None) == "55000"
+    assert "no transition record" in str(error.orig)
+    assert _status(db, plan) == "proposed"
+
+
+def test_a_status_update_with_its_transition_row_commits(db: SyncDb) -> None:
+    db.run(_seed)
+    plan = db.run(_plan)
+
+    def _go(c: Connection) -> None:
+        c.execute(
+            text("UPDATE link_plans SET status = 'critiqued', updated_at = now() WHERE id = :id"),
+            {"id": plan},
         )
-    )
-    status: Any = db.run(
+        _transition_row(c, plan, "proposed", "critiqued")  # after the UPDATE: still deferred
+
+    db.run(_go)
+    assert _status(db, plan) == "critiqued"
+
+
+def test_a_transition_row_of_another_transaction_does_not_count(db: SyncDb) -> None:
+    db.run(_seed)
+    plan = db.run(_plan)
+    db.run(lambda c: _transition_row(c, plan, "proposed", "critiqued"))  # committed earlier
+    error = _fails(
+        db,
         lambda c: c.execute(
-            text("SELECT status FROM link_plans WHERE id = :id"), {"id": plan}
-        ).scalar_one()
+            text("UPDATE link_plans SET status = 'critiqued' WHERE id = :id"), {"id": plan}
+        ),
     )
-    assert status == "critiqued"
+    assert "no transition record" in str(error.orig)
+    assert _status(db, plan) == "proposed"
+
+
+def test_a_transition_row_must_match_from_and_to(db: SyncDb) -> None:
+    db.run(_seed)
+    plan = db.run(_plan)
+
+    def _go(c: Connection) -> None:
+        c.execute(text("UPDATE link_plans SET status = 'critiqued' WHERE id = :id"), {"id": plan})
+        _transition_row(c, plan, "proposed", "policy_checked")
+
+    error = _fails(db, _go)
+    assert "no transition record" in str(error.orig)
+
+
+def test_an_illegal_status_move_is_refused_even_with_a_row(db: SyncDb) -> None:
+    db.run(_seed)
+    plan = db.run(_plan)
+
+    def _go(c: Connection) -> None:
+        c.execute(text("UPDATE link_plans SET status = 'deployed' WHERE id = :id"), {"id": plan})
+        _transition_row(c, plan, "proposed", "deployed")
+
+    error = _fails(db, _go)
+    assert "not an allowed transition" in str(error.orig)
+    assert _status(db, plan) == "proposed"
+
+
+def test_set_constraints_immediate_checks_at_statement_time(db: SyncDb) -> None:
+    """Tests that roll back (and never commit) use SET CONSTRAINTS ALL IMMEDIATE."""
+    db.run(_seed)
+    plan = db.run(_plan)
+
+    def _go(c: Connection) -> None:
+        c.execute(text("SET CONSTRAINTS ALL IMMEDIATE"))
+        c.execute(text("UPDATE link_plans SET status = 'critiqued' WHERE id = :id"), {"id": plan})
+        raise AssertionError("the UPDATE itself must fail")  # pragma: no cover
+
+    error = _fails(db, _go)
+    assert "no transition record" in str(error.orig)
+
+
+def test_a_savepoint_transition_counts_for_the_top_level_transaction(db: SyncDb) -> None:
+    """txid is pg_current_xact_id() (the TOP-LEVEL id), not xmin: a transition written inside
+    a savepoint still matches the status change at commit."""
+    db.run(_seed)
+    plan = db.run(_plan)
+
+    def _go(c: Connection) -> None:
+        with c.begin_nested():
+            c.execute(
+                text("UPDATE link_plans SET status = 'critiqued' WHERE id = :id"), {"id": plan}
+            )
+            _transition_row(c, plan, "proposed", "critiqued")
+
+    db.run(_go)
+    assert _status(db, plan) == "critiqued"
+
+
+def test_two_moves_in_one_transaction_each_need_their_row(db: SyncDb) -> None:
+    db.run(_seed)
+    plan = db.run(_plan)
+
+    def _both(c: Connection) -> None:
+        for a, b in (("proposed", "critiqued"), ("critiqued", "awaiting_approval")):
+            c.execute(
+                text("UPDATE link_plans SET status = :b WHERE id = :id"), {"b": b, "id": plan}
+            )
+            _transition_row(c, plan, a, b)
+
+    db.run(_both)
+    assert _status(db, plan) == "awaiting_approval"
+
+    def _one_missing(c: Connection) -> None:
+        c.execute(text("UPDATE link_plans SET status = 'approved' WHERE id = :id"), {"id": plan})
+        _transition_row(c, plan, "awaiting_approval", "approved")
+        c.execute(text("UPDATE link_plans SET status = 'validated' WHERE id = :id"), {"id": plan})
+
+    error = _fails(db, _one_missing)
+    assert "approved -> validated" in str(error.orig)
+    assert _status(db, plan) == "awaiting_approval"
+
+
+def test_the_trigger_transition_table_matches_allowed_transitions() -> None:
+    """Parity: migration 0007's literal table IS ``ALLOWED_TRANSITIONS``."""
+    import importlib.util
+    from pathlib import Path
+
+    from ken_contracts.recommendations import ALLOWED_TRANSITIONS
+
+    path = (
+        Path(__file__).resolve().parents[2]
+        / "migrations"
+        / "versions"
+        / "0007_controlled_deployment.py"
+    )
+    spec = importlib.util.spec_from_file_location("migration_0007", path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    expected = {(a.value, b.value) for a, targets in ALLOWED_TRANSITIONS.items() for b in targets}
+    assert set(module.PLAN_TRANSITIONS) == expected
+    assert len(module.PLAN_TRANSITIONS) == len(expected)
 
 
 CONTENT_COLUMNS = {
@@ -678,6 +827,8 @@ def test_downgrade_to_0003_restores_exactly_the_intelligence_schema(
         "ken_user_guard",
         "ken_auth_session_guard",
         "ken_page_protection_guard",
+        "ken_deployment_guard",
+        "ken_link_plan_status_guard",
     }
     assert {
         "link_plans_content_immutable",
@@ -685,4 +836,4 @@ def test_downgrade_to_0003_restores_exactly_the_intelligence_schema(
         "link_plan_transitions_immutable",
         "link_candidates_immutable",
     } <= state["triggers"]
-    assert state["revision"] == "0006_review_control_plane"
+    assert state["revision"] == "0007_controlled_deployment"

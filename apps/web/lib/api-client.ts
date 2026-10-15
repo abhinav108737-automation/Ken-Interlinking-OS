@@ -200,6 +200,30 @@ export type ListReviewActionsQuery = NonNullable<operations["listReviewActions"]
 export type ListEventsQuery = NonNullable<operations["listEvents"]["parameters"]["query"]>;
 export type ListPlanTargetOptionsQuery = NonNullable<operations["listPlanTargetOptions"]["parameters"]["query"]>;
 
+// Phase 6 controlled deployment (ADR-0014 sections 7-8). `deploy` gates the mutations.
+export type DeploymentStatus = Schemas["DeploymentStatus"];
+export type DeploymentIssueCode = Schemas["DeploymentIssueCode"];
+export type DeploymentIssue = Schemas["DeploymentIssue"];
+export type VerificationCheckName = Schemas["VerificationCheckName"];
+export type VerificationOutcome = Schemas["VerificationOutcome"];
+export type VerificationCheck = Schemas["VerificationCheck"];
+export type VerificationRun = Schemas["VerificationRun"];
+export type ChangePreview = Schemas["ChangePreview"];
+export type DryRunRequest = Schemas["DryRunRequest"];
+export type DryRunResult = Schemas["DryRunResult"];
+export type DeployRequest = Schemas["DeployRequest"];
+export type RollbackReason = Schemas["RollbackReason"];
+export type RollbackRequest = Schemas["RollbackRequest"];
+export type DeploymentItemView = Schemas["DeploymentItemView"];
+export type DeploymentView = Schemas["DeploymentView"];
+export type DeploymentDetail = Schemas["DeploymentDetail"];
+
+export type DeploymentList = Schemas["ListResponse_DeploymentView_"];
+/** `GET /recommendations/{plan_id}/deployments` returns a bare array (empty when never deployed). */
+export type PlanDeploymentList = operations["listPlanDeployments"]["responses"][200]["content"]["application/json"];
+
+export type ListDeploymentsQuery = NonNullable<operations["listDeployments"]["parameters"]["query"]>;
+
 export type ApiPath = keyof paths;
 
 /**
@@ -265,6 +289,18 @@ export interface ApiError {
    * truncated; it is the API's own wording and never echoes input (ADR-0013).
    */
   readonly detail?: string;
+  /**
+   * The stable codes of `ErrorResponse.details` of a refused mutation (409 / 422 / 503 on a
+   * POST): e.g. one `DeploymentIssueCode` per deployment issue, with its `location` (a plan
+   * id, when the issue concerns one plan). Codes and locations only, never messages; values
+   * that are not plain identifiers are dropped.
+   */
+  readonly details?: readonly ApiErrorDetailCode[];
+}
+
+export interface ApiErrorDetailCode {
+  readonly code: string;
+  readonly location: string | null;
 }
 
 /** True for a contract-declared 404 (`page_not_found` / `not_found`). */
@@ -485,6 +521,28 @@ export interface ApiClient {
   listEvents(query?: ListEventsQuery, options?: RequestOptions): Promise<ApiResult<EventList>>;
   /** `GET /settings/policies` (`read_settings`): the active policy documents. Contract: 200, 401, 403, 422. */
   getPolicies(options?: RequestOptions): Promise<ApiResult<PoliciesView>>;
+
+  // --- Phase 6 controlled deployment (ADR-0014 section 7) --------------------
+  // Mutations need `deploy` (operator_admin only); reads need `read`.
+
+  /** `POST /deployments/dry-run` (`deploy`): validate and preview; writes nothing. Contract: 200, 401, 403, 404, 409, 422, 503. */
+  dryRunDeployment(body: DryRunRequest, options?: RequestOptions): Promise<ApiResult<DryRunResult>>;
+  /** `POST /deployments` (`deploy`): apply ≤ 20 approved plans of one source page, then verify. Contract: 200, 401, 403, 404, 409, 422, 503. */
+  createDeployment(body: DeployRequest, options?: RequestOptions): Promise<ApiResult<DeploymentDetail>>;
+  /** `POST /deployments/{deployment_id}/verify` (`deploy`): re-run verification. Contract: 200, 401, 403, 404, 409, 422, 503. */
+  verifyDeployment(deploymentId: string, options?: RequestOptions): Promise<ApiResult<DeploymentDetail>>;
+  /** `POST /deployments/{deployment_id}/rollback` (`deploy`): idempotent rollback with a structured reason. Contract: 200, 401, 403, 404, 409, 422, 503. */
+  rollbackDeployment(
+    deploymentId: string,
+    body: RollbackRequest,
+    options?: RequestOptions,
+  ): Promise<ApiResult<DeploymentDetail>>;
+  /** `GET /deployments` (`read`): deployment history, newest first. Contract: 200, 401, 403, 422. */
+  listDeployments(query?: ListDeploymentsQuery, options?: RequestOptions): Promise<ApiResult<DeploymentList>>;
+  /** `GET /deployments/{deployment_id}` (`read`): items, preview and verification runs. Contract: 200, 401, 403, 404, 422. */
+  getDeployment(deploymentId: string, options?: RequestOptions): Promise<ApiResult<DeploymentDetail>>;
+  /** `GET /recommendations/{plan_id}/deployments` (`read`): the deployments that included one plan. Contract: 200, 401, 403, 404, 422. */
+  listPlanDeployments(planId: string, options?: RequestOptions): Promise<ApiResult<PlanDeploymentList>>;
 }
 
 // ---------------------------------------------------------------------------
@@ -1451,6 +1509,113 @@ export const isPlanReviewActionList = (value: unknown): value is PlanReviewActio
   everyItem(value, isReviewActionView);
 export const isTargetOptionList = (value: unknown): value is TargetOptionList => everyItem(value, isTargetOption);
 
+// --- Deployment guards (Phase 6) -----------------------------------------------
+// Same policy: every field the deployment screens read is checked, including the nested
+// preview, items and verification runs; enum membership is left to lib/deployments.ts.
+
+export function isChangePreview(value: unknown): value is ChangePreview {
+  return (
+    isObject(value) &&
+    typeof value["plan_id"] === "string" &&
+    typeof value["anchor_text"] === "string" &&
+    typeof value["href"] === "string" &&
+    typeof value["block_text"] === "string" &&
+    isNonNegativeInteger(value["anchor_start"]) &&
+    isNonNegativeInteger(value["anchor_end"]) &&
+    typeof value["html_before"] === "string" &&
+    typeof value["html_after"] === "string"
+  );
+}
+
+export function isDeploymentIssue(value: unknown): value is DeploymentIssue {
+  return isObject(value) && typeof value["code"] === "string" && isOptionalNullableString(value["plan_id"]);
+}
+
+export function isDryRunResult(value: unknown): value is DryRunResult {
+  return (
+    isObject(value) &&
+    isOptionalNullableString(value["source_page_id"]) &&
+    isOptionalNullableString(value["cms_page_id"]) &&
+    isOptionalNullableString(value["cms_version"]) &&
+    typeof value["valid"] === "boolean" &&
+    everyItem(value["changes"], isChangePreview) &&
+    everyItem(value["issues"], isDeploymentIssue)
+  );
+}
+
+function hasDeploymentViewFields(value: JsonObject): boolean {
+  return (
+    typeof value["id"] === "string" &&
+    typeof value["operation_id"] === "string" &&
+    typeof value["source_page_id"] === "string" &&
+    typeof value["source_url"] === "string" &&
+    typeof value["cms_provider"] === "string" &&
+    typeof value["cms_page_id"] === "string" &&
+    typeof value["status"] === "string" &&
+    isStringArray(value["plan_ids"]) &&
+    isOptionalNullableString(value["previous_version"]) &&
+    isOptionalNullableString(value["new_version"]) &&
+    typeof value["actor"] === "string" &&
+    isOptionalNullableString(value["error_code"]) &&
+    typeof value["created_at"] === "string" &&
+    isOptionalNullableString(value["applied_at"]) &&
+    isOptionalNullableString(value["verified_at"]) &&
+    isOptionalNullableString(value["rolled_back_at"]) &&
+    (value["idempotent_replay"] === undefined || typeof value["idempotent_replay"] === "boolean")
+  );
+}
+
+export function isDeploymentView(value: unknown): value is DeploymentView {
+  return isObject(value) && hasDeploymentViewFields(value);
+}
+
+export function isDeploymentItemView(value: unknown): value is DeploymentItemView {
+  return (
+    isObject(value) &&
+    typeof value["plan_id"] === "string" &&
+    typeof value["plan_status"] === "string" &&
+    typeof value["anchor_text"] === "string" &&
+    typeof value["target_url"] === "string"
+  );
+}
+
+export function isVerificationCheck(value: unknown): value is VerificationCheck {
+  return (
+    isObject(value) &&
+    typeof value["plan_id"] === "string" &&
+    typeof value["check"] === "string" &&
+    typeof value["outcome"] === "string" &&
+    isOptionalNullableString(value["detail"])
+  );
+}
+
+export function isVerificationRun(value: unknown): value is VerificationRun {
+  return (
+    isObject(value) &&
+    isNumber(value["id"]) &&
+    typeof value["run_at"] === "string" &&
+    typeof value["passed"] === "boolean" &&
+    (value["inconclusive"] === undefined || typeof value["inconclusive"] === "boolean") &&
+    typeof value["http_checked"] === "boolean" &&
+    everyItem(value["checks"], isVerificationCheck)
+  );
+}
+
+export function isDeploymentDetail(value: unknown): value is DeploymentDetail {
+  return (
+    isObject(value) &&
+    hasDeploymentViewFields(value) &&
+    everyItem(value["items"], isDeploymentItemView) &&
+    everyItem(value["preview"], isChangePreview) &&
+    everyItem(value["verifications"], isVerificationRun) &&
+    isOptionalNullableString(value["rollback_reason"]) &&
+    isOptionalNullableString(value["rollback_note"])
+  );
+}
+
+export const isDeploymentList = (value: unknown): value is DeploymentList => isListResponse(value, isDeploymentView);
+export const isPlanDeploymentList = (value: unknown): value is PlanDeploymentList => everyItem(value, isDeploymentView);
+
 /** The contract's only error body. `details` may be absent from older servers. */
 export function isErrorResponse(value: unknown): value is ErrorResponse {
   return (
@@ -1596,6 +1761,27 @@ function truncate(text: string, max: number): string {
 
 const isNull = (value: unknown): value is null => value === null;
 
+/** A stable error-detail code (an issue code, a pydantic error type): a plain identifier. */
+const DETAIL_CODE = /^[A-Za-z0-9_.-]{1,64}$/;
+/** A detail location (a dotted field path or a plan id): plain identifier characters only. */
+const DETAIL_LOCATION = /^[A-Za-z0-9_.?-]{1,200}$/;
+const MAX_DETAILS = 50;
+
+/** The codes and locations of `ErrorResponse.details`; never the messages. */
+function detailCodesOf(details: unknown): ApiErrorDetailCode[] {
+  if (!Array.isArray(details)) return [];
+  const codes: ApiErrorDetailCode[] = [];
+  for (const item of details.slice(0, MAX_DETAILS)) {
+    if (!isObject(item) || typeof item["code"] !== "string" || !DETAIL_CODE.test(item["code"])) continue;
+    const location = item["location"];
+    codes.push({
+      code: item["code"],
+      location: typeof location === "string" && DETAIL_LOCATION.test(location) ? location : null,
+    });
+  }
+  return codes;
+}
+
 async function send<T>(
   base: URL,
   fetchImpl: FetchLike,
@@ -1670,6 +1856,8 @@ async function send<T>(
         method === "POST" && (response.status === 409 || response.status === 422) && body.message.trim() !== ""
           ? truncate(body.message, MAX_DETAIL_CHARS)
           : undefined;
+      const details =
+        method === "POST" && [409, 422, 503].includes(response.status) ? detailCodesOf(body.details) : [];
       return {
         ok: false,
         error: {
@@ -1680,6 +1868,7 @@ async function send<T>(
           message: errorMessage(path, response.status),
           ...(requestId === undefined ? {} : { requestId }),
           ...(detail === undefined ? {} : { detail }),
+          ...(details.length === 0 ? {} : { details }),
         },
       };
     }
@@ -1770,6 +1959,8 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
   }
 
   const REVIEW_ERRORS = [404, 409, 422] as const;
+  /** Deployment mutations also declare 503: the CMS is unavailable (`cms_unavailable`). */
+  const DEPLOY_ERRORS = [404, 409, 422, 503] as const;
 
   function invalidArgument<T>(path: ApiPath, what: string): Promise<ApiResult<T>> {
     return Promise.resolve({
@@ -2036,5 +2227,56 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
 
     getPolicies: (callOptions = {}) =>
       inventory("/settings/policies", "/settings/policies", isPoliciesView, undefined, callOptions, [422]),
+
+    dryRunDeployment: (body, callOptions = {}) =>
+      post(
+        "/deployments/dry-run",
+        "/deployments/dry-run",
+        body,
+        { ok: [200], declaredErrors: DEPLOY_ERRORS, guard: isDryRunResult },
+        callOptions,
+      ),
+
+    createDeployment: (body, callOptions = {}) =>
+      post("/deployments", "/deployments", body, { ok: [200], declaredErrors: DEPLOY_ERRORS, guard: isDeploymentDetail }, callOptions),
+
+    verifyDeployment: (deploymentId, callOptions = {}) => {
+      const path = "/deployments/{deployment_id}/verify";
+      if (!isSafePathId(deploymentId)) return invalidArgument(path, "deployment id");
+      return post(
+        path,
+        `/deployments/${id(deploymentId)}/verify`,
+        {},
+        { ok: [200], declaredErrors: DEPLOY_ERRORS, guard: isDeploymentDetail },
+        callOptions,
+      );
+    },
+
+    rollbackDeployment: (deploymentId, body, callOptions = {}) => {
+      const path = "/deployments/{deployment_id}/rollback";
+      if (!isSafePathId(deploymentId)) return invalidArgument(path, "deployment id");
+      return post(
+        path,
+        `/deployments/${id(deploymentId)}/rollback`,
+        body,
+        { ok: [200], declaredErrors: DEPLOY_ERRORS, guard: isDeploymentDetail },
+        callOptions,
+      );
+    },
+
+    listDeployments: (query, callOptions = {}) =>
+      inventory("/deployments", "/deployments", isDeploymentList, query, callOptions, [422]),
+
+    getDeployment: (deploymentId, callOptions = {}) => {
+      const path = "/deployments/{deployment_id}";
+      if (!isSafePathId(deploymentId)) return invalidArgument(path, "deployment id");
+      return inventory(path, `/deployments/${id(deploymentId)}`, isDeploymentDetail, undefined, callOptions);
+    },
+
+    listPlanDeployments: (planId, callOptions = {}) => {
+      const path = "/recommendations/{plan_id}/deployments";
+      if (!isSafePathId(planId)) return invalidArgument(path, "recommendation id");
+      return inventory(path, `/recommendations/${id(planId)}/deployments`, isPlanDeploymentList, undefined, callOptions);
+    },
   };
 }

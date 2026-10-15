@@ -109,6 +109,32 @@ def test_operation_ids_and_tags(live: dict[str, Any]) -> None:
         "/dashboard": ("getDashboard", ["control-plane"]),
         "/events": ("listEvents", ["control-plane"]),
         "/settings/policies": ("getPolicies", ["control-plane"]),
+        # Phase 6 (ADR-0014 s7). "/deployments" carries POST createDeployment AND GET
+        # listDeployments; this path-keyed map keeps the last (GET) -- see the test below.
+        "/deployments/dry-run": ("dryRunDeployment", ["deployments"]),
+        "/deployments": ("listDeployments", ["deployments"]),
+        "/deployments/{deployment_id}": ("getDeployment", ["deployments"]),
+        "/deployments/{deployment_id}/verify": ("verifyDeployment", ["deployments"]),
+        "/deployments/{deployment_id}/rollback": ("rollbackDeployment", ["deployments"]),
+        "/recommendations/{plan_id}/deployments": ("listPlanDeployments", ["deployments"]),
+    }
+
+
+def test_deployment_operations_by_method(live: dict[str, Any]) -> None:
+    operations = {
+        (method, path): op["operationId"]
+        for path, item in live["paths"].items()
+        for method, op in item.items()
+        if path.startswith("/deployments") or path.endswith("/deployments")
+    }
+    assert operations == {
+        ("post", "/deployments/dry-run"): "dryRunDeployment",
+        ("post", "/deployments"): "createDeployment",
+        ("get", "/deployments"): "listDeployments",
+        ("get", "/deployments/{deployment_id}"): "getDeployment",
+        ("post", "/deployments/{deployment_id}/verify"): "verifyDeployment",
+        ("post", "/deployments/{deployment_id}/rollback"): "rollbackDeployment",
+        ("get", "/recommendations/{plan_id}/deployments"): "listPlanDeployments",
     }
 
 
@@ -120,8 +146,13 @@ MUTATIONS = {
     ("post", "/recommendations/{plan_id}/edit-anchor"),
     ("post", "/recommendations/{plan_id}/replace-target"),
     ("post", "/recommendations/bulk-review"),
+    ("post", "/deployments/dry-run"),
+    ("post", "/deployments"),
+    ("post", "/deployments/{deployment_id}/verify"),
+    ("post", "/deployments/{deployment_id}/rollback"),
 }
-"""The ONLY non-GET operations of the whole API (Phase 5, ADR-0013 s7)."""
+"""The ONLY non-GET operations of the whole API (Phase 5, ADR-0013 s7; Phase 6, ADR-0014 s7:
+the four ``deploy`` operations)."""
 
 
 def test_inventory_api_is_read_only(live: dict[str, Any]) -> None:
@@ -143,7 +174,7 @@ def test_inventory_api_is_read_only(live: dict[str, Any]) -> None:
     assert recommendation_writes == {m for m in MUTATIONS if m[1].startswith("/recommendations")}
 
 
-def test_the_only_mutations_are_review_actions_and_login_logout(live: dict[str, Any]) -> None:
+def test_the_only_mutations_are_review_deploy_and_login_logout(live: dict[str, Any]) -> None:
     writes = {
         (method, path) for path, item in live["paths"].items() for method in item if method != "get"
     }

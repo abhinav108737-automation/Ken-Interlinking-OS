@@ -28,7 +28,12 @@ from ken_core.db.models.review import (
     AUTH_SESSION_MUTABLE_COLUMNS,
     USER_MUTABLE_COLUMNS,
 )
-from tests.integration.conftest import SyncDb
+from tests.integration.conftest import (
+    DEPLOYMENT_FUNCTIONS,
+    DEPLOYMENT_TABLES,
+    DEPLOYMENT_TRIGGERS,
+    SyncDb,
+)
 
 pytestmark = pytest.mark.integration
 
@@ -544,14 +549,17 @@ def test_downgrade_to_0005_restores_exactly_the_agents_schema(
     command.downgrade(alembic_config, "0005_agent_runs")
     try:
         state = sync_db.run(_state)
-        assert state["tables"] == head["tables"] - set(REVIEW_TABLES)
-        assert state["functions"] == head["functions"] - REVIEW_FUNCTIONS
+        assert state["tables"] == head["tables"] - set(REVIEW_TABLES) - DEPLOYMENT_TABLES
+        assert state["functions"] == head["functions"] - REVIEW_FUNCTIONS - DEPLOYMENT_FUNCTIONS
         assert state["functions"] == {
             "ken_reject_mutation",
             "ken_link_plan_content_guard",
             "ken_agent_run_guard",
         }
-        assert state["triggers"] == head["triggers"] - {t[0] for t in REVIEW_TRIGGERS}
+        assert (
+            state["triggers"]
+            == head["triggers"] - {t[0] for t in REVIEW_TRIGGERS} - DEPLOYMENT_TRIGGERS
+        )
         assert state["revision"] == "0005_agent_runs"
 
         # 0005 semantics again: protections may be deleted (no guard below 0006).
@@ -568,4 +576,4 @@ def test_downgrade_to_0005_restores_exactly_the_agents_schema(
         command.upgrade(alembic_config, "head")
     state = sync_db.run(_state)
     assert state == head
-    assert state["revision"] == "0006_review_control_plane"
+    assert state["revision"] == "0007_controlled_deployment"

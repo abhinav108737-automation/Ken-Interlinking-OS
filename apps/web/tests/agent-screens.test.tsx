@@ -23,6 +23,8 @@ import { OLD_PLAN_ID, PLAN_ID, linkPlanDetail } from "./fixtures/recommendations
 import { principal } from "./fixtures/review";
 
 const api = vi.hoisted(() => ({
+  // Phase 6: the plan detail screen's deployment panel.
+  listPlanDeployments: vi.fn(),
   listAgentRuns: vi.fn(),
   getAgentRun: vi.fn(),
   listAgentPlanReviews: vi.fn(),
@@ -58,6 +60,7 @@ function fail(error: Partial<ApiError> & Pick<ApiError, "kind">): ApiResult<neve
 
 beforeEach(() => {
   for (const mock of Object.values(api)) mock.mockReset();
+  api.listPlanDeployments.mockResolvedValue({ ok: true, data: [], status: 200 });
   nav.notFound.mockClear();
   api.requireSessionUser.mockResolvedValue(ok(principal("viewer")));
   api.listPlanReviewActions.mockResolvedValue(ok([]));

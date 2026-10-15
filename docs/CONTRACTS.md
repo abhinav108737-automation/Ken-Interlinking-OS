@@ -24,6 +24,7 @@ convention, not a freeze.
 | `jobs.py` | Phase 2. `JobKind`, `JobRunSummary` / `JobRunDetail`, `JobCompletedPayload`, `JobReader` — the run record of every batch job from Phase 2 on |
 | `auth.py` | Phase 5. `Role`, `Permission`, `ROLE_PERMISSIONS`, `Principal` (actor derived from the session), login/session views, `AuthProvider` |
 | `controlplane.py` | Phase 5. `DashboardSummary`, `EventRecord`, `PoliciesView` |
+| `deployment.py` | Phase 6. Deployment requests, results, statuses (incl. `applying` / `rolling_back`), issue codes, verification checks and outcomes (incl. `inconclusive`), rollback, typed `link.*` event payloads, `DeploymentService` / `DeploymentReader` |
 | `agents.py` | Phase 4. Agent run/step/review views, nodes, outcomes, triage vocabulary, LLM boundary models (`PlannerSelection`, `CriticAssessment`), tool allowlist, actors, `AgentPolicy`, `AgentReader` |
 | `recommendations.py` | Phase 3. `LinkPlan` / `LinkCandidate` views, `CandidateRejection`, `LinkPlanStatus` + `ALLOWED_TRANSITIONS` / `TRANSITION_AUTHORITY`, `ACTOR_PATTERN`, `RecommendationPolicy` / `RankingPolicy`, `PlacementLocator`, `FreshnessCheck`, `ExperimentGuard`, `RecommendationReader` |
 | `review.py` | Phase 5. Review requests (approve / reject / edit anchor / replace target / bulk), `FeedbackReason` + `REASONS_BY_ACTION`, results, `ReviewActionView`, `TargetOption`, typed review errors, `ReviewService` / `ReviewReader` |
@@ -345,3 +346,38 @@ Design: [ADR-0013](adr/ADR-0013-reviewer-control-plane.md) (§7 is binding). Mod
   and `correlation_id = operation_id` (or the bulk id). There are no new event names.
 - **Error codes** (additions): `unauthenticated` (401), `method_not_allowed` (405).
   `ErrorResponse.message` never echoes input values.
+
+### 18. Controlled deployment (Phase 6)
+
+Design: [ADR-0014](adr/ADR-0014-controlled-deployment.md) (§8 is binding; §9 records the
+integration decisions). Module: `deployment.py`; the pure HTML interface is
+`services/ken_services/deployment/protocol.py`.
+
+- **Flow.** Validate → `deploy` permission → dry-run (writes nothing; never consumes an
+  operation id) → durable intent (`applying`, holding the exact stored request) → CMS apply,
+  with the CMS page version as the lock → verify → typed `link.*` events
+  (`correlation_id = operation_id`) → rollback (whole or per plan).
+- **Idempotent and crash-safe.** `operation_id` plus a fingerprint; replays return the stored
+  outcome. `make deployments-reconcile` resends STORED requests for `applying` /
+  `rolling_back` rows. Only one deployment per source runs at a time; a concurrent one gets a
+  409 `deployment_in_progress`, and its plans are untouched.
+- **HTML mutation is a splice**: one `<a>` inserted, every other byte identical. A link is
+  identified by (block hash, span, href); `data-ken-link-id` is only a hint. The mutator and
+  verifier never raise, and refuse whenever unsure.
+- **Plan ownership.** `validated` plans belong to the deployment service. A plan whose link is
+  physically on the page occupies its pair until it is rolled back.
+- **Database status integrity.** A deferred constraint trigger rejects any `link_plans` status
+  change that is not in `ALLOWED_TRANSITIONS` or has no matching transition row in the same
+  transaction (`txid`).
+- **CMS providers.**
+  - `mock` (tests);
+  - `simulated`: its own database, `ken_cms_sim`, seeded by `make cms-sim-seed` and served on
+    loopback by `make cms-sim-serve`;
+  - `http`: TRD §13. It refuses any non-loopback base URL unless `KEN_CMS_ALLOW_REMOTE=true`,
+    and writes need `KEN_CMS_WRITES_ENABLED=true`. Real CMS use is an ASK action.
+- **Readers run READ ONLY.**
+- **Errors.**
+  - A refusal is a 409 `conflict`, with one `ErrorDetail` per issue (`code` = the issue code,
+    `location` = the plan id).
+  - `cms_version_conflict` is a 409; `cms_unavailable` is a 503 with `Retry-After`.
+  - A recorded `failed` / `conflict` outcome is a 200 with the detail.

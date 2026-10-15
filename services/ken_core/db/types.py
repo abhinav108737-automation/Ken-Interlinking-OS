@@ -58,3 +58,29 @@ class Vector(UserDefinedType[list[float]]):
             return None if value is None else parse_vector(value)
 
         return process
+
+
+class Xid8(UserDefinedType[str]):
+    """PostgreSQL ``xid8`` (a 64-bit transaction id, ``pg_current_xact_id()``).
+
+    Used only by ``link_plan_transitions.txid`` (migration 0007), which the ORM never writes
+    (server default) and never loads (deferred): the status-integrity trigger compares it in
+    SQL. The Python value, if ever read, is the decimal text form.
+    """
+
+    cache_ok = True
+
+    def get_col_spec(self, **kw: Any) -> str:
+        return "xid8"
+
+    def bind_processor(self, dialect: Dialect) -> Any:
+        def process(value: str | int | None) -> str | None:
+            return None if value is None else str(value)
+
+        return process
+
+    def result_processor(self, dialect: Dialect, coltype: object) -> Any:
+        def process(value: object) -> str | None:
+            return None if value is None else str(value)
+
+        return process

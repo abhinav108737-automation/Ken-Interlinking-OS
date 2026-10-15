@@ -21,8 +21,12 @@ export default async function DashboardPage() {
       <header className="space-y-2">
         <h1 className="text-2xl font-semibold">Dashboard</h1>
         <p className="max-w-prose text-slate-800">
-          The state of the content inventory, the recommendation queue and recent reviews. Nothing is deployed from this
-          console in this phase; see{" "}
+          The state of the content inventory, the recommendation queue and recent reviews. Approved recommendations are
+          deployed by an operator admin, one source page at a time, and listed under{" "}
+          <Link href="/deployments" className="text-blue-800 underline underline-offset-4">
+            deployments
+          </Link>
+          ; nothing deploys automatically. See{" "}
           <Link href="/system" className="text-blue-800 underline underline-offset-4">
             system status
           </Link>{" "}

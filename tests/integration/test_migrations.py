@@ -1,4 +1,4 @@
-"""Migrations 0001-0006 against a real PostgreSQL (the ``*_test`` database)."""
+"""Migrations 0001-0007 against a real PostgreSQL (the ``*_test`` database)."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ from sqlalchemy.dialects.postgresql import base as postgresql_base
 
 import ken_core.db.models  # noqa: F401 -- registers every model
 from ken_core.db.base import Base
-from ken_core.db.types import Vector
+from ken_core.db.types import Vector, Xid8
 from tests.integration.conftest import SyncDb
 
 pytestmark = pytest.mark.integration
@@ -42,6 +42,9 @@ APP_TABLES = frozenset(
         "users",
         "auth_sessions",
         "review_actions",
+        "deployments",
+        "deployment_items",
+        "deployment_verifications",
     }
 )
 
@@ -60,7 +63,7 @@ def _revision(db: SyncDb) -> str | None:
 
 def test_upgrade_downgrade_upgrade_round_trip(alembic_config: Config, sync_db: SyncDb) -> None:
     head = ScriptDirectory.from_config(alembic_config).get_current_head()
-    assert head == "0006_review_control_plane"
+    assert head == "0007_controlled_deployment"
 
     command.upgrade(alembic_config, "head")
     assert _tables(sync_db) >= APP_TABLES
@@ -91,6 +94,7 @@ def test_orm_matches_migration(
     # Teach reflection the pgvector type, so page_embeddings.embedding is really
     # compared (as Vector vs Vector) instead of being skipped as an unknown type.
     monkeypatch.setitem(postgresql_base.ischema_names, "vector", Vector)
+    monkeypatch.setitem(postgresql_base.ischema_names, "xid8", Xid8)
 
     def _diff(connection: Connection) -> list[object]:
         context = MigrationContext.configure(

@@ -3,7 +3,17 @@
 A fully self-hosted, local-first system that will manage contextual internal body links across Ken Research
 pages: observe → understand → recommend → approve → publish → verify → measure → learn.
 
-**Current status: Phase 5 (reviewer control plane) is complete**, built on Phases 1–4.
+**Current status: Phase 6 (controlled deployment) is complete**, built on Phases 1–5.
+
+Phase 6 publishes approved links safely, through a CMS adapter:
+- validate → dry-run preview → version-locked apply → post-publish verification → rollback;
+- every step is idempotent, crash-safe (durable intent plus `make deployments-reconcile`),
+  audited with typed events, and reversible, either per link or per deployment;
+- HTML is changed by a deterministic **splice**: one `<a>` inserted, every other byte
+  identical.
+
+It runs end to end against a local **simulated CMS** and site. The production HTTP adapter is
+contract-tested and disabled until you configure it and approve its use.
 
 Phase 5 puts a human in charge:
 - local, self-hosted sign-in with roles (viewer, reviewer, operator-admin) and no default
@@ -59,7 +69,7 @@ It normalises pages deterministically, stores them with an immutable, hash-based
 extracts the links they already contain, and makes all of it inspectable through a read-only API and
 web screens. The API is GET-only; crawls and imports start from the command line. There is no
 recommendation intelligence, publishing or learning yet. See
-[PHASE_5_REPORT.md](PHASE_5_REPORT.md), [PHASE_4_REPORT.md](PHASE_4_REPORT.md), [PHASE_3_REPORT.md](PHASE_3_REPORT.md), [PHASE_2_REPORT.md](PHASE_2_REPORT.md), [PHASE_1_REPORT.md](PHASE_1_REPORT.md),
+[PHASE_6_REPORT.md](PHASE_6_REPORT.md), [PHASE_5_REPORT.md](PHASE_5_REPORT.md), [PHASE_4_REPORT.md](PHASE_4_REPORT.md), [PHASE_3_REPORT.md](PHASE_3_REPORT.md), [PHASE_2_REPORT.md](PHASE_2_REPORT.md), [PHASE_1_REPORT.md](PHASE_1_REPORT.md),
 [PHASE_0_REPORT.md](PHASE_0_REPORT.md) and
 [NEXT_STEPS.md](NEXT_STEPS.md).
 

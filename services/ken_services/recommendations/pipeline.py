@@ -7,7 +7,8 @@ One run, through the generic job runner (advisory lock, counters, ``job.complete
     for every source in scope, in canonical-URL order, in ONE transaction per source
     holding the per-source plan-writer lock (``validity.lock_source_plans``; review edits
     take the same lock):
-        every open plan of the source whose source or target is now DURABLY ineligible
+        every open plan of the source (except VALIDATED ones, owned by the deployment
+            service) whose source or target is now DURABLY ineligible
             (protected, gone, unpublished, noindex, alias, thin, excluded type), or whose
             pair is now already linked -> EXPIRED ("invalid: ...", fail closed); analysis
             lag and HTTP errors only pause generation (``validity.plan_invalidity``, shared
@@ -28,9 +29,11 @@ One run, through the generic job runner (advisory lock, counters, ``job.complete
     replace opportunities (orphan / underlinked / link_capacity), one transaction
     -> succeeded | completed_with_errors
 
-**Idempotent.** An OPEN plan (or a LIVE plan whose source version is not older than the
-source's current version) occupies its pair, so re-running on unchanged pages proposes
-nothing new: the pairs are ``duplicate_recommendation``. Open plans of the source also
+**Idempotent.** An OPEN plan, or a plan whose link is physically on the page (ADR-0014 s8:
+deployed / verified / measured / learning_captured, and failed after an APPLIED deployment,
+until rolled back -- regardless of ``source_page_version``) occupies its pair, so
+re-running on unchanged pages proposes nothing new: the pairs are
+``duplicate_recommendation``. Open plans of the source also
 count toward its per-source cap and link density, occupy their anchor spans
 (``taken_spans``) and count as a link in their block (``max_links_per_block``).
 
@@ -382,6 +385,11 @@ class _Recommend:
         )
         linked = {link.target_page_id for link in links if link.target_page_id}
         for plan in await repo.open_plans_for_source(tx.session, source_page_id=source.id):
+            if plan.status is LinkPlanStatus.VALIDATED:
+                # ADR-0014 s8: VALIDATED belongs to the deployment service (its durable intent
+                # is in flight); only it may expire or fail the plan. It still occupies its
+                # pair and span below (OPEN_STATUSES).
+                continue
             invalid = self._invalidity(world, source, plan.target_page_id, linked)
             if invalid is not None:
                 await transition(
@@ -438,10 +446,10 @@ class _Recommend:
             analysis_version=self.av,
         )
 
-        # Occupancy: open plans (after expiry) and live, not-yet-re-read plans.
+        # Occupancy: open plans (after expiry) and plans whose link is on the page.
         open_plans = await repo.open_plans_for_source(session, source_page_id=source.id)
-        occupied = {p.target_page_id for p in open_plans} | await repo.live_targets_at_or_after(
-            session, source_page_id=source.id, source_version=source.current_version
+        occupied = {p.target_page_id for p in open_plans} | await repo.occupying_targets(
+            session, source_page_id=source.id
         )
         since = self.job.clock() - timedelta(days=selection.rejection_cooldown_days)
         rejected = await repo.rejected_targets_since(session, source_page_id=source.id, since=since)

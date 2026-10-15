@@ -119,7 +119,7 @@ describe("401 handling", () => {
     requestContext.cookies.set(SESSION_COOKIE, TOKEN);
     fetchMock.mockResolvedValue(jsonResponse(principal("operator_admin"), 200));
     const result = await getSessionUser();
-    expect(result.ok && result.data.permissions).toEqual(["read", "review", "read_audit", "read_settings"]);
+    expect(result.ok && result.data.permissions).toEqual(["read", "review", "read_audit", "read_settings", "deploy"]);
     expect(String(fetchMock.mock.calls[0]![0])).toBe("http://api.test:8000/auth/me");
   });
 

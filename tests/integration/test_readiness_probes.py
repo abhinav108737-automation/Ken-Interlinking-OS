@@ -45,8 +45,8 @@ async def test_migrations_probe_at_head(
     result = await probe_migrations(sessionmaker, alembic_ini_path=alembic_ini_path)
     assert result.status is HealthStatus.OK
     assert result.detail == {
-        "code_head": "0006_review_control_plane",
-        "db_revision": "0006_review_control_plane",
+        "code_head": "0007_controlled_deployment",
+        "db_revision": "0007_controlled_deployment",
     }
 
 
@@ -75,4 +75,4 @@ def test_migrations_probe_unmigrated_database(
     finally:
         command.upgrade(alembic_config, "head")
     assert status is HealthStatus.UNAVAILABLE
-    assert detail == {"code_head": "0006_review_control_plane", "db_revision": None}
+    assert detail == {"code_head": "0007_controlled_deployment", "db_revision": None}

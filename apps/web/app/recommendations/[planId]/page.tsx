@@ -6,6 +6,8 @@ import type { ReactNode } from "react";
 import { ApiErrorNotice } from "@/components/ApiErrorNotice";
 import { StatusBadge } from "@/components/StatusBadge";
 import { AgentPlanReviewPanel } from "@/components/agents/AgentPlanReviewPanel";
+import { DeployFlow } from "@/components/deployments/DeployFlow";
+import { DeploymentTable } from "@/components/deployments/DeploymentTable";
 import { ExternalUrl } from "@/components/inventory/ExternalUrl";
 import { pageHref } from "@/components/inventory/PageInventoryTable";
 import { PlacementPreviewPanel, SourceBlockText } from "@/components/recommendations/PlacementPreview";
@@ -19,6 +21,7 @@ import {
   getLinkPlan,
   isMissingResourceError,
   listAgentPlanReviews,
+  listPlanDeployments,
   listPlanReviewActions,
   listPlanTargetOptions,
   requireSessionUser,
@@ -38,7 +41,10 @@ import {
 } from "@/lib/recommendations";
 import { availableActions } from "@/lib/review";
 
+import { deployAction, dryRunAction } from "../../deployments/actions";
 import { approveAction, editAnchorAction, rejectAction, replaceTargetAction } from "../actions";
+
+const DEPLOY_ACTIONS = { dryRun: dryRunAction, deploy: deployAction };
 
 const REVIEW_ACTIONS = {
   approve: approveAction,
@@ -121,10 +127,11 @@ export default async function RecommendationDetailPage({
   const { planId } = await params;
   const query = (await searchParams) ?? {};
   // Agent reviews and review history are fetched alongside; their failure never hides the plan.
-  const [result, reviewsResult, historyResult, me] = await Promise.all([
+  const [result, reviewsResult, historyResult, deploymentsResult, me] = await Promise.all([
     getLinkPlan(planId),
     listAgentPlanReviews(planId),
     listPlanReviewActions(planId),
+    listPlanDeployments(planId),
     requireSessionUser(),
   ]);
 
@@ -149,6 +156,7 @@ export default async function RecommendationDetailPage({
   const status = describeLinkPlanStatus(plan.status);
   const user = me.ok ? me.data : null;
   const canReview = can(permissionsOf(user), "review");
+  const canDeploy = can(permissionsOf(user), "deploy");
   const available = availableActions(plan.status);
   // Replacement destinations are only needed (and only permitted) for a reviewer who can edit this plan.
   const targetsResult = canReview && available.edit ? await listPlanTargetOptions(plan.id) : null;
@@ -225,6 +233,33 @@ export default async function RecommendationDetailPage({
               ? "Review actions are unavailable because your session could not be confirmed."
               : `Your role (${describeRole(user.role)}) can read recommendations but not review them.`}
           </p>
+        )}
+      </Section>
+
+      <Section id="deployment" title="Deployment">
+        {plan.status !== "approved" ? (
+          <p className="max-w-prose text-sm text-slate-700">
+            Only approved recommendations can be deployed; this one is {status.label.toLowerCase()}.
+          </p>
+        ) : canDeploy ? (
+          <DeployFlow actions={DEPLOY_ACTIONS} planId={plan.id} planLabels={{ [plan.id.toLowerCase()]: plan.anchor_text }} />
+        ) : (
+          <p className="max-w-prose rounded border border-slate-300 bg-slate-50 p-3 text-sm text-slate-800">
+            {user === null
+              ? "Deployment is unavailable because your session could not be confirmed."
+              : `This recommendation is approved. Your role (${describeRole(user.role)}) cannot deploy it: an operator admin deploys approved recommendations.`}
+          </p>
+        )}
+        {deploymentsResult.ok ? (
+          <DeploymentTable
+            deployments={deploymentsResult.data}
+            caption="Deployments that included this recommendation"
+            total={deploymentsResult.data.length}
+            emptyMessage="This recommendation has not been deployed."
+            showSource={false}
+          />
+        ) : (
+          <ApiErrorNotice error={deploymentsResult.error} what="Deployments" />
         )}
       </Section>
 

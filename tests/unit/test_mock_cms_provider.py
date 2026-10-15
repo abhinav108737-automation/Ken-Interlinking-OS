@@ -620,20 +620,23 @@ async def test_rollback_requires_actor(provider: MockCMSProvider) -> None:
     assert _codes(exc.value.issues) == {IssueCode.MISSING_ACTOR}
 
 
-async def test_rollback_refuses_to_discard_a_later_deployment(
+async def test_rollback_without_an_engine_refuses_after_a_later_deployment(
     provider: MockCMSProvider,
 ) -> None:
+    """ADR-0014 s8 supersedes Phase 0's "page moved -> CMSVersionConflictError": without an
+    HTML engine nothing can prove the later change unrelated, so the refusal is the typed
+    ``rollback_conflict`` and the page is untouched. (With an engine the inverse splice runs:
+    tests/unit/deployment/test_cms_providers_contract.py.)"""
     first_request = _request()
     first = await provider.apply_link_changes(request=first_request)
     second = await provider.apply_link_changes(request=_request(expected_version=first.new_version))
-    with pytest.raises(CMSVersionConflictError) as exc:
+    with pytest.raises(CMSValidationError) as exc:
         await provider.rollback(
             deployment_id=first.deployment_id,
             operation_id=first_request.operation_id,
             actor="lead@example.com",
         )
-    assert exc.value.expected == first.new_version
-    assert exc.value.current == second.new_version
+    assert _codes(exc.value.issues) == {IssueCode.ROLLBACK_CONFLICT}
     assert (await provider.get_page(page_id=SOURCE)).version == second.new_version
 
 

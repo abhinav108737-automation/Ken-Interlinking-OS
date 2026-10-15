@@ -27,7 +27,7 @@ from pathlib import Path
 from typing import Literal
 from urllib.parse import urlsplit
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from ken_contracts.inventory import CrawlConfig
@@ -156,7 +156,48 @@ class Settings(BaseSettings):
     mock_embedding_dim: int = Field(default=768, gt=0)
 
     # ------------------------------------------------------------------- cms
-    cms_provider: Literal["mock"] = "mock"
+    # Phase 6 (ADR-0014 s4/s8). The default stays the in-memory mock. "simulated" is the
+    # local end-to-end CMS (its OWN database, outside the app's Alembic chain); "http" is the
+    # production adapter for TRD section 13, inert until explicitly enabled: every call is
+    # refused unless the base URL is loopback or KEN_CMS_ALLOW_REMOTE=true, and writes also
+    # need KEN_CMS_WRITES_ENABLED=true. Pointing it at the real Ken CMS is an ASK action.
+    cms_provider: Literal["mock", "simulated", "http"] = "mock"
+    cms_sim_database_url: str = Field(
+        default="postgresql+asyncpg://ken:ken@localhost:5433/ken_cms_sim",
+        description="The simulated CMS's OWN database (project-local, disposable).",
+    )
+    cms_base_url: str | None = Field(default=None, description="HttpCMSProvider base URL.")
+    cms_token: SecretStr | None = Field(
+        default=None, description="HttpCMSProvider Bearer token. Never logged."
+    )
+    cms_writes_enabled: bool = Field(
+        default=False, description="HttpCMSProvider: allow apply/rollback (ASK to enable)."
+    )
+    cms_allow_remote: bool = Field(
+        default=False,
+        description="HttpCMSProvider: allow a non-loopback base URL (ASK to enable).",
+    )
+    cms_timeout_s: float = Field(default=10.0, gt=0.0, le=120.0)
+
+    # ------------------------------------------------------------- deployment
+    # Phase 6. HTTP verification (published page + target reachability) runs only when a
+    # verification base URL is set; the published URL of a page is this base + its path.
+    deploy_verify_base_url: str | None = Field(
+        default=None, description="Where published pages are served (HTTP verification)."
+    )
+    deploy_allowed_hosts: str = Field(
+        default="",
+        description="Comma-separated extra hosts an inserted href may point at (besides the "
+        "source page's host and KEN_CRAWL_ALLOWED_HOSTS).",
+    )
+    deploy_verify_attempts: int = Field(default=3, ge=1, le=10)
+    deploy_verify_retry_delay_s: float = Field(default=2.0, ge=0.0, le=60.0)
+    deploy_http_timeout_s: float = Field(default=10.0, gt=0.0, le=60.0)
+    deploy_reconcile_after_s: float = Field(
+        default=300.0,
+        ge=0.0,
+        description="make deployments-reconcile resends rows applying/rolling_back this long.",
+    )
 
     # ------------------------------------------------------- content inventory
     # Phase 1. There is deliberately NO default base URL: the crawler must never

@@ -6,13 +6,17 @@ import { FilterForm, NumberField, SelectField, TextField } from "@/components/in
 import { Pagination } from "@/components/inventory/Pagination";
 import { RecommendationSummaryPanel, totalPlans } from "@/components/recommendations/RecommendationSummaryPanel";
 import { RecommendationTable } from "@/components/recommendations/RecommendationTable";
+import { DEPLOY_SELECT_FORM_ID, DeployFlow } from "@/components/deployments/DeployFlow";
 import { BULK_FORM_ID, BulkReviewForm } from "@/components/review/BulkReviewForm";
 import { getRecommendationSummary, listLinkPlans, requireSessionUser } from "@/lib/api";
 import { can, permissionsOf } from "@/lib/auth";
 import { DEFAULT_PAGE_SIZE, type SearchParams, parseLimit, parseOffset } from "@/lib/inventory";
 import { BULK_STATUS } from "@/lib/review";
 
+import { deployAction, dryRunAction } from "../deployments/actions";
 import { bulkReviewAction } from "./actions";
+
+const DEPLOY_ACTIONS = { dryRun: dryRunAction, deploy: deployAction };
 import {
   ALL_STATUSES,
   CANDIDATES_PATH,
@@ -68,8 +72,15 @@ export default async function RecommendationsPage({ searchParams }: { readonly s
     getRecommendationSummary(),
     requireSessionUser(),
   ]);
-  const canReview = can(permissionsOf(me.ok ? me.data : null), "review");
-  const bulkable = canReview && result.ok && result.data.items.some((plan) => plan.status === BULK_STATUS);
+  const permissions = permissionsOf(me.ok ? me.data : null);
+  const canReview = can(permissions, "review");
+  // Deploying several plans is offered on the inbox filtered to approved plans (one source page per deployment).
+  const deployable =
+    can(permissions, "deploy") && status === "approved" && result.ok && result.data.items.some((plan) => plan.status === "approved");
+  const bulkable = !deployable && canReview && result.ok && result.data.items.some((plan) => plan.status === BULK_STATUS);
+  const planLabels = result.ok
+    ? Object.fromEntries(result.data.items.map((plan) => [plan.id.toLowerCase(), plan.anchor_text]))
+    : {};
 
   // "Nothing yet" only when the engine has produced no plan at all; otherwise the filters exclude them.
   const noPlansAtAll = summaryResult.ok ? totalPlans(summaryResult.data) === 0 : !filtered;
@@ -184,6 +195,7 @@ export default async function RecommendationsPage({ searchParams }: { readonly s
         ) : (
           <>
             {bulkable && <BulkReviewForm action={bulkReviewAction} />}
+            {deployable && <DeployFlow actions={DEPLOY_ACTIONS} planLabels={planLabels} />}
             {result.data.items.length === 0 ? (
               <p role="status" className="text-slate-700">
                 No recommendations on this page of results.
@@ -193,6 +205,7 @@ export default async function RecommendationsPage({ searchParams }: { readonly s
                 plans={result.data.items}
                 total={result.data.page.total}
                 {...(bulkable ? { selectFormId: BULK_FORM_ID } : {})}
+                {...(deployable ? { selectFormId: DEPLOY_SELECT_FORM_ID, selectStatus: "approved", selectPurpose: "deployment" } : {})}
                 caption={
                   status === ALL_STATUSES
                     ? "Recommendations (any status)"

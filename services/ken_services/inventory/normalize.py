@@ -73,6 +73,7 @@ __all__ = [
     "NormalizationError",
     "TextRun",
     "extract_blocks",
+    "extract_body_links",
     "normalize_document",
 ]
 
@@ -611,6 +612,17 @@ def extract_blocks(body_html: str) -> tuple[ContentBlock, ...]:
         for block in walk.blocks
         if block.block_id is not None
     )
+
+
+def extract_body_links(body_html: str, *, base: str, scope: SiteScope) -> tuple[ExtractedLink, ...]:
+    """The ``<a href>`` links of a body, as :func:`normalize_document` extracts them (same
+    content root, boilerplate removal and walk as :func:`extract_blocks`), resolved against
+    ``base`` and classified with ``scope``. Phase 6 (ADR-0014 s8) reads the CMS's CURRENT
+    HTML with it (link density, already linked). Pure; never raises on malformed HTML."""
+    soup = _parse(_scrub(body_html))
+    root = _select_root(soup)
+    _strip_boilerplate(root)
+    return _extract_links(_walk(root), base=base, scope=scope)
 
 
 # --------------------------------------------------------------------------- #

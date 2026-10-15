@@ -352,6 +352,7 @@ def test_every_recommendation_route_is_get_only_except_the_review_actions() -> N
         "/recommendations/summary",
         "/recommendations/{plan_id}/target-options",
         "/recommendations/{plan_id}/review-actions",
+        "/recommendations/{plan_id}/deployments",
     }
 
 

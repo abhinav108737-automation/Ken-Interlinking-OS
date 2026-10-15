@@ -7,6 +7,9 @@
                            (source, block context hash, anchor start) -- partial unique
                            indexes -- and a plan can be superseded at most once.
 ``link_plan_transitions``  APPEND-ONLY status history (PRD v1.1 Appendix C lifecycle).
+                           Migration 0007 adds ``txid`` and a DEFERRABLE constraint trigger on
+                           ``link_plans``: a status change must be in ALLOWED_TRANSITIONS AND
+                           have a matching transition row written in the same transaction.
 ``link_candidates``        APPEND-ONLY audit of every retrieved candidate of a run, kept or
                            rejected (with the rejection code), for explainability and evals.
 ``opportunities``          derived page-level signals (orphan / under-linked / capacity);
@@ -50,6 +53,7 @@ from ken_contracts.recommendations import (
 )
 from ken_core.db.base import Base
 from ken_core.db.models.inventory import _one_of
+from ken_core.db.types import Xid8
 
 OPEN_PLAN_STATUSES: Final = tuple(s for s in LinkPlanStatus if s in OPEN_STATUSES)
 """Statuses in which a plan still occupies its (source, target) and its anchor span."""
@@ -181,6 +185,14 @@ class LinkPlanTransition(Base):
     actor: Mapped[str] = mapped_column(Text, nullable=False)
     note: Mapped[str | None] = mapped_column(Text, nullable=True)
     occurred_at: Mapped[datetime] = _ts(default_now=True)
+    txid: Mapped[str] = mapped_column(
+        Xid8(),
+        nullable=False,
+        server_default=text("pg_current_xact_id()"),
+        deferred=True,  # never written (server default) nor loaded: compared in SQL only
+    )
+    """Migration 0007: the writing transaction's id. The DEFERRABLE status-integrity trigger
+    on ``link_plans`` requires a (plan, from, to, txid) row for every status change."""
 
     __table_args__ = (
         CheckConstraint(_one_of("to_status", LinkPlanStatus), name="to_status_valid"),

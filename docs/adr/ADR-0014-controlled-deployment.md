@@ -307,6 +307,27 @@ run failed, releases it afterwards, and never touches deployments.
 **Optional, adopted:** per-plan rollback is a REMOVE-change deployment (an editorial reversal
 of one link does not roll back the batch).
 
+### 9. Integration decisions (Phase 6)
+
+- **`createDeployment` returns 200 with the `DeploymentDetail` for every RECORDED outcome**,
+  including `failed` and `conflict`: a durable row exists and the UI opens it. A replay returns
+  the same 200 with `idempotent_replay`. Refusals before any write are a 409 `conflict`, with
+  the issues in `details`. An unknown CMS outcome is a 503, and the row stays `applying` for
+  reconciliation. A 409 `cms_version_conflict` comes only from a per-plan REMOVE rollback whose
+  page moved.
+- **Any 409 from an HTTP CMS on link-changes is treated as a version conflict** (TRD §13). A
+  CMS that also uses 409 for a reused operation id would expire plans instead of failing them,
+  so its contract must distinguish the two. This is recorded for the real-CMS integration.
+- **Rollback when the link is already gone:** the page moved and an editor had already removed
+  our link. It still counts as `rolled_back`, with the CMS's new version token, because the
+  link is absent either way.
+- **`make jobs-reap`** fails stuck `job_runs` only. Agent runs of a reaped batch are failed as
+  `orphaned` by the next agent batch, under ADR-0012's own reaper.
+- **Real HTML parity is unproven.** The demo corpus gives identical block hashes across five
+  HTML forms (stored body, export fragment, full document, without `<main>`, without
+  `<article>`). Ken's real templates must be re-checked. Wherever parity breaks, the mutator
+  refuses (`block_not_found` / `ambiguous_block`); it never guesses.
+
 ## Consequences
 
 - The whole loop runs locally, end to end: recommend → agents → approve → deploy to the

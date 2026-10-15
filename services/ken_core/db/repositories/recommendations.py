@@ -48,6 +48,7 @@ from ken_contracts.recommendations import (
     ScoreBreakdown,
 )
 from ken_contracts.review import ReviewAction
+from ken_core.db.models.deployment import Deployment, DeploymentItem, ItemStage
 from ken_core.db.models.intelligence import PageAnalysis as PageAnalysisRow
 from ken_core.db.models.intelligence import PageProtection
 from ken_core.db.models.inventory import ExistingLink, KnownUrl, Page, PageVersion
@@ -333,15 +334,43 @@ async def open_plan_target_counts(session: AsyncSession) -> dict[uuid.UUID, int]
     return {r[0]: int(r[1]) for r in rows}
 
 
-async def live_targets_at_or_after(
-    session: AsyncSession, *, source_page_id: uuid.UUID, source_version: int
-) -> set[uuid.UUID]:
-    """Targets of LIVE plans whose source version is >= ``source_version`` (not yet re-read)."""
+OCCUPYING_LIVE_VALUES: Final = LIVE_VALUES
+"""Plans whose link is on the page: they occupy their pair until ``rolled_back``."""
+
+
+def occupying_condition() -> ColumnElement[bool]:
+    """ADR-0014 s8 pair occupancy (amends ADR-0011's live rule): a plan whose link is
+    PHYSICALLY on the page occupies its (source, target) pair REGARDLESS of its
+    ``source_page_version``, until it is ``rolled_back``:
+
+    * ``deployed``, ``verified``, ``measured``, ``learning_captured``;
+    * ``failed`` when its deployment was APPLIED (``deployments.applied_at`` set: the link
+      reached the page, then verification failed). A plan that failed at APPLY (the CMS
+      refused it) never reached the page and does not occupy the pair.
+    """
+    applied = (
+        select(DeploymentItem.id)
+        .join(Deployment, Deployment.id == DeploymentItem.deployment_id)
+        .where(
+            DeploymentItem.plan_id == LinkPlanRow.id,
+            DeploymentItem.stage == ItemStage.REQUESTED,
+            Deployment.applied_at.is_not(None),
+        )
+        .correlate(LinkPlanRow)
+        .exists()
+    )
+    return or_(
+        LinkPlanRow.status.in_(OCCUPYING_LIVE_VALUES),
+        and_(LinkPlanRow.status == LinkPlanStatus.FAILED.value, applied),
+    )
+
+
+async def occupying_targets(session: AsyncSession, *, source_page_id: uuid.UUID) -> set[uuid.UUID]:
+    """Targets of the source's plans whose link is on the page (:func:`occupying_condition`).
+    Together with the OPEN plans, these are the engine's ``duplicate_recommendation`` pairs."""
     rows = await session.scalars(
         select(LinkPlanRow.target_page_id).where(
-            LinkPlanRow.source_page_id == source_page_id,
-            LinkPlanRow.status.in_(LIVE_VALUES),
-            LinkPlanRow.source_page_version >= source_version,
+            LinkPlanRow.source_page_id == source_page_id, occupying_condition()
         )
     )
     return set(rows.all())

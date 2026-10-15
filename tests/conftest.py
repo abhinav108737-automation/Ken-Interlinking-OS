@@ -114,6 +114,41 @@ def test_database_url() -> str:
     return TEST_DATABASE_URL
 
 
+@pytest.fixture(autouse=True)
+def _restore_logging_state() -> Any:
+    """Every test leaves process-wide logging as it found it.
+
+    A CLI ``main()`` or an app lifespan run in-process calls
+    ``ken_core.logging.configure_logging``, which sets ``cache_logger_on_first_use=True``
+    and replaces the root/uvicorn handlers. Left in place, a LATER test's first use of a
+    module-level structlog logger caches it with those processors, and that module's
+    ``structlog.testing.capture_logs`` then sees nothing (an order-dependent failure).
+    """
+    import logging
+
+    import structlog
+
+    from ken_core import logging as ken_logging
+
+    saved_config = structlog.get_config()
+    configured = ken_logging._CONFIGURED
+    names = ("", "uvicorn", "uvicorn.error", "uvicorn.access")
+    saved_loggers = {
+        name: (list(logging.getLogger(name).handlers), logging.getLogger(name).level,
+               logging.getLogger(name).propagate)
+        for name in names
+    }  # fmt: skip
+    yield
+    if structlog.get_config() != saved_config:
+        structlog.configure(**saved_config)
+    ken_logging._CONFIGURED = configured
+    for name, (handlers, level, propagate) in saved_loggers.items():
+        target = logging.getLogger(name)
+        target.handlers[:] = handlers
+        target.setLevel(level)
+        target.propagate = propagate
+
+
 # --------------------------------------------------------------------------- #
 # Protocol fakes
 # --------------------------------------------------------------------------- #

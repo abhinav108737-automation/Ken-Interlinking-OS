@@ -23,7 +23,7 @@ export NEXT_TELEMETRY_DISABLED := 1
         compose-config compose-full-up compose-full-down doctor verify openapi \
         ingest-file ingest-cms-mock crawl analyze recommend agents \
         user-create user-list user-disable user-enable user-set-role user-set-password \
-        sessions-prune
+        sessions-prune deployments-reconcile jobs-reap cms-sim-seed cms-sim-serve
 
 help: ## List targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "} {printf "  %-18s %s\n", $$1, $$2}'
@@ -145,6 +145,21 @@ sessions-prune: ## Delete sessions that expired more than 30 days ago
 
 crawl: ## Crawl the ONE site configured in KEN_CRAWL_BASE_URL (refuses if unset)
 	$(VENV)/python -m ken_services.inventory.cli crawl
+
+# ---------------------------------------------------------------- deployment (Phase 6)
+# Operator commands only: nothing here deploys. The simulated CMS is a disposable,
+# project-local database (KEN_CMS_SIM_DATABASE_URL, default ken_cms_sim on :5433).
+deployments-reconcile: ## Resend stuck applying/rolling_back deployments (ARGS="--older-than-s N")
+	$(VENV)/python -m ken_services.deployment.cli reconcile $(ARGS)
+
+jobs-reap: ## Fail 'running' job runs whose kind lock no live runner holds (never deployments)
+	$(VENV)/python -m ken_services.jobs.reaper $(ARGS)
+
+cms-sim-seed: ## Create + seed the simulated CMS from the inventory (ARGS="--export FILE --reset")
+	$(VENV)/python -m ken_services.deployment.cms_sim seed $(ARGS)
+
+cms-sim-serve: ## Serve the simulated CMS on 127.0.0.1:<free port> (prints the verified URL)
+	$(VENV)/python -m ken_services.deployment.cms_sim serve
 
 # ---------------------------------------------------------------- compose
 compose-config: ## Validate docker-compose.yml in all three modes

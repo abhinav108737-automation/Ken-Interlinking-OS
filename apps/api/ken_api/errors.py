@@ -18,6 +18,11 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from ken_api.middleware.request_id import REQUEST_ID_HEADER
 from ken_contracts.agents import AgentRunNotFoundError
+from ken_contracts.deployment import (
+    DeploymentError,
+    DeploymentIssueCode,
+    DeploymentNotFoundError,
+)
 from ken_contracts.errors import ErrorCode, ErrorDetail, ErrorResponse
 from ken_contracts.intelligence import EmbeddingUnavailableError, IntelligenceNotFoundError
 from ken_contracts.inventory import InventoryNotFoundError
@@ -237,6 +242,92 @@ async def review_error_handler(request: Request, exc: Exception) -> JSONResponse
     return _respond(request, _REVIEW_STATUS[code.value], body)
 
 
+# --------------------------------------------------------------------------- #
+# Phase 6 controlled deployment (ADR-0014 sections 7 and 8)
+# --------------------------------------------------------------------------- #
+_I = DeploymentIssueCode
+DEPLOYMENT_ISSUE_MESSAGES: Final[dict[str, str]] = {
+    _I.PLAN_NOT_APPROVED.value: "The plan is not approved.",
+    _I.PLAN_STALE.value: "The source page changed and the plan is stale.",
+    _I.PLAN_INVALID.value: "The plan is no longer valid (protection, eligibility or anchor).",
+    _I.MIXED_SOURCES.value: "The plans belong to more than one source page.",
+    _I.CMS_PAGE_NOT_FOUND.value: "The CMS has no such page.",
+    _I.CMS_PAGE_PROTECTED.value: "The CMS page is protected.",
+    _I.CMS_UNAVAILABLE.value: "The CMS is unavailable.",
+    _I.CMS_VALIDATION_FAILED.value: "The CMS refused the change.",
+    _I.HREF_INVALID.value: "The link target URL breaks the href rules.",
+    _I.BROKEN_TARGET.value: "The link target does not answer 200.",
+    _I.BLOCK_NOT_FOUND.value: "No block of the CMS page has the planned block text.",
+    _I.AMBIGUOUS_BLOCK.value: "Several blocks of the CMS page have the planned block text.",
+    _I.ANCHOR_NOT_FOUND.value: "The anchor text is not at the planned occurrence.",
+    _I.ANCHOR_NOT_IN_SINGLE_TEXT_NODE.value: "The anchor does not lie in one text node.",
+    _I.UNMAPPABLE_SPAN.value: "The anchor span cannot be mapped to the page HTML.",
+    _I.UNSAFE_PLACEMENT.value: "The anchor sits under an excluded, hidden or link ancestor.",
+    _I.OVERLAPPING_CHANGES.value: "Two changes of the request overlap.",
+    _I.ALREADY_APPLIED.value: "The link is already on the page.",
+    _I.CONFLICTING_LINK.value: "A different link already occupies the anchor span.",
+    _I.SELF_CHECK_FAILED.value: "The mutation self-check failed.",
+    _I.DEPLOYMENT_IN_PROGRESS.value: "Another deployment of this source page is in progress.",
+    _I.DENSITY_EXCEEDED.value: "The page would exceed the internal link density limit.",
+    _I.ALREADY_LINKED.value: "The CMS page already links to the target.",
+    _I.CMS_PAGE_UNMAPPED.value: "The page has no CMS page id.",
+    _I.ROLLBACK_CONFLICT.value: "A deployed link was itself changed on the page.",
+    _I.NOTHING_TO_ROLL_BACK.value: "Nothing of this deployment is on the page.",
+}
+"""One FIXED message per issue code (never an input value)."""
+_DEPLOYMENT_STATUS: Final[dict[str, int]] = {
+    ErrorCode.CONFLICT.value: 409,
+    ErrorCode.CMS_VERSION_CONFLICT.value: 409,
+    ErrorCode.CMS_UNAVAILABLE.value: 503,
+}
+_DEPLOYMENT_MESSAGES: Final[dict[str, str]] = {
+    ErrorCode.CONFLICT.value: "The deployment request was refused.",
+    ErrorCode.CMS_VERSION_CONFLICT.value: (
+        "The CMS page changed since it was validated; the plans were expired."
+    ),
+    ErrorCode.CMS_UNAVAILABLE.value: "The CMS is unavailable; retry later.",
+}
+
+
+async def deployment_error_handler(request: Request, exc: Exception) -> JSONResponse:
+    """Typed deployment refusals (``ken_contracts.deployment``): ``DeploymentRefusedError`` ->
+    409 ``conflict``, ``DeploymentVersionConflictError`` -> 409 ``cms_version_conflict``,
+    ``CMSUnavailableDeploymentError`` -> 503 ``cms_unavailable``. ``details`` = one entry per
+    ``DeploymentIssue``: ``code`` = the issue code, ``location`` = the plan id (bare UUID) or
+    null, a fixed message per code. A reused operation id has no issues (empty details)."""
+    if not isinstance(exc, DeploymentError):  # registration guarantees it
+        return await unhandled_exception_handler(request, exc)
+    code = exc.code if exc.code in _DEPLOYMENT_STATUS else ErrorCode.CONFLICT.value
+    details = [
+        ErrorDetail(
+            location=None if issue.plan_id is None else str(issue.plan_id),
+            message=DEPLOYMENT_ISSUE_MESSAGES.get(
+                DeploymentIssueCode(issue.code).value, "The deployment was refused."
+            ),
+            code=DeploymentIssueCode(issue.code).value,
+        )
+        for issue in exc.issues
+    ]
+    body = ErrorResponse.of(
+        ErrorCode(code),
+        _DEPLOYMENT_MESSAGES[code],
+        request_id=_request_id(request),
+        details=details,
+    )
+    status = _DEPLOYMENT_STATUS[code]
+    headers = {"Retry-After": "30"} if status == 503 else None
+    return _respond(request, status, body, headers)
+
+
+async def deployment_not_found_handler(request: Request, exc: Exception) -> JSONResponse:
+    if not isinstance(exc, DeploymentNotFoundError):  # registration guarantees it
+        return await unhandled_exception_handler(request, exc)
+    body = ErrorResponse.of(
+        ErrorCode.NOT_FOUND, "Deployment not found.", request_id=_request_id(request)
+    )
+    return _respond(request, 404, body)
+
+
 async def embedding_unavailable_handler(request: Request, exc: Exception) -> JSONResponse:
     # The class name only is logged; the provider's message may name its host.
     logger.warning("embedding_unavailable", error_class=type(exc).__name__)
@@ -273,4 +364,6 @@ def install_exception_handlers(app: FastAPI) -> None:
     app.add_exception_handler(AgentRunNotFoundError, intelligence_not_found_handler)
     app.add_exception_handler(EmbeddingUnavailableError, embedding_unavailable_handler)
     app.add_exception_handler(ReviewError, review_error_handler)
+    app.add_exception_handler(DeploymentError, deployment_error_handler)
+    app.add_exception_handler(DeploymentNotFoundError, deployment_not_found_handler)
     app.add_exception_handler(Exception, unhandled_exception_handler)

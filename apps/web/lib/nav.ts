@@ -21,6 +21,7 @@ export const NAV_LINKS: readonly NavLink[] = [
   { href: "/intelligence", label: "Intelligence" },
   { href: "/recommendations", label: "Recommendations" },
   { href: "/agents", label: "Agents" },
+  { href: "/deployments", label: "Deployments" },
   { href: "/jobs", label: "Jobs" },
   { href: "/audit/reviews", label: "Audit", requires: "read_audit" },
   { href: "/settings/policies", label: "Settings", requires: "read_settings" },

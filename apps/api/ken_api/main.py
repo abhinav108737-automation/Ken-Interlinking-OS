@@ -41,7 +41,7 @@ from ken_contracts.model import ModelProvider
 from ken_core import logging as ken_logging
 from ken_core.config import Settings, get_settings, git_sha
 from ken_core.db.engine import create_engine
-from ken_core.db.session import create_sessionmaker
+from ken_core.db.session import create_readonly_sessionmaker, create_sessionmaker
 
 API_TITLE: Final = "Ken Interlink OS API"
 DISTRIBUTION: Final = "ken-interlink"
@@ -86,6 +86,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             stack.push_async_callback(engine.dispose)
             app.state.engine = engine
             app.state.sessionmaker = create_sessionmaker(engine)
+            # GET readers only (ADR-0014 s8); the auth provider keeps the read-write factory.
+            app.state.readonly_sessionmaker = create_readonly_sessionmaker(engine)
 
         if getattr(app.state, "model_provider", None) is None:
             model_provider = _build_model_provider(settings)

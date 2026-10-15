@@ -33,6 +33,14 @@ _EXACT: Final[dict[tuple[str, str], str]] = {
     ("GET", "/review/actions"): "read_audit",
     ("GET", "/events"): "read_audit",
     ("GET", "/settings/policies"): "read_settings",
+    # Phase 6 (ADR-0014 s7): operators deploy; everyone with read sees the history.
+    ("POST", "/deployments/dry-run"): "deploy",
+    ("POST", "/deployments"): "deploy",
+    ("POST", "/deployments/{deployment_id}/verify"): "deploy",
+    ("POST", "/deployments/{deployment_id}/rollback"): "deploy",
+    ("GET", "/deployments"): "read",
+    ("GET", "/deployments/{deployment_id}"): "read",
+    ("GET", "/recommendations/{plan_id}/deployments"): "read",
 }
 _READ_PREFIXES: Final = ("/inventory", "/intelligence", "/jobs", "/recommendations", "/agents")
 
@@ -49,9 +57,9 @@ def expected_permission(method: str, path: str) -> str | None:
 ROLE_PERMISSIONS: Final[dict[str, frozenset[str]]] = {
     "viewer": frozenset({"read"}),
     "reviewer": frozenset({"read", "review"}),
-    "operator_admin": frozenset({"read", "review", "read_audit", "read_settings"}),
+    "operator_admin": frozenset({"read", "review", "read_audit", "read_settings", "deploy"}),
 }
-"""Independent copy of the ADR-0013 s3 matrix."""
+"""Independent copy of the ADR-0013 s3 matrix (plus ADR-0014's ``deploy``, operators only)."""
 
 _PARAM = re.compile(r"\{([^}]+)\}")
 

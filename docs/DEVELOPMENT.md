@@ -139,6 +139,31 @@ make recommend ARGS="--source <id>"    # one or more specific source pages
   `/recommendations/opportunities` and `/recommendations/summary`. Approve, reject and edit come
   in Phase 5.
 
+## Controlled deployment (Phase 6)
+
+Nothing is ever published to a real CMS from this repository without your explicit
+configuration and approval. The default CMS is the in-memory `mock`. For a full local loop,
+use the **simulated CMS**:
+
+```bash
+make cms-sim-seed                      # create/seed the local ken_cms_sim database from the inventory
+make cms-sim-serve                     # serve the simulated site on 127.0.0.1:<free port> (prints the URL)
+KEN_CMS_PROVIDER=simulated make dev-api
+```
+
+- **Deploy** from an approved plan's detail page, or the inbox filtered to `approved`
+  (`operator_admin` only): run a dry run, review the preview, then deploy. Verification runs
+  automatically.
+- **Roll back** from the deployment page, with a reason: the whole deployment or selected links.
+- **Maintenance:**
+  - `make deployments-reconcile` resolves deployments left `applying` / `rolling_back` by a
+    crash or timeout. It resends the stored request, so it is safe to repeat.
+  - `make jobs-reap` fails job runs stuck in `running` whose lock is gone.
+- **The production adapter** (`KEN_CMS_PROVIDER=http`) needs `KEN_CMS_BASE_URL` and
+  `KEN_CMS_TOKEN`. It refuses any non-loopback URL unless `KEN_CMS_ALLOW_REMOTE=true`, and
+  refuses writes unless `KEN_CMS_WRITES_ENABLED=true`. Connecting it to the real Ken CMS
+  requires your approval.
+
 ## Reviewer control plane (Phase 5)
 
 Every API endpoint except `/health`, `/ready` and `POST /auth/login` needs a session. The web

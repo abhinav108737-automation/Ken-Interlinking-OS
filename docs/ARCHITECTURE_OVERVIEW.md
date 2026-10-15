@@ -149,6 +149,23 @@ policy_gate → finalize`.
 - **UI.** A dashboard, the inbox with bulk review, plan review with a before/after preview and
   a span picker, the audit log, policies, and role-aware controls.
 
+## What Phase 6 added: controlled deployment
+
+- **Deployment service.** One source page per deployment, up to 20 approved plans:
+  validate → `deploy` permission → dry-run → durable `applying` intent → CMS apply, with the
+  CMS page version as the optimistic lock → verify → typed `link.*` events → rollback. It
+  holds a per-source session lock, and reconciliation resends stored requests.
+- **Deterministic HTML mutation** (`ken_services.deployment`). A position map over the
+  inventory's own block walk splices exactly one `<a>`, refuses whenever unsure, re-checks
+  itself, and guarantees `remove(insert(x)) == x`. The verifier checks presence, href, anchor,
+  block, hidden state, nesting and target reachability, with `inconclusive` for transient
+  errors.
+- **CMS providers.** `mock`; `simulated` (its own database plus a loopback site, so the full
+  loop including re-crawl runs locally); `http` (TRD §13, gated: loopback-only unless allowed,
+  writes off unless enabled).
+- **Integrity.** A database trigger enforces plan status transitions, readers are READ ONLY,
+  stuck job runs are reaped, and physically live links occupy their pair until rolled back.
+
 ## Boundaries that are enforced in code, not by convention
 
 | Boundary | Where enforced |
@@ -207,4 +224,5 @@ Proposing one requires stopping and asking the user (CLAUDE.md), with an ADR.
 | [0011](adr/ADR-0011-recommendation-engine.md) | Phase 3 recommendation engine: four retrieval channels, ordered filters, transparent policy-weighted score, verbatim context-supported placement, immutable LinkPlans with an allowed-transition lifecycle |
 | [0012](adr/ADR-0012-agent-orchestration.md) | Phase 4 agent orchestration: a LangGraph supervisor that reviews deterministic plans with optional, validated local-model slots, deterministic fallbacks, narrow tools and an atomic hand-off to the human queue |
 | [0013](adr/ADR-0013-reviewer-control-plane.md) | Phase 5 reviewer control plane: local auth provider abstraction (scrypt, opaque Bearer sessions, HttpOnly cookie in the web tier), deny-by-default RBAC, idempotent version-aware human review with structured feedback, supersede-on-edit |
+| [0014](adr/ADR-0014-controlled-deployment.md) | Phase 6 controlled deployment: two-phase durable intent with reconciliation, per-source lock, deterministic splice-only HTML mutation, HTTP/HTML verification (browser deferred), simulated CMS, gated production HTTP adapter, DB status-integrity trigger |
 | [0010](adr/ADR-0010-content-intelligence.md) | Phase 2 content intelligence: pgvector required from 0003, taxonomy-policy analysis, provider-defined embeddings, version-stamped relationships, protections, read-time eligibility, generic job runs |

@@ -1004,8 +1004,8 @@ class DatabaseReviewService:
         self, session: AsyncSession, source: rec_repo.PageFacts
     ) -> tuple[list[rec_repo.OpenPlan], set[uuid.UUID]]:
         open_plans = await rec_repo.open_plans_for_source(session, source_page_id=source.id)
-        occupied = {p.target_page_id for p in open_plans} | await rec_repo.live_targets_at_or_after(
-            session, source_page_id=source.id, source_version=source.current_version
+        occupied = {p.target_page_id for p in open_plans} | await rec_repo.occupying_targets(
+            session, source_page_id=source.id
         )
         return open_plans, occupied
 

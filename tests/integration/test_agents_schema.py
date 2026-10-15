@@ -26,7 +26,7 @@ import ken_core.db.models  # noqa: F401 -- registers every model
 from ken_contracts.agents import MAX_STEP_OUTPUT_BYTES
 from ken_core.db.base import Base
 from ken_core.db.models.agents import AGENT_RUN_MUTABLE_COLUMNS, APPEND_ONLY_AGENT_TABLES
-from tests.integration.conftest import SyncDb
+from tests.integration.conftest import DEPLOYMENT_TABLES, DEPLOYMENT_TRIGGERS, SyncDb
 
 pytestmark = pytest.mark.integration
 
@@ -698,9 +698,12 @@ def test_downgrade_to_0004_restores_exactly_the_recommendations_schema(
     try:
         state = sync_db.run(_state)
         assert not set(AGENT_TABLES) & state["tables"]
-        assert state["tables"] == head["tables"] - set(AGENT_TABLES) - set(REVIEW_TABLES)
+        assert (
+            state["tables"]
+            == head["tables"] - set(AGENT_TABLES) - set(REVIEW_TABLES) - DEPLOYMENT_TABLES
+        )
         assert state["functions"] == {"ken_reject_mutation", "ken_link_plan_content_guard"}
-        assert state["triggers"] == head["triggers"] - REVIEW_TRIGGERS - {
+        assert state["triggers"] == head["triggers"] - REVIEW_TRIGGERS - DEPLOYMENT_TRIGGERS - {
             "agent_runs_guard",
             "agent_runs_no_delete",
             "agent_steps_immutable",
@@ -712,4 +715,4 @@ def test_downgrade_to_0004_restores_exactly_the_recommendations_schema(
         command.upgrade(alembic_config, "head")
     state = sync_db.run(_state)
     assert state == head
-    assert state["revision"] == "0006_review_control_plane"
+    assert state["revision"] == "0007_controlled_deployment"

@@ -46,7 +46,8 @@ from tests.conftest import make_settings
 ALEMBIC_INI = Path(__file__).resolve().parents[2] / "alembic.ini"
 
 TRUNCATE_ALL = (
-    "TRUNCATE review_actions, auth_sessions, users, agent_run_plans, agent_steps, agent_runs, "
+    "TRUNCATE deployment_verifications, deployment_items, deployments, "
+    "review_actions, auth_sessions, users, agent_run_plans, agent_steps, agent_runs, "
     "link_candidates, link_plan_transitions, link_plans, opportunities, "
     "page_relationships, page_protections, page_embeddings, page_analyses, job_runs, "
     "existing_links, known_urls, page_versions, pages, ingestion_issues, "
@@ -377,3 +378,19 @@ async def ingest(
         c.pages_created + c.pages_changed + c.pages_unchanged + c.pages_duplicate + c.pages_failed
     )
     return detail
+
+
+# --------------------------------------------------------------------------- #
+# Migration 0007 (Phase 6): what a downgrade below 0007 removes from the head schema
+# --------------------------------------------------------------------------- #
+DEPLOYMENT_TABLES = frozenset({"deployments", "deployment_items", "deployment_verifications"})
+DEPLOYMENT_FUNCTIONS = frozenset({"ken_deployment_guard", "ken_link_plan_status_guard"})
+DEPLOYMENT_TRIGGERS = frozenset(
+    {
+        "deployments_guard",
+        "deployments_no_delete",
+        "deployment_items_immutable",
+        "deployment_verifications_immutable",
+        "link_plans_status_integrity",
+    }
+)
