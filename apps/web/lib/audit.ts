@@ -43,6 +43,7 @@ const POLICY_KIND: Readonly<Record<PolicyKind, { readonly label: string; readonl
   recommendation: { label: "Recommendation", description: "Eligibility, anchor and placement rules of the engine." },
   ranking: { label: "Ranking", description: "Score component weights and thresholds." },
   agents: { label: "Agents", description: "Agent orchestration limits and review hand-off rules." },
+  analytics: { label: "Analytics", description: "Measurement windows, source lag, bot filtering and collector limits." },
 };
 
 export const EVENT_NAMES = Object.keys(EVENT_NAME_LABEL) as readonly EventName[];

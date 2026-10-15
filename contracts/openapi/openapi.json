@@ -569,6 +569,218 @@
         "title": "AgentTrigger",
         "type": "string"
       },
+      "AnalyticsImportView": {
+        "additionalProperties": false,
+        "description": "One ``analytics_imports`` ledger row (written once, on success). Counters live on the\njob run.",
+        "properties": {
+          "analytics_policy_version": {
+            "minimum": 1.0,
+            "title": "Analytics Policy Version",
+            "type": "integer"
+          },
+          "counters": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "description": "The job run's counters (ADR-0015 \u00a75).",
+            "title": "Counters",
+            "type": "object"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "dataset": {
+            "$ref": "#/components/schemas/Dataset"
+          },
+          "date_end": {
+            "format": "date",
+            "title": "Date End",
+            "type": "string"
+          },
+          "date_start": {
+            "format": "date",
+            "title": "Date Start",
+            "type": "string"
+          },
+          "file_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File Name"
+          },
+          "file_sha256": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File Sha256"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "job_run_id": {
+            "format": "uuid",
+            "title": "Job Run Id",
+            "type": "string"
+          },
+          "replace_via": {
+            "title": "Replace Via",
+            "type": "boolean"
+          },
+          "rows_written": {
+            "minimum": 0.0,
+            "title": "Rows Written",
+            "type": "integer"
+          },
+          "sampled": {
+            "title": "Sampled",
+            "type": "boolean"
+          },
+          "source": {
+            "$ref": "#/components/schemas/AnalyticsSource"
+          },
+          "source_timezone": {
+            "title": "Source Timezone",
+            "type": "string"
+          },
+          "synthetic": {
+            "title": "Synthetic",
+            "type": "boolean"
+          },
+          "triggered_by": {
+            "title": "Triggered By",
+            "type": "string"
+          },
+          "unresolved_sample": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 100,
+            "title": "Unresolved Sample",
+            "type": "array"
+          },
+          "via": {
+            "$ref": "#/components/schemas/ImportVia"
+          }
+        },
+        "required": [
+          "id",
+          "job_run_id",
+          "source",
+          "dataset",
+          "via",
+          "synthetic",
+          "replace_via",
+          "date_start",
+          "date_end",
+          "source_timezone",
+          "file_name",
+          "file_sha256",
+          "sampled",
+          "rows_written",
+          "analytics_policy_version",
+          "unresolved_sample",
+          "triggered_by",
+          "created_at",
+          "counters"
+        ],
+        "title": "AnalyticsImportView",
+        "type": "object"
+      },
+      "AnalyticsSource": {
+        "description": "Where a STORED row came from (the stored subset of :class:`MetricSource`).",
+        "enum": [
+          "ga4",
+          "search_console",
+          "first_party"
+        ],
+        "title": "AnalyticsSource",
+        "type": "string"
+      },
+      "AnalyticsSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "daily": {
+            "description": "Sorted by (metric_date, source).",
+            "items": {
+              "$ref": "#/components/schemas/DailyTotals"
+            },
+            "title": "Daily",
+            "type": "array"
+          },
+          "links_with_data": {
+            "description": "Plans with any link-level row in range.",
+            "minimum": 0.0,
+            "title": "Links With Data",
+            "type": "integer"
+          },
+          "live_links": {
+            "description": "Plans whose live window is open now.",
+            "minimum": 0.0,
+            "title": "Live Links",
+            "type": "integer"
+          },
+          "range": {
+            "$ref": "#/components/schemas/DateRange"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/SourceFreshness"
+            },
+            "title": "Sources",
+            "type": "array"
+          },
+          "synthetic": {
+            "description": "Any synthetic row contributed to this view.",
+            "title": "Synthetic",
+            "type": "boolean"
+          },
+          "top_links": {
+            "items": {
+              "$ref": "#/components/schemas/LinkPerformanceView"
+            },
+            "maxItems": 10,
+            "title": "Top Links",
+            "type": "array"
+          },
+          "totals_by_source": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/MetricTotals"
+            },
+            "propertyNames": {
+              "$ref": "#/components/schemas/AnalyticsSource"
+            },
+            "title": "Totals By Source",
+            "type": "object"
+          }
+        },
+        "required": [
+          "range",
+          "sources",
+          "totals_by_source",
+          "daily",
+          "live_links",
+          "links_with_data",
+          "top_links",
+          "synthetic"
+        ],
+        "title": "AnalyticsSummary",
+        "type": "object"
+      },
       "AnchorSource": {
         "enum": [
           "text",
@@ -932,6 +1144,19 @@
         "title": "CheckKind",
         "type": "string"
       },
+      "ConfounderFlag": {
+        "enum": [
+          "overlapping_changes",
+          "content_changed",
+          "post_window_truncated",
+          "rolled_back_in_window",
+          "insufficient_data",
+          "sampled_data",
+          "synthetic_data"
+        ],
+        "title": "ConfounderFlag",
+        "type": "string"
+      },
       "CriticReason": {
         "enum": [
           "natural_anchor",
@@ -953,6 +1178,38 @@
         ],
         "title": "CriticVerdict",
         "type": "string"
+      },
+      "DailyTotals": {
+        "additionalProperties": false,
+        "description": "Link-level totals over all links for one (day, source).",
+        "properties": {
+          "clicks": {
+            "minimum": 0.0,
+            "title": "Clicks",
+            "type": "integer"
+          },
+          "impressions": {
+            "minimum": 0.0,
+            "title": "Impressions",
+            "type": "integer"
+          },
+          "metric_date": {
+            "format": "date",
+            "title": "Metric Date",
+            "type": "string"
+          },
+          "source": {
+            "$ref": "#/components/schemas/AnalyticsSource"
+          }
+        },
+        "required": [
+          "metric_date",
+          "source",
+          "impressions",
+          "clicks"
+        ],
+        "title": "DailyTotals",
+        "type": "object"
       },
       "DashboardSummary": {
         "additionalProperties": false,
@@ -1053,6 +1310,35 @@
           "auto_approve_enabled"
         ],
         "title": "DashboardSummary",
+        "type": "object"
+      },
+      "Dataset": {
+        "enum": [
+          "links",
+          "pages"
+        ],
+        "title": "Dataset",
+        "type": "string"
+      },
+      "DateRange": {
+        "additionalProperties": false,
+        "properties": {
+          "end": {
+            "format": "date",
+            "title": "End",
+            "type": "string"
+          },
+          "start": {
+            "format": "date",
+            "title": "Start",
+            "type": "string"
+          }
+        },
+        "required": [
+          "start",
+          "end"
+        ],
+        "title": "DateRange",
         "type": "object"
       },
       "DependencyCheck": {
@@ -2243,6 +2529,17 @@
         "title": "HealthStatus",
         "type": "string"
       },
+      "ImportVia": {
+        "description": "How rows reached the database (recorded on every ledger row).",
+        "enum": [
+          "api",
+          "csv",
+          "collector",
+          "synthetic"
+        ],
+        "title": "ImportVia",
+        "type": "string"
+      },
       "IneligibilityReason": {
         "description": "Why a page cannot be a link source or target right now.",
         "enum": [
@@ -2759,6 +3056,313 @@
         "title": "JobRunSummary",
         "type": "object"
       },
+      "LinkAttribution": {
+        "additionalProperties": false,
+        "description": "Plan -> recommendation run -> agent -> human -> deployment -> rollback (ADR-0015 \u00a73),\ncomputed by one query; never stored.",
+        "properties": {
+          "agent_graph_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Graph Version"
+          },
+          "agent_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Model"
+          },
+          "agent_run_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Run Id"
+          },
+          "agent_verdict": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CriticVerdict"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "analysis_version": {
+            "title": "Analysis Version",
+            "type": "string"
+          },
+          "anchor_source": {
+            "title": "Anchor Source",
+            "type": "string"
+          },
+          "anchor_text": {
+            "title": "Anchor Text",
+            "type": "string"
+          },
+          "approved_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approved At"
+          },
+          "approved_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Actor of the approval.",
+            "title": "Approved By"
+          },
+          "calibration_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Calibration Version"
+          },
+          "cms_provider": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cms Provider"
+          },
+          "deployed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The link_plan_transitions row to 'deployed'.",
+            "title": "Deployed At"
+          },
+          "deployment_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The deployment that applied it.",
+            "title": "Deployment Id"
+          },
+          "engine_version": {
+            "title": "Engine Version",
+            "type": "string"
+          },
+          "plan_id": {
+            "format": "uuid",
+            "title": "Plan Id",
+            "type": "string"
+          },
+          "plan_status": {
+            "$ref": "#/components/schemas/LinkPlanStatus"
+          },
+          "policy_version": {
+            "title": "Policy Version",
+            "type": "integer"
+          },
+          "ranking_policy_version": {
+            "title": "Ranking Policy Version",
+            "type": "integer"
+          },
+          "reason_codes": {
+            "items": {
+              "$ref": "#/components/schemas/ReasonCode"
+            },
+            "title": "Reason Codes",
+            "type": "array"
+          },
+          "recommendation_run_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recommendation Run Id"
+          },
+          "relationship_type": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RelationshipType"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "rolled_back_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The link_plan_transitions row to 'rolled_back'.",
+            "title": "Rolled Back At"
+          },
+          "source_page_id": {
+            "format": "uuid",
+            "title": "Source Page Id",
+            "type": "string"
+          },
+          "source_page_version": {
+            "title": "Source Page Version",
+            "type": "integer"
+          },
+          "source_url": {
+            "title": "Source Url",
+            "type": "string"
+          },
+          "supersedes": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supersedes"
+          },
+          "target_page_id": {
+            "format": "uuid",
+            "title": "Target Page Id",
+            "type": "string"
+          },
+          "target_page_version": {
+            "title": "Target Page Version",
+            "type": "integer"
+          },
+          "target_url": {
+            "title": "Target Url",
+            "type": "string"
+          },
+          "verified_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verified At"
+          }
+        },
+        "required": [
+          "plan_id",
+          "plan_status",
+          "anchor_text",
+          "anchor_source",
+          "relationship_type",
+          "reason_codes",
+          "supersedes",
+          "recommendation_run_id",
+          "engine_version",
+          "policy_version",
+          "ranking_policy_version",
+          "analysis_version",
+          "calibration_version",
+          "source_page_id",
+          "source_url",
+          "source_page_version",
+          "target_page_id",
+          "target_url",
+          "target_page_version",
+          "agent_run_id",
+          "agent_verdict",
+          "agent_model",
+          "agent_graph_version",
+          "approved_by",
+          "approved_at",
+          "deployment_id",
+          "cms_provider",
+          "deployed_at",
+          "verified_at",
+          "rolled_back_at"
+        ],
+        "title": "LinkAttribution",
+        "type": "object"
+      },
+      "LinkDailyPoint": {
+        "additionalProperties": false,
+        "properties": {
+          "clicks": {
+            "minimum": 0.0,
+            "title": "Clicks",
+            "type": "integer"
+          },
+          "impressions": {
+            "minimum": 0.0,
+            "title": "Impressions",
+            "type": "integer"
+          },
+          "metric_date": {
+            "format": "date",
+            "title": "Metric Date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "metric_date",
+          "impressions",
+          "clicks"
+        ],
+        "title": "LinkDailyPoint",
+        "type": "object"
+      },
       "LinkEligibility": {
         "additionalProperties": false,
         "description": "Whether a page may currently be a link source / target, and why not.",
@@ -2793,6 +3397,264 @@
           "target_reasons"
         ],
         "title": "LinkEligibility",
+        "type": "object"
+      },
+      "LinkMeasurement": {
+        "additionalProperties": false,
+        "description": "``link_measurements`` row (append-only, one per plan), written in the SAME transaction\nas ``verified -> measured`` so a measurement stays reproducible after replace-imports\n(ADR-0015 \u00a712.6.7). Synthetic data never measures.",
+        "properties": {
+          "analytics_policy_version": {
+            "minimum": 1.0,
+            "title": "Analytics Policy Version",
+            "type": "integer"
+          },
+          "flags": {
+            "items": {
+              "$ref": "#/components/schemas/ConfounderFlag"
+            },
+            "title": "Flags",
+            "type": "array"
+          },
+          "import_ids": {
+            "description": "The ledger rows measured.",
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Import Ids",
+            "type": "array"
+          },
+          "link_totals": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/MetricTotals"
+            },
+            "propertyNames": {
+              "$ref": "#/components/schemas/AnalyticsSource"
+            },
+            "title": "Link Totals",
+            "type": "object"
+          },
+          "measured_at": {
+            "format": "date-time",
+            "title": "Measured At",
+            "type": "string"
+          },
+          "plan_id": {
+            "format": "uuid",
+            "title": "Plan Id",
+            "type": "string"
+          },
+          "source_comparison": {
+            "items": {
+              "$ref": "#/components/schemas/PageWindowComparison"
+            },
+            "title": "Source Comparison",
+            "type": "array"
+          },
+          "target_comparison": {
+            "items": {
+              "$ref": "#/components/schemas/PageWindowComparison"
+            },
+            "title": "Target Comparison",
+            "type": "array"
+          },
+          "window_end": {
+            "description": "D(deployed_at) + measurement_window_days.",
+            "format": "date",
+            "title": "Window End",
+            "type": "string"
+          },
+          "window_start": {
+            "description": "D(deployed_at).",
+            "format": "date",
+            "title": "Window Start",
+            "type": "string"
+          }
+        },
+        "required": [
+          "plan_id",
+          "measured_at",
+          "analytics_policy_version",
+          "window_start",
+          "window_end",
+          "link_totals",
+          "target_comparison",
+          "source_comparison",
+          "flags",
+          "import_ids"
+        ],
+        "title": "LinkMeasurement",
+        "type": "object"
+      },
+      "LinkPerformanceDetail": {
+        "additionalProperties": false,
+        "properties": {
+          "attribution": {
+            "$ref": "#/components/schemas/LinkAttribution"
+          },
+          "live_window": {
+            "$ref": "#/components/schemas/LiveWindow"
+          },
+          "measurement": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LinkMeasurement"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "range": {
+            "$ref": "#/components/schemas/DateRange"
+          },
+          "series": {
+            "additionalProperties": {
+              "items": {
+                "$ref": "#/components/schemas/LinkDailyPoint"
+              },
+              "type": "array"
+            },
+            "description": "Empty when the plan was never deployed.",
+            "propertyNames": {
+              "$ref": "#/components/schemas/AnalyticsSource"
+            },
+            "title": "Series",
+            "type": "object"
+          },
+          "source_impact": {
+            "items": {
+              "$ref": "#/components/schemas/PageWindowComparison"
+            },
+            "title": "Source Impact",
+            "type": "array"
+          },
+          "synthetic": {
+            "default": false,
+            "title": "Synthetic",
+            "type": "boolean"
+          },
+          "target_impact": {
+            "items": {
+              "$ref": "#/components/schemas/PageWindowComparison"
+            },
+            "title": "Target Impact",
+            "type": "array"
+          },
+          "totals": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/MetricTotals"
+            },
+            "propertyNames": {
+              "$ref": "#/components/schemas/AnalyticsSource"
+            },
+            "title": "Totals",
+            "type": "object"
+          }
+        },
+        "required": [
+          "range",
+          "attribution",
+          "live_window",
+          "series",
+          "totals",
+          "target_impact",
+          "source_impact",
+          "measurement",
+          "synthetic"
+        ],
+        "title": "LinkPerformanceDetail",
+        "type": "object"
+      },
+      "LinkPerformanceView": {
+        "additionalProperties": false,
+        "properties": {
+          "anchor_text": {
+            "title": "Anchor Text",
+            "type": "string"
+          },
+          "deployed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deployed At"
+          },
+          "plan_id": {
+            "format": "uuid",
+            "title": "Plan Id",
+            "type": "string"
+          },
+          "plan_status": {
+            "$ref": "#/components/schemas/LinkPlanStatus"
+          },
+          "rolled_back_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rolled Back At"
+          },
+          "source_page_id": {
+            "format": "uuid",
+            "title": "Source Page Id",
+            "type": "string"
+          },
+          "source_url": {
+            "title": "Source Url",
+            "type": "string"
+          },
+          "synthetic": {
+            "default": false,
+            "title": "Synthetic",
+            "type": "boolean"
+          },
+          "target_page_id": {
+            "format": "uuid",
+            "title": "Target Page Id",
+            "type": "string"
+          },
+          "target_url": {
+            "title": "Target Url",
+            "type": "string"
+          },
+          "totals": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/MetricTotals"
+            },
+            "description": "Per link source (ga4, first_party) over the requested range.",
+            "propertyNames": {
+              "$ref": "#/components/schemas/AnalyticsSource"
+            },
+            "title": "Totals",
+            "type": "object"
+          }
+        },
+        "required": [
+          "plan_id",
+          "anchor_text",
+          "source_page_id",
+          "source_url",
+          "target_page_id",
+          "target_url",
+          "plan_status",
+          "deployed_at",
+          "rolled_back_at",
+          "totals",
+          "synthetic"
+        ],
+        "title": "LinkPerformanceView",
         "type": "object"
       },
       "LinkPlan": {
@@ -3329,6 +4191,15 @@
         "title": "LinkResolution",
         "type": "string"
       },
+      "LinkSort": {
+        "enum": [
+          "clicks",
+          "impressions",
+          "ctr"
+        ],
+        "title": "LinkSort",
+        "type": "string"
+      },
       "LinkType": {
         "description": "Classification of one ``<a href>`` in a page body.",
         "enum": [
@@ -3360,6 +4231,27 @@
           "page"
         ],
         "title": "ListResponse[AgentRunSummary]",
+        "type": "object"
+      },
+      "ListResponse_AnalyticsImportView_": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AnalyticsImportView"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          }
+        },
+        "required": [
+          "items",
+          "page"
+        ],
+        "title": "ListResponse[AnalyticsImportView]",
         "type": "object"
       },
       "ListResponse_CandidateView_": {
@@ -3509,6 +4401,27 @@
         "title": "ListResponse[JobRunSummary]",
         "type": "object"
       },
+      "ListResponse_LinkPerformanceView_": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/LinkPerformanceView"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          }
+        },
+        "required": [
+          "items",
+          "page"
+        ],
+        "title": "ListResponse[LinkPerformanceView]",
+        "type": "object"
+      },
       "ListResponse_LinkPlan_": {
         "additionalProperties": false,
         "properties": {
@@ -3656,6 +4569,48 @@
         "title": "ListResponse[SimilarPage]",
         "type": "object"
       },
+      "LiveWindow": {
+        "additionalProperties": false,
+        "description": "When the link was on the page: ``[deployed_at, rolled_back_at)`` from the\n``link_plan_transitions`` rows to ``deployed`` and ``rolled_back`` (ADR-0015 \u00a712.6.3).\n``deployed_at is None``: never on a page (superseded, rejected, never applied).",
+        "properties": {
+          "deployed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deployed At"
+          },
+          "plan_id": {
+            "format": "uuid",
+            "title": "Plan Id",
+            "type": "string"
+          },
+          "rolled_back_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rolled Back At"
+          }
+        },
+        "required": [
+          "plan_id",
+          "deployed_at",
+          "rolled_back_at"
+        ],
+        "title": "LiveWindow",
+        "type": "object"
+      },
       "LoginRequest": {
         "additionalProperties": false,
         "properties": {
@@ -3717,6 +4672,41 @@
           "settings"
         ],
         "title": "MetaResponse",
+        "type": "object"
+      },
+      "MetricTotals": {
+        "additionalProperties": false,
+        "description": "Link-level totals. ``ctr`` is ``clicks / impressions``, ``None`` when there are no\nimpressions. It may exceed 1 (a source can count clicks without impressions).",
+        "properties": {
+          "clicks": {
+            "minimum": 0.0,
+            "title": "Clicks",
+            "type": "integer"
+          },
+          "ctr": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ctr"
+          },
+          "impressions": {
+            "minimum": 0.0,
+            "title": "Impressions",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "impressions",
+          "clicks",
+          "ctr"
+        ],
+        "title": "MetricTotals",
         "type": "object"
       },
       "ModelRole": {
@@ -3929,6 +4919,58 @@
         "title": "PageAnalysis",
         "type": "object"
       },
+      "PageDailyPoint": {
+        "additionalProperties": false,
+        "properties": {
+          "avg_position": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Position"
+          },
+          "clicks": {
+            "minimum": 0.0,
+            "title": "Clicks",
+            "type": "integer"
+          },
+          "impressions": {
+            "minimum": 0.0,
+            "title": "Impressions",
+            "type": "integer"
+          },
+          "metric_date": {
+            "format": "date",
+            "title": "Metric Date",
+            "type": "string"
+          },
+          "pageviews": {
+            "minimum": 0.0,
+            "title": "Pageviews",
+            "type": "integer"
+          },
+          "sessions": {
+            "minimum": 0.0,
+            "title": "Sessions",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "metric_date",
+          "impressions",
+          "clicks",
+          "avg_position",
+          "pageviews",
+          "sessions"
+        ],
+        "title": "PageDailyPoint",
+        "type": "object"
+      },
       "PageDetail": {
         "additionalProperties": false,
         "properties": {
@@ -4130,6 +5172,63 @@
           "created_at"
         ],
         "title": "PageEmbeddingInfo",
+        "type": "object"
+      },
+      "PageImpactView": {
+        "additionalProperties": false,
+        "properties": {
+          "changes": {
+            "description": "One per (plan deployed on or to this page, page source).",
+            "items": {
+              "$ref": "#/components/schemas/PageWindowComparison"
+            },
+            "title": "Changes",
+            "type": "array"
+          },
+          "page_id": {
+            "format": "uuid",
+            "title": "Page Id",
+            "type": "string"
+          },
+          "series": {
+            "additionalProperties": {
+              "items": {
+                "$ref": "#/components/schemas/PageDailyPoint"
+              },
+              "type": "array"
+            },
+            "description": "Per page source (ga4, search_console).",
+            "propertyNames": {
+              "$ref": "#/components/schemas/AnalyticsSource"
+            },
+            "title": "Series",
+            "type": "object"
+          },
+          "synthetic": {
+            "default": false,
+            "title": "Synthetic",
+            "type": "boolean"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          },
+          "window_days": {
+            "maximum": 90.0,
+            "minimum": 7.0,
+            "title": "Window Days",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "page_id",
+          "url",
+          "window_days",
+          "series",
+          "changes",
+          "synthetic"
+        ],
+        "title": "PageImpactView",
         "type": "object"
       },
       "PageInfo": {
@@ -4944,6 +6043,121 @@
         "title": "PageVersionSummary",
         "type": "object"
       },
+      "PageWindowComparison": {
+        "additionalProperties": false,
+        "description": "Before/after of one page around one plan's ``anchor_date`` = D(deployed_at), which is\nexcluded as a partial day (ADR-0015 \u00a73). Observed change, NOT a causal effect.",
+        "properties": {
+          "anchor_date": {
+            "format": "date",
+            "title": "Anchor Date",
+            "type": "string"
+          },
+          "delta_per_day": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "post mean - pre mean; only when both windows are sufficient.",
+            "title": "Delta Per Day"
+          },
+          "flags": {
+            "items": {
+              "$ref": "#/components/schemas/ConfounderFlag"
+            },
+            "title": "Flags",
+            "type": "array"
+          },
+          "metric": {
+            "description": "The compared metric: clicks for search_console, pageviews for ga4.",
+            "enum": [
+              "clicks",
+              "pageviews"
+            ],
+            "title": "Metric",
+            "type": "string"
+          },
+          "page_id": {
+            "format": "uuid",
+            "title": "Page Id",
+            "type": "string"
+          },
+          "plan_id": {
+            "format": "uuid",
+            "title": "Plan Id",
+            "type": "string"
+          },
+          "post": {
+            "$ref": "#/components/schemas/WindowStats"
+          },
+          "pre": {
+            "$ref": "#/components/schemas/WindowStats"
+          },
+          "ratio": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "post mean / pre mean.",
+            "title": "Ratio"
+          },
+          "role": {
+            "enum": [
+              "source",
+              "target"
+            ],
+            "title": "Role",
+            "type": "string"
+          },
+          "site_trend_ratio": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Same windows over all pages: context, never applied.",
+            "title": "Site Trend Ratio"
+          },
+          "source": {
+            "$ref": "#/components/schemas/AnalyticsSource",
+            "description": "ga4 or search_console."
+          },
+          "synthetic": {
+            "default": false,
+            "title": "Synthetic",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "page_id",
+          "role",
+          "plan_id",
+          "source",
+          "metric",
+          "anchor_date",
+          "pre",
+          "post",
+          "delta_per_day",
+          "ratio",
+          "site_trend_ratio",
+          "flags",
+          "synthetic"
+        ],
+        "title": "PageWindowComparison",
+        "type": "object"
+      },
       "Permission": {
         "enum": [
           "read",
@@ -5122,7 +6336,8 @@
               "taxonomy",
               "recommendation",
               "ranking",
-              "agents"
+              "agents",
+              "analytics"
             ],
             "title": "Kind",
             "type": "string"
@@ -6088,6 +7303,89 @@
         "title": "SimilarPage",
         "type": "object"
       },
+      "SortOrder": {
+        "enum": [
+          "asc",
+          "desc"
+        ],
+        "title": "SortOrder",
+        "type": "string"
+      },
+      "SourceFreshness": {
+        "additionalProperties": false,
+        "description": "The newest stored data of one (source, dataset).",
+        "properties": {
+          "dataset": {
+            "$ref": "#/components/schemas/Dataset"
+          },
+          "last_import_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Import Id"
+          },
+          "last_imported_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Imported At"
+          },
+          "last_via": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ImportVia"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "latest_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Newest metric_date stored.",
+            "title": "Latest Date"
+          },
+          "source": {
+            "$ref": "#/components/schemas/AnalyticsSource"
+          },
+          "synthetic": {
+            "default": false,
+            "title": "Synthetic",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "source",
+          "dataset",
+          "latest_date",
+          "last_import_id",
+          "last_via",
+          "last_imported_at",
+          "synthetic"
+        ],
+        "title": "SourceFreshness",
+        "type": "object"
+      },
       "SourceType": {
         "description": "Where a document came from. Recorded on every run and page version.",
         "enum": [
@@ -6509,6 +7807,115 @@
         ],
         "title": "VerificationRun",
         "type": "object"
+      },
+      "WindowStats": {
+        "additionalProperties": false,
+        "description": "One pre or post window of one page and source. Means are per COVERED day.",
+        "properties": {
+          "avg_position": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "sum(position_sum) / sum(impressions).",
+            "title": "Avg Position"
+          },
+          "clicks": {
+            "minimum": 0.0,
+            "title": "Clicks",
+            "type": "integer"
+          },
+          "covered_days": {
+            "description": "Days with a stored row.",
+            "minimum": 0.0,
+            "title": "Covered Days",
+            "type": "integer"
+          },
+          "ctr": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ctr"
+          },
+          "days": {
+            "description": "Calendar days in the window.",
+            "minimum": 0.0,
+            "title": "Days",
+            "type": "integer"
+          },
+          "end": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "None: the window is empty.",
+            "title": "End"
+          },
+          "impressions": {
+            "minimum": 0.0,
+            "title": "Impressions",
+            "type": "integer"
+          },
+          "mean_per_day": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Mean of the comparison metric per covered day.",
+            "title": "Mean Per Day"
+          },
+          "pageviews": {
+            "minimum": 0.0,
+            "title": "Pageviews",
+            "type": "integer"
+          },
+          "sessions": {
+            "minimum": 0.0,
+            "title": "Sessions",
+            "type": "integer"
+          },
+          "start": {
+            "format": "date",
+            "title": "Start",
+            "type": "string"
+          }
+        },
+        "required": [
+          "start",
+          "end",
+          "days",
+          "covered_days",
+          "impressions",
+          "clicks",
+          "pageviews",
+          "sessions",
+          "ctr",
+          "avg_position",
+          "mean_per_day"
+        ],
+        "title": "WindowStats",
+        "type": "object"
       }
     }
   },
@@ -6781,6 +8188,618 @@
         "summary": "One agent run with its step timeline and plan reviews.",
         "tags": [
           "agents"
+        ]
+      }
+    },
+    "/analytics/imports": {
+      "get": {
+        "operationId": "listAnalyticsImports",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "source",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/AnalyticsSource"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Source"
+            }
+          },
+          {
+            "in": "query",
+            "name": "dataset",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Dataset"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dataset"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "maximum": 10000000,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListResponse_AnalyticsImportView_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not authenticated."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The role lacks the permission."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A parameter is invalid."
+          }
+        },
+        "summary": "The analytics import ledger, newest first.",
+        "tags": [
+          "analytics"
+        ]
+      }
+    },
+    "/analytics/links": {
+      "get": {
+        "operationId": "listLinkPerformance",
+        "parameters": [
+          {
+            "description": "First day (inclusive); give both start and end, or neither.",
+            "in": "query",
+            "name": "start",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "First day (inclusive); give both start and end, or neither.",
+              "title": "Start"
+            }
+          },
+          {
+            "description": "Last day (inclusive); span at most 400 days.",
+            "in": "query",
+            "name": "end",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Last day (inclusive); span at most 400 days.",
+              "title": "End"
+            }
+          },
+          {
+            "in": "query",
+            "name": "source",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/AnalyticsSource"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Source"
+            }
+          },
+          {
+            "in": "query",
+            "name": "source_page_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Source Page Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "target_page_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Target Page Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "deployment_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Deployment Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "plan_status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/LinkPlanStatus"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Plan Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/LinkSort",
+              "default": "clicks"
+            }
+          },
+          {
+            "in": "query",
+            "name": "order",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/SortOrder",
+              "default": "desc"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "maximum": 10000000,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListResponse_LinkPerformanceView_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not authenticated."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The role lacks the permission."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A parameter is invalid."
+          }
+        },
+        "summary": "Per-link performance over a range, filtered and sorted.",
+        "tags": [
+          "analytics"
+        ]
+      }
+    },
+    "/analytics/links/{plan_id}": {
+      "get": {
+        "operationId": "getLinkPerformance",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "plan_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Plan Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "First day (inclusive); give both start and end, or neither.",
+            "in": "query",
+            "name": "start",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "First day (inclusive); give both start and end, or neither.",
+              "title": "Start"
+            }
+          },
+          {
+            "description": "Last day (inclusive); span at most 400 days.",
+            "in": "query",
+            "name": "end",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Last day (inclusive); span at most 400 days.",
+              "title": "End"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LinkPerformanceDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not authenticated."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The role lacks the permission."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such plan."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A parameter is invalid."
+          }
+        },
+        "summary": "One link: attribution chain, live window, series, before/after comparisons.",
+        "tags": [
+          "analytics"
+        ]
+      }
+    },
+    "/analytics/pages/{page_id}": {
+      "get": {
+        "operationId": "getPageImpact",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "page_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Page Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "window_days",
+            "required": false,
+            "schema": {
+              "default": 28,
+              "maximum": 90,
+              "minimum": 7,
+              "title": "Window Days",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageImpactView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not authenticated."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The role lacks the permission."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such page."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A parameter is invalid."
+          }
+        },
+        "summary": "One page: daily series and the observed change around each link change.",
+        "tags": [
+          "analytics"
+        ]
+      }
+    },
+    "/analytics/summary": {
+      "get": {
+        "operationId": "getAnalyticsSummary",
+        "parameters": [
+          {
+            "description": "First day (inclusive); give both start and end, or neither.",
+            "in": "query",
+            "name": "start",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "First day (inclusive); give both start and end, or neither.",
+              "title": "Start"
+            }
+          },
+          {
+            "description": "Last day (inclusive); span at most 400 days.",
+            "in": "query",
+            "name": "end",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Last day (inclusive); span at most 400 days.",
+              "title": "End"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsSummary"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not authenticated."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The role lacks the permission."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A parameter is invalid."
+          }
+        },
+        "summary": "Link-level totals, daily series, top links and source freshness.",
+        "tags": [
+          "analytics"
         ]
       }
     },

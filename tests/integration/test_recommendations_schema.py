@@ -829,6 +829,7 @@ def test_downgrade_to_0003_restores_exactly_the_intelligence_schema(
         "ken_page_protection_guard",
         "ken_deployment_guard",
         "ken_link_plan_status_guard",
+        "ken_analytics_writer_guard",
     }
     assert {
         "link_plans_content_immutable",
@@ -836,4 +837,4 @@ def test_downgrade_to_0003_restores_exactly_the_intelligence_schema(
         "link_plan_transitions_immutable",
         "link_candidates_immutable",
     } <= state["triggers"]
-    assert state["revision"] == "0007_controlled_deployment"
+    assert state["revision"] == "0008_analytics"

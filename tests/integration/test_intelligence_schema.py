@@ -23,6 +23,7 @@ from sqlalchemy.exc import DBAPIError, IntegrityError
 import ken_core.db.models  # noqa: F401 -- registers every model
 from ken_core.db.base import Base
 from ken_core.db.models.agents import APPEND_ONLY_AGENT_TABLES
+from ken_core.db.models.analytics import APPEND_ONLY_ANALYTICS_TABLES
 from ken_core.db.models.deployment import APPEND_ONLY_DEPLOYMENT_TABLES
 from ken_core.db.models.intelligence import IMMUTABLE_INTELLIGENCE_TABLES
 from ken_core.db.models.inventory import IMMUTABLE_TABLES
@@ -215,6 +216,7 @@ def test_trigger_set_covers_all_history_tables(db: SyncDb) -> None:
         | set(APPEND_ONLY_AGENT_TABLES)
         | set(APPEND_ONLY_REVIEW_TABLES)
         | set(APPEND_ONLY_DEPLOYMENT_TABLES)
+        | set(APPEND_ONLY_ANALYTICS_TABLES)
     )
 
 
@@ -452,4 +454,4 @@ def test_downgrade_to_0002_restores_exactly_the_inventory_schema(
     state = sync_db.run(_state)
     assert set(INTELLIGENCE_TABLES) <= state["tables"]
     assert "vector" in state["extensions"]
-    assert state["revision"] == "0007_controlled_deployment"
+    assert state["revision"] == "0008_analytics"

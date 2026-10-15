@@ -117,6 +117,12 @@ def test_operation_ids_and_tags(live: dict[str, Any]) -> None:
         "/deployments/{deployment_id}/verify": ("verifyDeployment", ["deployments"]),
         "/deployments/{deployment_id}/rollback": ("rollbackDeployment", ["deployments"]),
         "/recommendations/{plan_id}/deployments": ("listPlanDeployments", ["deployments"]),
+        # Phase 7 (ADR-0015 s6 / s12.2).
+        "/analytics/summary": ("getAnalyticsSummary", ["analytics"]),
+        "/analytics/links": ("listLinkPerformance", ["analytics"]),
+        "/analytics/links/{plan_id}": ("getLinkPerformance", ["analytics"]),
+        "/analytics/pages/{page_id}": ("getPageImpact", ["analytics"]),
+        "/analytics/imports": ("listAnalyticsImports", ["analytics"]),
     }
 
 
@@ -172,6 +178,29 @@ def test_inventory_api_is_read_only(live: dict[str, Any]) -> None:
         if path.startswith("/recommendations") and method != "get"
     }
     assert recommendation_writes == {m for m in MUTATIONS if m[1].startswith("/recommendations")}
+
+
+def test_the_analytics_api_is_get_only_and_has_no_collector_route(live: dict[str, Any]) -> None:
+    """ADR-0015 s1 / s12.3: imports are CLI-only, and the first-party collector is a SEPARATE
+    loopback app -- the control API never exposes ``/e``, ``/k.js`` or a collector path."""
+    analytics = {
+        (method, path)
+        for path, item in live["paths"].items()
+        for method in item
+        if path.startswith("/analytics")
+    }
+    assert {method for method, _ in analytics} == {"get"}
+    assert {path for _, path in analytics} == {
+        "/analytics/summary",
+        "/analytics/links",
+        "/analytics/links/{plan_id}",
+        "/analytics/pages/{page_id}",
+        "/analytics/imports",
+    }
+    assert not any(
+        path in {"/e", "/k.js"} or "collector" in path or path.startswith("/collect")
+        for path in live["paths"]
+    )
 
 
 def test_the_only_mutations_are_review_deploy_and_login_logout(live: dict[str, Any]) -> None:

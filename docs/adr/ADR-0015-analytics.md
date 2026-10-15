@@ -459,3 +459,20 @@ Amendments 2 and 7 fix both. Decision-class features (relationship type, `anchor
 - **Landing events, query metrics, the purge command, JSONL import and the standalone collector target are deferred.** The collector runs only in `make analytics-sim-serve` (local) until the user approves a production collector.
 - **CSV fallback is two canonical formats:** `ken_link_daily` and `ken_page_daily`, with ISO dates.
 - **Reading stored analytics is ALLOW** (AUTONOMY_AND_PERMISSIONS `READ_ANALYTICS`). **Any Google egress is ASK** (sending data to an external service). It is off by default (`KEN_ANALYTICS_GOOGLE_ENABLED=false`), and only the CLI can trigger it.
+
+#### 12.9 Decisions settled during the contract freeze (W0)
+
+Resolved while freezing the contracts; these are now binding alongside §12.
+
+1. **The measure sweep runs inside the import transaction**, taking per-source try-locks and skipping busy sources. Only then can `analytics.updated.plans_measured` be exact, because the event is emitted in the ledger's own transaction.
+2. **Source restrictions are enforced in the schema.** `link_metrics_daily.source` accepts only `ga4` and `first_party`, because Search Console has no link-level data. The ledger CHECKs also tie `via` to the source: `collector` only for first-party links, `api` only for Google.
+3. **Ledger and freshness fields.** The ledger carries `rows_written` and `source_timezone`. `AnalyticsImportView.counters` comes from `job_runs`. `SourceFreshness` drops `last_status` (amendment 6 removed the status column) and gains `dataset`, `last_via` and `last_imported_at`.
+4. **Google base URLs.** With egress enabled they must be the exact https hosts `analyticsdata.googleapis.com` and `www.googleapis.com`, and a token file is required. A loopback fixture URL is allowed only in `local` or `ci`, and only while egress is disabled.
+5. **Collector origins.** A non-loopback collector *origin* also requires `KEN_COLLECTOR_ALLOW_REMOTE`, not just a non-loopback bind. This is stricter than §12.3.
+6. **Window comparisons.** `PageWindowComparison` gains `role`, `plan_id` and `metric` (Search Console compares clicks, GA4 compares pageviews). `LinkPerformanceDetail` gains `range` and `measurement`.
+7. **href matching.** Both hrefs are resolved against the plan's `source_url` before `hrefs_equivalent`. The beacon sends the raw `getAttribute('href')` value.
+8. **`FetchStats.unresolved_sample`** was added so a provider can feed the ledger's sample directly.
+9. **No new not-found errors.** An unknown plan or page reuses the existing typed errors (`PlanNotFoundError` → 404 `not_found`; `InventoryNotFoundError("page")` → 404 `page_not_found`), so `errors.py` is unchanged.
+10. **`/settings/policies` is not data-driven.** Serving the analytics policy needed one additive edit in each of three places: `PolicyKind` (a closed Literal), the control-plane `policies()` builder, and the web app's `POLICY_KIND` label map. Accepted: the alternative was to hide a released policy document from the operator.
+
+**Verified at the freeze** (orchestrator, independently of the implementing agent): the writer guard refuses every UPDATE even with the setting on, refuses DELETE without a transaction-local `ken.analytics_writer`, allows it with one, and does not leak the setting to the next transaction on the same backend; `link_events` holds exactly the eight pseudonymous columns, with no experiment columns; `received_at` must be minute-truncated; `verified → measured` is still the only route into `measured`; the ledger and measurements are append-only even for the writer; and the 0008 round trip plus `alembic check` are clean. 180 Phase 7 contract, schema, settings and route tests pass.

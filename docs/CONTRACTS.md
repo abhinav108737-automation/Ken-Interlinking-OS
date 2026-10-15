@@ -17,7 +17,7 @@ convention, not a freeze.
 | `health.py` | `HealthResponse`, `ReadinessResponse`, `DependencyCheck`, `MetaResponse`, `ReadinessStatus` |
 | `model.py` | `ModelProvider` protocol, `ModelRole`, `Message`, `GenerationOptions`, `Completion`, `StructuredResult[T]`, `EmbeddingResult`, `ProviderCapabilities`, `ProviderHealth`, model errors |
 | `cms.py` | `CMSProvider` protocol, `CMSPage`, `LinkChange`, `LinkChangeRequest`, `ValidationResult`, `DeploymentResult`, `RollbackResult`, CMS errors |
-| `analytics.py` | `AnalyticsProvider` protocol (read-only, **no implementation until Phase 7**) |
+| `analytics.py` | `AnalyticsProvider` (Phase 0, read-only) plus, Phase 7: `AnalyticsBatchProvider` / `PageUrlResolver`, `FetchStats` / `AnalyticsBatch`, the stored vocabulary (`AnalyticsSource`, `Dataset`, `ImportVia`, `LinkEventType`, `MatchMode`), `AnalyticsUpdatedPayload`, `LinkMeasurement`, `AnalyticsPolicy`, the API read models and `AnalyticsReader` |
 | `events.py` | `EventName` (TRD §15 vocabulary + governed additions), `EventEnvelope`, `PromotionAuditPayload` |
 | `errors.py` | `ErrorResponse`, `ErrorCode`, `ListResponse[T]`, `PageInfo` |
 | `intelligence.py` | Phase 2. Taxonomy policy schema (`TaxonomyPolicy`), `PageAnalysis`, embeddings/relationships/protections views, `LinkEligibility`, `IntelligenceReader` |
@@ -381,3 +381,40 @@ integration decisions). Module: `deployment.py`; the pure HTML interface is
     `location` = the plan id).
   - `cms_version_conflict` is a 409; `cms_unavailable` is a 503 with `Retry-After`.
   - A recorded `failed` / `conflict` outcome is a 200 with the detail.
+
+### 19. Analytics (Phase 7)
+
+Design: [ADR-0015](adr/ADR-0015-analytics.md) (§12 amendments are binding and override §1–§11).
+Module: `analytics.py` (additive: every Phase 0 name and field still works); the service
+interfaces are `services/ken_services/analytics/protocol.py`; schema is migration `0008_analytics`.
+
+- **Providers.** `AnalyticsBatchProvider.fetch_batch(*, date_range, datasets)` (async,
+  keyword-only) returns DAILY rows carrying their origin source (`ga4` / `search_console` /
+  `first_party`; `csv` is a transport and never stored). `PageUrlResolver` is injected at
+  construction. CSV fallback is exactly two canonical formats, `ken_link_daily` and
+  `ken_page_daily`, ISO dates. `PageMetrics` gains `pageviews` and `position`.
+- **Google egress is ASK**, off by default (`KEN_ANALYTICS_GOOGLE_ENABLED=false`), CLI-only.
+  When enabled the base URLs must be `https://analyticsdata.googleapis.com` /
+  `https://www.googleapis.com` and a token file is required; a loopback fixture base URL is
+  allowed only in local/ci with egress off. The token path never reaches `/meta`.
+- **Schema.** `analytics_imports` is an insert-once, immutable ledger (failures live in
+  `job_runs`). `link_events` holds no PII (exact column set tested), `received_at` truncated
+  to the minute, `synthetic` set by the collector's configuration. `link_metrics_daily` and
+  `page_metrics_daily` reject UPDATE and allow DELETE only under the transaction-local
+  `set_config('ken.analytics_writer', 'on', true)` (one shared guard function).
+  `link_measurements` is append-only and written with `verified → measured`.
+- **Live window** = the plan's `link_plan_transitions` rows to `deployed` and `rolled_back`,
+  never the `deployment_items` stage. href mode matches `deployment_items.href` with
+  `hrefs_equivalent` and the exact anchor; anything else is `ambiguous_link`/`unresolved_link`.
+- **Event.** `analytics.updated` (`AnalyticsUpdatedPayload`, `event_version` 1) once per
+  succeeded import or aggregation, in the same transaction as its ledger row; no new event
+  name, no new job kind (`analytics_import`).
+- **API.** Five GET routes, all `read`: `/analytics/summary`, `/analytics/links`,
+  `/analytics/links/{plan_id}`, `/analytics/pages/{page_id}`, `/analytics/imports`. A range is
+  both bounds or neither, ordered, at most 400 days. The collector is a separate loopback app;
+  the control API has no collection route.
+- **Policy.** `policies/analytics/analytics.v1.yaml` (`AnalyticsPolicy`), also served by
+  `/settings/policies` (`PolicyKind` gains `analytics`).
+- **Deferred to Phase 8:** experiments (attribution to them is always derived, never stamped
+  on events), landing events, query metrics, the retention purge, JSONL import, and a
+  standalone or production collector.

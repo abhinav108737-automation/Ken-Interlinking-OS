@@ -47,6 +47,7 @@ from ken_core.db.repositories import jobs as jobs_repo
 from ken_core.db.repositories import recommendations as rec_repo
 from ken_core.db.repositories import review as review_repo
 from ken_services.agents.policy import load_configured_agent_policy
+from ken_services.analytics.policy import load_analytics_policy
 from ken_services.intelligence.taxonomy import load_taxonomy
 from ken_services.recommendations.policy import load_recommendation_policy, resolve_ranking_policy
 
@@ -226,6 +227,8 @@ class SqlControlPlaneReader:
         ranking = resolve_ranking_policy(recommendation, root=REPO_ROOT)
         ranking_path = (REPO_ROOT / recommendation.ranking_policy).resolve()
         agents = load_configured_agent_policy(settings)
+        analytics_path = Path(settings.analytics_policy_path)
+        analytics = load_analytics_policy(analytics_path)
         documents: list[tuple[PolicyKind, int | str, Path, dict[str, object]]] = [
             ("taxonomy", taxonomy.version, taxonomy_path, taxonomy.model_dump(mode="json")),
             (
@@ -236,6 +239,12 @@ class SqlControlPlaneReader:
             ),
             ("ranking", ranking.version, ranking_path, ranking.model_dump(mode="json")),
             ("agents", agents.version, agents_path, agents.model_dump(mode="json")),
+            (
+                "analytics",
+                analytics.version,
+                analytics_path,
+                analytics.model_dump(mode="json"),
+            ),
         ]
         return PoliciesView(
             policies=[

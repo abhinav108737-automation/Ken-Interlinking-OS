@@ -25,6 +25,7 @@ from pydantic import TypeAdapter
 from ken_api.errors import install_exception_handlers
 from ken_api.middleware.request_id import RequestIdMiddleware
 from ken_api.routers.agents import router as agents_router
+from ken_api.routers.analytics import router as analytics_router
 from ken_api.routers.auth import router as auth_router
 from ken_api.routers.controlplane import router as controlplane_router
 from ken_api.routers.deployments import router as deployments_router
@@ -175,6 +176,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(review_router)
     app.include_router(controlplane_router)
     app.include_router(deployments_router)
+    app.include_router(analytics_router)
     _install_openapi(app)
     return app
 

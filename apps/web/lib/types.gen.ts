@@ -55,6 +55,91 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/analytics/imports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The analytics import ledger, newest first. */
+        get: operations["listAnalyticsImports"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/analytics/links": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Per-link performance over a range, filtered and sorted. */
+        get: operations["listLinkPerformance"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/analytics/links/{plan_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One link: attribution chain, live window, series, before/after comparisons. */
+        get: operations["getLinkPerformance"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/analytics/pages/{page_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One page: daily series and the observed change around each link change. */
+        get: operations["getPageImpact"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/analytics/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Link-level totals, daily series, top links and source freshness. */
+        get: operations["getAnalyticsSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/login": {
         parameters: {
             query?: never;
@@ -1083,6 +1168,106 @@ export interface components {
          * @enum {string}
          */
         AgentTrigger: "manual" | "batch";
+        /**
+         * AnalyticsImportView
+         * @description One ``analytics_imports`` ledger row (written once, on success). Counters live on the
+         *     job run.
+         */
+        AnalyticsImportView: {
+            /** Analytics Policy Version */
+            analytics_policy_version: number;
+            /**
+             * Counters
+             * @description The job run's counters (ADR-0015 §5).
+             */
+            counters: {
+                [key: string]: number;
+            };
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            dataset: components["schemas"]["Dataset"];
+            /**
+             * Date End
+             * Format: date
+             */
+            date_end: string;
+            /**
+             * Date Start
+             * Format: date
+             */
+            date_start: string;
+            /** File Name */
+            file_name: string | null;
+            /** File Sha256 */
+            file_sha256: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Job Run Id
+             * Format: uuid
+             */
+            job_run_id: string;
+            /** Replace Via */
+            replace_via: boolean;
+            /** Rows Written */
+            rows_written: number;
+            /** Sampled */
+            sampled: boolean;
+            source: components["schemas"]["AnalyticsSource"];
+            /** Source Timezone */
+            source_timezone: string;
+            /** Synthetic */
+            synthetic: boolean;
+            /** Triggered By */
+            triggered_by: string;
+            /** Unresolved Sample */
+            unresolved_sample: string[];
+            via: components["schemas"]["ImportVia"];
+        };
+        /**
+         * AnalyticsSource
+         * @description Where a STORED row came from (the stored subset of :class:`MetricSource`).
+         * @enum {string}
+         */
+        AnalyticsSource: "ga4" | "search_console" | "first_party";
+        /** AnalyticsSummary */
+        AnalyticsSummary: {
+            /**
+             * Daily
+             * @description Sorted by (metric_date, source).
+             */
+            daily: components["schemas"]["DailyTotals"][];
+            /**
+             * Links With Data
+             * @description Plans with any link-level row in range.
+             */
+            links_with_data: number;
+            /**
+             * Live Links
+             * @description Plans whose live window is open now.
+             */
+            live_links: number;
+            range: components["schemas"]["DateRange"];
+            /** Sources */
+            sources: components["schemas"]["SourceFreshness"][];
+            /**
+             * Synthetic
+             * @description Any synthetic row contributed to this view.
+             */
+            synthetic: boolean;
+            /** Top Links */
+            top_links: components["schemas"]["LinkPerformanceView"][];
+            /** Totals By Source */
+            totals_by_source: {
+                [key: string]: components["schemas"]["MetricTotals"];
+            };
+        };
         /** @enum {string} */
         AnchorSource: "text" | "img_alt" | "aria_label" | "title" | "none";
         /** ApproveRequest */
@@ -1259,6 +1444,11 @@ export interface components {
          */
         CheckKind: "database" | "schema" | "extension" | "model_server" | "cms";
         /**
+         * ConfounderFlag
+         * @enum {string}
+         */
+        ConfounderFlag: "overlapping_changes" | "content_changed" | "post_window_truncated" | "rolled_back_in_window" | "insufficient_data" | "sampled_data" | "synthetic_data";
+        /**
          * CriticReason
          * @enum {string}
          */
@@ -1268,6 +1458,22 @@ export interface components {
          * @enum {string}
          */
         CriticVerdict: "accept" | "reject" | "uncertain";
+        /**
+         * DailyTotals
+         * @description Link-level totals over all links for one (day, source).
+         */
+        DailyTotals: {
+            /** Clicks */
+            clicks: number;
+            /** Impressions */
+            impressions: number;
+            /**
+             * Metric Date
+             * Format: date
+             */
+            metric_date: string;
+            source: components["schemas"]["AnalyticsSource"];
+        };
         /** DashboardSummary */
         DashboardSummary: {
             /**
@@ -1322,6 +1528,24 @@ export interface components {
             reviews_by_action: {
                 [key: string]: number;
             };
+        };
+        /**
+         * Dataset
+         * @enum {string}
+         */
+        Dataset: "links" | "pages";
+        /** DateRange */
+        DateRange: {
+            /**
+             * End
+             * Format: date
+             */
+            end: string;
+            /**
+             * Start
+             * Format: date
+             */
+            start: string;
         };
         /**
          * DependencyCheck
@@ -1818,6 +2042,12 @@ export interface components {
          */
         HealthStatus: "ok" | "degraded" | "unavailable" | "error" | "skipped";
         /**
+         * ImportVia
+         * @description How rows reached the database (recorded on every ledger row).
+         * @enum {string}
+         */
+        ImportVia: "api" | "csv" | "collector" | "synthetic";
+        /**
          * IneligibilityReason
          * @description Why a page cannot be a link source or target right now.
          * @enum {string}
@@ -2038,6 +2268,103 @@ export interface components {
             triggered_by: string;
         };
         /**
+         * LinkAttribution
+         * @description Plan -> recommendation run -> agent -> human -> deployment -> rollback (ADR-0015 §3),
+         *     computed by one query; never stored.
+         */
+        LinkAttribution: {
+            /** Agent Graph Version */
+            agent_graph_version: string | null;
+            /** Agent Model */
+            agent_model: string | null;
+            /** Agent Run Id */
+            agent_run_id: string | null;
+            agent_verdict: components["schemas"]["CriticVerdict"] | null;
+            /** Analysis Version */
+            analysis_version: string;
+            /** Anchor Source */
+            anchor_source: string;
+            /** Anchor Text */
+            anchor_text: string;
+            /** Approved At */
+            approved_at: string | null;
+            /**
+             * Approved By
+             * @description Actor of the approval.
+             */
+            approved_by: string | null;
+            /** Calibration Version */
+            calibration_version: string | null;
+            /** Cms Provider */
+            cms_provider: string | null;
+            /**
+             * Deployed At
+             * @description The link_plan_transitions row to 'deployed'.
+             */
+            deployed_at: string | null;
+            /**
+             * Deployment Id
+             * @description The deployment that applied it.
+             */
+            deployment_id: string | null;
+            /** Engine Version */
+            engine_version: string;
+            /**
+             * Plan Id
+             * Format: uuid
+             */
+            plan_id: string;
+            plan_status: components["schemas"]["LinkPlanStatus"];
+            /** Policy Version */
+            policy_version: number;
+            /** Ranking Policy Version */
+            ranking_policy_version: number;
+            /** Reason Codes */
+            reason_codes: components["schemas"]["ReasonCode"][];
+            /** Recommendation Run Id */
+            recommendation_run_id: string | null;
+            relationship_type: components["schemas"]["RelationshipType"] | null;
+            /**
+             * Rolled Back At
+             * @description The link_plan_transitions row to 'rolled_back'.
+             */
+            rolled_back_at: string | null;
+            /**
+             * Source Page Id
+             * Format: uuid
+             */
+            source_page_id: string;
+            /** Source Page Version */
+            source_page_version: number;
+            /** Source Url */
+            source_url: string;
+            /** Supersedes */
+            supersedes: string | null;
+            /**
+             * Target Page Id
+             * Format: uuid
+             */
+            target_page_id: string;
+            /** Target Page Version */
+            target_page_version: number;
+            /** Target Url */
+            target_url: string;
+            /** Verified At */
+            verified_at: string | null;
+        };
+        /** LinkDailyPoint */
+        LinkDailyPoint: {
+            /** Clicks */
+            clicks: number;
+            /** Impressions */
+            impressions: number;
+            /**
+             * Metric Date
+             * Format: date
+             */
+            metric_date: string;
+        };
+        /**
          * LinkEligibility
          * @description Whether a page may currently be a link source / target, and why not.
          */
@@ -2050,6 +2377,121 @@ export interface components {
             source_reasons: components["schemas"]["IneligibilityReason"][];
             /** Target Reasons */
             target_reasons: components["schemas"]["IneligibilityReason"][];
+        };
+        /**
+         * LinkMeasurement
+         * @description ``link_measurements`` row (append-only, one per plan), written in the SAME transaction
+         *     as ``verified -> measured`` so a measurement stays reproducible after replace-imports
+         *     (ADR-0015 §12.6.7). Synthetic data never measures.
+         */
+        LinkMeasurement: {
+            /** Analytics Policy Version */
+            analytics_policy_version: number;
+            /** Flags */
+            flags: components["schemas"]["ConfounderFlag"][];
+            /**
+             * Import Ids
+             * @description The ledger rows measured.
+             */
+            import_ids: string[];
+            /** Link Totals */
+            link_totals: {
+                [key: string]: components["schemas"]["MetricTotals"];
+            };
+            /**
+             * Measured At
+             * Format: date-time
+             */
+            measured_at: string;
+            /**
+             * Plan Id
+             * Format: uuid
+             */
+            plan_id: string;
+            /** Source Comparison */
+            source_comparison: components["schemas"]["PageWindowComparison"][];
+            /** Target Comparison */
+            target_comparison: components["schemas"]["PageWindowComparison"][];
+            /**
+             * Window End
+             * Format: date
+             * @description D(deployed_at) + measurement_window_days.
+             */
+            window_end: string;
+            /**
+             * Window Start
+             * Format: date
+             * @description D(deployed_at).
+             */
+            window_start: string;
+        };
+        /** LinkPerformanceDetail */
+        LinkPerformanceDetail: {
+            attribution: components["schemas"]["LinkAttribution"];
+            live_window: components["schemas"]["LiveWindow"];
+            measurement: components["schemas"]["LinkMeasurement"] | null;
+            range: components["schemas"]["DateRange"];
+            /**
+             * Series
+             * @description Empty when the plan was never deployed.
+             */
+            series: {
+                [key: string]: components["schemas"]["LinkDailyPoint"][];
+            };
+            /** Source Impact */
+            source_impact: components["schemas"]["PageWindowComparison"][];
+            /**
+             * Synthetic
+             * @default false
+             */
+            synthetic: boolean;
+            /** Target Impact */
+            target_impact: components["schemas"]["PageWindowComparison"][];
+            /** Totals */
+            totals: {
+                [key: string]: components["schemas"]["MetricTotals"];
+            };
+        };
+        /** LinkPerformanceView */
+        LinkPerformanceView: {
+            /** Anchor Text */
+            anchor_text: string;
+            /** Deployed At */
+            deployed_at: string | null;
+            /**
+             * Plan Id
+             * Format: uuid
+             */
+            plan_id: string;
+            plan_status: components["schemas"]["LinkPlanStatus"];
+            /** Rolled Back At */
+            rolled_back_at: string | null;
+            /**
+             * Source Page Id
+             * Format: uuid
+             */
+            source_page_id: string;
+            /** Source Url */
+            source_url: string;
+            /**
+             * Synthetic
+             * @default false
+             */
+            synthetic: boolean;
+            /**
+             * Target Page Id
+             * Format: uuid
+             */
+            target_page_id: string;
+            /** Target Url */
+            target_url: string;
+            /**
+             * Totals
+             * @description Per link source (ga4, first_party) over the requested range.
+             */
+            totals: {
+                [key: string]: components["schemas"]["MetricTotals"];
+            };
         };
         /**
          * LinkPlan
@@ -2272,6 +2714,11 @@ export interface components {
          */
         LinkResolution: "resolved" | "broken" | "unresolved" | "not_applicable";
         /**
+         * LinkSort
+         * @enum {string}
+         */
+        LinkSort: "clicks" | "impressions" | "ctr";
+        /**
          * LinkType
          * @description Classification of one ``<a href>`` in a page body.
          * @enum {string}
@@ -2281,6 +2728,12 @@ export interface components {
         ListResponse_AgentRunSummary_: {
             /** Items */
             items: components["schemas"]["AgentRunSummary"][];
+            page: components["schemas"]["PageInfo"];
+        };
+        /** ListResponse[AnalyticsImportView] */
+        ListResponse_AnalyticsImportView_: {
+            /** Items */
+            items: components["schemas"]["AnalyticsImportView"][];
             page: components["schemas"]["PageInfo"];
         };
         /** ListResponse[CandidateView] */
@@ -2325,6 +2778,12 @@ export interface components {
             items: components["schemas"]["JobRunSummary"][];
             page: components["schemas"]["PageInfo"];
         };
+        /** ListResponse[LinkPerformanceView] */
+        ListResponse_LinkPerformanceView_: {
+            /** Items */
+            items: components["schemas"]["LinkPerformanceView"][];
+            page: components["schemas"]["PageInfo"];
+        };
         /** ListResponse[LinkPlan] */
         ListResponse_LinkPlan_: {
             /** Items */
@@ -2367,6 +2826,23 @@ export interface components {
             items: components["schemas"]["SimilarPage"][];
             page: components["schemas"]["PageInfo"];
         };
+        /**
+         * LiveWindow
+         * @description When the link was on the page: ``[deployed_at, rolled_back_at)`` from the
+         *     ``link_plan_transitions`` rows to ``deployed`` and ``rolled_back`` (ADR-0015 §12.6.3).
+         *     ``deployed_at is None``: never on a page (superseded, rejected, never applied).
+         */
+        LiveWindow: {
+            /** Deployed At */
+            deployed_at: string | null;
+            /**
+             * Plan Id
+             * Format: uuid
+             */
+            plan_id: string;
+            /** Rolled Back At */
+            rolled_back_at: string | null;
+        };
         /** LoginRequest */
         LoginRequest: {
             /**
@@ -2405,6 +2881,19 @@ export interface components {
             settings: {
                 [key: string]: unknown;
             };
+        };
+        /**
+         * MetricTotals
+         * @description Link-level totals. ``ctr`` is ``clicks / impressions``, ``None`` when there are no
+         *     impressions. It may exceed 1 (a source can count clicks without impressions).
+         */
+        MetricTotals: {
+            /** Clicks */
+            clicks: number;
+            /** Ctr */
+            ctr: number | null;
+            /** Impressions */
+            impressions: number;
         };
         /**
          * ModelRole
@@ -2514,6 +3003,24 @@ export interface components {
              */
             topics: components["schemas"]["TopicScore"][];
         };
+        /** PageDailyPoint */
+        PageDailyPoint: {
+            /** Avg Position */
+            avg_position: number | null;
+            /** Clicks */
+            clicks: number;
+            /** Impressions */
+            impressions: number;
+            /**
+             * Metric Date
+             * Format: date
+             */
+            metric_date: string;
+            /** Pageviews */
+            pageviews: number;
+            /** Sessions */
+            sessions: number;
+        };
         /** PageDetail */
         PageDetail: {
             /** Canonical Url */
@@ -2602,6 +3109,35 @@ export interface components {
             recipe_fingerprint: string;
             /** Recipe Version */
             recipe_version: number;
+        };
+        /** PageImpactView */
+        PageImpactView: {
+            /**
+             * Changes
+             * @description One per (plan deployed on or to this page, page source).
+             */
+            changes: components["schemas"]["PageWindowComparison"][];
+            /**
+             * Page Id
+             * Format: uuid
+             */
+            page_id: string;
+            /**
+             * Series
+             * @description Per page source (ga4, search_console).
+             */
+            series: {
+                [key: string]: components["schemas"]["PageDailyPoint"][];
+            };
+            /**
+             * Synthetic
+             * @default false
+             */
+            synthetic: boolean;
+            /** Url */
+            url: string;
+            /** Window Days */
+            window_days: number;
         };
         /**
          * PageInfo
@@ -2910,6 +3446,65 @@ export interface components {
             word_count: number;
         };
         /**
+         * PageWindowComparison
+         * @description Before/after of one page around one plan's ``anchor_date`` = D(deployed_at), which is
+         *     excluded as a partial day (ADR-0015 §3). Observed change, NOT a causal effect.
+         */
+        PageWindowComparison: {
+            /**
+             * Anchor Date
+             * Format: date
+             */
+            anchor_date: string;
+            /**
+             * Delta Per Day
+             * @description post mean - pre mean; only when both windows are sufficient.
+             */
+            delta_per_day: number | null;
+            /** Flags */
+            flags: components["schemas"]["ConfounderFlag"][];
+            /**
+             * Metric
+             * @description The compared metric: clicks for search_console, pageviews for ga4.
+             * @enum {string}
+             */
+            metric: "clicks" | "pageviews";
+            /**
+             * Page Id
+             * Format: uuid
+             */
+            page_id: string;
+            /**
+             * Plan Id
+             * Format: uuid
+             */
+            plan_id: string;
+            post: components["schemas"]["WindowStats"];
+            pre: components["schemas"]["WindowStats"];
+            /**
+             * Ratio
+             * @description post mean / pre mean.
+             */
+            ratio: number | null;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "source" | "target";
+            /**
+             * Site Trend Ratio
+             * @description Same windows over all pages: context, never applied.
+             */
+            site_trend_ratio: number | null;
+            /** @description ga4 or search_console. */
+            source: components["schemas"]["AnalyticsSource"];
+            /**
+             * Synthetic
+             * @default false
+             */
+            synthetic: boolean;
+        };
+        /**
          * Permission
          * @enum {string}
          */
@@ -2998,7 +3593,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "taxonomy" | "recommendation" | "ranking" | "agents";
+            kind: "taxonomy" | "recommendation" | "ranking" | "agents" | "analytics";
             /**
              * Path
              * @description Repository-relative path of the active file.
@@ -3483,6 +4078,34 @@ export interface components {
             title: string | null;
         };
         /**
+         * SortOrder
+         * @enum {string}
+         */
+        SortOrder: "asc" | "desc";
+        /**
+         * SourceFreshness
+         * @description The newest stored data of one (source, dataset).
+         */
+        SourceFreshness: {
+            dataset: components["schemas"]["Dataset"];
+            /** Last Import Id */
+            last_import_id: string | null;
+            /** Last Imported At */
+            last_imported_at: string | null;
+            last_via: components["schemas"]["ImportVia"] | null;
+            /**
+             * Latest Date
+             * @description Newest metric_date stored.
+             */
+            latest_date: string | null;
+            source: components["schemas"]["AnalyticsSource"];
+            /**
+             * Synthetic
+             * @default false
+             */
+            synthetic: boolean;
+        };
+        /**
          * SourceType
          * @description Where a document came from. Recorded on every run and page version.
          * @enum {string}
@@ -3658,6 +4281,52 @@ export interface components {
              */
             run_at: string;
         };
+        /**
+         * WindowStats
+         * @description One pre or post window of one page and source. Means are per COVERED day.
+         */
+        WindowStats: {
+            /**
+             * Avg Position
+             * @description sum(position_sum) / sum(impressions).
+             */
+            avg_position: number | null;
+            /** Clicks */
+            clicks: number;
+            /**
+             * Covered Days
+             * @description Days with a stored row.
+             */
+            covered_days: number;
+            /** Ctr */
+            ctr: number | null;
+            /**
+             * Days
+             * @description Calendar days in the window.
+             */
+            days: number;
+            /**
+             * End
+             * @description None: the window is empty.
+             */
+            end: string | null;
+            /** Impressions */
+            impressions: number;
+            /**
+             * Mean Per Day
+             * @description Mean of the comparison metric per covered day.
+             */
+            mean_per_day: number | null;
+            /** Pageviews */
+            pageviews: number;
+            /** Sessions */
+            sessions: number;
+            /**
+             * Start
+             * Format: date
+             */
+            start: string;
+        };
     };
     responses: never;
     parameters: never;
@@ -3809,6 +4478,294 @@ export interface operations {
             };
             /** @description No such resource. */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A parameter is invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    listAnalyticsImports: {
+        parameters: {
+            query?: {
+                source?: components["schemas"]["AnalyticsSource"] | null;
+                dataset?: components["schemas"]["Dataset"] | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListResponse_AnalyticsImportView_"];
+                };
+            };
+            /** @description Not authenticated. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The role lacks the permission. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A parameter is invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    listLinkPerformance: {
+        parameters: {
+            query?: {
+                /** @description First day (inclusive); give both start and end, or neither. */
+                start?: string | null;
+                /** @description Last day (inclusive); span at most 400 days. */
+                end?: string | null;
+                source?: components["schemas"]["AnalyticsSource"] | null;
+                source_page_id?: string | null;
+                target_page_id?: string | null;
+                deployment_id?: string | null;
+                plan_status?: components["schemas"]["LinkPlanStatus"] | null;
+                sort?: components["schemas"]["LinkSort"];
+                order?: components["schemas"]["SortOrder"];
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListResponse_LinkPerformanceView_"];
+                };
+            };
+            /** @description Not authenticated. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The role lacks the permission. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A parameter is invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    getLinkPerformance: {
+        parameters: {
+            query?: {
+                /** @description First day (inclusive); give both start and end, or neither. */
+                start?: string | null;
+                /** @description Last day (inclusive); span at most 400 days. */
+                end?: string | null;
+            };
+            header?: never;
+            path: {
+                plan_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LinkPerformanceDetail"];
+                };
+            };
+            /** @description Not authenticated. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The role lacks the permission. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No such plan. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A parameter is invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    getPageImpact: {
+        parameters: {
+            query?: {
+                window_days?: number;
+            };
+            header?: never;
+            path: {
+                page_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PageImpactView"];
+                };
+            };
+            /** @description Not authenticated. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The role lacks the permission. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No such page. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A parameter is invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    getAnalyticsSummary: {
+        parameters: {
+            query?: {
+                /** @description First day (inclusive); give both start and end, or neither. */
+                start?: string | null;
+                /** @description Last day (inclusive); span at most 400 days. */
+                end?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalyticsSummary"];
+                };
+            };
+            /** @description Not authenticated. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The role lacks the permission. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

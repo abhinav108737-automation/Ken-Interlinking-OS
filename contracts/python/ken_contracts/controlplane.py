@@ -53,7 +53,7 @@ class EventRecord(FrozenModel):
     correlation_id: UUID | None = None
 
 
-PolicyKind = Literal["taxonomy", "recommendation", "ranking", "agents"]
+PolicyKind = Literal["taxonomy", "recommendation", "ranking", "agents", "analytics"]
 
 
 class PolicyDocument(FrozenModel):

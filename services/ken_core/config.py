@@ -26,6 +26,7 @@ import subprocess
 from pathlib import Path
 from typing import Literal
 from urllib.parse import urlsplit
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -89,6 +90,60 @@ _SCHEME_RE = re.compile(r"[A-Za-z][A-Za-z0-9+.-]{0,31}")
 
 class ConfigurationError(Exception):
     """Raised when configuration is internally inconsistent."""
+
+
+GA4_BASE_URL = "https://analyticsdata.googleapis.com"
+GSC_BASE_URL = "https://www.googleapis.com"
+GOOGLE_ANALYTICS_HOSTS: dict[str, str] = {
+    "analytics_ga4_base_url": "analyticsdata.googleapis.com",
+    "analytics_gsc_base_url": "www.googleapis.com",
+}
+"""The ONLY non-loopback host each Google base URL may name (ADR-0015 s12.3)."""
+
+
+def is_loopback_host(host: str | None) -> bool:
+    """Whether ``host`` is a loopback IP literal or ``localhost`` (no DNS lookup)."""
+    if not host:
+        return False
+    name = host.strip().strip("[]").rstrip(".").lower()
+    if name == "localhost":
+        return True
+    try:
+        address = ipaddress.ip_address(name)
+    except ValueError:
+        return False
+    if isinstance(address, ipaddress.IPv6Address) and address.ipv4_mapped is not None:
+        address = address.ipv4_mapped
+    return address.is_loopback
+
+
+def parse_origin(value: str) -> str:
+    """Normalise one exact web origin ``scheme://host[:port]`` (lower-case scheme and host).
+
+    Raises ValueError for ``null``, a path, query, fragment, credentials, or a non-http(s)
+    scheme: the collector compares origins EXACTLY (ADR-0015 s12.3)."""
+    text = value.strip()
+    parts = urlsplit(text)
+    try:
+        port = parts.port
+    except ValueError as exc:
+        raise ValueError("an origin has an invalid port") from exc
+    if (
+        parts.scheme.lower() not in {"http", "https"}
+        or not parts.hostname
+        or parts.username is not None
+        or parts.password is not None
+        or parts.path not in {"", "/"}
+        or parts.query
+        or parts.fragment
+        or text.endswith("?")
+        or text.endswith("#")
+    ):
+        raise ValueError("an origin is scheme://host[:port] only")
+    host = parts.hostname.lower()
+    if ":" in host:
+        host = f"[{host}]"
+    return f"{parts.scheme.lower()}://{host}" + (f":{port}" if port is not None else "")
 
 
 class Settings(BaseSettings):
@@ -270,6 +325,54 @@ class Settings(BaseSettings):
         description="A relative value is resolved against the repository root.",
     )
 
+    # -------------------------------------------------------------- analytics
+    # Phase 7 (docs/adr/ADR-0015-analytics.md, section 12 binding). Windows, lags, bot
+    # patterns and collector limits are versioned POLICY DATA. Reading stored analytics is
+    # ALLOW; ANY Google egress is ASK: off by default, CLI-only, and when enabled the base
+    # URLs must be https on the exact Google hosts (validated below). A loopback base URL is
+    # a test fixture (local/ci only), for which the token file is never read.
+    analytics_policy_path: str = Field(
+        default=str(REPO_ROOT / "policies" / "analytics" / "analytics.v1.yaml"),
+        description="A relative value is resolved against the repository root.",
+    )
+    analytics_google_enabled: bool = Field(
+        default=False,
+        description="Allow GA4 / Search Console API calls (external egress: ASK to enable).",
+    )
+    analytics_google_token_file: str | None = Field(
+        default=None,
+        description="File holding a read-only OAuth access token (mode 0600). Never logged, "
+        "never in /meta, never in a job snapshot.",
+    )
+    ga4_property_id: str | None = Field(default=None, pattern=r"^[0-9]{1,20}$")
+    ga4_timezone: str = Field(
+        default="UTC", description="The GA4 property's time zone (its day boundaries)."
+    )
+    gsc_site_url: str | None = Field(
+        default=None,
+        max_length=2048,
+        description="Search Console property: 'sc-domain:example.com' or a URL prefix.",
+    )
+    analytics_ga4_base_url: str = GA4_BASE_URL
+    analytics_gsc_base_url: str = GSC_BASE_URL
+    analytics_google_timeout_s: float = Field(default=30.0, gt=0.0, le=300.0)
+    analytics_import_max_file_bytes: int = Field(
+        default=50_000_000, ge=1, le=500_000_000, description="Largest CSV an import reads."
+    )
+    # The first-party collector (local simulation only until a production collector is
+    # approved): a loopback IP literal at an OS-assigned port, never 8765.
+    collector_host: str = Field(default="127.0.0.1", min_length=1, max_length=64)
+    collector_allowed_origins: str = Field(
+        default="",
+        max_length=4096,
+        description="Comma-separated exact origins (scheme://host[:port]); empty = the "
+        "simulated site's own origin, set at startup.",
+    )
+    collector_allow_remote: bool = Field(
+        default=False,
+        description="Allow a non-loopback collector bind or origin (ASK to enable).",
+    )
+
     # -------------------------------------------------------------- readiness
     require_pgvector: bool = Field(
         default=True,
@@ -319,7 +422,11 @@ class Settings(BaseSettings):
         return value
 
     @field_validator(
-        "alembic_ini_path", "taxonomy_path", "recommendation_policy_path", "agents_policy_path"
+        "alembic_ini_path",
+        "taxonomy_path",
+        "recommendation_policy_path",
+        "agents_policy_path",
+        "analytics_policy_path",
     )
     @classmethod
     def _resolve_against_repo_root(cls, value: str) -> str:
@@ -348,6 +455,99 @@ class Settings(BaseSettings):
                 "action requiring explicit human authorisation and a policy change."
             )
         return self
+
+    @field_validator("ga4_timezone")
+    @classmethod
+    def _known_timezone(cls, value: str) -> str:
+        try:
+            ZoneInfo(value)
+        except (ZoneInfoNotFoundError, ValueError) as exc:
+            raise ValueError("KEN_GA4_TIMEZONE is not a known IANA time zone") from exc
+        return value
+
+    @field_validator("gsc_site_url")
+    @classmethod
+    def _gsc_property(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        if value.startswith("sc-domain:"):
+            if not re.fullmatch(r"sc-domain:[a-z0-9.-]{1,253}", value):
+                raise ValueError("KEN_GSC_SITE_URL sc-domain property is malformed")
+            return value
+        parts = urlsplit(value)
+        if parts.scheme not in {"http", "https"} or not parts.hostname or parts.query:
+            raise ValueError("KEN_GSC_SITE_URL must be 'sc-domain:<host>' or an http(s) prefix")
+        return value
+
+    @model_validator(mode="after")
+    def _google_egress_is_guarded(self) -> Settings:
+        """ADR-0015 s12.3: a Google base URL is the exact https Google host, or -- in local/ci
+        only, and only while egress is disabled -- a loopback test fixture."""
+        for field, expected_host in GOOGLE_ANALYTICS_HOSTS.items():
+            value: str = getattr(self, field)
+            env = field.upper()
+            try:
+                parts = urlsplit(value)
+                _ = parts.port
+            except ValueError as exc:
+                raise ValueError(f"KEN_{env} is not a valid URL") from exc
+            if parts.username is not None or parts.password is not None:
+                raise ValueError(f"KEN_{env} must not carry credentials")
+            if parts.query or parts.fragment or parts.path not in {"", "/"}:
+                raise ValueError(f"KEN_{env} must be a bare scheme://host[:port]")
+            if is_loopback_host(parts.hostname):
+                if self.analytics_google_enabled:
+                    raise ValueError(
+                        f"KEN_{env} is a loopback fixture; it cannot be used with "
+                        "KEN_ANALYTICS_GOOGLE_ENABLED=true"
+                    )
+                if self.environment not in {"local", "ci"}:
+                    raise ValueError(f"KEN_{env} may be loopback only in local or ci")
+                if parts.scheme not in {"http", "https"}:
+                    raise ValueError(f"KEN_{env} must be http(s)")
+                continue
+            if parts.scheme != "https" or (parts.hostname or "").lower() != expected_host:
+                raise ValueError(f"KEN_{env} must be https://{expected_host}")
+            if parts.port not in {None, 443}:
+                raise ValueError(f"KEN_{env} must use the default https port")
+        if self.analytics_google_enabled and not self.analytics_google_token_file:
+            raise ValueError(
+                "KEN_ANALYTICS_GOOGLE_ENABLED=true requires KEN_ANALYTICS_GOOGLE_TOKEN_FILE"
+            )
+        return self
+
+    @model_validator(mode="after")
+    def _collector_is_local_unless_allowed(self) -> Settings:
+        """The collector binds a loopback IP literal and accepts loopback origins only, unless
+        KEN_COLLECTOR_ALLOW_REMOTE=true (ASK)."""
+        try:
+            address = ipaddress.ip_address(self.collector_host)
+        except ValueError as exc:
+            raise ValueError("KEN_COLLECTOR_HOST must be an IP literal") from exc
+        if not address.is_loopback and not self.collector_allow_remote:
+            raise ValueError(
+                "KEN_COLLECTOR_HOST must be loopback unless KEN_COLLECTOR_ALLOW_REMOTE=true"
+            )
+        for origin in self.collector_origins():
+            if not is_loopback_host(urlsplit(origin).hostname) and not self.collector_allow_remote:
+                raise ValueError(
+                    "KEN_COLLECTOR_ALLOWED_ORIGINS may name a non-loopback origin only with "
+                    "KEN_COLLECTOR_ALLOW_REMOTE=true"
+                )
+        return self
+
+    def collector_origins(self) -> tuple[str, ...]:
+        """The configured exact origins, normalised (empty: none configured)."""
+        try:
+            return tuple(
+                dict.fromkeys(
+                    parse_origin(item)
+                    for item in self.collector_allowed_origins.split(",")
+                    if item.strip()
+                )
+            )
+        except ValueError as exc:
+            raise ValueError("KEN_COLLECTOR_ALLOWED_ORIGINS holds an invalid origin") from exc
 
     def targets_native_postgres(self) -> bool:
         """True when ANY connection target is the developer's own PostgreSQL.
@@ -498,6 +698,9 @@ class Settings(BaseSettings):
             "crawl_delay_s": self.crawl_delay_s,
             "crawl_concurrency": self.crawl_concurrency,
             "crawl_max_pages": self.crawl_max_pages,
+            "analytics_google_enabled": self.analytics_google_enabled,
+            "ga4_timezone": self.ga4_timezone,
+            "collector_allow_remote": self.collector_allow_remote,
             "model_roles": {
                 "fast": self.model_fast,
                 "reasoning": self.model_reasoning,

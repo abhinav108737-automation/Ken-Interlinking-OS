@@ -46,7 +46,8 @@ from tests.conftest import make_settings
 ALEMBIC_INI = Path(__file__).resolve().parents[2] / "alembic.ini"
 
 TRUNCATE_ALL = (
-    "TRUNCATE deployment_verifications, deployment_items, deployments, "
+    "TRUNCATE link_measurements, page_metrics_daily, link_metrics_daily, link_events, "
+    "analytics_imports, deployment_verifications, deployment_items, deployments, "
     "review_actions, auth_sessions, users, agent_run_plans, agent_steps, agent_runs, "
     "link_candidates, link_plan_transitions, link_plans, opportunities, "
     "page_relationships, page_protections, page_embeddings, page_analyses, job_runs, "
@@ -392,5 +393,29 @@ DEPLOYMENT_TRIGGERS = frozenset(
         "deployment_items_immutable",
         "deployment_verifications_immutable",
         "link_plans_status_integrity",
+    }
+)
+
+
+# --------------------------------------------------------------------------- #
+# Migration 0008 (Phase 7): what a downgrade below 0008 removes from the head schema
+# --------------------------------------------------------------------------- #
+ANALYTICS_TABLES = frozenset(
+    {
+        "analytics_imports",
+        "link_events",
+        "link_metrics_daily",
+        "page_metrics_daily",
+        "link_measurements",
+    }
+)
+ANALYTICS_FUNCTIONS = frozenset({"ken_analytics_writer_guard"})
+ANALYTICS_TRIGGERS = frozenset(
+    {
+        "link_events_writer_guard",
+        "link_metrics_daily_writer_guard",
+        "page_metrics_daily_writer_guard",
+        "analytics_imports_immutable",
+        "link_measurements_immutable",
     }
 )

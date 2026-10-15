@@ -1,0 +1,61 @@
+# Analytics policy v1 — Phase 7 analytics (docs/adr/ADR-0015-analytics.md, section 12 binding).
+#
+# DATA, NOT CODE: before/after windows, the measurement window, source lag, bot patterns,
+# collector limits and rate limits, import bounds, and retention periods (recorded only).
+# Validated on load by ken_contracts.analytics.AnalyticsPolicy. Every import ledger row and
+# every link measurement records this version. Changing anything means analytics.v2.yaml,
+# never an in-place edit once released. No agent may promote a policy.
+version: 1
+
+windows:
+  comparison_days: 28          # N: pre = [D0-N, D0-1], post = [D0+1, D0+N] (D0 excluded)
+  min_covered_days: 14         # delta/ratio only when BOTH windows have this many covered days
+  measurement_window_days: 28  # verified -> measured once D0 + this is covered by real data
+
+# Newest importable day = today - lag; partial days are never stored.
+source_lag_days:
+  ga4: 1
+  search_console: 3
+  first_party: 0
+
+aggregation:
+  trailing_days: 3             # default re-aggregation window for late first-party events
+
+collector:
+  max_body_bytes: 4096         # counted on the bytes actually streamed (chunked included)
+  max_events_per_request: 50
+  max_path_chars: 512
+  max_href_chars: 2048
+  max_anchor_chars: 120
+  max_href_links_per_page: 50
+  live_index_refresh_seconds: 30
+  rejection_log_interval_seconds: 60
+  beacon_flush_seconds: 5
+  beacon_cache_max_age_seconds: 300
+  rate_limit:
+    per_ip_events_per_minute: 120   # fixed window per ASGI peer IP (never persisted)
+    global_events_per_minute: 6000
+    max_tracked_ips: 10000          # LRU-bounded: IP rotation cannot exhaust memory
+
+# Case-insensitive; a match on the User-Agent drops the request (still a 204).
+bot_ua_patterns:
+  - "KenInterlinkBot"
+  - "HeadlessChrome"
+  - "Headless"
+  - "bot\\b"
+  - "crawl"
+  - "spider"
+  - "slurp"
+  - "lighthouse"
+  - "PageSpeed"
+  - "facebookexternalhit"
+  - "preview"
+
+imports:
+  max_rows: 1000000
+  max_unresolved_sample: 100
+
+# RECORDED for later: Phase 7 enforces none of these (the purge command is deferred).
+retention:
+  link_events_days: 90
+  daily_aggregates_months: 25

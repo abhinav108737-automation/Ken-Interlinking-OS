@@ -26,7 +26,13 @@ import ken_core.db.models  # noqa: F401 -- registers every model
 from ken_contracts.agents import MAX_STEP_OUTPUT_BYTES
 from ken_core.db.base import Base
 from ken_core.db.models.agents import AGENT_RUN_MUTABLE_COLUMNS, APPEND_ONLY_AGENT_TABLES
-from tests.integration.conftest import DEPLOYMENT_TABLES, DEPLOYMENT_TRIGGERS, SyncDb
+from tests.integration.conftest import (
+    ANALYTICS_TABLES,
+    ANALYTICS_TRIGGERS,
+    DEPLOYMENT_TABLES,
+    DEPLOYMENT_TRIGGERS,
+    SyncDb,
+)
 
 pytestmark = pytest.mark.integration
 
@@ -700,19 +706,29 @@ def test_downgrade_to_0004_restores_exactly_the_recommendations_schema(
         assert not set(AGENT_TABLES) & state["tables"]
         assert (
             state["tables"]
-            == head["tables"] - set(AGENT_TABLES) - set(REVIEW_TABLES) - DEPLOYMENT_TABLES
+            == head["tables"]
+            - set(AGENT_TABLES)
+            - set(REVIEW_TABLES)
+            - DEPLOYMENT_TABLES
+            - ANALYTICS_TABLES
         )
         assert state["functions"] == {"ken_reject_mutation", "ken_link_plan_content_guard"}
-        assert state["triggers"] == head["triggers"] - REVIEW_TRIGGERS - DEPLOYMENT_TRIGGERS - {
-            "agent_runs_guard",
-            "agent_runs_no_delete",
-            "agent_steps_immutable",
-            "agent_run_plans_immutable",
-        }
+        assert state["triggers"] == (
+            head["triggers"]
+            - REVIEW_TRIGGERS
+            - DEPLOYMENT_TRIGGERS
+            - ANALYTICS_TRIGGERS
+            - {
+                "agent_runs_guard",
+                "agent_runs_no_delete",
+                "agent_steps_immutable",
+                "agent_run_plans_immutable",
+            }
+        )
         assert not any(t.startswith("agent_") for t in state["triggers"])
         assert state["revision"] == "0004_recommendations"
     finally:
         command.upgrade(alembic_config, "head")
     state = sync_db.run(_state)
     assert state == head
-    assert state["revision"] == "0007_controlled_deployment"
+    assert state["revision"] == "0008_analytics"

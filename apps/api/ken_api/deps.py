@@ -17,6 +17,7 @@ from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from ken_contracts.agents import AgentReader
+from ken_contracts.analytics import AnalyticsReader
 from ken_contracts.auth import AuthProvider
 from ken_contracts.cms import CMSProvider
 from ken_contracts.common import ServiceIdentity
@@ -43,6 +44,7 @@ REVIEW_READER: Final = "ken_services.review.reader"
 CONTROL_PLANE_READER: Final = "ken_services.review.controlplane"
 DEPLOYMENT_READER: Final = "ken_services.deployment.reader"
 DEPLOYMENT_COMPOSITION: Final = "ken_services.deployment.compose"
+ANALYTICS_READER: Final = "ken_services.analytics.reader"
 
 
 class TargetOptionsService(ReviewService, Protocol):
@@ -234,6 +236,20 @@ def get_deployment_service(
     return service
 
 
+def get_analytics_reader(
+    settings: Annotated[Settings, Depends(get_app_settings)],
+    sessionmaker: Annotated[async_sessionmaker[AsyncSession], Depends(get_readonly_sessionmaker)],
+) -> AnalyticsReader:
+    """``ken_services.analytics.reader.SqlAnalyticsReader`` over the READ ONLY factory (Phase 7,
+    ADR-0015 s6). Resolved by name: until the backend workstream lands the module, an
+    analytics route answers 500 (the staged-stub convention of earlier phases)."""
+    module: Any = importlib.import_module(ANALYTICS_READER)
+    reader: AnalyticsReader = module.SqlAnalyticsReader(
+        sessionmaker=sessionmaker, settings=settings
+    )
+    return reader
+
+
 def get_auth_provider_dep(request: Request) -> AuthProvider:
     from ken_api.security import get_auth_provider
 
@@ -254,3 +270,4 @@ ControlPlaneReaderDep = Annotated[ControlPlaneReader, Depends(get_control_plane_
 AuthProviderDep = Annotated[AuthProvider, Depends(get_auth_provider_dep)]
 DeploymentReaderDep = Annotated[DeploymentReader, Depends(get_deployment_reader)]
 DeploymentServiceDep = Annotated[DeploymentService, Depends(get_deployment_service)]
+AnalyticsReaderDep = Annotated[AnalyticsReader, Depends(get_analytics_reader)]

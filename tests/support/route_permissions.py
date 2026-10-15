@@ -41,6 +41,12 @@ _EXACT: Final[dict[tuple[str, str], str]] = {
     ("GET", "/deployments"): "read",
     ("GET", "/deployments/{deployment_id}"): "read",
     ("GET", "/recommendations/{plan_id}/deployments"): "read",
+    # Phase 7 (ADR-0015 s6 / s12.2): five GET routes, all read; imports are CLI-only.
+    ("GET", "/analytics/summary"): "read",
+    ("GET", "/analytics/links"): "read",
+    ("GET", "/analytics/links/{plan_id}"): "read",
+    ("GET", "/analytics/pages/{page_id}"): "read",
+    ("GET", "/analytics/imports"): "read",
 }
 _READ_PREFIXES: Final = ("/inventory", "/intelligence", "/jobs", "/recommendations", "/agents")
 

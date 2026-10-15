@@ -235,6 +235,7 @@ async def test_dashboard_events_and_policies(sessionmaker: SM, plans: Any) -> No
         "recommendation",
         "ranking",
         "agents",
+        "analytics",
     ]
     for document in policies.policies:
         assert not document.path.startswith("/")
