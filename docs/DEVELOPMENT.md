@@ -157,7 +157,8 @@ KEN_CMS_PROVIDER=simulated make dev-api
 - **Roll back** from the deployment page, with a reason: the whole deployment or selected links.
 - **Maintenance:**
   - `make deployments-reconcile` resolves deployments left `applying` / `rolling_back` by a
-    crash or timeout. It resends the stored request, so it is safe to repeat.
+    crash or timeout. It resends the stored request, so it is safe to repeat. It is refused for
+    `KEN_CMS_PROVIDER=mock`, because the mock's state lives only inside the API process.
   - `make jobs-reap` fails job runs stuck in `running` whose lock is gone.
 - **The production adapter** (`KEN_CMS_PROVIDER=http`) needs `KEN_CMS_BASE_URL` and
   `KEN_CMS_TOKEN`. It refuses any non-loopback URL unless `KEN_CMS_ALLOW_REMOTE=true`, and

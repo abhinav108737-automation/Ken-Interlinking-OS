@@ -6,7 +6,12 @@ import unicodedata
 
 import pytest
 
-from ken_services.deployment.source_map import map_document, nfc_boundary, style_hides
+from ken_services.deployment.source_map import (
+    map_document,
+    nfc_boundary,
+    script_double_escapes,
+    style_hides,
+)
 from ken_services.inventory.normalize import extract_blocks
 from tests.unit.deployment._support import demo_fragments, demo_pages, full_document
 
@@ -130,3 +135,19 @@ def test_parser_failure_is_unsound_not_an_exception() -> None:
     for html in ("<!DOCTYPE", "<![CDATA[", "</", "<?pi", "&#", "<a b='"):
         doc = map_document(html)
         assert isinstance(doc.sound, bool)
+
+
+@pytest.mark.parametrize(
+    ("script", "sound"),
+    [
+        ('var a="<!--<script>";', False),
+        ('var a="<!-- x <SCRIPT>";', False),
+        ('var a="<!--";', True),
+        ('var s="<script>"; var c="<!--";', True),
+        ("", True),
+    ],
+)
+def test_a_double_escaping_script_makes_the_document_unsound(script: str, sound: bool) -> None:
+    html = f"<main><script>{script}</script><p>EV charging market</p></main>"
+    assert map_document(html).sound is sound
+    assert script_double_escapes(script) is not sound

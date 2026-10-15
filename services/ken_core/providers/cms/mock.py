@@ -122,6 +122,8 @@ from ken_contracts.model import ProviderHealth
 from ken_core.providers.cms.html_engine import HtmlOutcome, LinkHtmlEngine, revert_deployment
 
 PROVIDER_NAME: Final = "mock"
+_OFF_LOOP_ATTEMPTS: Final = 3
+"""Off-loop engine runs before an inline one, when an edit keeps replacing the page."""
 
 
 class IssueCode(StrEnum):
@@ -298,10 +300,13 @@ class MockCMSProvider:
     async def validate_link_changes(self, *, request: LinkChangeRequest) -> ValidationResult:
         self._ensure_open()
         async with self._lock:
+            checked = self._pages.get(request.source_page_id)
             issues, normalized = self._collect_issues(request)
             if not issues:
-                outcome = self._mutate(request)
-                if outcome is not None and not outcome.ok:
+                page, outcome = await self._mutate(request)
+                if page is not checked:  # edited while the engine ran: judge it again
+                    issues, normalized = self._collect_issues(request)
+                if not issues and outcome is not None and not outcome.ok:
                     issues = list(outcome.issues)
                     failed = {i.change_id for i in issues}
                     normalized = [c for c in normalized if c.change_id not in failed]
@@ -318,15 +323,20 @@ class MockCMSProvider:
             if replay is not None:
                 return replay
 
+            checked = self._pages.get(request.source_page_id)
             issues, _ = self._collect_issues(request)
             # Yield between check and commit, as a network round-trip would.
             # Without self._lock this is a check-then-act race.
             await asyncio.sleep(0)
             self._raise_for_issues(request, issues)
 
-            page = self._pages[request.source_page_id]
             now = self._clock()
-            outcome = self._mutate(request)
+            page, outcome = await self._mutate(request)
+            if page is not checked:
+                # An (unlocked) edit_page landed after the check: judge the request again
+                # against the page the engine actually ran on (a moved version conflicts).
+                issues, _ = self._collect_issues(request)
+                self._raise_for_issues(request, issues)
             if outcome is not None and not outcome.ok:
                 if not request.dry_run:
                     self._record_apply_rejection(
@@ -458,7 +468,7 @@ class MockCMSProvider:
                 # Nothing happened since: the snapshot IS the pre-deployment page.
                 body = record.page_before.body_html
             else:
-                reverted = self._revert(current, record)
+                current, reverted = await self._revert(current, record)
                 if not reverted.ok:
                     self._record(
                         "rollback",
@@ -507,23 +517,48 @@ class MockCMSProvider:
         self._closed = True
 
     # ---------------------------------------------------------------- helpers
-    def _mutate(self, request: LinkChangeRequest) -> HtmlOutcome | None:
-        """The engine's splice of ``request`` on the CURRENT body (None without an engine)."""
-        if self._engine is None:
-            return None
-        page = self._pages[request.source_page_id]
-        return self._engine.apply(page.body_html, request.changes)
+    async def _off_loop(
+        self, page_id: str, compute: Callable[[CMSPage], HtmlOutcome]
+    ) -> tuple[CMSPage, HtmlOutcome]:
+        """Run the engine's synchronous CPU work on a worker thread, off the event loop.
 
-    def _revert(self, current: CMSPage, record: _DeploymentRecord) -> HtmlOutcome:
-        if self._engine is None:
+        The page is re-read afterwards: if the (unlocked) :meth:`edit_page` replaced it
+        meanwhile, the work is redone -- finally inline -- so the outcome always belongs to
+        the page returned, exactly as when the engine ran on the loop."""
+        for _ in range(_OFF_LOOP_ATTEMPTS):
+            page = self._pages[page_id]
+            outcome = await asyncio.to_thread(compute, page)
+            if self._pages[page_id] is page:
+                return page, outcome
+        page = self._pages[page_id]
+        return page, compute(page)
+
+    async def _mutate(self, request: LinkChangeRequest) -> tuple[CMSPage, HtmlOutcome | None]:
+        """The CURRENT page and the engine's splice of ``request`` on its body (None without
+        an engine)."""
+        engine = self._engine
+        if engine is None:
+            return self._pages[request.source_page_id], None
+        changes = request.changes
+        return await self._off_loop(
+            request.source_page_id, lambda page: engine.apply(page.body_html, changes)
+        )
+
+    async def _revert(
+        self, current: CMSPage, record: _DeploymentRecord
+    ) -> tuple[CMSPage, HtmlOutcome]:
+        engine = self._engine
+        if engine is None:
             issue = _issue(
                 IssueCode.ROLLBACK_CONFLICT,
                 "The page changed since this deployment and no HTML engine can prove the "
                 "change unrelated.",
             )
-            return HtmlOutcome(html=current.body_html, issues=(issue,))
-        return revert_deployment(
-            self._engine, current.body_html, record.changes, record.result.applied_change_ids
+            return current, HtmlOutcome(html=current.body_html, issues=(issue,))
+        applied = record.result.applied_change_ids
+        return await self._off_loop(
+            current.page_id,
+            lambda page: revert_deployment(engine, page.body_html, record.changes, applied),
         )
 
     def _ensure_open(self) -> None:

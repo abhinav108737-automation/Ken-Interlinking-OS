@@ -72,6 +72,7 @@ __all__ = [
     "MappedDocument",
     "SpanLocation",
     "map_document",
+    "script_double_escapes",
     "style_hides",
 ]
 
@@ -99,6 +100,11 @@ _END_A_RE: Final = re.compile(r"</[aA][\t\n\r\f ]*>")
 _CSS_COMMENT_RE: Final = re.compile(r"/\*.*?\*/", re.DOTALL)
 _IMPORTANT_RE: Final = re.compile(r"!\s*important\s*$")
 _NON_ASCII_RE: Final = re.compile(r"[^\x00-\x7f]+")
+_SCRIPT_DOUBLE_ESCAPE_RE: Final = re.compile(r"<!--.*?<script", re.IGNORECASE | re.DOTALL)
+"""HTML5 "script data double escaped" entry: inside ``<script>`` raw text, ``<!--`` and later
+``<script``. A browser then keeps reading script text past the first ``</script>``, while
+``html.parser`` ends the element there (a parser differential). Deliberately conservative:
+an intervening ``-->`` (which would leave the escaped state) is NOT honoured."""
 
 
 # --------------------------------------------------------------------------- #
@@ -124,6 +130,12 @@ def style_hides(style: str | None) -> bool:
         if prop == "content-visibility" and val == "hidden":
             return True
     return False
+
+
+def script_double_escapes(text: str) -> bool:
+    """``<script>`` raw text that may enter the HTML5 double-escaped state, where a browser
+    and ``html.parser`` disagree on where the element ends (the document is then unsound)."""
+    return _SCRIPT_DOUBLE_ESCAPE_RE.search(text) is not None
 
 
 def _self_hidden(tag: Tag) -> bool:
@@ -581,7 +593,8 @@ class LinkElement:
 class MappedDocument:
     source: str
     sound: bool
-    """The walk replay equals ``extract_blocks`` and every recorded position is consistent."""
+    """The walk replay equals ``extract_blocks``, every recorded position is consistent and no
+    ``<script>`` may double-escape (:func:`script_double_escapes`)."""
     root: Tag
     blocks: tuple[MappedBlock, ...]
     text_sources: dict[int, TextSource]
@@ -773,6 +786,7 @@ def map_document(html: str) -> MappedDocument:
     text_raw: dict[int, bool] = {}
     text_link: dict[int, Tag | None] = {}
     a_tags: list[Tag] = []
+    script_differential = False
     for node in keep:
         parent = node.parent
         if parent is None:  # pragma: no cover
@@ -783,6 +797,11 @@ def map_document(html: str) -> MappedDocument:
         if isinstance(node, Tag):
             hidden[id(node)] = p_hidden or _self_hidden(node)
             raw_text[id(node)] = p_raw or node.name in RAW_TEXT_TAGS
+            if node.name == "script" and not script_differential:
+                # Read before _strip_boilerplate decomposes scripts.
+                script_differential = script_double_escapes(
+                    "".join(str(child) for child in node.contents)
+                )
             if node.name == "a":
                 a_tags.append(node)
                 if p_link is not None:
@@ -822,7 +841,7 @@ def map_document(html: str) -> MappedDocument:
     walked = _walk(root)
     blocks: list[MappedBlock] = []
     node_block: dict[int, int] = {}
-    sound = parsed and soup.ken_consistent
+    sound = parsed and soup.ken_consistent and not script_differential
     for index, walk_block in enumerate(walked):
         text = _collapse("".join(walk_block.parts))
         content = ContentBlock(

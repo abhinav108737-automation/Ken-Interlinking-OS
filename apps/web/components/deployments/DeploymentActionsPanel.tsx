@@ -27,53 +27,104 @@ export interface DeploymentActionsPanelProps {
   /** The links a per-plan rollback may remove (plan id and anchor text). */
   readonly rollbackable: readonly { readonly plan_id: string; readonly anchor_text: string }[];
   readonly actions: DeploymentPanelActions;
+  /** Shown when the deployment's status allows neither action (in progress or terminal). */
+  readonly unavailableNote: string;
+}
+
+/**
+ * The rollback outcome plus a counter of successful rollbacks. The rollback form is keyed by
+ * the counter, so every successful (or recorded-refused) rollback mints a fresh operation id (a later per-plan or
+ * whole rollback is a new operation, not a reuse), while a failed or timed-out submission
+ * keeps the same form and id, so its retry replays instead of applying twice.
+ */
+interface RollbackRun {
+  readonly state: DeploymentActionState;
+  readonly round: number;
+}
+
+/**
+ * Rollback refusals the API RECORDS against the operation id (ADR-0014 section 10, L1): a
+ * replay of that id returns the same refusal, so a retry after the editor fixes the page
+ * needs a fresh id. Any other failure (a 503, a timeout) keeps the id so its retry replays.
+ */
+const RECORDED_REFUSALS: ReadonlySet<string> = new Set(["rollback_conflict", "nothing_to_roll_back", "cms_version_conflict"]);
+
+/** True when the submission reached a recorded outcome, so the next one is a new operation. */
+export function concludesOperation(state: DeploymentActionState): boolean {
+  if (state.status === "success") return true;
+  if (state.status !== "error") return false;
+  return state.code === "cms_version_conflict" || state.issues.some((issue) => RECORDED_REFUSALS.has(issue.code));
 }
 
 const SECTION = "space-y-3 rounded border border-slate-300 p-4";
 
 /**
- * Re-verify and roll back one deployment. Rendered only for a session with `deploy`, and
- * only for a deployment whose status allows them (applied, verified, verification failed).
- * Both states live here, so a confirmation stays visible after the page refreshes.
+ * Re-verify and roll back one deployment. Rendered for a session with `deploy`; the forms
+ * appear only while the deployment's status allows them (applied, verified, verification
+ * failed). Both outcomes live here and the panel stays mounted across status changes, so a
+ * confirmation, or a 503 whose outcome is unknown, stays visible after the page refreshes.
  */
-export function DeploymentActionsPanel({ deploymentId, available, rollbackable, actions }: DeploymentActionsPanelProps) {
+export function DeploymentActionsPanel({
+  deploymentId,
+  available,
+  rollbackable,
+  actions,
+  unavailableNote,
+}: DeploymentActionsPanelProps) {
   const [verifyState, verify, verifyPending] = useActionState(actions.verify, IDLE as DeploymentActionState);
-  const [rollbackState, rollback, rollbackPending] = useActionState(actions.rollback, IDLE as DeploymentActionState);
+  const [rollbackRun, rollback, rollbackPending] = useActionState(
+    async (previous: RollbackRun, form: FormData): Promise<RollbackRun> => {
+      const state = await actions.rollback(previous.state, form);
+      return { state, round: previous.round + (concludesOperation(state) ? 1 : 0) };
+    },
+    { state: IDLE, round: 0 } as RollbackRun,
+  );
+  const rollbackState = rollbackRun.state;
   const [last, setLast] = useState<"verify" | "rollback" | null>(null);
   const pending = verifyPending || rollbackPending;
   const lastState = last === "verify" ? verifyState : last === "rollback" ? rollbackState : IDLE;
+  // An error whose form is no longer shown (the refreshed status allows no action) stays visible here.
+  const formShown = last === "verify" ? available.verify : last === "rollback" ? available.rollback : true;
 
   return (
     <div className="space-y-4">
       {lastState.status === "success" && <FormMessage tone="success" message={lastState.message} focusKey={lastState} />}
-      <div className="grid gap-4 lg:grid-cols-2">
-        {available.verify && (
-          <form onSubmit={submitWith(verify, () => setLast("verify"))} aria-labelledby="verify-heading" className={SECTION}>
-            <h3 id="verify-heading" className="text-lg font-semibold">
-              Re-verify
-            </h3>
-            <p className="text-sm text-slate-700">
-              Reads the page back and re-runs every check. It records a new verification run and changes nothing on the
-              site.
-            </p>
-            <input type="hidden" name="deployment_id" value={deploymentId} />
-            <Outcome state={verifyState} />
-            <button type="submit" disabled={pending} className={BUTTON_SECONDARY}>
-              {verifyPending ? "Verifying…" : "Re-verify"}
-            </button>
-          </form>
-        )}
-        {available.rollback && (
-          <RollbackForm
-            deploymentId={deploymentId}
-            rollbackable={rollbackable}
-            state={rollbackState}
-            action={rollback}
-            pending={pending}
-            onSubmit={() => setLast("rollback")}
-          />
-        )}
-      </div>
+      {!formShown && <Outcome state={lastState} />}
+      {!available.verify && !available.rollback ? (
+        <p role="note" className="max-w-prose rounded border border-slate-300 bg-slate-50 p-3 text-sm text-slate-800">
+          {unavailableNote}
+        </p>
+      ) : (
+        <div className="grid gap-4 lg:grid-cols-2">
+          {available.verify && (
+            <form onSubmit={submitWith(verify, () => setLast("verify"))} aria-labelledby="verify-heading" className={SECTION}>
+              <h3 id="verify-heading" className="text-lg font-semibold">
+                Re-verify
+              </h3>
+              <p className="text-sm text-slate-700">
+                Reads the page back and re-runs every check. It records a new verification run and changes nothing on the
+                site.
+              </p>
+              <input type="hidden" name="deployment_id" value={deploymentId} />
+              <Outcome state={verifyState} />
+              <button type="submit" disabled={pending} className={BUTTON_SECONDARY}>
+                {verifyPending ? "Verifying…" : "Re-verify"}
+              </button>
+            </form>
+          )}
+          {available.rollback && (
+            <RollbackForm
+              key={rollbackRun.round}
+              deploymentId={deploymentId}
+              rollbackable={rollbackable}
+              state={rollbackState}
+              action={rollback}
+              pending={pending}
+              onSubmit={() => setLast("rollback")}
+            />
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -103,7 +154,8 @@ function RollbackForm({
   readonly pending: boolean;
   readonly onSubmit: () => void;
 }) {
-  // One idempotency key per rendered form: a retry after a timeout replays.
+  // One idempotency key per submission: the panel re-keys this form after each success, so
+  // the next rollback is a new operation; a retry after a timeout or 503 replays.
   const [operationId] = useState(() => crypto.randomUUID());
   const [reason, setReason] = useState("");
   const [note, setNote] = useState("");

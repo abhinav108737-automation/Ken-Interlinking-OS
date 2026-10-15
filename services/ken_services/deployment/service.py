@@ -230,6 +230,19 @@ def _issue(code: DeploymentIssueCode, plan_id: uuid.UUID | None = None) -> Deplo
     return DeploymentIssue(code=code, plan_id=plan_id)
 
 
+def _rollback_refusal(
+    refusal: str, plan_ids: Sequence[uuid.UUID]
+) -> DeploymentRefusedError | DeploymentVersionConflictError:
+    """The caller-facing error of a refused rollback (also its replay)."""
+    if refusal == DeploymentVersionConflictError.code:
+        return DeploymentVersionConflictError([])
+    if refusal == _C.NOTHING_TO_ROLL_BACK.value:
+        return DeploymentRefusedError([_issue(_C.NOTHING_TO_ROLL_BACK)])
+    return DeploymentRefusedError(
+        [_issue(_C.ROLLBACK_CONFLICT, p) for p in plan_ids] or [_issue(_C.ROLLBACK_CONFLICT)]
+    )
+
+
 def _dedupe(issues: Sequence[DeploymentIssue]) -> list[DeploymentIssue]:
     seen: set[tuple[str, uuid.UUID | None]] = set()
     out: list[DeploymentIssue] = []
@@ -572,13 +585,16 @@ class DatabaseDeploymentService:
         # already_applied, and a later rollback would unwrap it. Those plans never reach the
         # mutator.
         candidates = [i for i in insertions if i.plan_id not in already_linked]
-        mutated = self._mutator.insert_links(
-            page.body_html, candidates, excluded_ancestors=excluded
+        # The mutator is synchronous CPU work: off the event loop (identical result).
+        mutated = await asyncio.to_thread(
+            self._mutator.insert_links, page.body_html, candidates, excluded_ancestors=excluded
         )
         checked.issues += list(mutated.issues)
         checked.issues += [_issue(_C.ALREADY_APPLIED, pid) for pid in mutated.already_applied]
         if mutated.ok and not mutated.already_applied:
-            checked.previews = self._previews(page.body_html, plans, insertions, excluded)
+            checked.previews = await asyncio.to_thread(
+                self._previews, page.body_html, plans, insertions, excluded
+            )
         checked.changes = [
             LinkChange(
                 change_id=plan.id,
@@ -1309,12 +1325,15 @@ class DatabaseDeploymentService:
                     reach[insertion.plan_id] = fetched_outcome is FetchOutcome.OK
             source_url = await self._source_url(row.source_page_id)
             published = await self._probe.fetch(self._probe.published_url(source_url))
-        checks = self._verifier.verify_links(page.body_html, insertions, target_reachable=reach)
+        # The verifier is synchronous CPU work: off the event loop (identical result).
+        checks = await asyncio.to_thread(
+            self._verifier.verify_links, page.body_html, insertions, target_reachable=reach
+        )
         merged: list[VerificationCheck] = []
         public: dict[tuple[uuid.UUID, str], VerificationOutcome] = {}
         if published is not None and published.outcome is FetchOutcome.OK and published.body:
-            for c in self._verifier.verify_links(
-                published.body, insertions, target_reachable=reach
+            for c in await asyncio.to_thread(
+                self._verifier.verify_links, published.body, insertions, target_reachable=reach
             ):
                 public[(c.plan_id, VerificationCheckName(c.check).value)] = VerificationOutcome(
                     c.outcome
@@ -1543,6 +1562,12 @@ class DatabaseDeploymentService:
         if items:
             if any(i.fingerprint != fingerprint for i in items) or items[0].deployment_id != row.id:
                 raise OperationReusedDeploymentError([])
+            refused = [i for i in items if i.stage == ItemStage.ROLLBACK_CONFLICT]
+            if refused:  # the operation was refused: replay the SAME refusal
+                raise _rollback_refusal(
+                    refused[0].codes[0] if refused[0].codes else _C.ROLLBACK_CONFLICT.value,
+                    [i.plan_id for i in refused],
+                )
             return await self._detail(row.id, replay=True)
         if owner is None:
             return None
@@ -1662,20 +1687,19 @@ class DatabaseDeploymentService:
                 )
                 restored = result.restored_version
         except (CMSValidationError, CMSVersionConflictError, CMSNotFoundError) as exc:
-            await self._revert_rollback(deployment_id)
-            if not raise_errors:
-                return "reverted"
             plan_ids = [uuid.UUID(p) for p in row.rollback_plan_ids or []] or await self._live_ids(
                 row
             )
             if isinstance(exc, CMSVersionConflictError):
-                raise DeploymentVersionConflictError([]) from None
-            if isinstance(exc, CMSNotFoundError):
-                raise DeploymentRefusedError([_issue(_C.NOTHING_TO_ROLL_BACK)]) from None
-            raise DeploymentRefusedError(
-                [_issue(_C.ROLLBACK_CONFLICT, p) for p in plan_ids]
-                or [_issue(_C.ROLLBACK_CONFLICT)]
-            ) from None
+                refusal = DeploymentVersionConflictError.code
+            elif isinstance(exc, CMSNotFoundError):
+                refusal = _C.NOTHING_TO_ROLL_BACK.value
+            else:
+                refusal = _C.ROLLBACK_CONFLICT.value
+            await self._revert_rollback(deployment_id, refusal=refusal, plan_ids=plan_ids)
+            if not raise_errors:
+                return "reverted"
+            raise _rollback_refusal(refusal, plan_ids) from None
         except CMSUnavailableError:
             await self._touch(deployment_id)
             if raise_errors:
@@ -1774,12 +1798,43 @@ class DatabaseDeploymentService:
                 **values,
             )
 
-    async def _revert_rollback(self, deployment_id: uuid.UUID) -> None:
-        """A refused rollback: the row returns to its prior status; plans are unchanged."""
+    async def _revert_rollback(
+        self, deployment_id: uuid.UUID, *, refusal: str, plan_ids: Sequence[uuid.UUID]
+    ) -> None:
+        """A refused rollback: the row returns to its prior status; plans are unchanged.
+
+        The refusal is recorded as ``rollback_conflict`` items carrying the operation id, its
+        fingerprint and the refusal code, so a replay of that operation returns the SAME
+        refusal (:meth:`_rollback_replay`) instead of running again; the deployment's
+        ``rollback_operation_id`` slot is freed for a later, different rollback."""
         async with self._sessionmaker() as session, session.begin():
             row = await repo.lock_deployment(session, deployment_id=deployment_id)
             if row is None or DeploymentStatus(row.status) is not _D.ROLLING_BACK:
                 return
+            now = max(self._now(), row.updated_at)
+            if row.rollback_operation_id is not None:
+                items = {
+                    i.plan_id: i for i in await repo.items_of(session, deployment_id=deployment_id)
+                }
+                refused = []
+                for plan_id in plan_ids:
+                    plan_row = await session.get(LinkPlanRow, plan_id)
+                    if plan_row is None:  # pragma: no cover - plans are never deleted
+                        continue
+                    refused.append(
+                        self._item(
+                            items.get(plan_id),
+                            rec_repo.plan_from_row(plan_row),
+                            ItemStage.ROLLBACK_CONFLICT,
+                            [refusal],
+                            operation_id=row.rollback_operation_id,
+                            fingerprint=row.rollback_fingerprint,
+                        )
+                    )
+                if refused:
+                    await repo.insert_items(
+                        session, deployment_id=deployment_id, items=refused, recorded_at=now
+                    )
             await repo.update_deployment(
                 session,
                 deployment_id=deployment_id,
@@ -1789,7 +1844,7 @@ class DatabaseDeploymentService:
                 rollback_fingerprint=None,
                 rollback_request_json=None,
                 error_code=_C.ROLLBACK_CONFLICT.value,
-                updated_at=max(self._now(), row.updated_at),
+                updated_at=now,
             )
 
     # ------------------------------------------------------- reconciliation

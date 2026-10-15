@@ -7,9 +7,12 @@
  *
  * - A dry run writes nothing and never consumes an operation id, so each one mints a
  *   fresh id.
- * - Deploy and rollback send the form's `operation_id`, minted once per rendered form
- *   (a deploy form per dry-run preview), so a retry after a timeout replays instead of
- *   applying twice.
+ * - Deploy and rollback send the form's `operation_id`, minted once per submission (a
+ *   deploy form per dry-run preview; a rollback form again after each success), so a retry
+ *   of the same submission after a timeout or 503 replays instead of applying twice.
+ * - A deploy or rollback 503 may follow a durably recorded intent whose CMS outcome is
+ *   unknown (the row stays `applying` / `rolling_back`), so the affected screens are
+ *   refreshed to show it.
  * - Input is re-validated with lib/deployments.ts; the API validates again.
  */
 import { revalidatePath } from "next/cache";
@@ -54,6 +57,11 @@ function failure(error: ApiError, operation: Parameters<typeof deploymentErrorMe
   };
 }
 
+/** A 503 may mean "intent recorded, CMS outcome unknown" (ADR-0014 section 9). */
+function outcomeUnknown(error: ApiError): boolean {
+  return (error.kind === "api_error" || error.kind === "http_status") && error.status === 503;
+}
+
 function refreshPlans(planIds: readonly string[]): void {
   for (const planId of planIds) revalidatePath(planHref(planId));
   revalidatePath(RECOMMENDATIONS_PATH);
@@ -84,8 +92,9 @@ export async function deployAction(_previous: DeployState, form: FormData): Prom
   }
   const result = await createDeployment({ operation_id: operationIdFrom(form), plan_ids: planIds, note });
   if (!result.ok) {
-    // A version conflict expires the plans: their screens must show it.
-    if (result.error.code === "cms_version_conflict") refreshPlans(planIds);
+    // A version conflict expires the plans, and a 503 may leave an `applying` deployment:
+    // their screens must show it.
+    if (result.error.code === "cms_version_conflict" || outcomeUnknown(result.error)) refreshPlans(planIds);
     return failure(result.error, "deploy");
   }
   refreshPlans(planIds);
@@ -127,7 +136,14 @@ export async function rollbackAction(_previous: DeploymentActionState, form: For
     note,
     plan_ids: planIds,
   });
-  if (!result.ok) return failure(result.error, "rollback");
+  if (!result.ok) {
+    // A 503 may leave the deployment `rolling_back`: its screens must show it.
+    if (outcomeUnknown(result.error)) {
+      revalidatePath(deploymentHref(deploymentId));
+      refreshPlans(formValues(form, "eligible_plan_ids").filter(isUuid));
+    }
+    return failure(result.error, "rollback");
+  }
   revalidatePath(deploymentHref(deploymentId));
   refreshPlans(result.data.plan_ids);
   const replay = result.data.idempotent_replay ? " (This repeated an earlier identical request; nothing changed twice.)" : "";

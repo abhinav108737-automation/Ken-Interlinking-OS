@@ -110,7 +110,7 @@ describe("deployAction", () => {
   it.each([
     [{ status: 409, code: "cms_version_conflict" }, /plans have expired/, true],
     [{ status: 409, code: "conflict", details: [{ code: "deployment_in_progress", location: null }] }, /Retry later/, false],
-    [{ status: 503, code: "cms_unavailable" }, /CMS is unavailable/, false],
+    [{ status: 503, code: "cms_unavailable" }, /not known whether the links were written.*same operation id/, true],
     [{ status: 403, code: "permission_denied" }, /operator admin/, false],
     [{ status: 422, code: "validation_failed" }, /rejected the input/, false],
   ] as const)("maps %o to a typed error", async (error, message, refreshes) => {
@@ -174,6 +174,22 @@ describe("rollbackAction", () => {
     const state = await rollbackAction(IDLE, form({ ...BASE, reason: "other", note: "Legal asked.", plan_ids: OLD_PLAN_ID }));
     expect(state).toMatchObject({ status: "success", message: expect.stringMatching(/for 1 link\./) });
     expect(api.rollbackDeployment.mock.calls[0]![1]).toEqual({ operation_id: OPERATION_ID, reason: "other", note: "Legal asked.", plan_ids: [OLD_PLAN_ID] });
+  });
+
+  it("a 503 says the outcome is unknown and refreshes the deployment and its plans", async () => {
+    api.rollbackDeployment.mockResolvedValue(fail({ status: 503, code: "cms_unavailable" }));
+    const state = await rollbackAction(IDLE, form({ ...BASE, reason: "broken_page", plan_ids: OLD_PLAN_ID }));
+    expect(state).toMatchObject({ status: "error", code: "cms_unavailable", message: expect.stringMatching(/not known whether the links were removed/) });
+    expect(state.status === "error" && state.message).not.toMatch(/Nothing was changed/);
+    expect(cache.revalidatePath).toHaveBeenCalledWith(`/deployments/${DEPLOYMENT_ID}`);
+    expect(cache.revalidatePath).toHaveBeenCalledWith(`/recommendations/${PLAN_ID}`);
+    expect(cache.revalidatePath).toHaveBeenCalledWith(`/recommendations/${OLD_PLAN_ID}`);
+  });
+
+  it("a refusal before any write refreshes nothing", async () => {
+    api.rollbackDeployment.mockResolvedValue(fail({ status: 409, code: "conflict", details: [{ code: "nothing_to_roll_back", location: null }] }));
+    await rollbackAction(IDLE, form({ ...BASE, reason: "broken_page" }));
+    expect(cache.revalidatePath).not.toHaveBeenCalled();
   });
 
   it("explains a rollback conflict", async () => {

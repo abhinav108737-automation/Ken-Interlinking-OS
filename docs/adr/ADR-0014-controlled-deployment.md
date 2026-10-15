@@ -328,6 +328,28 @@ of one link does not roll back the batch).
   `<article>`). Ken's real templates must be re-checked. Wherever parity breaks, the mutator
   refuses (`block_not_found` / `ambiguous_block`); it never guesses.
 
+### 10. QA/security review outcomes (Phase 6)
+
+Verdict: **PASS WITH REQUIRED FIXES**, with no critical or high finding. The review ran:
+- a differential fuzz (9,000 documents, 0 raises, 0 broken invariants);
+- 37 adversarial HTML cases;
+- 26 HTTP-adapter gating bypass attempts, all refused before I/O;
+- events checked exactly once per transition;
+- the migration round trip.
+
+| Finding | Resolution |
+|---|---|
+| M1. After a per-plan rollback, the rollback form reused its operation id, so the next rollback got a 409. | The form gets a fresh id after each success and keeps the same id across retries of one submission; tests. |
+| M2. A deploy/rollback 503 said "nothing was changed", but a 503 after the durable intent means the outcome is unknown. | The copy says the outcome is unconfirmed and that resubmitting replays safely; the data is refreshed; tests. |
+| L1. A rollback refused for `rollback_conflict` releases its operation id, so a later replay runs again. | The refusal (`rollback_conflict`, `nothing_to_roll_back` or `cms_version_conflict`) is recorded as `rollback_conflict` deployment items carrying the operation id, fingerprint and code. A replay of that id returns the same refusal. The rollback slot is freed, so a **new** id can retry, and the UI mints one after a recorded refusal. No migration was needed (the stage already existed). |
+| L2. Parser differential: in a `<script>` containing `<!--<script`, html.parser and the HTML5 tokenizer disagree on where the script ends. | Such a document is unsound (conservative: a `-->` in between is not honoured). Mutation refuses with `unmappable_span`. The verifier fails every element check on **any** unsound document (`unsound_document`), so an applied link whose page later becomes unsound fails verification deterministically. |
+| L3. `reconcile` against the in-process `mock` CMS recorded fictitious outcomes. | Refused for `mock` (exit 2); test. |
+| L4. The mutator and verifier ran synchronously on the event loop. Also, tx1 holds the plan locks across the CMS read and validate calls. | The mutator and verifier now run in `asyncio.to_thread`, in the service and in the mock and simulated providers. The mock re-checks after the thread, so an edit that lands mid-apply becomes a version conflict. **Known limitation:** tx1 (`_intent`) holds the source advisory lock and plan row locks across three network calls: CMS `get_page`, the sequential target-reachability probes, and CMS `validate_link_changes`. This is bounded by the HTTP timeouts. Moving the network checks before the locks, with a re-check under them, is deferred. |
+| L5. The sim test DB name was hard-coded. | `KEN_TEST_CMS_SIM_DATABASE_URL` is honoured everywhere. |
+| L6. `test_analysis_pipeline` flaked once. | The test picked the lowest of 30 random uuid4 page ids, and about 2 in 30 runs that page's re-seed was a no-op. It now picks among the 24 intended pages and asserts the count. The assertion is not weakened. |
+| I1. The status-integrity trigger checks that a transition row exists. It is not authorisation: a forged transition row in the same transaction passes. | By design. Production needs the non-superuser app role (§5). |
+| I2–I4. An empty-host sim URL falls back to `PGHOST`; the verification probe has no overall deadline; `inert` / `opacity:0` are not modelled. | Accepted (informational). |
+
 ## Consequences
 
 - The whole loop runs locally, end to end: recommend → agents → approve → deploy to the

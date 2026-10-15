@@ -86,7 +86,7 @@ class _FakeService:
 @pytest.fixture
 def reconcile_fakes(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
     state: dict[str, Any] = {"cms": _FakeCMS(), "service": _FakeService(ReconcileSummary())}
-    settings = make_settings(database_url=SECRET_URL)
+    settings = make_settings(database_url=SECRET_URL, cms_provider="simulated")
     monkeypatch.setattr(deploy_cli, "get_settings", lambda: settings)
     monkeypatch.setattr(deploy_cli, "build_cms_provider", lambda s: state["cms"])
 
@@ -128,6 +128,33 @@ def test_reconcile_failure_prints_a_class_name_only(
     assert out.out == ""
     _no_secrets(out.out + out.err)
     assert reconcile_fakes["cms"].closed == 1
+
+
+def test_reconcile_is_refused_for_the_mock_provider(
+    reconcile_fakes: dict[str, Any],
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A fresh in-process mock knows none of the stored operations: resending to it would
+    record fictitious outcomes. Refused before any provider, engine or service is built."""
+    settings = make_settings(database_url=SECRET_URL, cms_provider="mock")
+    monkeypatch.setattr(deploy_cli, "get_settings", lambda: settings)
+
+    def no_provider(_settings: object) -> object:
+        raise AssertionError("no CMS provider may be built for a refused reconcile")
+
+    def no_engine(_settings: object) -> object:
+        raise AssertionError("no database engine may be built for a refused reconcile")
+
+    monkeypatch.setattr(deploy_cli, "build_cms_provider", no_provider)
+    monkeypatch.setattr(deploy_cli, "create_engine", no_engine)
+    assert deploy_cli.main(["reconcile", "--older-than-s", "0"]) == deploy_cli.EXIT_USAGE
+    out = capsys.readouterr()
+    assert out.out == ""
+    assert out.err.strip() == deploy_cli.MOCK_PROVIDER_REFUSAL
+    assert reconcile_fakes["service"].calls == []
+    assert "kwargs" not in reconcile_fakes
+    _no_secrets(out.out + out.err)
 
 
 def test_reconcile_unknown_outcome_exits_one(

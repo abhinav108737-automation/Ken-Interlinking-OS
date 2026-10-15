@@ -2,8 +2,9 @@
 PostgreSQL (ADR-0014 s4 / s8).
 
 The simulated CMS here is the DISPOSABLE database ``ken_cms_sim_test`` on the project server
-(created with ``ensure_database`` and emptied by every test); ``ken_cms_sim`` itself is never
-used. The application side is the usual ``*_test`` database (``migrated``).
+(override: ``KEN_TEST_CMS_SIM_DATABASE_URL``, see ``tests.support.cms_sim_db``; created with
+``ensure_database`` and emptied by every test); ``ken_cms_sim`` itself is never used. The
+application side is the usual ``*_test`` database (``migrated``).
 """
 
 from __future__ import annotations
@@ -33,11 +34,12 @@ from ken_services.deployment.sim_site import SimulatedSite, serve_simulated_site
 from tests.conftest import make_settings
 from tests.integration import recommendation_support as rs
 from tests.integration.conftest import ingest, make_page
+from tests.support.cms_sim_db import cms_sim_test_database_url
 
 pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("migrated")]
 
 SM = async_sessionmaker[AsyncSession]
-SIM_URL = "postgresql+asyncpg://ken:ken@127.0.0.1:5433/ken_cms_sim_test"
+SIM_URL = cms_sim_test_database_url()
 FULL_DOC_PATH = "/reports/full-document"
 
 
@@ -265,12 +267,16 @@ async def test_serve_cli_prints_the_verified_url(
 
 async def test_reconcile_cli_against_the_real_service(
     sessionmaker: SM,
+    sim: SimulatedCMSProvider,
     test_database_url: str,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """The CLI's wiring end to end (settings -> engine -> provider -> composed service)."""
-    settings = make_settings(database_url=test_database_url)  # cms_provider: mock
+    """The CLI's wiring end to end (settings -> engine -> provider -> composed service), with
+    the simulated provider (``mock`` is refused: unit-tested in test_deployment_ops_cli)."""
+    settings = make_settings(
+        database_url=test_database_url, cms_provider="simulated", cms_sim_database_url=SIM_URL
+    )
     monkeypatch.setattr(deploy_cli, "get_settings", lambda: settings)
 
     code = await asyncio.to_thread(deploy_cli.main, ["reconcile", "--older-than-s", "0"])
@@ -278,6 +284,6 @@ async def test_reconcile_cli_against_the_real_service(
     out = capsys.readouterr()
     assert code == deploy_cli.EXIT_OK, out.err
     data = json.loads(out.out.strip().splitlines()[-1])
-    assert data["command"] == "reconcile" and data["cms_provider"] == "mock"
+    assert data["command"] == "reconcile" and data["cms_provider"] == "simulated"
     assert data["examined"] == 0 and data["still_unknown"] == 0
     assert "postgresql" not in out.out + out.err

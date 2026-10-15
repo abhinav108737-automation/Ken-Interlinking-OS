@@ -40,6 +40,7 @@ stored request: the first case applies it then, the second replays the ledger.
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import re
@@ -435,8 +436,12 @@ class SimulatedCMSProvider:
                     )
         return issues, unusable
 
-    def _mutate(self, html: str, changes: Sequence[LinkChange]) -> HtmlOutcome | None:
-        return None if self._html is None else self._html.apply(html, changes)
+    async def _mutate(self, html: str, changes: Sequence[LinkChange]) -> HtmlOutcome | None:
+        """The engine's splice (synchronous CPU work) on a worker thread, off the event loop.
+        The page row is locked (apply) or only read (validate / dry run), as before."""
+        if self._html is None:
+            return None
+        return await asyncio.to_thread(self._html.apply, html, changes)
 
     async def _ledger(self, connection: AsyncConnection, operation_id: uuid.UUID) -> Any:
         return (
@@ -521,7 +526,7 @@ class SimulatedCMSProvider:
                 _issue(IssueCode.OPERATION_ID_REUSED, "operation_id was used for another request.")
             )
         if not issues and page is not None:
-            outcome = self._mutate(page.body_html, request.changes)
+            outcome = await self._mutate(page.body_html, request.changes)
             if outcome is not None and not outcome.ok:
                 issues.extend(outcome.issues)
         failed = {i.change_id for i in issues}
@@ -552,7 +557,7 @@ class SimulatedCMSProvider:
                     return replay.model_copy(update={"idempotent_replay": True})
                 issues, _unusable = await self._issues(connection, request, page)
                 self._raise_for(request, issues, page)
-                outcome = self._mutate(page.body_html, request.changes)
+                outcome = await self._mutate(page.body_html, request.changes)
                 if outcome is not None and not outcome.ok:
                     raise CMSValidationError(
                         "Link change request rejected", issues=list(outcome.issues)
@@ -646,7 +651,7 @@ class SimulatedCMSProvider:
         except (OSError, SQLAlchemyError) as exc:
             raise CMSUnavailableError("simulated CMS unavailable") from exc
         self._raise_for(request, issues, page)
-        outcome = self._mutate(page.body_html, request.changes)
+        outcome = await self._mutate(page.body_html, request.changes)
         if outcome is not None and not outcome.ok:
             raise CMSValidationError("Link change request rejected", issues=list(outcome.issues))
         return DeploymentResult(
@@ -746,8 +751,12 @@ class SimulatedCMSProvider:
                             issues=[_issue(IssueCode.ROLLBACK_CONFLICT, "The page changed since.")],
                         )
                     else:
-                        reverted = revert_deployment(
-                            self._html, page.body_html, request.changes, applied.applied_change_ids
+                        reverted = await asyncio.to_thread(
+                            revert_deployment,
+                            self._html,
+                            page.body_html,
+                            request.changes,
+                            applied.applied_change_ids,
                         )
                         if not reverted.ok:
                             raise CMSValidationError(

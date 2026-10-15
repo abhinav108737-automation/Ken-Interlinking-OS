@@ -7,6 +7,7 @@ service, pair occupancy, and the READ ONLY reader.
 from __future__ import annotations
 
 import asyncio
+import threading
 import uuid
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -37,8 +38,10 @@ from ken_core.db.repositories.intelligence import insert_protection
 from ken_core.db.session import create_readonly_sessionmaker
 from ken_services.deployment.errors import OperationReusedDeploymentError
 from ken_services.deployment.http_probe import FetchOutcome, FetchResult
+from ken_services.deployment.mutation import HtmlMutator
 from ken_services.deployment.reader import SqlDeploymentReader
-from ken_services.deployment.service import deploy_lock_key
+from ken_services.deployment.service import DatabaseDeploymentService, deploy_lock_key
+from ken_services.deployment.verification import HtmlLinkVerifier
 from tests.integration.deployment_support import (
     ScriptedProbe,
     World,
@@ -55,6 +58,7 @@ from tests.integration.recommendation_support import (
     EV,
     EV_MARKET_PARAS,
     LI,
+    SETTINGS,
     SITE,
     SM,
     _p,
@@ -463,6 +467,96 @@ async def test_a_changed_link_is_a_rollback_conflict(sessionmaker: SM, w: World)
     assert await _deployment_status(sessionmaker, detail.id) is D.VERIFIED
     assert await statuses(sessionmaker, ids) == [S.VERIFIED, S.VERIFIED]
     assert await events(sessionmaker, EventName.LINK_ROLLED_BACK.value) == []
+
+
+class _ThreadRecorder:
+    """Wraps the real mutator and verifier, recording the thread of every call."""
+
+    def __init__(self) -> None:
+        self.mutator = HtmlMutator()
+        self.verifier = HtmlLinkVerifier()
+        self.threads: list[tuple[str, int]] = []
+
+    def insert_links(self, *args: Any, **kwargs: Any) -> Any:
+        self.threads.append(("insert", threading.get_ident()))
+        return self.mutator.insert_links(*args, **kwargs)
+
+    def remove_links(self, *args: Any, **kwargs: Any) -> Any:
+        self.threads.append(("remove", threading.get_ident()))
+        return self.mutator.remove_links(*args, **kwargs)
+
+    def verify_links(self, *args: Any, **kwargs: Any) -> Any:
+        self.threads.append(("verify", threading.get_ident()))
+        return self.verifier.verify_links(*args, **kwargs)
+
+
+async def test_the_mutator_and_verifier_run_off_the_event_loop(sessionmaker: SM, w: World) -> None:
+    """QA L4: the synchronous HTML work never blocks the API worker's event loop."""
+    ids = await _approved(w)
+    recorder = _ThreadRecorder()
+    service = DatabaseDeploymentService(
+        sessionmaker=w.sessionmaker,
+        settings=SETTINGS.model_copy(update={"deploy_verify_retry_delay_s": 0.0}),
+        cms=w.cms,
+        mutator=recorder,
+        verifier=recorder,
+    )
+    detail = await service.deploy(request=deploy_request(ids), principal=w.operator)
+    assert detail.status is D.VERIFIED
+    kinds = {kind for kind, _thread in recorder.threads}
+    assert {"insert", "verify"} <= kinds
+    assert threading.get_ident() not in {thread for _kind, thread in recorder.threads}
+
+
+async def test_a_refused_rollback_replays_its_refusal(sessionmaker: SM, w: World) -> None:
+    """QA L1: a replay of a REFUSED rollback operation returns the same refusal (as a deploy
+    replay returns its stored outcome) -- even after the page is fixed -- instead of running
+    again; a NEW operation id rolls back normally."""
+    detail, ids = await _deployed(w)
+    page_id = w.page_ids()[SITE + EV]
+    body = await _body(w)
+    w.mock.edit_page(page_id=page_id, body_html=body.replace(SITE + LI, SITE + "/elsewhere"))
+    request = rollback_request()
+    with pytest.raises(DeploymentRefusedError) as first:
+        await w.service().rollback(deployment_id=detail.id, request=request, principal=w.operator)
+    refusal = _codes(first.value)
+    assert {code for code, _plan in refusal} == {C.ROLLBACK_CONFLICT.value}
+    recorded = await rows(
+        sessionmaker,
+        "SELECT stage, codes FROM deployment_items WHERE operation_id = :o",
+        o=request.operation_id,
+    )
+    assert recorded and all(r.stage == "rollback_conflict" for r in recorded)
+    assert all(r.codes == [C.ROLLBACK_CONFLICT.value] for r in recorded)
+    slot = await rows(
+        sessionmaker, "SELECT rollback_operation_id FROM deployments WHERE id = :d", d=detail.id
+    )
+    assert slot[0].rollback_operation_id is None  # freed for a later, different rollback
+
+    w.mock.edit_page(page_id=page_id, body_html=body)  # an editor restores our link
+    transitions = await count(sessionmaker, "link_plan_transitions")
+    with pytest.raises(DeploymentRefusedError) as replay:
+        await w.service().rollback(deployment_id=detail.id, request=request, principal=w.operator)
+    assert _codes(replay.value) == refusal
+    assert await count(sessionmaker, "link_plan_transitions") == transitions
+    assert await _body(w) == body
+    assert await statuses(sessionmaker, ids) == [S.VERIFIED, S.VERIFIED]
+    with pytest.raises(OperationReusedDeploymentError):  # other plans under the same id
+        await w.service().rollback(
+            deployment_id=detail.id,
+            request=rollback_request(op=request.operation_id, plan_ids=[ids[0]]),
+            principal=w.operator,
+        )
+    with pytest.raises(OperationReusedDeploymentError):  # never a deploy id either
+        await w.service().deploy(
+            request=deploy_request(ids, op=request.operation_id), principal=w.operator
+        )
+
+    rolled = await w.service().rollback(
+        deployment_id=detail.id, request=rollback_request(), principal=w.operator
+    )
+    assert rolled.status is D.ROLLED_BACK and not rolled.idempotent_replay
+    assert await statuses(sessionmaker, ids) == [S.ROLLED_BACK, S.ROLLED_BACK]
 
 
 async def test_nothing_to_roll_back_for_a_failed_or_conflicting_deployment(

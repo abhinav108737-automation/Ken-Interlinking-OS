@@ -173,7 +173,7 @@ describe("DeploymentActionsPanel", () => {
 
   it("re-verify sends the deployment id and shows the outcome", async () => {
     const verify = vi.fn<DeploymentPanelActions["verify"]>(async (): Promise<DeploymentActionState> => ({ status: "success", message: "Verification re-run. Deployment status: Verified." }));
-    render(<DeploymentActionsPanel deploymentId="d1" available={{ verify: true, rollback: true }} rollbackable={ROLLBACKABLE} actions={panelActions(verify)} />);
+    render(<DeploymentActionsPanel deploymentId="d1" available={{ verify: true, rollback: true }} rollbackable={ROLLBACKABLE} actions={panelActions(verify)} unavailableNote="n" />);
     fireEvent.click(screen.getByRole("button", { name: "Re-verify" }));
     expect(await screen.findByRole("status")).toHaveTextContent("Deployment status: Verified.");
     expect((verify.mock.calls[0]![1] as FormData).get("deployment_id")).toBe("d1");
@@ -181,7 +181,7 @@ describe("DeploymentActionsPanel", () => {
 
   it("rollback: reason select, note required for 'other', optional per-link selection, form-minted id", async () => {
     const rollback = vi.fn<DeploymentPanelActions["verify"]>(async (): Promise<DeploymentActionState> => ({ status: "invalid", message: "Correct the highlighted fields.", fieldErrors: { note: "Explain the reason “Other” in the note." } }));
-    render(<DeploymentActionsPanel deploymentId="d1" available={{ verify: false, rollback: true }} rollbackable={ROLLBACKABLE} actions={panelActions(undefined, rollback)} />);
+    render(<DeploymentActionsPanel deploymentId="d1" available={{ verify: false, rollback: true }} rollbackable={ROLLBACKABLE} actions={panelActions(undefined, rollback)} unavailableNote="n" />);
     expect(screen.queryByRole("form", { name: "Re-verify" })).toBeNull();
     const form = screen.getByRole("form", { name: "Roll back" });
     const reason = within(form).getByLabelText("Reason (required)");
@@ -218,8 +218,112 @@ describe("DeploymentActionsPanel", () => {
     expect((rollback.mock.calls[1]![1] as FormData).get("operation_id")).toBe(sent.get("operation_id"));
   });
 
+  const THIRD_PLAN_ID = "0b0c0d0e-0f10-4111-8213-141516171819";
+  const THREE = [...ROLLBACKABLE, { plan_id: THIRD_PLAN_ID, anchor_text: "lithium supply" }];
+  const SUCCESS: DeploymentActionState = { status: "success", message: "Rollback requested for 1 link. Deployment status: Verified." };
+  const UNKNOWN: DeploymentActionState = { status: "error", code: "cms_unavailable", message: "The CMS did not confirm the outcome.", issues: [] };
+
+  function submitRollback(link?: string) {
+    const form = screen.getByRole("form", { name: "Roll back" });
+    fireEvent.change(within(form).getByLabelText("Reason (required)"), { target: { value: "broken_page" } });
+    if (link !== undefined) fireEvent.click(within(form).getByLabelText(link));
+    fireEvent.click(within(form).getByRole("button", { name: "Roll back" }));
+  }
+  const sentAt = (mock: { mock: { calls: unknown[][] } }, call: number) => mock.mock.calls[call]![1] as FormData;
+
+  it("two successive per-plan rollbacks are two operations with different ids", async () => {
+    const rollback = vi.fn<DeploymentPanelActions["rollback"]>(async (): Promise<DeploymentActionState> => SUCCESS);
+    const panel = (rollbackable: typeof THREE) => (
+      <DeploymentActionsPanel deploymentId="d1" available={{ verify: true, rollback: true }} rollbackable={rollbackable} actions={panelActions(undefined, rollback)} unavailableNote="n" />
+    );
+    const { rerender } = render(panel(THREE));
+    submitRollback("“battery recycling”");
+    expect(await screen.findByRole("status")).toHaveTextContent("Rollback requested for 1 link.");
+    // The page refresh: the deployment is verified again and the rolled-back link is no longer offered.
+    rerender(panel([THREE[0]!, THREE[2]!]));
+    const form = screen.getByRole("form", { name: "Roll back" });
+    // A fresh form: the previous reason and selection are cleared.
+    expect(within(form).getByLabelText("Reason (required)")).toHaveValue("");
+    submitRollback("“lithium supply”");
+    await waitFor(() => expect(rollback).toHaveBeenCalledTimes(2));
+    const [first, second] = [sentAt(rollback, 0), sentAt(rollback, 1)];
+    expect(first.getAll("plan_ids")).toEqual([OLD_PLAN_ID]);
+    expect(second.getAll("plan_ids")).toEqual([THIRD_PLAN_ID]);
+    expect(second.getAll("eligible_plan_ids")).toEqual([PLAN_ID, THIRD_PLAN_ID]);
+    expect(first.get("operation_id")).toMatch(UUID);
+    expect(second.get("operation_id")).toMatch(UUID);
+    expect(second.get("operation_id")).not.toBe(first.get("operation_id"));
+    // A whole rollback after that is a third operation.
+    rerender(panel([THREE[0]!]));
+    submitRollback();
+    await waitFor(() => expect(rollback).toHaveBeenCalledTimes(3));
+    expect(sentAt(rollback, 2).get("operation_id")).not.toBe(second.get("operation_id"));
+    expect(sentAt(rollback, 2).getAll("plan_ids")).toEqual([]);
+  });
+
+  it("a retry of a failed submission reuses its id; only a success mints a new one", async () => {
+    const rollback = vi.fn<DeploymentPanelActions["rollback"]>();
+    rollback.mockResolvedValueOnce(UNKNOWN).mockResolvedValueOnce(SUCCESS).mockResolvedValueOnce(SUCCESS);
+    render(<DeploymentActionsPanel deploymentId="d1" available={{ verify: true, rollback: true }} rollbackable={THREE} actions={panelActions(undefined, rollback)} unavailableNote="n" />);
+    submitRollback("“battery recycling”");
+    const form = screen.getByRole("form", { name: "Roll back" });
+    expect(await within(form).findByRole("alert")).toHaveTextContent("The CMS did not confirm the outcome.");
+    // The same form, unchanged, is resubmitted: it replays the same operation.
+    expect(within(form).getByLabelText("Reason (required)")).toHaveValue("broken_page");
+    fireEvent.click(within(form).getByRole("button", { name: "Roll back" }));
+    expect(await screen.findByRole("status")).toHaveTextContent("Rollback requested");
+    expect(sentAt(rollback, 1).get("operation_id")).toBe(sentAt(rollback, 0).get("operation_id"));
+    expect(sentAt(rollback, 1).getAll("plan_ids")).toEqual([OLD_PLAN_ID]);
+    submitRollback("“lithium supply”");
+    await waitFor(() => expect(rollback).toHaveBeenCalledTimes(3));
+    expect(sentAt(rollback, 2).get("operation_id")).not.toBe(sentAt(rollback, 1).get("operation_id"));
+  });
+
+  it("a recorded rollback refusal shows its issue and the next submission is a new operation", async () => {
+    const REFUSED: DeploymentActionState = {
+      status: "error",
+      message: "The link changed on the page since it was deployed.",
+      code: "conflict",
+      issues: [{ code: "rollback_conflict", label: "Rollback conflict", description: null, planId: OLD_PLAN_ID }],
+    };
+    const rollback = vi.fn<DeploymentPanelActions["rollback"]>();
+    rollback.mockResolvedValueOnce(REFUSED).mockResolvedValueOnce(SUCCESS);
+    render(<DeploymentActionsPanel deploymentId="d1" available={{ verify: true, rollback: true }} rollbackable={THREE} actions={panelActions(undefined, rollback)} unavailableNote="n" />);
+    submitRollback("“battery recycling”");
+    // The refusal concludes the operation: a fresh form (new id) that still shows the refusal.
+    expect(await screen.findByRole("alert")).toHaveTextContent("The link changed on the page");
+    expect(screen.getByText("Rollback conflict")).toBeInTheDocument();
+    // The API replays a refused id with the same refusal, so a retry after the page is fixed needs a new id.
+    submitRollback("“battery recycling”");
+    await waitFor(() => expect(rollback).toHaveBeenCalledTimes(2));
+    expect(sentAt(rollback, 1).get("operation_id")).toMatch(UUID);
+    expect(sentAt(rollback, 1).get("operation_id")).not.toBe(sentAt(rollback, 0).get("operation_id"));
+  });
+
+  it("an unknown-outcome error stays visible after the refresh hides the forms", async () => {
+    const rollback = vi.fn<DeploymentPanelActions["rollback"]>(async (): Promise<DeploymentActionState> => UNKNOWN);
+    const panel = (rolling: boolean) => (
+      <DeploymentActionsPanel
+        deploymentId="d1"
+        available={{ verify: !rolling, rollback: !rolling }}
+        rollbackable={ROLLBACKABLE}
+        actions={panelActions(undefined, rollback)}
+        unavailableNote="No action is available while the outcome is being reconciled."
+      />
+    );
+    const { rerender } = render(panel(false));
+    expect(screen.queryByRole("note")).toBeNull();
+    submitRollback();
+    expect(await screen.findByRole("alert")).toHaveTextContent("The CMS did not confirm the outcome.");
+    // The refreshed deployment is `rolling_back`: no action is offered, the outcome is still shown.
+    rerender(panel(true));
+    expect(screen.queryByRole("form", { name: "Roll back" })).toBeNull();
+    expect(screen.getByRole("alert")).toHaveTextContent("The CMS did not confirm the outcome.");
+    expect(screen.getByRole("note")).toHaveTextContent("No action is available while the outcome is being reconciled.");
+  });
+
   it("a single-link deployment has no per-link selection", () => {
-    render(<DeploymentActionsPanel deploymentId="d1" available={{ verify: true, rollback: true }} rollbackable={ROLLBACKABLE.slice(0, 1)} actions={panelActions()} />);
+    render(<DeploymentActionsPanel deploymentId="d1" available={{ verify: true, rollback: true }} rollbackable={ROLLBACKABLE.slice(0, 1)} actions={panelActions()} unavailableNote="n" />);
     expect(within(screen.getByRole("form", { name: "Roll back" })).queryByRole("checkbox")).toBeNull();
   });
 });

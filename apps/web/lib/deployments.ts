@@ -327,6 +327,24 @@ function hasIssue(error: ApiError, code: DeploymentIssueCode): boolean {
   return (error.details ?? []).some((detail) => detail.code === code);
 }
 
+/**
+ * A deploy or rollback 503. The API also answers 503 AFTER it durably recorded the intent,
+ * when the CMS outcome is unknown (ADR-0014 section 9): the row stays `applying` /
+ * `rolling_back` until reconciliation, and the CMS may have applied the change. So the copy
+ * never claims that nothing changed. A resubmission sends the same operation id, which the
+ * API treats as a reconciliation (it resends the stored request; providers replay).
+ */
+function unknownOutcomeMessage(operation: "deploy" | "rollback"): string {
+  const change = operation === "deploy" ? "the links were written to the page" : "the links were removed from the page";
+  const progress = describeDeploymentStatus(operation === "deploy" ? "applying" : "rolling_back").label;
+  return (
+    `The CMS did not confirm the outcome, so it is not known whether ${change}. The deployment may appear in the ` +
+    `deployment history as “${progress}” (in progress) until an operator reconciles it (make deployments-reconcile). ` +
+    "If this form is still shown, submitting it again is safe: it sends the same operation id, so the request is " +
+    "replayed instead of applied twice."
+  );
+}
+
 /** An operator-facing explanation of a refused or failed deployment call. Never the raw body. */
 export function deploymentErrorMessage(error: ApiError, operation: "dry_run" | "deploy" | "verify" | "rollback"): string {
   const unchanged =
@@ -371,6 +389,7 @@ export function deploymentErrorMessage(error: ApiError, operation: "dry_run" | "
       case 422:
         return `The API rejected the input. ${nothing}${error.detail === undefined ? "" : ` The API said: ${error.detail}`}`;
       case 503:
+        if (operation === "deploy" || operation === "rollback") return unknownOutcomeMessage(operation);
         return `The CMS is unavailable right now. ${nothing} Try again later.`;
       default:
         break;

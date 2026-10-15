@@ -12,6 +12,10 @@ Resends the STORED request of every ``applying`` / ``rolling_back`` deployment b
 through the configured CMS provider (``KEN_CMS_PROVIDER``). A row whose source page is locked
 by an in-flight deployment is skipped. Nothing new is deployed.
 
+Refused for ``KEN_CMS_PROVIDER=mock`` (exit 2, nothing run): the mock provider is in-process
+and freshly seeded per process, so it holds none of the operations the stored requests were
+sent to, and a resend would record fictitious outcomes against durable rows.
+
 Prints one JSON line (the provider name and the :class:`ReconcileSummary` counters). Exit
 codes:
 
@@ -44,11 +48,25 @@ from ken_core.providers.cms.factory import build_cms_provider
 from ken_services.deployment.compose import build_deployment_service
 from ken_services.deployment.service import ReconcileSummary
 
-__all__ = ["EXIT_OK", "EXIT_RUN_ERRORS", "EXIT_USAGE", "exit_code_for", "main", "summary_line"]
+__all__ = [
+    "EXIT_OK",
+    "EXIT_RUN_ERRORS",
+    "EXIT_USAGE",
+    "MOCK_PROVIDER_REFUSAL",
+    "exit_code_for",
+    "main",
+    "summary_line",
+]
 
 EXIT_OK: Final = 0
 EXIT_RUN_ERRORS: Final = 1
 EXIT_USAGE: Final = 2
+
+MOCK_PROVIDER_REFUSAL: Final = (
+    "configuration error: reconcile is refused for KEN_CMS_PROVIDER=mock (an in-process, "
+    "freshly seeded CMS knows none of the stored operations); use the simulated or http "
+    "provider the deployments were made with"
+)
 
 MAX_OLDER_THAN_S: Final = 30 * 24 * 3600.0
 
@@ -95,6 +113,9 @@ def exit_code_for(summary: ReconcileSummary) -> int:
 
 
 async def _reconcile(settings: Settings, args: argparse.Namespace) -> int:
+    if settings.cms_provider == "mock":
+        print(MOCK_PROVIDER_REFUSAL, file=sys.stderr)
+        return EXIT_USAGE
     try:
         cms = build_cms_provider(settings)
     except (ConfigurationError, ValueError) as exc:

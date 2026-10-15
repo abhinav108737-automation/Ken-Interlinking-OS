@@ -430,6 +430,53 @@ def test_plaintext_element_is_unmappable() -> None:
     assert_refused(html, insert(html, item), Code.UNMAPPABLE_SPAN)
 
 
+# A browser enters "script data double escaped" on <!-- ... <script inside <script> raw text and
+# keeps reading script text past the first </script>; html.parser ends the element there. The
+# <p> after the first </script> is an element for us but SCRIPT TEXT in a browser (QA L2).
+DOUBLE_ESCAPED = (
+    '<main><p>x</p><script>var a="<!--<script>";</script><p>EV charging market</p></script></main>'
+)
+
+
+@pytest.mark.parametrize(
+    "html",
+    [
+        DOUBLE_ESCAPED,
+        DOUBLE_ESCAPED.replace("<script>var", "<SCRIPT type='text/javascript'>var"),
+        DOUBLE_ESCAPED.replace('"<!--<script>"', '"<!-- x <ScRiPt src=y>"'),
+        DOUBLE_ESCAPED.replace('"<!--<script>"', '"<!--" + "\\n<script/"'),
+    ],
+)
+def test_a_double_escaping_script_makes_every_insertion_unmappable(html: str) -> None:
+    item = insertion(html, "EV charging")
+    assert_refused(html, insert(html, item), Code.UNMAPPABLE_SPAN)
+
+
+def test_a_double_escaping_script_refuses_removal_too() -> None:
+    item = insertion(DOUBLE_ESCAPED, "EV charging")
+    deployed = wrapped(DOUBLE_ESCAPED, "EV charging", item)
+    result = MUTATOR.remove_links(deployed, [removal(item)])
+    assert codes(result) == [Code.UNMAPPABLE_SPAN.value]
+    assert result.html == deployed and result.applied == ()
+
+
+@pytest.mark.parametrize(
+    "script",
+    [
+        'var a="<!--";',  # escaped state only: ends at the first </script> in a browser too
+        "<!-- legacy hiding -->",
+        'var s="<script>"; var c="<!--";',  # <script BEFORE <!--: no double escape
+    ],
+)
+def test_a_script_with_a_comment_opener_alone_still_works(script: str) -> None:
+    html = f"<main><p>x</p><script>{script}</script><p>EV charging market</p></main>"
+    item = insertion(html, "EV charging")
+    result = insert(html, item)
+    assert result.ok, codes(result)
+    assert result.html == wrapped(html, "EV charging", item)
+    assert_round_trip(html, item)
+
+
 def test_cdata_text_is_unmappable() -> None:
     html = "<main><p><![CDATA[Demand for battery storage.]]></p></main>"
     item = insertion(html, "battery storage")

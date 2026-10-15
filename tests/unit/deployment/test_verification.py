@@ -224,3 +224,40 @@ def test_garbage_never_raises(garbage: str) -> None:
     checks = verify(garbage)
     assert len(checks) == len(Name)
     assert outcomes(checks)[Name.LINK_PRESENT_ONCE] is Outcome.FAILED
+
+
+# --------------------------------------------------------------------------- #
+# Unsound documents (QA L2: a browser/html.parser differential) never pass
+# --------------------------------------------------------------------------- #
+DOUBLE_ESCAPED = (
+    '<main><p>x</p><script>var a="<!--<script>";</script><p>EV charging market</p></script></main>'
+)
+
+
+def test_a_double_escaping_script_document_never_passes() -> None:
+    """The html a pre-fix mutator produced: in a browser our <a> is script TEXT."""
+    item = insertion(DOUBLE_ESCAPED, "EV charging")
+    anchor = "EV charging"
+    position = DOUBLE_ESCAPED.index(anchor)
+    tag = link_start_tag(item.href, item.plan_id)
+    html = f"{DOUBLE_ESCAPED[:position]}{tag}{anchor}</a>{DOUBLE_ESCAPED[position + len(anchor) :]}"
+    checks = verify(html, item, reachable={item.plan_id: True})
+    assert [c.check for c in checks] == list(Name)
+    assert not any(c.outcome is Outcome.PASSED for c in checks if c.check in ELEMENT_CHECKS)
+    result = outcomes(checks)
+    assert result[Name.LINK_PRESENT_ONCE] is Outcome.FAILED
+    assert all(result[name] is Outcome.FAILED for name in ELEMENT_CHECKS)
+    assert {c.detail for c in checks if c.check is not Name.TARGET_REACHABLE} == {
+        "unsound_document"
+    }
+    assert result[Name.TARGET_REACHABLE] is Outcome.PASSED  # a fact about the target only
+    assert all(c.detail is None or c.detail in DETAILS for c in checks)
+
+
+def test_a_script_with_a_comment_opener_alone_still_verifies() -> None:
+    html = '<main><p>x</p><script>var a="<!--";</script><p>EV charging market</p></main>'
+    item = insertion(html, "EV charging")
+    deployed = MUTATOR.insert_links(html, [item], excluded_ancestors=EXCLUDED)
+    assert deployed.ok
+    result = outcomes(verify(deployed.html, item))
+    assert all(result[name] is Outcome.PASSED for name in list(Name)[:-1])

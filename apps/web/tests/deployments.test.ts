@@ -163,7 +163,10 @@ describe("issues and error messages", () => {
   it.each([
     [{ status: 409, code: "conflict", details: [{ code: "deployment_in_progress", location: null }] }, "deploy", /Retry later; the plans are unchanged/],
     [{ status: 409, code: "cms_version_conflict" }, "deploy", /plans have expired.*regenerates/],
-    [{ status: 503, code: "cms_unavailable" }, "deploy", /CMS is unavailable/],
+    [{ status: 503, code: "cms_unavailable" }, "deploy", /not known whether the links were written.*“Applying”.*make deployments-reconcile.*same operation id/],
+    [{ status: 503, code: "cms_unavailable" }, "rollback", /not known whether the links were removed.*“Rolling back”.*make deployments-reconcile.*replayed/],
+    [{ status: 503, code: "cms_unavailable" }, "dry_run", /^The CMS is unavailable right now\. A dry run writes nothing\./],
+    [{ status: 503, code: "cms_unavailable" }, "verify", /^The CMS is unavailable right now\. Nothing was changed\./],
     [{ status: 403, code: "permission_denied" }, "deploy", /Only an operator admin/],
     [{ status: 422, code: "validation_failed", detail: "Bad note." }, "rollback", /rejected the input.*Bad note/],
     [{ status: 409, code: "conflict", details: [{ code: "rollback_conflict", location: PLAN_ID }] }, "rollback", /was not removed/],
@@ -173,6 +176,12 @@ describe("issues and error messages", () => {
     [{ kind: "timeout" as const }, "deploy", /same form again is safe/],
   ] as const)("explains %o", (overrides, operation, message) => {
     expect(deploymentErrorMessage(apiError(overrides as Partial<ApiError>), operation)).toMatch(message);
+  });
+
+  it("never claims a deploy or rollback 503 changed nothing", () => {
+    for (const operation of ["deploy", "rollback"] as const) {
+      expect(deploymentErrorMessage(apiError({ status: 503, code: "cms_unavailable" }), operation)).not.toMatch(/Nothing was changed|nothing was/i);
+    }
   });
 });
 

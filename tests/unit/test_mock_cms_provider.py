@@ -4,6 +4,7 @@ dry run, protected pages, audit, rollback). Not HTML mutation -- that is Phase 6
 from __future__ import annotations
 
 import asyncio
+import threading
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -682,3 +683,75 @@ async def test_audit_log_is_read_only(provider: MockCMSProvider) -> None:
     with pytest.raises(AttributeError):
         log[0].actor = "forged"  # type: ignore[misc]
     assert provider.audit_log == log
+
+
+# --------------------------------------------------------------------------- #
+# The HTML engine runs off the event loop (QA L4)
+# --------------------------------------------------------------------------- #
+class _ThreadEngine:
+    """A ``LinkHtmlEngine`` double: records the thread and html of every call, and runs an
+    optional hook (a concurrent editor) on its first call."""
+
+    def __init__(self) -> None:
+        self.threads: list[int] = []
+        self.seen: list[str] = []
+        self.on_first: Any = None
+
+    def _run(self, html: str, changes: Any) -> Any:
+        from ken_core.providers.cms.html_engine import HtmlOutcome
+
+        self.threads.append(threading.get_ident())
+        self.seen.append(html)
+        if self.on_first is not None:
+            hook, self.on_first = self.on_first, None
+            hook()
+        return HtmlOutcome(
+            html=html + "<!-- linked -->", applied=tuple(c.change_id for c in changes)
+        )
+
+    def apply(self, html: str, changes: Any) -> Any:
+        return self._run(html, changes)
+
+    def revert(self, html: str, changes: Any) -> Any:
+        return self._run(html, changes)
+
+
+async def test_the_engine_runs_on_a_worker_thread() -> None:
+    engine = _ThreadEngine()
+    provider = MockCMSProvider(seed_pages(), html_engine=engine)
+    await provider.validate_link_changes(request=_request())
+    result = await provider.apply_link_changes(request=_request())
+    assert result.status == "applied"
+    assert len(engine.threads) == 2
+    assert threading.get_ident() not in engine.threads
+
+
+async def test_an_edit_while_the_engine_runs_is_a_version_conflict_not_lost() -> None:
+    """An unlocked edit_page that lands while the engine works on a worker thread is never
+    overwritten by an outcome computed on the older body."""
+    engine = _ThreadEngine()
+    provider = MockCMSProvider(seed_pages(), html_engine=engine)
+    original = await provider.get_page(page_id=SOURCE)
+    edited_body = original.body_html.replace("</main>", "<p>Editor note.</p></main>")
+    engine.on_first = lambda: provider.edit_page(page_id=SOURCE, body_html=edited_body)
+    with pytest.raises(CMSVersionConflictError):
+        await provider.apply_link_changes(request=_request())
+    after = await provider.get_page(page_id=SOURCE)
+    assert after.body_html == edited_body
+    assert engine.seen == [original.body_html, edited_body]
+
+
+async def test_a_rollback_after_an_edit_during_the_revert_keeps_the_edit() -> None:
+    engine = _ThreadEngine()
+    provider = MockCMSProvider(seed_pages(), html_engine=engine)
+    request = _request()
+    deployed = await provider.apply_link_changes(request=request)
+    first = await provider.get_page(page_id=SOURCE)
+    provider.edit_page(page_id=SOURCE, body_html=first.body_html + "<!-- e1 -->")
+    second_body = first.body_html + "<!-- e1 --><!-- e2 -->"
+    engine.on_first = lambda: provider.edit_page(page_id=SOURCE, body_html=second_body)
+    await provider.rollback(
+        deployment_id=deployed.deployment_id, operation_id=request.operation_id, actor="lead"
+    )
+    restored = await provider.get_page(page_id=SOURCE)
+    assert restored.body_html == second_body + "<!-- linked -->"  # computed on the LATEST body

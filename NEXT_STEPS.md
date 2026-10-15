@@ -1,16 +1,16 @@
 # Next Steps
 
-**Current state:** Phase 5 (Reviewer Control Plane) is **complete**; see
-[PHASE_5_REPORT.md](PHASE_5_REPORT.md). The earlier phases are covered in
-[PHASE_4_REPORT.md](PHASE_4_REPORT.md), [PHASE_3_REPORT.md](PHASE_3_REPORT.md), [PHASE_2_REPORT.md](PHASE_2_REPORT.md), [PHASE_1_REPORT.md](PHASE_1_REPORT.md) and
+**Current state:** Phase 6 (Controlled Deployment) is **complete**; see
+[PHASE_6_REPORT.md](PHASE_6_REPORT.md). The earlier phases are covered in
+[PHASE_5_REPORT.md](PHASE_5_REPORT.md), [PHASE_4_REPORT.md](PHASE_4_REPORT.md), [PHASE_3_REPORT.md](PHASE_3_REPORT.md), [PHASE_2_REPORT.md](PHASE_2_REPORT.md), [PHASE_1_REPORT.md](PHASE_1_REPORT.md) and
 [PHASE_0_REPORT.md](PHASE_0_REPORT.md).
 
 **Execution mode:** the user has authorised autonomous, sequential execution of Phases 3–9, an
 end-to-end local demo and a final report. Each phase has internal gates and a local commit plus
 tag. Execution stops only for ASK/BLOCK actions.
 
-**Next phase:** Phase 6 (controlled deployment through the CMS adapter, verification,
-rollback), proceeding under that authorisation.
+**Next phase:** Phase 7 (analytics: first-party capture, GA4/GSC/CSV import, attribution,
+dashboards; ADR-0015), proceeding under that authorisation.
 
 ## Needed from you before real production ingestion
 
@@ -32,15 +32,30 @@ any governing document, so none was guessed.
 | 9 | **Self-describing anchors (ADR-0011 §9.1):** should a same-market, cross-country pair (India cold-chain report → UAE cold-chain report) be linkable on the plain market name ("cold chain")? Today: only when the block also names the target's country/region, or on an article → report hop. 45 eval pairs were relabelled ACCEPTABLE accordingly (rule R5). | Editorial policy; one policy switch either way | decision (orchestrator default in place) |
 | 11 | **Create your own accounts.** No user exists after install, and none was created for you: run `make user-create USERNAME=… ROLE=operator_admin`, then reviewers/viewers as needed. | The UI and API require a session from Phase 5 on | action (you) |
 | 10 | **Does a model critic's `reject` filter a plan out of the human queue, or only annotate it?** Today it filters: the plan stays `proposed`, with its reasons visible. The local qwen3 critic kept 23 % of plans out of the queue on the demo, including 1 of 20 GOOD plans (evals/agents/README.md). | Editorial trust in a local model; a one-line policy/graph change either way | decision (orchestrator default: filter) |
+| 12 | **Real CMS integration (ASK).** The CMS API base URL; its link-change contract, which must tell a version conflict (409) apart from a reused operation id (ADR-0014 §9); whether its sanitiser keeps `data-*` attributes; and **write credentials** stored outside source control. Then `KEN_CMS_PROVIDER=http`, `KEN_CMS_ALLOW_REMOTE=true` and `KEN_CMS_WRITES_ENABLED=true`, all with your approval. | Phase 6 runs only against the mock and the simulated CMS | **ASK** |
+| 13 | **Browser verification (amends TRD §2 / PRD §7.11).** Playwright was **not** adopted: verification parses the served HTML deterministically (ADR-0014 §6). Confirm the deferral, or ask for a headless-browser check for client-rendered pages. | It avoids a large browser download and process | decision |
+| 14 | **Real-template parity.** Run `make cms-sim-seed --export` on a sample of Ken's real HTML, or give us 10–20 real page bodies, to confirm that block hashes match between the inventory and the CMS body. Where parity breaks, the mutator refuses; it never guesses. | It proves deployment works on real templates | data |
 | 8 | **PRD v1.1 §17.1 wording:** "a genuine native degraded mode" now holds only for schema ≤ 0002 (pgvector is required from Phase 2, ADR-0010) | A product-document revision, for your approval | decision |
 
 ## Hard gates carried into later phases (from the Phase 3 QA review)
 
 | Gate | Phase |
 |---|---|
-| **Deploy-time re-validation.** Before any CMS mutation, re-check freshness (`check_plan_freshness`), active protections and live eligibility of source and target, and the existing-link state. The recommendation run already expires invalid open plans, but a deploy may happen between runs. | 6 |
-| **DB-level status integrity.** A direct `UPDATE link_plans SET status = …` by the app role is possible (the content trigger only guards content). Route status changes through a SECURITY DEFINER function or a transition-validating trigger, and use a least-privilege role. | 6 |
-| Inline `style="display:none"` is not detected by placement (the `hidden` / `aria-hidden` attributes are). Post-publish verification must render the page. | 6 |
+| **Least-privilege DB role** in any shared or production environment: DML on application tables only, no DDL, never superuser (ADR-0014 §5). It is required for the status-integrity trigger to be a real boundary (ADR-0014 §10 I1). | production integration |
+
+## Phase 6 known limitations (accepted, documented)
+
+| Item | When |
+|---|---|
+| Parity with Ken's real HTML templates is unproven: the demo corpus agrees across five HTML forms (ADR-0014 §9) | before real CMS integration (item 14) |
+| tx1 holds the source lock and plan row locks across the CMS read, validate and target-reachability probes. This is bounded by timeouts, and the probes run sequentially. | before high-volume deployment |
+| Any 409 from the HTTP CMS counts as a version conflict, so a CMS that also uses 409 for a reused operation id would expire plans | real CMS contract (item 12) |
+| Rollback when an editor already removed our link counts as `rolled_back` | — |
+| Verification has no overall deadline (per-read timeouts only). `inert` and `opacity:0` are not modelled as hidden. | optional |
+| A sim DB URL with an empty host falls back to `PGHOST` | optional |
+| No browser verification (item 13) | decision |
+| `events` is still not append-only in the database, and the app still connects as the superuser `ken` locally | production integration |
+| `identity_conflict` operator tooling (carried over from Phase 5) is still not built | when real data shows conflicts |
 
 ## Phase 5 known limitations (accepted, documented)
 
@@ -50,8 +65,8 @@ any governing document, so none was guessed.
 | The CSP allows `'unsafe-inline'` scripts and styles (no nonces yet). A nonce-based CSP can be generated in `proxy.ts`. | before any shared deployment |
 | Review forms need JavaScript (they work around React 19's form reset); login and logout work without it | — |
 | `target-options` loads live facts for every page on each call: fine for thousands of pages | at scale |
-| Read-only DB path for GET handlers, least-privilege DB role, SECURITY DEFINER status integrity | 6 (one DB-role design) |
-| `identity_conflict` operator tooling | 6 |
+| ~~Read-only DB path for GET handlers; status integrity~~ closed in Phase 6. Least-privilege role → "Hard gates". | — |
+| `identity_conflict` operator tooling | see Phase 6 limitations |
 | User administration emits no event: adding an event name is a governed decision | 8 / when audit of user admin is needed |
 
 ## Phase 4 known limitations (accepted, documented)
@@ -116,16 +131,22 @@ any governing document, so none was guessed.
 | Starlette deprecation warning: `starlette.testclient` with `httpx` | when upgrading Starlette |
 | CI workflow authored but never run (no git remote; pushing is ASK) | when a remote exists |
 | Non-editable wheel build across the package roots (now five) not yet verified | before any distribution |
-| QA L5: append-only `events` not enforced in the DB (unlike `page_versions`/`existing_links`, which now are); app connects as superuser `ken` | 5 / 6 |
-| QA L6: `javascript:` hrefs and empty anchors must be rejected by the Phase 6 validator (links **to** protected pages are now rejected by Phase 3: `target_protected`, and open plans expire) | 6 |
-| QA L7: a second (no-op) rollback returns the first caller's `actor` | 6 |
+| QA L5: append-only `events` not enforced in the DB (unlike `page_versions`/`existing_links`, which now are); app connects as superuser `ken` | production integration |
 | QA L8: floating image tags; CI actions pinned by tag; three identical compose images | before any shared env |
 | QA L9: `/ready` stays public by design (probes; ADR-0013), 3 DB sessions per call | before any shared env |
 | QA P1: the Phase 9 policy engine must read AUTO_APPROVE from a module-level `Final`, never a `Settings` instance | 9 |
-| Persist the CMS audit log to `events` (`link.deployed`, `link.rolled_back`) | 6 |
 | Re-verify the licence inventory of any packaged desktop bundle (`sharp` is LGPL) | before desktop distribution |
 | 5432 guard does not resolve DNS (`127.1`, decimal IPs) | optional |
 | Colima does not start at login: run `colima start` after a reboot | — |
+
+**Closed in Phase 6:**
+- Deploy-time re-validation under lock: freshness, protections, live eligibility, existing links and density (Phase 3 QA gate).
+- DB-level link-plan status integrity: a deferred constraint trigger with a transition record in the same transaction (Phase 3 QA M2).
+- Inline `display:none` / `visibility:hidden` are detected as hidden, in mutation and in verification.
+- `javascript:`, `data:` and other unsafe hrefs, and empty anchors, are refused (Phase 0 QA L6).
+- QA L7, resolved as designed: a no-op rollback replay reports the original authoriser (it is the same operation), and the CMS audit log records each caller separately (`rollback_no_op` with the second actor). The deployment service also records the session actor on every rollback event.
+- The CMS audit lands in `events`: `link.deployed`, `link.verified`, `link.failed` and `link.rolled_back`.
+- Read-only GET sessions; the job reaper (`make jobs-reap`); the Phase 1/2 "stays running" gap.
 
 **Closed in Phase 5:**
 - Authenticated actors (Phase 3 QA H3 gate): actors come from the session.

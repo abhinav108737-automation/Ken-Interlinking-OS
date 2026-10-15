@@ -598,9 +598,14 @@ async def test_an_incremental_run_keeps_the_capped_graph_exact(sessionmaker: SM)
     await analyse(sessionmaker, settings=settings, embeddings=False)
     ids = await page_ids(sessionmaker)
     assert len(ids) == 30
-    # The page with the LOWEST id was in many top-3 lists; it leaves the market, so
+    # The ev page with the LOWEST id was in many top-3 lists; it leaves the market, so
     # pages that never touched it in this run must be recomputed to refill their caps.
-    lowest = min(ids.items(), key=lambda kv: kv[1])[0]
+    # Chosen among the ev pages ONLY: page ids are random, and the lowest overall can be a
+    # batteries page already holding exactly the new body (b000/b003), whose re-seed is then
+    # no change at all (an intermittent "pages_analyzed 0 == 1").
+    ev_ids = {path: pid for path, pid in ids.items() if path.startswith("/reports/p")}
+    assert len(ev_ids) == 24
+    lowest = min(ev_ids.items(), key=lambda kv: kv[1])[0]
     await seed(sessionmaker, page(lowest, "alpha market:batteries geo:india"))
     incremental = await analyse(sessionmaker, settings=settings, embeddings=False)
     assert incremental.counters["pages_analyzed"] == 1

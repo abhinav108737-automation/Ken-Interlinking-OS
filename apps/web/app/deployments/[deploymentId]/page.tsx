@@ -220,19 +220,18 @@ export default async function DeploymentDetailPage({
               ? "Deployment actions are unavailable because your session could not be confirmed."
               : `Your role (${describeRole(user.role)}) can read deployments but not verify or roll them back.`}
           </p>
-        ) : available.verify || available.rollback ? (
+        ) : (
           <DeploymentActionsPanel
             deploymentId={deployment.id}
             available={available}
             rollbackable={rollbackablePlans(deployment)}
             actions={DEPLOYMENT_ACTIONS}
+            unavailableNote={
+              inProgress
+                ? "No action is available while the outcome is being reconciled."
+                : `This deployment is ${status.label.toLowerCase()}; nothing of it is on the page to verify or roll back.`
+            }
           />
-        ) : (
-          <p role="note" className="max-w-prose rounded border border-slate-300 bg-slate-50 p-3 text-sm text-slate-800">
-            {inProgress
-              ? "No action is available while the outcome is being reconciled."
-              : `This deployment is ${status.label.toLowerCase()}; nothing of it is on the page to verify or roll back.`}
-          </p>
         )}
       </Section>
 

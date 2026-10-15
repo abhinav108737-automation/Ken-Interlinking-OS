@@ -2,7 +2,8 @@
 
 ``mock``      -- :class:`MockCMSProvider` (in memory) with the REAL HTML engine;
 ``simulated`` -- :class:`SimulatedCMSProvider` over the DISPOSABLE database
-                 ``ken_cms_sim_test`` (its own database, outside the app's Alembic chain;
+                 ``ken_cms_sim_test`` (or ``KEN_TEST_CMS_SIM_DATABASE_URL``; its own
+                 database, outside the app's Alembic chain;
                  ``@pytest.mark.integration``);
 ``http``      -- :class:`HttpCMSProvider` over the local TRD section 13 fixture server
                  (``tests/support/cms_fixture_server.py``, 127.0.0.1 port 0) wrapping a mock.
@@ -25,6 +26,7 @@ from typing import Any, Final
 import pytest
 from pydantic import SecretStr
 from sqlalchemy import text
+from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.pool import NullPool
 
@@ -53,8 +55,9 @@ from ken_services.inventory.hashing import sha256_hex
 from ken_services.inventory.normalize import extract_blocks
 from ken_services.recommendations.placement import phrase_occurrences
 from tests.support.cms_fixture_server import CMSFixtureServer
+from tests.support.cms_sim_db import CMS_SIM_DB_PREFIX, cms_sim_test_database_url
 
-SIM_URL: Final = "postgresql+asyncpg://ken:ken@127.0.0.1:5433/ken_cms_sim_test"
+SIM_URL: Final = cms_sim_test_database_url()
 TOKEN: Final = "fixture-token-7f3a9c"
 ACTOR: Final = "user:operator"
 
@@ -200,7 +203,7 @@ class Harness:
 
 @pytest.fixture(scope="session")
 def sim_database() -> str:
-    """Create the DISPOSABLE simulated-CMS test database once (ken_cms_sim_test only).
+    """Create the DISPOSABLE simulated-CMS test database once (a ken_cms_sim*_test only).
 
     In a worker thread: the fixture may be requested lazily from inside a running loop."""
     with ThreadPoolExecutor(max_workers=1) as pool:
@@ -801,11 +804,13 @@ async def test_sim_unavailable_fault_refuses_every_call(sim: Harness) -> None:
 
 @pytest.mark.integration
 async def test_sim_commits_independently_in_its_own_database(sim: Harness) -> None:
-    """Its own engine on ken_cms_sim_test, committed as soon as the call returns: a separate
+    """Its own engine on the sim test database, committed as soon as the call returns: a separate
     connection (an "app" that never committed anything) sees the change."""
     provider: SimulatedCMSProvider = sim.extra
     assert SCHEMA == "cms_sim"
-    assert provider._engine.url.database == "ken_cms_sim_test"
+    database = provider._engine.url.database
+    assert database is not None and database.startswith(CMS_SIM_DB_PREFIX)
+    assert database == make_url(SIM_URL).database
     change = insert(SOURCE_HTML, ANCHOR)
     result = await provider.apply_link_changes(request=request([change]))
 

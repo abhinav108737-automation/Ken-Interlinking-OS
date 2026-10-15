@@ -6,14 +6,13 @@ EXISTING link of the source page's new version, and the engine treats the pair a
 linked.
 
 The simulated CMS uses the disposable ``ken_cms_sim_test`` database (override with
-``KEN_TEST_CMS_SIM_DATABASE_URL``, which must also name a ``ken_cms_sim*`` database). The
+``KEN_TEST_CMS_SIM_DATABASE_URL``, which must name a ``ken_cms_sim*_test`` database). The
 server binds 127.0.0.1 port 0 and verifies its own listener before use (never 8765).
 """
 
 from __future__ import annotations
 
 import json
-import os
 import uuid
 from pathlib import Path
 from typing import Any, Final
@@ -50,13 +49,11 @@ from tests.integration.recommendation_support import (
     rows,
 )
 from tests.integration.review_support import principal, queue, review_service
+from tests.support.cms_sim_db import cms_sim_test_database_url
 
 pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("migrated")]
 
-SIM_URL: Final = os.environ.get(
-    "KEN_TEST_CMS_SIM_DATABASE_URL",
-    "postgresql+asyncpg://ken:ken@127.0.0.1:5433/ken_cms_sim_test",
-)
+SIM_URL: Final = cms_sim_test_database_url()
 FORBIDDEN_PORT: Final = 8765
 
 

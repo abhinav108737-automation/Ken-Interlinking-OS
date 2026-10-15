@@ -33,7 +33,10 @@ target_reachable     ``target_reachable[plan]``: True passed, False failed
 ==================== ======================================================================
 
 With no candidate, the element checks are ``skipped`` (``link_missing``): the plan already
-fails on ``link_present_once``. An overall run passes iff no check is ``failed`` (and, for the
+fails on ``link_present_once``. An UNSOUND document (``MappedDocument.sound`` false: the parse
+or the walk replay cannot be trusted, e.g. a ``<script>`` that a browser would double-escape
+past its first ``</script>``) never passes: every element check is ``failed``
+(``unsound_document``). An overall run passes iff no check is ``failed`` (and, for the
 deployment service, none is ``inconclusive``).
 """
 
@@ -75,6 +78,7 @@ DETAILS: Final = frozenset(
         "nested",
         "target_unreachable",
         "not_checked",
+        "unsound_document",
         "internal_error",
     }
 )
@@ -102,6 +106,19 @@ def _target(plan: UUID, reachable: dict[UUID, bool | None] | None) -> Verificati
             detail="not_checked",
         )
     return _check(plan, _Name.TARGET_REACHABLE, value, "target_unreachable")
+
+
+def _unsound(plan: UUID, reachable: dict[UUID, bool | None] | None) -> list[VerificationCheck]:
+    """No position or block fact of an unsound document is trusted: nothing passes."""
+    checks = [
+        VerificationCheck(
+            plan_id=plan, check=name, outcome=_Outcome.FAILED, detail="unsound_document"
+        )
+        for name in VerificationCheckName
+        if name is not _Name.TARGET_REACHABLE
+    ]
+    checks.append(_target(plan, reachable))
+    return checks
 
 
 def _expected_link(doc: MappedDocument, item: LinkInsertion) -> LinkElement | None:
@@ -149,7 +166,10 @@ class HtmlLinkVerifier:
             doc = map_document(html)
             checks: list[VerificationCheck] = []
             for item in items:
-                checks.extend(self._verify_one(doc, item, target_reachable))
+                if doc.sound:
+                    checks.extend(self._verify_one(doc, item, target_reachable))
+                else:
+                    checks.extend(_unsound(item.plan_id, target_reachable))
             return checks
         except Exception:  # pragma: no cover - totality guard: never raise on any input
             out: list[VerificationCheck] = []
