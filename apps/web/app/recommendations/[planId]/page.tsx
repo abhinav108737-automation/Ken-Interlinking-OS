@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 import { ApiErrorNotice } from "@/components/ApiErrorNotice";
 import { StatusBadge } from "@/components/StatusBadge";
 import { AgentPlanReviewPanel } from "@/components/agents/AgentPlanReviewPanel";
+import { PlanPerformancePanel } from "@/components/analytics/PlanPerformancePanel";
 import { DeployFlow } from "@/components/deployments/DeployFlow";
 import { DeploymentTable } from "@/components/deployments/DeploymentTable";
 import { ExternalUrl } from "@/components/inventory/ExternalUrl";
@@ -18,6 +19,7 @@ import { ReviewActionTable } from "@/components/review/ReviewActionTable";
 import { ReviewPanel } from "@/components/review/ReviewPanel";
 import {
   type LinkPlanDetail,
+  getLinkPerformance,
   getLinkPlan,
   isMissingResourceError,
   listAgentPlanReviews,
@@ -26,6 +28,7 @@ import {
   listPlanTargetOptions,
   requireSessionUser,
 } from "@/lib/api";
+import { wasEverApplied } from "@/lib/analytics";
 import { can, describeRole, permissionsOf } from "@/lib/auth";
 import { formatDateTime, shortHash } from "@/lib/format";
 import { describeRelationshipType, jobRunHref } from "@/lib/intelligence";
@@ -160,6 +163,9 @@ export default async function RecommendationDetailPage({
   const available = availableActions(plan.status);
   // Replacement destinations are only needed (and only permitted) for a reviewer who can edit this plan.
   const targetsResult = canReview && available.edit ? await listPlanTargetOptions(plan.id) : null;
+  // Performance exists only for a link that was ever on a page (ADR-0015 section 3).
+  const everApplied = wasEverApplied(plan);
+  const performanceResult = everApplied ? await getLinkPerformance(plan.id) : null;
   const justEdited = firstParam(query, "edited") === "1" && plan.anchor_source === "edited" && plan.supersedes !== null;
   const candidatesHref = buildHref(CANDIDATES_PATH, { source_page_id: plan.source_page_id, run_id: plan.run_id });
 
@@ -262,6 +268,16 @@ export default async function RecommendationDetailPage({
           <ApiErrorNotice error={deploymentsResult.error} what="Deployments" />
         )}
       </Section>
+
+      {performanceResult !== null && (
+        <Section id="performance" title="Performance">
+          <p className="max-w-prose text-sm text-slate-700">
+            Stored analytics for this link while it was on the page, with the chain from recommendation run to
+            deployment. Observed data only: nothing here says the link caused a change.
+          </p>
+          <PlanPerformancePanel result={performanceResult} />
+        </Section>
+      )}
 
       <Section id="review-history" title="Review history">
         {historyResult.ok ? (

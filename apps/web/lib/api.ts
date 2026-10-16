@@ -100,6 +100,16 @@ import {
   type ListDeploymentsQuery,
   type PlanDeploymentList,
   type RollbackRequest,
+  type AnalyticsImportList,
+  type AnalyticsSummary,
+  type GetAnalyticsSummaryQuery,
+  type GetLinkPerformanceQuery,
+  type GetPageImpactQuery,
+  type LinkPerformanceDetail,
+  type LinkPerformanceList,
+  type ListAnalyticsImportsQuery,
+  type ListLinkPerformanceQuery,
+  type PageImpactView,
   DEFAULT_API_BASE_URL,
   PUBLIC_API_PATHS,
   configError,
@@ -230,6 +240,36 @@ export type {
   VerificationCheckName,
   VerificationOutcome,
   VerificationRun,
+  AnalyticsImportList,
+  AnalyticsImportView,
+  AnalyticsSource,
+  AnalyticsSummary,
+  ComparisonMetric,
+  ComparisonRole,
+  ConfounderFlag,
+  DailyTotals,
+  Dataset,
+  DateRange,
+  GetAnalyticsSummaryQuery,
+  GetLinkPerformanceQuery,
+  GetPageImpactQuery,
+  ImportVia,
+  LinkAttribution,
+  LinkDailyPoint,
+  LinkMeasurement,
+  LinkPerformanceDetail,
+  LinkPerformanceList,
+  LinkPerformanceView,
+  LinkSort,
+  ListAnalyticsImportsQuery,
+  ListLinkPerformanceQuery,
+  LiveWindow,
+  MetricTotals,
+  PageDailyPoint,
+  PageImpactView,
+  PageWindowComparison,
+  SourceFreshness,
+  WindowStats,
 } from "./api-client";
 export {
   DEFAULT_API_BASE_URL,
@@ -742,4 +782,44 @@ export function getDeployment(deploymentId: string): Promise<ApiResult<Deploymen
 /** `GET /recommendations/{plan_id}/deployments`. */
 export function listPlanDeployments(planId: string): Promise<ApiResult<PlanDeploymentList>> {
   return withServerClient("/recommendations/{plan_id}/deployments", (client) => client.listPlanDeployments(planId));
+}
+
+// ---------------------------------------------------------------------------
+// Phase 7 analytics (ADR-0015 section 6). GET-only: every route needs `read`
+// and nothing here mutates. Imports and aggregation run from the CLI, never
+// from this console, so no UI control can cause an external fetch.
+// ---------------------------------------------------------------------------
+
+/** `GET /analytics/summary`. */
+export function getAnalyticsSummary(
+  query: GetAnalyticsSummaryQuery = {},
+): Promise<ApiResult<AnalyticsSummary>> {
+  return withServerClient("/analytics/summary", (client) => client.getAnalyticsSummary(query));
+}
+
+/** `GET /analytics/links`. */
+export function listLinkPerformance(
+  query: ListLinkPerformanceQuery = {},
+): Promise<ApiResult<LinkPerformanceList>> {
+  return withServerClient("/analytics/links", (client) => client.listLinkPerformance(query));
+}
+
+/** `GET /analytics/links/{plan_id}`. */
+export function getLinkPerformance(
+  planId: string,
+  query: GetLinkPerformanceQuery = {},
+): Promise<ApiResult<LinkPerformanceDetail>> {
+  return withServerClient("/analytics/links/{plan_id}", (client) => client.getLinkPerformance(planId, query));
+}
+
+/** `GET /analytics/pages/{page_id}`. */
+export function getPageImpact(pageId: string, query: GetPageImpactQuery = {}): Promise<ApiResult<PageImpactView>> {
+  return withServerClient("/analytics/pages/{page_id}", (client) => client.getPageImpact(pageId, query));
+}
+
+/** `GET /analytics/imports`. */
+export function listAnalyticsImports(
+  query: ListAnalyticsImportsQuery = {},
+): Promise<ApiResult<AnalyticsImportList>> {
+  return withServerClient("/analytics/imports", (client) => client.listAnalyticsImports(query));
 }

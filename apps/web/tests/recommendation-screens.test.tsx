@@ -8,6 +8,7 @@ import OpportunitiesPage from "@/app/recommendations/opportunities/page";
 import RecommendationsPage from "@/app/recommendations/page";
 import type { ApiError, ApiResult } from "@/lib/api-client";
 
+import { linkPerformanceDetail } from "./fixtures/analytics";
 import { pageIntelligence, taxonomy } from "./fixtures/intelligence";
 import { OTHER_PAGE_ID, PAGE_ID, list, pageDetail, versionSummary } from "./fixtures/inventory";
 import {
@@ -25,6 +26,8 @@ import {
 import { principal } from "./fixtures/review";
 
 const api = vi.hoisted(() => ({
+  // Phase 7: the plan detail screen's performance panel.
+  getLinkPerformance: vi.fn(),
   // Phase 6: the plan detail screen's deployment panel.
   listPlanDeployments: vi.fn(),
   listLinkPlans: vi.fn(),
@@ -76,6 +79,7 @@ function fail(error: Partial<ApiError> & Pick<ApiError, "kind">): ApiResult<neve
 
 beforeEach(() => {
   for (const mock of Object.values(api)) mock.mockReset();
+  api.getLinkPerformance.mockResolvedValue({ ok: true, data: linkPerformanceDetail(), status: 200 });
   api.listPlanDeployments.mockResolvedValue({ ok: true, data: [], status: 200 });
   nav.notFound.mockClear();
   api.getRecommendationSummary.mockResolvedValue(ok(recommendationSummary()));

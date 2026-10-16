@@ -52,6 +52,11 @@ where = ["contracts/python", "services", "apps/api", "agents"]
 include = ["ken_*"]
 namespaces = false
 
+[tool.setuptools.package-data]
+# The first-party beacon is served verbatim from disk (Phase 7, ADR-0015 s1), so it must
+# travel with the package: a wheel without it serves GET /k.js as a 500.
+"ken_services.analytics.collector" = ["static/*.js"]
+
 [tool.ruff]
 line-length = 100
 target-version = "py312"

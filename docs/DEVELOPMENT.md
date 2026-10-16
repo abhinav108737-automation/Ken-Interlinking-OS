@@ -165,6 +165,34 @@ KEN_CMS_PROVIDER=simulated make dev-api
   refuses writes unless `KEN_CMS_WRITES_ENABLED=true`. Connecting it to the real Ken CMS
   requires your approval.
 
+## Analytics (Phase 7)
+
+Reading analytics needs no configuration. Producing data has three paths.
+
+- **Synthetic, for a demo:** `make analytics-demo-seed ARGS="--seed 7"`. Deterministic and
+  repeatable, refused in staging and production, refused if it would mix with real rows, and
+  labelled synthetic in every screen. It never promotes a plan to `measured`.
+- **First-party, end to end:** `make analytics-sim-serve` starts the simulated CMS site **with the
+  beacon injected** and the collector, on two verified loopback ports, and prints both URLs. Visit
+  a page that has deployed links, then aggregate the events into daily rows:
+  `make analytics-aggregate`. The default window covers only **complete** UTC days, so events from
+  today need an explicit range: `make analytics-aggregate START=$(date -u +%F) END=$(date -u +%F)`.
+- **Imported rows:** `make analytics-import SOURCE=ga4|gsc|first_party DATASET=links|pages
+  START=… END=… [FILE=rows.csv]`. With `FILE` it reads one of the two canonical CSVs
+  (`ken_link_daily`, `ken_page_daily`); `SOURCE` is where the rows came from and must match the
+  file's `source` column. Without `FILE`, `ga4` and `gsc` call Google, which is **off by default**
+  (`KEN_ANALYTICS_GOOGLE_ENABLED`) and an ASK action; `first_party` without `FILE` is refused and
+  points you at `make analytics-aggregate`.
+
+An import is **authoritative for its whole range**: it deletes those dates and re-inserts, in one
+transaction, so re-running it is safe and repeatable. It refuses to mix synthetic with real rows,
+refuses a different `via` unless you pass `--replace-via`, and — since a replace deletes first —
+**refuses outright if it read rows but every one was rejected**, so a wrong file cannot wipe a
+range. A genuinely empty file still clears a range, which is the deliberate way to do it.
+
+Imports never run from the UI: that keeps external egress a command-line, operator action. Failed
+runs are visible in job runs, and `make jobs-reap` applies to them like any other job.
+
 ## Reviewer control plane (Phase 5)
 
 Every API endpoint except `/health`, `/ready` and `POST /auth/login` needs a session. The web

@@ -224,6 +224,43 @@ export type PlanDeploymentList = operations["listPlanDeployments"]["responses"][
 
 export type ListDeploymentsQuery = NonNullable<operations["listDeployments"]["parameters"]["query"]>;
 
+// Phase 7 analytics (ADR-0015 sections 6-7). GET-only; every route needs `read`.
+// Imports stay CLI-only: no UI control may trigger Google egress (ADR-0015 section 12.8).
+export type AnalyticsSource = Schemas["AnalyticsSource"];
+export type Dataset = Schemas["Dataset"];
+export type ImportVia = Schemas["ImportVia"];
+export type ConfounderFlag = Schemas["ConfounderFlag"];
+export type DateRange = Schemas["DateRange"];
+export type MetricTotals = Schemas["MetricTotals"];
+export type DailyTotals = Schemas["DailyTotals"];
+export type SourceFreshness = Schemas["SourceFreshness"];
+export type AnalyticsSummary = Schemas["AnalyticsSummary"];
+export type LinkSort = Schemas["LinkSort"];
+export type LinkDailyPoint = Schemas["LinkDailyPoint"];
+export type PageDailyPoint = Schemas["PageDailyPoint"];
+export type LinkPerformanceView = Schemas["LinkPerformanceView"];
+export type LinkPerformanceDetail = Schemas["LinkPerformanceDetail"];
+export type LinkAttribution = Schemas["LinkAttribution"];
+export type LinkMeasurement = Schemas["LinkMeasurement"];
+export type LiveWindow = Schemas["LiveWindow"];
+export type WindowStats = Schemas["WindowStats"];
+export type PageWindowComparison = Schemas["PageWindowComparison"];
+/** The compared metric of a before/after window: clicks (Search Console) or pageviews (GA4). */
+export type ComparisonMetric = PageWindowComparison["metric"];
+/** Which side of the link a compared page is: its source or its target. */
+export type ComparisonRole = PageWindowComparison["role"];
+export type PageImpactView = Schemas["PageImpactView"];
+export type AnalyticsImportView = Schemas["AnalyticsImportView"];
+
+export type LinkPerformanceList = Schemas["ListResponse_LinkPerformanceView_"];
+export type AnalyticsImportList = Schemas["ListResponse_AnalyticsImportView_"];
+
+export type GetAnalyticsSummaryQuery = NonNullable<operations["getAnalyticsSummary"]["parameters"]["query"]>;
+export type ListLinkPerformanceQuery = NonNullable<operations["listLinkPerformance"]["parameters"]["query"]>;
+export type GetLinkPerformanceQuery = NonNullable<operations["getLinkPerformance"]["parameters"]["query"]>;
+export type GetPageImpactQuery = NonNullable<operations["getPageImpact"]["parameters"]["query"]>;
+export type ListAnalyticsImportsQuery = NonNullable<operations["listAnalyticsImports"]["parameters"]["query"]>;
+
 export type ApiPath = keyof paths;
 
 /**
@@ -543,6 +580,36 @@ export interface ApiClient {
   getDeployment(deploymentId: string, options?: RequestOptions): Promise<ApiResult<DeploymentDetail>>;
   /** `GET /recommendations/{plan_id}/deployments` (`read`): the deployments that included one plan. Contract: 200, 401, 403, 404, 422. */
   listPlanDeployments(planId: string, options?: RequestOptions): Promise<ApiResult<PlanDeploymentList>>;
+  // --- Phase 7 analytics (ADR-0015 section 6): read-only, `read` ------------
+  // Imports are CLI-only; nothing here writes or triggers an external fetch.
+
+  /** `GET /analytics/summary` (`read`): totals, daily series, top links, source freshness. Contract: 200, 401, 403, 422. */
+  getAnalyticsSummary(
+    query?: GetAnalyticsSummaryQuery,
+    options?: RequestOptions,
+  ): Promise<ApiResult<AnalyticsSummary>>;
+  /** `GET /analytics/links` (`read`): per-link totals over a range, filtered and sorted. Contract: 200, 401, 403, 422. */
+  listLinkPerformance(
+    query?: ListLinkPerformanceQuery,
+    options?: RequestOptions,
+  ): Promise<ApiResult<LinkPerformanceList>>;
+  /** `GET /analytics/links/{plan_id}` (`read`): attribution, live window, series, comparisons. Contract: 200, 401, 403, 404, 422. */
+  getLinkPerformance(
+    planId: string,
+    query?: GetLinkPerformanceQuery,
+    options?: RequestOptions,
+  ): Promise<ApiResult<LinkPerformanceDetail>>;
+  /** `GET /analytics/pages/{page_id}` (`read`): daily series and the observed change per link change. Contract: 200, 401, 403, 404, 422. */
+  getPageImpact(
+    pageId: string,
+    query?: GetPageImpactQuery,
+    options?: RequestOptions,
+  ): Promise<ApiResult<PageImpactView>>;
+  /** `GET /analytics/imports` (`read`): the import ledger, newest first. Contract: 200, 401, 403, 422. */
+  listAnalyticsImports(
+    query?: ListAnalyticsImportsQuery,
+    options?: RequestOptions,
+  ): Promise<ApiResult<AnalyticsImportList>>;
 }
 
 // ---------------------------------------------------------------------------
@@ -1616,6 +1683,268 @@ export function isDeploymentDetail(value: unknown): value is DeploymentDetail {
 export const isDeploymentList = (value: unknown): value is DeploymentList => isListResponse(value, isDeploymentView);
 export const isPlanDeploymentList = (value: unknown): value is PlanDeploymentList => everyItem(value, isDeploymentView);
 
+// --- Analytics guards (Phase 7) -------------------------------------------------
+// Same policy: every field an analytics screen reads is checked (including the nested
+// window statistics and the attribution chain); enum membership is left to
+// lib/analytics.ts so an additive contract value renders as "Unknown (…)".
+
+/** `synthetic` has a default in the contract, so an older body may omit it. */
+function isOptionalBoolean(value: unknown): boolean {
+  return value === undefined || typeof value === "boolean";
+}
+
+export function isMetricTotals(value: unknown): value is MetricTotals {
+  return (
+    isObject(value) &&
+    isNumber(value["impressions"]) &&
+    isNumber(value["clicks"]) &&
+    (value["ctr"] === null || isNumber(value["ctr"]))
+  );
+}
+
+/** A `{source: MetricTotals}` map, as every analytics total is keyed by its source. */
+function isTotalsBySource(value: unknown): value is Record<string, MetricTotals> {
+  return isObject(value) && Object.values(value).every(isMetricTotals);
+}
+
+/** A `{source: T[]}` map of daily series. */
+function isSeriesBySource<T>(value: unknown, isItem: (item: unknown) => item is T): value is Record<string, T[]> {
+  return isObject(value) && Object.values(value).every((series) => everyItem(series, isItem));
+}
+
+export function isDateRange(value: unknown): value is DateRange {
+  return isObject(value) && typeof value["start"] === "string" && typeof value["end"] === "string";
+}
+
+export function isDailyTotals(value: unknown): value is DailyTotals {
+  return (
+    isObject(value) &&
+    typeof value["metric_date"] === "string" &&
+    typeof value["source"] === "string" &&
+    isNumber(value["impressions"]) &&
+    isNumber(value["clicks"])
+  );
+}
+
+export function isSourceFreshness(value: unknown): value is SourceFreshness {
+  return (
+    isObject(value) &&
+    typeof value["source"] === "string" &&
+    typeof value["dataset"] === "string" &&
+    isNullableString(value["latest_date"]) &&
+    isNullableString(value["last_import_id"]) &&
+    isNullableString(value["last_imported_at"]) &&
+    isNullableString(value["last_via"]) &&
+    isOptionalBoolean(value["synthetic"])
+  );
+}
+
+export function isLinkPerformanceView(value: unknown): value is LinkPerformanceView {
+  return (
+    isObject(value) &&
+    typeof value["plan_id"] === "string" &&
+    typeof value["anchor_text"] === "string" &&
+    typeof value["source_page_id"] === "string" &&
+    typeof value["source_url"] === "string" &&
+    typeof value["target_page_id"] === "string" &&
+    typeof value["target_url"] === "string" &&
+    typeof value["plan_status"] === "string" &&
+    isNullableString(value["deployed_at"]) &&
+    isNullableString(value["rolled_back_at"]) &&
+    isTotalsBySource(value["totals"]) &&
+    isOptionalBoolean(value["synthetic"])
+  );
+}
+
+export function isAnalyticsSummary(value: unknown): value is AnalyticsSummary {
+  return (
+    isObject(value) &&
+    isDateRange(value["range"]) &&
+    everyItem(value["sources"], isSourceFreshness) &&
+    isTotalsBySource(value["totals_by_source"]) &&
+    everyItem(value["daily"], isDailyTotals) &&
+    isNumber(value["live_links"]) &&
+    isNumber(value["links_with_data"]) &&
+    everyItem(value["top_links"], isLinkPerformanceView) &&
+    typeof value["synthetic"] === "boolean"
+  );
+}
+
+export function isLinkDailyPoint(value: unknown): value is LinkDailyPoint {
+  return (
+    isObject(value) &&
+    typeof value["metric_date"] === "string" &&
+    isNumber(value["impressions"]) &&
+    isNumber(value["clicks"])
+  );
+}
+
+export function isPageDailyPoint(value: unknown): value is PageDailyPoint {
+  return (
+    isObject(value) &&
+    typeof value["metric_date"] === "string" &&
+    isNumber(value["impressions"]) &&
+    isNumber(value["clicks"]) &&
+    isNumber(value["pageviews"]) &&
+    isNumber(value["sessions"]) &&
+    isNullableNumber(value["avg_position"])
+  );
+}
+
+export function isWindowStats(value: unknown): value is WindowStats {
+  return (
+    isObject(value) &&
+    typeof value["start"] === "string" &&
+    isNullableString(value["end"]) &&
+    isNumber(value["days"]) &&
+    isNumber(value["covered_days"]) &&
+    isNumber(value["impressions"]) &&
+    isNumber(value["clicks"]) &&
+    isNumber(value["pageviews"]) &&
+    isNumber(value["sessions"]) &&
+    isNullableNumber(value["ctr"]) &&
+    isNullableNumber(value["avg_position"]) &&
+    isNullableNumber(value["mean_per_day"])
+  );
+}
+
+export function isPageWindowComparison(value: unknown): value is PageWindowComparison {
+  return (
+    isObject(value) &&
+    typeof value["page_id"] === "string" &&
+    typeof value["plan_id"] === "string" &&
+    typeof value["source"] === "string" &&
+    typeof value["role"] === "string" &&
+    typeof value["metric"] === "string" &&
+    typeof value["anchor_date"] === "string" &&
+    isWindowStats(value["pre"]) &&
+    isWindowStats(value["post"]) &&
+    isNullableNumber(value["delta_per_day"]) &&
+    isNullableNumber(value["ratio"]) &&
+    isNullableNumber(value["site_trend_ratio"]) &&
+    isStringArray(value["flags"]) &&
+    isOptionalBoolean(value["synthetic"])
+  );
+}
+
+export function isLiveWindow(value: unknown): value is LiveWindow {
+  return (
+    isObject(value) &&
+    typeof value["plan_id"] === "string" &&
+    isNullableString(value["deployed_at"]) &&
+    isNullableString(value["rolled_back_at"])
+  );
+}
+
+export function isLinkAttribution(value: unknown): value is LinkAttribution {
+  return (
+    isObject(value) &&
+    typeof value["plan_id"] === "string" &&
+    typeof value["plan_status"] === "string" &&
+    typeof value["anchor_text"] === "string" &&
+    typeof value["anchor_source"] === "string" &&
+    isStringArray(value["reason_codes"]) &&
+    isNullableString(value["relationship_type"]) &&
+    isNullableString(value["supersedes"]) &&
+    typeof value["engine_version"] === "string" &&
+    isNumber(value["policy_version"]) &&
+    isNumber(value["ranking_policy_version"]) &&
+    typeof value["analysis_version"] === "string" &&
+    isNullableString(value["calibration_version"]) &&
+    isNullableString(value["recommendation_run_id"]) &&
+    typeof value["source_page_id"] === "string" &&
+    typeof value["source_url"] === "string" &&
+    isNumber(value["source_page_version"]) &&
+    typeof value["target_page_id"] === "string" &&
+    typeof value["target_url"] === "string" &&
+    isNumber(value["target_page_version"]) &&
+    isNullableString(value["agent_run_id"]) &&
+    isNullableString(value["agent_verdict"]) &&
+    isNullableString(value["agent_model"]) &&
+    isNullableString(value["agent_graph_version"]) &&
+    isNullableString(value["approved_by"]) &&
+    isNullableString(value["approved_at"]) &&
+    isNullableString(value["deployment_id"]) &&
+    isNullableString(value["cms_provider"]) &&
+    isNullableString(value["deployed_at"]) &&
+    isNullableString(value["verified_at"]) &&
+    isNullableString(value["rolled_back_at"])
+  );
+}
+
+export function isLinkMeasurement(value: unknown): value is LinkMeasurement {
+  return (
+    isObject(value) &&
+    typeof value["plan_id"] === "string" &&
+    typeof value["measured_at"] === "string" &&
+    isNumber(value["analytics_policy_version"]) &&
+    typeof value["window_start"] === "string" &&
+    typeof value["window_end"] === "string" &&
+    isTotalsBySource(value["link_totals"]) &&
+    everyItem(value["target_comparison"], isPageWindowComparison) &&
+    everyItem(value["source_comparison"], isPageWindowComparison) &&
+    isStringArray(value["flags"]) &&
+    isStringArray(value["import_ids"])
+  );
+}
+
+export function isLinkPerformanceDetail(value: unknown): value is LinkPerformanceDetail {
+  return (
+    isObject(value) &&
+    isLinkAttribution(value["attribution"]) &&
+    isLiveWindow(value["live_window"]) &&
+    isDateRange(value["range"]) &&
+    (value["measurement"] === null || isLinkMeasurement(value["measurement"])) &&
+    isSeriesBySource(value["series"], isLinkDailyPoint) &&
+    isTotalsBySource(value["totals"]) &&
+    everyItem(value["target_impact"], isPageWindowComparison) &&
+    everyItem(value["source_impact"], isPageWindowComparison) &&
+    isOptionalBoolean(value["synthetic"])
+  );
+}
+
+export function isPageImpactView(value: unknown): value is PageImpactView {
+  return (
+    isObject(value) &&
+    typeof value["page_id"] === "string" &&
+    typeof value["url"] === "string" &&
+    isNumber(value["window_days"]) &&
+    isSeriesBySource(value["series"], isPageDailyPoint) &&
+    everyItem(value["changes"], isPageWindowComparison) &&
+    isOptionalBoolean(value["synthetic"])
+  );
+}
+
+export function isAnalyticsImportView(value: unknown): value is AnalyticsImportView {
+  return (
+    isObject(value) &&
+    typeof value["id"] === "string" &&
+    typeof value["job_run_id"] === "string" &&
+    typeof value["source"] === "string" &&
+    typeof value["dataset"] === "string" &&
+    typeof value["via"] === "string" &&
+    typeof value["synthetic"] === "boolean" &&
+    typeof value["date_start"] === "string" &&
+    typeof value["date_end"] === "string" &&
+    typeof value["source_timezone"] === "string" &&
+    isNullableString(value["file_name"]) &&
+    isNullableString(value["file_sha256"]) &&
+    typeof value["sampled"] === "boolean" &&
+    typeof value["replace_via"] === "boolean" &&
+    isNumber(value["rows_written"]) &&
+    isNumber(value["analytics_policy_version"]) &&
+    isNumberRecord(value["counters"]) &&
+    isStringArray(value["unresolved_sample"]) &&
+    typeof value["triggered_by"] === "string" &&
+    typeof value["created_at"] === "string"
+  );
+}
+
+export const isLinkPerformanceList = (value: unknown): value is LinkPerformanceList =>
+  isListResponse(value, isLinkPerformanceView);
+export const isAnalyticsImportList = (value: unknown): value is AnalyticsImportList =>
+  isListResponse(value, isAnalyticsImportView);
+
 /** The contract's only error body. `details` may be absent from older servers. */
 export function isErrorResponse(value: unknown): value is ErrorResponse {
   return (
@@ -2278,5 +2607,25 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
       if (!isSafePathId(planId)) return invalidArgument(path, "recommendation id");
       return inventory(path, `/recommendations/${id(planId)}/deployments`, isPlanDeploymentList, undefined, callOptions);
     },
+    getAnalyticsSummary: (query, callOptions = {}) =>
+      inventory("/analytics/summary", "/analytics/summary", isAnalyticsSummary, query, callOptions, [422]),
+
+    listLinkPerformance: (query, callOptions = {}) =>
+      inventory("/analytics/links", "/analytics/links", isLinkPerformanceList, query, callOptions, [422]),
+
+    getLinkPerformance: (planId, query, callOptions = {}) => {
+      const path = "/analytics/links/{plan_id}";
+      if (!isSafePathId(planId)) return invalidArgument(path, "recommendation id");
+      return inventory(path, `/analytics/links/${id(planId)}`, isLinkPerformanceDetail, query, callOptions);
+    },
+
+    getPageImpact: (pageId, query, callOptions = {}) => {
+      const path = "/analytics/pages/{page_id}";
+      if (!isSafePathId(pageId)) return invalidArgument(path, "page id");
+      return inventory(path, `/analytics/pages/${id(pageId)}`, isPageImpactView, query, callOptions);
+    },
+
+    listAnalyticsImports: (query, callOptions = {}) =>
+      inventory("/analytics/imports", "/analytics/imports", isAnalyticsImportList, query, callOptions, [422]),
   };
 }

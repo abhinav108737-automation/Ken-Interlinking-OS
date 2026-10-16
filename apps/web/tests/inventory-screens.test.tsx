@@ -202,6 +202,18 @@ describe("/inventory/pages/[pageId]", () => {
     }
   });
 
+  it("links through to the page's analytics impact (Phase 7)", async () => {
+    mockDetail();
+    await renderPage(PageDetailPage({ params: Promise.resolve({ pageId: PAGE_ID }), searchParams: Promise.resolve({}) }));
+    const section = screen.getByRole("heading", { level: 2, name: "Analytics" }).closest("section")!;
+    expect(within(section).getByRole("link", { name: "View page impact" })).toHaveAttribute(
+      "href",
+      `/analytics/pages/${PAGE_ID}`,
+    );
+    // The link is the only analytics affordance here: the screen fetches no analytics itself.
+    expect(section).toHaveTextContent("never says a link caused a change");
+  });
+
   it("never renders body_html as HTML", async () => {
     mockDetail();
     const { container } = await renderPage(

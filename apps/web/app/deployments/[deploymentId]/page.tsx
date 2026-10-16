@@ -5,13 +5,16 @@ import type { ReactNode } from "react";
 
 import { ApiErrorNotice } from "@/components/ApiErrorNotice";
 import { StatusBadge } from "@/components/StatusBadge";
+import { LinkPerformanceTable } from "@/components/analytics/LinkPerformanceTable";
+import { SyntheticBanner } from "@/components/analytics/SyntheticNotice";
 import { ChangePreviewView } from "@/components/deployments/ChangePreviewView";
 import { DeploymentActionsPanel } from "@/components/deployments/DeploymentActionsPanel";
 import { VerificationRuns } from "@/components/deployments/VerificationRuns";
 import { ExternalUrl } from "@/components/inventory/ExternalUrl";
 import { pageHref } from "@/components/inventory/PageInventoryTable";
 import { CELL, EmptyRow, HeaderRow, ROW, TableFrame } from "@/components/inventory/Table";
-import { getDeployment, isMissingResourceError, requireSessionUser } from "@/lib/api";
+import { getDeployment, isMissingResourceError, listLinkPerformance, requireSessionUser } from "@/lib/api";
+import { ANALYTICS_PATH } from "@/lib/analytics";
 import { can, describeRole, permissionsOf } from "@/lib/auth";
 import {
   DEPLOYMENTS_PATH,
@@ -81,7 +84,12 @@ export default async function DeploymentDetailPage({
 }) {
   const { deploymentId } = await params;
   const query = (await searchParams) ?? {};
-  const [result, me] = await Promise.all([getDeployment(deploymentId), requireSessionUser()]);
+  const [result, me, performance] = await Promise.all([
+    getDeployment(deploymentId),
+    requireSessionUser(),
+    // Per-item performance (ADR-0015 section 7). A failure here never hides the deployment.
+    listLinkPerformance({ deployment_id: deploymentId }),
+  ]);
 
   if (!result.ok) {
     if (isMissingResourceError(result.error)) {
@@ -109,6 +117,8 @@ export default async function DeploymentDetailPage({
   const actor = describeActor(deployment.actor);
   const planLabels = Object.fromEntries(deployment.items.map((item) => [item.plan_id.toLowerCase(), item.anchor_text]));
   const justDeployed = firstParam(query, "deployed") === "1";
+  const performanceLinks = performance.ok ? performance.data.items : [];
+  const syntheticPerformance = performanceLinks.some((link) => link.synthetic === true);
 
   return (
     <div className="space-y-8">
@@ -261,6 +271,28 @@ export default async function DeploymentDetailPage({
             )}
           </tbody>
         </TableFrame>
+      </Section>
+
+      <Section id="performance" title="Performance">
+        <p className="max-w-prose text-sm text-slate-700">
+          Stored analytics for the links of this deployment. Imports run from the command line, so a link with no row
+          yet simply has no data. See the{" "}
+          <Link href={ANALYTICS_PATH} className={`${LINK} underline-offset-4`}>
+            analytics overview
+          </Link>{" "}
+          for the ranges each source covers.
+        </p>
+        {syntheticPerformance && <SyntheticBanner />}
+        {!performance.ok ? (
+          <ApiErrorNotice error={performance.error} what="Performance" />
+        ) : (
+          <LinkPerformanceTable
+            links={performanceLinks}
+            caption="Performance of the links in this deployment"
+            total={performance.data.page.total}
+            emptyMessage="No analytics row is stored for these links yet."
+          />
+        )}
       </Section>
 
       <Section id="verification" title="Verification">

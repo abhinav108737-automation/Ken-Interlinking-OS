@@ -23,7 +23,8 @@ export NEXT_TELEMETRY_DISABLED := 1
         compose-config compose-full-up compose-full-down doctor verify openapi \
         ingest-file ingest-cms-mock crawl analyze recommend agents \
         user-create user-list user-disable user-enable user-set-role user-set-password \
-        sessions-prune deployments-reconcile jobs-reap cms-sim-seed cms-sim-serve
+        sessions-prune deployments-reconcile jobs-reap cms-sim-seed cms-sim-serve \
+        analytics-import analytics-aggregate analytics-demo-seed analytics-sim-serve
 
 help: ## List targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "} {printf "  %-18s %s\n", $$1, $$2}'
@@ -160,6 +161,25 @@ cms-sim-seed: ## Create + seed the simulated CMS from the inventory (ARGS="--exp
 
 cms-sim-serve: ## Serve the simulated CMS on 127.0.0.1:<free port> (prints the verified URL)
 	$(VENV)/python -m ken_services.deployment.cms_sim serve
+
+# ---------------------------------------------------------------- analytics (Phase 7)
+# Operator commands only (ADR-0015 section 6): there is NO HTTP route that imports, so no UI
+# action can cause Google egress. GA4 / Search Console calls need KEN_ANALYTICS_GOOGLE_ENABLED
+# (ASK) and a 0600 token file; without FILE= and without that setting the import is refused
+# before any I/O. Every run is one ANALYTICS_IMPORT job, so `make jobs-reap` applies.
+analytics-import: ## Import daily rows: make analytics-import SOURCE=ga4|gsc|first_party DATASET=links|pages START=YYYY-MM-DD END=YYYY-MM-DD [FILE=rows.csv] [ARGS=--replace-via]
+	@test -n "$(SOURCE)" && test -n "$(DATASET)" && test -n "$(START)" && test -n "$(END)" \
+	  || (echo 'usage: make analytics-import SOURCE=ga4|gsc|first_party DATASET=links|pages START=YYYY-MM-DD END=YYYY-MM-DD [FILE=rows.csv]' >&2; exit 2)
+	$(VENV)/python -m ken_services.analytics.cli import --source "$(SOURCE)" --dataset "$(DATASET)" --start "$(START)" --end "$(END)" $(if $(FILE),--file "$(FILE)") $(ARGS)
+
+analytics-aggregate: ## First-party link events -> daily rows, then the measure sweep: make analytics-aggregate [START= END=]
+	$(VENV)/python -m ken_services.analytics.cli aggregate $(if $(START),--start "$(START)") $(if $(END),--end "$(END)")
+
+analytics-demo-seed: ## Seeded demo analytics (local/ci only, never mixed with real rows): make analytics-demo-seed ARGS="--seed 7"
+	$(VENV)/python -m ken_services.analytics.cli demo-seed $(ARGS)
+
+analytics-sim-serve: ## Serve the simulated CMS with the beacon + the first-party collector (two verified loopback ports)
+	$(VENV)/python -m ken_services.analytics.collector.serve
 
 # ---------------------------------------------------------------- compose
 compose-config: ## Validate docker-compose.yml in all three modes

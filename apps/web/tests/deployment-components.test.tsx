@@ -112,7 +112,10 @@ describe("DeployFlow (one plan)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Dry run" }));
     fireEvent.click(await screen.findByRole("button", { name: "Deploy 1 link" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Retry later");
-    expect(screen.getByRole("alert")).toHaveFocus();
+    // FormMessage moves focus from an effect, which can flush after the alert is queryable,
+    // so wait for it rather than racing it. The requirement is unchanged: focus must land
+    // on the alert, so a component that never focused it still fails here.
+    await waitFor(() => expect(screen.getByRole("alert")).toHaveFocus());
     expect(screen.getByRole("form", { name: "Confirm deployment" })).toBeInTheDocument();
   });
 });

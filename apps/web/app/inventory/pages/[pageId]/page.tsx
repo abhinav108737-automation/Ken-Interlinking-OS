@@ -31,6 +31,7 @@ import {
   listSimilarPages,
 } from "@/lib/api";
 import { formatCount, formatDateTime, shortHash, toDisplayEntries } from "@/lib/format";
+import { pageImpactHref } from "@/lib/analytics";
 import { SIMILAR_DEFAULT_LIMIT, taxonomyLabels } from "@/lib/intelligence";
 import {
   DEFAULT_PAGE_SIZE,
@@ -235,6 +236,21 @@ export default async function PageDetailPage({
             <code className="text-xs">{page.id}</code>
           </Fact>
         </dl>
+      </section>
+
+      <section aria-labelledby="page-analytics-heading" className="space-y-2">
+        <h2 id="page-analytics-heading" className="text-xl font-semibold">
+          Analytics
+        </h2>
+        <p className="max-w-prose text-sm text-slate-800">
+          Stored traffic data for this page, and the observed change around each link that was deployed on or to it.
+          Observed data only: it never says a link caused a change.
+        </p>
+        <p>
+          <Link href={pageImpactHref(page.id)} className="text-blue-800 underline underline-offset-4">
+            View page impact
+          </Link>
+        </p>
       </section>
 
       <PageIntelligencePanel

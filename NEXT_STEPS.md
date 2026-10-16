@@ -1,16 +1,16 @@
 # Next Steps
 
-**Current state:** Phase 6 (Controlled Deployment) is **complete**; see
-[PHASE_6_REPORT.md](PHASE_6_REPORT.md). The earlier phases are covered in
-[PHASE_5_REPORT.md](PHASE_5_REPORT.md), [PHASE_4_REPORT.md](PHASE_4_REPORT.md), [PHASE_3_REPORT.md](PHASE_3_REPORT.md), [PHASE_2_REPORT.md](PHASE_2_REPORT.md), [PHASE_1_REPORT.md](PHASE_1_REPORT.md) and
+**Current state:** Phase 7 (Analytics) is **complete**; see
+[PHASE_7_REPORT.md](PHASE_7_REPORT.md). The earlier phases are covered in
+[PHASE_6_REPORT.md](PHASE_6_REPORT.md), [PHASE_5_REPORT.md](PHASE_5_REPORT.md), [PHASE_4_REPORT.md](PHASE_4_REPORT.md), [PHASE_3_REPORT.md](PHASE_3_REPORT.md), [PHASE_2_REPORT.md](PHASE_2_REPORT.md), [PHASE_1_REPORT.md](PHASE_1_REPORT.md) and
 [PHASE_0_REPORT.md](PHASE_0_REPORT.md).
 
 **Execution mode:** the user has authorised autonomous, sequential execution of Phases 3–9, an
 end-to-end local demo and a final report. Each phase has internal gates and a local commit plus
 tag. Execution stops only for ASK/BLOCK actions.
 
-**Next phase:** Phase 7 (analytics: first-party capture, GA4/GSC/CSV import, attribution,
-dashboards; ADR-0015), proceeding under that authorisation.
+**Next phase:** Phase 8 (learning: eval datasets, offline eval runner, the skill lifecycle and the
+policy lifecycle, with no self-promotion), proceeding under that authorisation.
 
 ## Needed from you before real production ingestion
 
@@ -35,6 +35,10 @@ any governing document, so none was guessed.
 | 12 | **Real CMS integration (ASK).** The CMS API base URL; its link-change contract, which must tell a version conflict (409) apart from a reused operation id (ADR-0014 §9); whether its sanitiser keeps `data-*` attributes; and **write credentials** stored outside source control. Then `KEN_CMS_PROVIDER=http`, `KEN_CMS_ALLOW_REMOTE=true` and `KEN_CMS_WRITES_ENABLED=true`, all with your approval. | Phase 6 runs only against the mock and the simulated CMS | **ASK** |
 | 13 | **Browser verification (amends TRD §2 / PRD §7.11).** Playwright was **not** adopted: verification parses the served HTML deterministically (ADR-0014 §6). Confirm the deferral, or ask for a headless-browser check for client-rendered pages. | It avoids a large browser download and process | decision |
 | 14 | **Real-template parity.** Run `make cms-sim-seed --export` on a sample of Ken's real HTML, or give us 10–20 real page bodies, to confirm that block hashes match between the inventory and the CMS body. Where parity breaks, the mutator refuses; it never guesses. | It proves deployment works on real templates | data |
+| 15 | **Real analytics (ASK).** A GA4 property id and its time zone, a Search Console property (`sc-domain:` or a URL prefix), and a **read-only** OAuth token plus how it is refreshed. Then `KEN_ANALYTICS_GOOGLE_ENABLED=true`, with your approval. | GA4/GSC calls are external egress; they stay refused before any request until you enable them | **ASK** |
+| 16 | **GA4 setup, only if you want link-level GA4 data.** Register the event-scoped custom dimension `ken_link_id` and forward the beacon's two events (`internal_link_impression`, `internal_link_click`). | GA4 only accrues custom-dimension data from registration onward, and high cardinality can produce `(other)` rows | action (you) |
+| 17 | **Consent decision for the beacon (ASK / legal).** It sends behavioural events and sets no cookie, but ePrivacy, GDPR and India's DPDP Act may still treat it as analytics requiring consent. It reads `window.kenAnalyticsConsent` and honours GPC and DNT. Putting it (or the collector) on the real site is a live deployment. | Serving it from the real site needs your consent-manager choice | **ASK** |
+| 18 | **Where production first-party collection lives.** Until you decide, the aggregated daily CSV (`ken_link_daily`) is the import contract and the collector stays loopback-only. | The local collector is a demo and a reference implementation, not a production service | decision |
 | 8 | **PRD v1.1 §17.1 wording:** "a genuine native degraded mode" now holds only for schema ≤ 0002 (pgvector is required from Phase 2, ADR-0010) | A product-document revision, for your approval | decision |
 
 ## Hard gates carried into later phases (from the Phase 3 QA review)
@@ -42,6 +46,22 @@ any governing document, so none was guessed.
 | Gate | Phase |
 |---|---|
 | **Least-privilege DB role** in any shared or production environment: DML on application tables only, no DDL, never superuser (ADR-0014 §5). It is required for the status-integrity trigger to be a real boundary (ADR-0014 §10 I1). | production integration |
+
+## Phase 7 known limitations (accepted, documented)
+
+| Item | When |
+|---|---|
+| **First-party counts are spoofable.** Origin and the page-view id are attacker-chosen, so anyone who can reach the collector can inflate counts for a live link. Phase 9 must never graduate a decision class on first-party data alone. | binding on 9 |
+| Outcomes are **correlational only**: no causal claim, no significance, no ranking or revenue attribution. Experiments (the policy EXPERIMENT stage) arrive in Phase 8. | 8 |
+| `overlapping_changes` flags most batch deployments, so Phase 8 should group outcomes by deployment rather than by link | 8 |
+| Cross-source totals double-count: GA4 and first-party can both see one event. Shown with a caveat wherever more than one source contributes. | informational |
+| Timing still separates a stored event from a rejected one, even though the response is byte-identical | inherent |
+| An all-rejected import is audited only as a failed job run (no ledger row) | informational |
+| No real-browser beacon test (Playwright still deferred); GA4/GSC unproven against the live APIs by design | with item 13 / item 15 |
+| A plan whose verification stays inconclusive stays `deployed` and never measures | informational |
+| Retention periods are recorded in the policy but enforced by nothing (the purge command is deferred) | when real volume exists |
+| The default aggregation window covers only **complete** UTC days, so events from today need an explicit range | informational |
+| An aggregation that reads no events records `synthetic = false` on its ledger row by default | cosmetic |
 
 ## Phase 6 known limitations (accepted, documented)
 
@@ -138,6 +158,14 @@ any governing document, so none was guessed.
 | Re-verify the licence inventory of any packaged desktop bundle (`sharp` is LGPL) | before desktop distribution |
 | 5432 guard does not resolve DNS (`127.1`, decimal IPs) | optional |
 | Colima does not start at login: run `colima start` after a reboot | — |
+
+**Closed in Phase 7:**
+- PRD §7.12: `internal_link_impression` and `internal_link_click` with source, destination, link id and policy version (experiment id is derived, not stored — Phase 8 adds experiments).
+- TRD §5 `link_events`; the GA4, Search Console and first-party providers behind one contract, with CSV fallback.
+- `analytics.updated` is emitted, with a typed payload, in the same transaction as its import.
+- Outcome attribution to plan, recommendation run, deployment, source page version, target, anchor and every policy/engine version.
+- Dashboards for link and page performance, with before/after comparison and explicit confounders.
+- The `verified → measured` transition, with an append-only measurement snapshot so Phase 8 and 9 can reproduce what was measured.
 
 **Closed in Phase 6:**
 - Deploy-time re-validation under lock: freshness, protections, live eligibility, existing links and density (Phase 3 QA gate).

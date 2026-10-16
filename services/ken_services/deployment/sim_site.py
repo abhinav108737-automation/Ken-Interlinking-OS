@@ -20,6 +20,16 @@ Routes (GET and HEAD only; anything else is 405):
 bound HERE, before the server starts; a fixed port is never requested. Port 8765 (the user's
 own dashboard) is refused outright even if the OS returned it, as is port 0.
 
+**Beacon (Phase 7, additive).** ``render_page(page, beacon_src=...)`` and
+``SimulatedSite(..., beacon_src=...)`` inject
+``<script src="{collector}/k.js" defer data-ken-collector="{collector}/e"></script>`` before
+``</body>`` (or at the end of the document when there is none), so ``make
+analytics-sim-serve`` can measure the simulated site with the first-party collector. With
+``beacon_src=None`` -- the default -- the rendered bytes are IDENTICAL to Phase 6 (a test
+asserts it). Injecting the beacon cannot change a content hash either: inventory
+normalisation and the deployment source map both drop ``<script>`` (ADR-0015 §12.1), which a
+parity test asserts. The index page is navigation, not content, and never carries the beacon.
+
 **Listener verification** (:meth:`SimulatedSite.start`): (1) the pre-bound socket's
 ``getsockname()`` must be the requested loopback address with a non-zero port that is not
 8765; (2) after uvicorn reports started, an HTTP GET of :data:`HEALTH_PATH` on that exact
@@ -55,6 +65,7 @@ __all__ = [
     "SimSiteError",
     "SimulatedSite",
     "SimulatedSiteApp",
+    "beacon_tag",
     "render_page",
     "serve_simulated_site",
 ]
@@ -66,6 +77,7 @@ FORBIDDEN_PORTS: Final = frozenset({0, 8765})
 """0 means "not bound"; 8765 is the user's own dashboard app and is NEVER used."""
 ROBOTS_TXT: Final = b"User-agent: *\nAllow: /\n"
 _HTML_ELEMENT: Final = re.compile(r"<html[\s>]", re.IGNORECASE)
+_BODY_END: Final = re.compile(r"</body\s*>", re.IGNORECASE)
 _ALLOWED_METHODS: Final = ("GET", "HEAD")
 
 type Scope = MutableMapping[str, Any]
@@ -89,18 +101,45 @@ class PageSource(Protocol):
 # --------------------------------------------------------------------------- #
 # Rendering (pure)
 # --------------------------------------------------------------------------- #
-def render_page(page: CMSPage) -> str:
-    """The HTML served for ``page``: a full document verbatim, a fragment wrapped."""
+def beacon_tag(beacon_src: str) -> str:
+    """The first-party beacon's script tag for the collector at ``beacon_src`` (its base URL).
+
+    ``defer`` so it never blocks rendering, and ``data-ken-collector`` so the beacon knows
+    where to post without a second request. The URL is escaped for a double-quoted attribute.
+    """
+    base = html.escape(beacon_src.rstrip("/"), quote=True)
+    return f'<script src="{base}/k.js" defer data-ken-collector="{base}/e"></script>'
+
+
+def _with_beacon(document: str, beacon_src: str) -> str:
+    """``document`` with the beacon tag before its LAST ``</body>``, else appended."""
+    tag = beacon_tag(beacon_src)
+    match = None
+    for found in _BODY_END.finditer(document):
+        match = found
+    if match is None:
+        return document + tag + "\n"
+    return document[: match.start()] + tag + "\n" + document[match.start() :]
+
+
+def render_page(page: CMSPage, *, beacon_src: str | None = None) -> str:
+    """The HTML served for ``page``: a full document verbatim, a fragment wrapped.
+
+    ``beacon_src`` (the collector's base URL) injects the first-party beacon; ``None`` -- the
+    default -- renders exactly the Phase 6 bytes.
+    """
     if _HTML_ELEMENT.search(page.body_html):
-        return page.body_html
-    title = html.escape(page.title, quote=False)
-    canonical = html.escape(page.url, quote=True)
-    return (
-        '<!DOCTYPE html>\n<html>\n<head>\n<meta charset="utf-8">\n'
-        f"<title>{title}</title>\n"
-        f'<link rel="canonical" href="{canonical}">\n'
-        f"</head>\n<body>\n{page.body_html}\n</body>\n</html>\n"
-    )
+        document = page.body_html
+    else:
+        title = html.escape(page.title, quote=False)
+        canonical = html.escape(page.url, quote=True)
+        document = (
+            '<!DOCTYPE html>\n<html>\n<head>\n<meta charset="utf-8">\n'
+            f"<title>{title}</title>\n"
+            f'<link rel="canonical" href="{canonical}">\n'
+            f"</head>\n<body>\n{page.body_html}\n</body>\n</html>\n"
+        )
+    return document if beacon_src is None else _with_beacon(document, beacon_src)
 
 
 def _path_of(url: str) -> str:
@@ -130,9 +169,10 @@ def render_index(pages: list[CMSPage]) -> str:
 class SimulatedSiteApp:
     """A minimal ASGI app (no framework): GET/HEAD by path over a :class:`PageSource`."""
 
-    def __init__(self, source: PageSource, *, nonce: str) -> None:
+    def __init__(self, source: PageSource, *, nonce: str, beacon_src: str | None = None) -> None:
         self._source = source
         self._nonce = nonce.encode("ascii")
+        self._beacon_src = beacon_src
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != "http":  # lifespan is off; websockets are not served
@@ -171,7 +211,8 @@ class SimulatedSiteApp:
             return 503, b"simulated CMS unavailable\n", text_plain
         if page is None:
             return 404, b"not found\n", text_plain
-        return 200, render_page(page).encode("utf-8"), "text/html; charset=utf-8"
+        body = render_page(page, beacon_src=self._beacon_src)
+        return 200, body.encode("utf-8"), "text/html; charset=utf-8"
 
     @staticmethod
     async def _respond(
@@ -230,11 +271,17 @@ class SimulatedSite:
     :func:`serve_simulated_site`; the CLI uses this class to wait for an interrupt."""
 
     def __init__(
-        self, source: PageSource, *, host: str = "127.0.0.1", startup_timeout_s: float = 10.0
+        self,
+        source: PageSource,
+        *,
+        host: str = "127.0.0.1",
+        startup_timeout_s: float = 10.0,
+        beacon_src: str | None = None,
     ) -> None:
         self._address = _loopback(host)
         self._source = source
         self._timeout = startup_timeout_s
+        self._beacon_src = beacon_src
         self._nonce = secrets.token_hex(16)
         self._sock: socket.socket | None = None
         self._server: uvicorn.Server | None = None
@@ -257,7 +304,7 @@ class SimulatedSite:
         self._sock = sock
         self.port = int(sock.getsockname()[1])
         config = uvicorn.Config(
-            SimulatedSiteApp(self._source, nonce=self._nonce),
+            SimulatedSiteApp(self._source, nonce=self._nonce, beacon_src=self._beacon_src),
             lifespan="off",
             # None/None: uvicorn changes NO global logging state (no dictConfig, no
             # setLevel on uvicorn.*, no handler removal); ken_core.logging owns it and
@@ -333,11 +380,17 @@ class SimulatedSite:
 
 @asynccontextmanager
 async def serve_simulated_site(
-    source: PageSource, *, host: str = "127.0.0.1", startup_timeout_s: float = 10.0
+    source: PageSource,
+    *,
+    host: str = "127.0.0.1",
+    startup_timeout_s: float = 10.0,
+    beacon_src: str | None = None,
 ) -> AsyncIterator[str]:
     """Serve ``source`` on ``host`` (loopback) at an OS-assigned port; yield the VERIFIED
     base URL (``http://127.0.0.1:<port>``, no trailing slash); stop on exit."""
-    site = SimulatedSite(source, host=host, startup_timeout_s=startup_timeout_s)
+    site = SimulatedSite(
+        source, host=host, startup_timeout_s=startup_timeout_s, beacon_src=beacon_src
+    )
     base_url = await site.start()
     try:
         yield base_url

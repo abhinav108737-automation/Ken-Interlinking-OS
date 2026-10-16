@@ -149,6 +149,32 @@ policy_gate → finalize`.
 - **UI.** A dashboard, the inbox with bulk review, plan review with a before/after preview and
   a span picker, the audit log, policies, and role-aware controls.
 
+## What Phase 7 added: analytics
+
+**Measurement is an input, never a mutation target.** Every analytics provider is read-only by
+construction: the contract has no write method.
+
+- **First-party capture runs outside the control API.** A separate ASGI collector binds loopback
+  on a free port (never 8765) and serves only a beacon, an events endpoint and a health nonce.
+  This keeps untrusted browser traffic away from the auth surface, and keeps the ADR-0013
+  invariant that the only public control-API routes are `/health`, `/ready` and `POST /auth/login`.
+- **Pseudonymous by construction.** A stored event is (event type, plan, match mode, UTC date,
+  minute-truncated receipt time, dedupe key, synthetic) — nothing else, enforced by a database
+  CHECK and a column-set test. Identifying data exists only in memory during a request.
+- **Every rejection is a 204 with identical headers**, so the endpoint is no validity oracle.
+- **External egress is gated and CLI-only.** GA4 and Search Console are refused before any
+  request unless explicitly enabled; no UI button can trigger them.
+- **The link id is the plan id**, so measurement joins straight to the decision that created the
+  link. The live window comes from `link_plan_transitions`, never from a deployment item stage.
+- **What was measured is snapshotted** (append-only `link_measurements`), so a later re-import
+  cannot make a past measurement unreproducible — Phase 8 and 9 depend on that.
+- **Write access to analytics tables is gated in the database**: UPDATE is always refused and
+  DELETE only inside a transaction that set `ken.analytics_writer`.
+
+Experiments are deliberately **not** here: experiment attribution will be derived from a
+source-page assignment and an active interval, never stamped onto events, so Phase 8 can add the
+assignment tables without competing with stored columns.
+
 ## What Phase 6 added: controlled deployment
 
 - **Deployment service.** One source page per deployment, up to 20 approved plans:
@@ -225,4 +251,5 @@ Proposing one requires stopping and asking the user (CLAUDE.md), with an ADR.
 | [0012](adr/ADR-0012-agent-orchestration.md) | Phase 4 agent orchestration: a LangGraph supervisor that reviews deterministic plans with optional, validated local-model slots, deterministic fallbacks, narrow tools and an atomic hand-off to the human queue |
 | [0013](adr/ADR-0013-reviewer-control-plane.md) | Phase 5 reviewer control plane: local auth provider abstraction (scrypt, opaque Bearer sessions, HttpOnly cookie in the web tier), deny-by-default RBAC, idempotent version-aware human review with structured feedback, supersede-on-edit |
 | [0014](adr/ADR-0014-controlled-deployment.md) | Phase 6 controlled deployment: two-phase durable intent with reconciliation, per-source lock, deterministic splice-only HTML mutation, HTTP/HTML verification (browser deferred), simulated CMS, gated production HTTP adapter, DB status-integrity trigger |
+| [0015](adr/ADR-0015-analytics.md) | Phase 7 analytics: a loopback first-party collector and beacon kept off the control API, pseudonymous events, gated GA4/GSC egress with CSV fallback, replace-semantics imports, attribution from plan transitions, before/after with explicit confounders and no causal claim, append-only measurement snapshots |
 | [0010](adr/ADR-0010-content-intelligence.md) | Phase 2 content intelligence: pgvector required from 0003, taxonomy-policy analysis, provider-defined embeddings, version-stamped relationships, protections, read-time eligibility, generic job runs |

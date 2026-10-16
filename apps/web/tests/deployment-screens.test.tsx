@@ -7,12 +7,17 @@ import RecommendationDetailPage from "@/app/recommendations/[planId]/page";
 import RecommendationsPage from "@/app/recommendations/page";
 import type { ApiError, ApiResult, DeploymentStatus, Role } from "@/lib/api-client";
 
+import { linkPerformanceDetail, linkPerformanceView } from "./fixtures/analytics";
 import { DEPLOYMENT_ID, deploymentDetail, deploymentView, twoPlanDeployment } from "./fixtures/deployments";
 import { PAGE_ID, list } from "./fixtures/inventory";
 import { ANCHOR, OLD_PLAN_ID, PLAN_ID, linkPlan, linkPlanDetail, recommendationSummary } from "./fixtures/recommendations";
 import { principal } from "./fixtures/review";
 
 const api = vi.hoisted(() => ({
+  // Phase 7: the plan detail screen's performance panel.
+  getLinkPerformance: vi.fn(),
+  // Phase 7: the deployment detail screen's performance table.
+  listLinkPerformance: vi.fn(),
   requireSessionUser: vi.fn(),
   listDeployments: vi.fn(),
   getDeployment: vi.fn(),
@@ -51,6 +56,8 @@ function as(role: Role) {
 
 beforeEach(() => {
   for (const mock of Object.values(api)) mock.mockReset();
+  api.getLinkPerformance.mockResolvedValue({ ok: true, data: linkPerformanceDetail(), status: 200 });
+  api.listLinkPerformance.mockResolvedValue({ ok: true, data: list([linkPerformanceView()]), status: 200 });
   nav.notFound.mockClear();
   as("operator_admin");
   api.listPlanDeployments.mockResolvedValue(ok([]));

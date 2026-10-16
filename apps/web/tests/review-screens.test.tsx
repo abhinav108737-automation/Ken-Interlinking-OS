@@ -12,11 +12,14 @@ import RecommendationsPage from "@/app/recommendations/page";
 import PoliciesPage from "@/app/settings/policies/page";
 import type { ApiError, ApiResult, Role } from "@/lib/api-client";
 
+import { linkPerformanceDetail } from "./fixtures/analytics";
 import { list } from "./fixtures/inventory";
 import { ANCHOR, PLAN_ID, linkPlan, linkPlanDetail, recommendationSummary } from "./fixtures/recommendations";
 import { NEW_PLAN_ID, dashboardSummary, eventRecord, policiesView, principal, reviewAction, targetOption } from "./fixtures/review";
 
 const api = vi.hoisted(() => ({
+  // Phase 7: the plan detail screen's performance panel.
+  getLinkPerformance: vi.fn(),
   // Phase 6: the plan detail screen's deployment panel.
   listPlanDeployments: vi.fn(),
   getSessionUser: vi.fn(),
@@ -58,6 +61,7 @@ function as(role: Role) {
 
 beforeEach(() => {
   for (const mock of Object.values(api)) mock.mockReset();
+  api.getLinkPerformance.mockResolvedValue({ ok: true, data: linkPerformanceDetail(), status: 200 });
   api.listPlanDeployments.mockResolvedValue({ ok: true, data: [], status: 200 });
   as("reviewer");
   api.getRecommendationSummary.mockResolvedValue(ok(recommendationSummary()));

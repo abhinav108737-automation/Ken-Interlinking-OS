@@ -7,6 +7,7 @@ import AgentRunsPage from "@/app/agents/page";
 import RecommendationDetailPage from "@/app/recommendations/[planId]/page";
 import type { ApiError, ApiResult } from "@/lib/api-client";
 
+import { linkPerformanceDetail } from "./fixtures/analytics";
 import {
   AGENT_JOB_ID,
   AGENT_RUN_ID,
@@ -23,6 +24,8 @@ import { OLD_PLAN_ID, PLAN_ID, linkPlanDetail } from "./fixtures/recommendations
 import { principal } from "./fixtures/review";
 
 const api = vi.hoisted(() => ({
+  // Phase 7: the plan detail screen's performance panel.
+  getLinkPerformance: vi.fn(),
   // Phase 6: the plan detail screen's deployment panel.
   listPlanDeployments: vi.fn(),
   listAgentRuns: vi.fn(),
@@ -60,6 +63,7 @@ function fail(error: Partial<ApiError> & Pick<ApiError, "kind">): ApiResult<neve
 
 beforeEach(() => {
   for (const mock of Object.values(api)) mock.mockReset();
+  api.getLinkPerformance.mockResolvedValue({ ok: true, data: linkPerformanceDetail(), status: 200 });
   api.listPlanDeployments.mockResolvedValue({ ok: true, data: [], status: 200 });
   nav.notFound.mockClear();
   api.requireSessionUser.mockResolvedValue(ok(principal("viewer")));
