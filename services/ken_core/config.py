@@ -5,16 +5,26 @@ with the ``KEN_`` prefix, so ``database_url`` comes from ``KEN_DATABASE_URL``.
 
 Two settings carry architectural weight:
 
-``require_pgvector`` / ``require_ollama``
+``require_qdrant`` / ``require_ollama``
     These flip a readiness probe between "failure makes us NOT_READY" and
     "failure merely degrades us". They are the entire mechanism by which one
-    binary runs honestly both in native development (where pgvector is absent)
-    and in the container stack (where it is present). See docs/adr/ADR-0003.md.
+    binary runs honestly both in native development and in the container
+    stack. ``KEN_REQUIRE_PGVECTOR`` is GONE: ADR-0017 removed the vector
+    extension and replaced its probe with a vector-store probe.
+
+``autonomy_mode``
+    ADR-0018. ``shadow`` by default, so installing this product changes
+    nothing on a real site. ``autonomous`` is refused unless it is explicitly
+    acknowledged, and refused against a write-enabled ``http`` CMS unless
+    production is explicitly allowed. The process refuses to boot rather than
+    publish by surprise.
 
 ``auto_approve_enabled``
     TRD.md section 20 requires AUTO_APPROVE to be globally disabled in v1. A
     validator raises at startup if it is ever set true, so the guarantee is
     enforced by the process refusing to boot rather than by a code review.
+    ADR-0018 RETIRES the flag rather than reusing it: autonomy is expressed
+    only by ``autonomy_mode``, so the two concepts cannot be confused.
 """
 
 from __future__ import annotations
@@ -413,14 +423,43 @@ class Settings(BaseSettings):
         ),
     )
 
+    # ----------------------------------------------------------- vector store
+    # ADR-0017: Qdrant is the derived, rebuildable semantic index; PostgreSQL keeps the
+    # embedding VALUES and stays the source of truth. The extension is removed, not
+    # bypassed: there is no KEN_REQUIRE_PGVECTOR and no extension created anywhere.
+    vector_store: Literal["memory", "qdrant"] = Field(
+        default="memory",
+        description=(
+            "DEFAULT 'memory' deliberately: the in-process exact-cosine store makes the "
+            "whole test suite and CI run with no container. 'qdrant' is the local service."
+        ),
+    )
+    qdrant_url: str = Field(
+        default="http://127.0.0.1:6333",
+        description="Base URL of the Qdrant HTTP API. Loopback unless staging/production.",
+    )
+    qdrant_collection: str = Field(
+        default="ken_pages",
+        min_length=1,
+        max_length=200,
+        pattern=r"^[a-z][a-z0-9_]{0,199}$",
+        description="The one collection this system owns. Dropping it costs a reindex.",
+    )
+    qdrant_api_key: SecretStr | None = Field(
+        default=None,
+        description="Optional Qdrant API key. Never logged, never in /meta, never in a job "
+        "snapshot (docs/CONTRACTS.md rule 9).",
+    )
+    qdrant_timeout_s: float = Field(default=10.0, gt=0.0, le=120.0)
+
     # -------------------------------------------------------------- readiness
-    require_pgvector: bool = Field(
+    require_qdrant: bool = Field(
         default=True,
         description=(
-            "From Phase 2 true: migration 0003 creates the vector extension and the "
-            "first vector column (ADR-0010). A server without pgvector can apply "
-            "migrations up to 0002 only; the Phase 2 build then reports /ready 503 "
-            "(migrations behind head) against it."
+            "ADR-0017 s5: the vector-store probe is REQUIRED while the semantic channel is "
+            "enabled, which it is by default. With the default in-memory store the probe "
+            "always answers ok, so this is honest rather than noisy; with "
+            "KEN_VECTOR_STORE=qdrant an unreachable Qdrant correctly makes /ready 503."
         ),
     )
     require_ollama: bool = Field(
@@ -433,9 +472,68 @@ class Settings(BaseSettings):
     worker_tick_seconds: float = Field(default=30.0, gt=0)
 
     # --------------------------------------------------------------- autonomy
+    # Phase 9 (docs/adr/ADR-0018-autonomy-first-publishing.md section 2). There is no normal
+    # human approval step any more, so the SAFETY lives here: the default mode publishes
+    # nothing, and moving off it takes two deliberate acknowledgements.
+    autonomy_mode: Literal["shadow", "guarded", "autonomous"] = Field(
+        default="shadow",
+        description=(
+            "shadow (DEFAULT): evaluate and record what WOULD have happened; publish "
+            "nothing. guarded: auto-publish only low-risk, high-confidence decisions. "
+            "autonomous: publish every policy-eligible decision. Hard deterministic blocks "
+            "apply in every mode and are never waived."
+        ),
+    )
+    autonomy_autonomous_acknowledged: bool = Field(
+        default=False,
+        description=(
+            "Required to select autonomous mode at all. Its only purpose is to make "
+            "'publish without a human' an explicit, recorded operator act rather than the "
+            "consequence of one environment variable."
+        ),
+    )
+    autonomy_allow_production: bool = Field(
+        default=False,
+        description=(
+            "Required before ANY publishing mode may run against a write-enabled 'http' CMS "
+            "(the real site). ADR-0018 s2 names autonomous; guarded is included because it "
+            "also publishes without a human, and a gate that only covers the louder mode is "
+            "not a gate."
+        ),
+    )
+    autonomy_verification_profile: Literal["standard", "strict"] = Field(
+        default="standard",
+        description="The profile used when the decision does not demand strict verification.",
+    )
+    autonomy_strict_verify_delay_s: float = Field(
+        default=30.0,
+        ge=0.0,
+        le=3600.0,
+        description="Strict profile: the pause before the SECOND verification pass.",
+    )
+    autonomy_strict_verify_attempts: int = Field(
+        default=2, ge=2, le=10, description="Strict profile: at least two passes, by definition."
+    )
+    autonomy_publish_max_attempts: int = Field(
+        default=3,
+        ge=1,
+        le=10,
+        description=(
+            "ADR-0018 s4: the retry budget per (source, target). Once it is spent nothing "
+            "republishes that pair, whatever the decision says."
+        ),
+    )
+    autonomy_publish_cooldown_s: float = Field(
+        default=3600.0,
+        ge=0.0,
+        le=30 * 86400.0,
+        description="ADR-0018 s4: the cool-down after a failed publish or a rollback.",
+    )
+
     auto_approve_enabled: bool = Field(
         default=False,
-        description="Must remain false in v1 (TRD.md section 20). Enforced below.",
+        description="RETIRED (ADR-0018 s2), not reused. Must remain false in v1 (TRD.md "
+        "section 20); the validator below still refuses true.",
     )
 
     @field_validator("database_url")
@@ -495,6 +593,68 @@ class Settings(BaseSettings):
                 "AUTO_APPROVE to be disabled globally in v1; enabling it is an ASK-level "
                 "action requiring explicit human authorisation and a policy change."
             )
+        return self
+
+    @model_validator(mode="after")
+    def _autonomy_is_deliberate(self) -> Settings:
+        """ADR-0018 s2. Two independent gates, both refusing at STARTUP.
+
+        1. ``autonomous`` is never selected implicitly: it needs
+           ``KEN_AUTONOMY_AUTONOMOUS_ACKNOWLEDGED=true`` as well.
+        2. No publishing mode runs against a write-enabled ``http`` CMS -- the real site --
+           without ``KEN_AUTONOMY_ALLOW_PRODUCTION=true``. ``guarded`` is covered too: it
+           also publishes without a human.
+
+        Refusing to boot is the point. A misconfiguration that would publish to a live site
+        must not be discoverable only by looking at the site afterwards.
+        """
+        if self.autonomy_mode == "autonomous" and not self.autonomy_autonomous_acknowledged:
+            raise ValueError(
+                "KEN_AUTONOMY_MODE=autonomous requires "
+                "KEN_AUTONOMY_AUTONOMOUS_ACKNOWLEDGED=true. Autonomous publishing writes to "
+                "the CMS with no human in the loop; it is an explicit operator decision "
+                "(ADR-0018 section 2), never an implicit one."
+            )
+        publishes = self.autonomy_mode in {"guarded", "autonomous"}
+        production_cms = self.cms_provider == "http" and self.cms_writes_enabled
+        if publishes and production_cms and not self.autonomy_allow_production:
+            raise ValueError(
+                f"KEN_AUTONOMY_MODE={self.autonomy_mode} is refused while the CMS provider is "
+                "'http' with writes enabled, unless KEN_AUTONOMY_ALLOW_PRODUCTION=true. That "
+                "combination publishes to the real site without a human (ADR-0018 section 2)."
+            )
+        return self
+
+    @field_validator("qdrant_url")
+    @classmethod
+    def _qdrant_base_url(cls, value: str) -> str:
+        """A bare ``scheme://host[:port]``, no credentials. ADR-0017: the service is local."""
+        try:
+            parts = urlsplit(value)
+            _ = parts.port
+        except ValueError as exc:
+            raise ValueError("KEN_QDRANT_URL is not a valid URL") from exc
+        if parts.scheme not in {"http", "https"} or not parts.hostname:
+            raise ValueError("KEN_QDRANT_URL must be http(s)://host[:port]")
+        if parts.username is not None or parts.password is not None:
+            raise ValueError("KEN_QDRANT_URL must not carry credentials (use KEN_QDRANT_API_KEY)")
+        if parts.query or parts.fragment or parts.path not in {"", "/"}:
+            raise ValueError("KEN_QDRANT_URL must be a bare scheme://host[:port]")
+        return value.rstrip("/")
+
+    @model_validator(mode="after")
+    def _qdrant_is_local_outside_deployment(self) -> Settings:
+        """Compose binds Qdrant on 127.0.0.1 only. A non-loopback host in local or ci is a
+        mistake, not a feature: it would send embeddings off this machine."""
+        if self.environment in {"local", "ci"} and not is_loopback_host(
+            urlsplit(self.qdrant_url).hostname
+        ):
+            # The compose service name is how a container reaches it inside the network.
+            if urlsplit(self.qdrant_url).hostname != "qdrant":
+                raise ValueError(
+                    "KEN_QDRANT_URL must be loopback (or the 'qdrant' compose service) in a "
+                    "local or ci environment"
+                )
         return self
 
     @field_validator("ga4_timezone")
@@ -733,8 +893,14 @@ class Settings(BaseSettings):
             "database_host": host,
             "database_port": port,
             "database_name": database,
-            "require_pgvector": self.require_pgvector,
+            "require_qdrant": self.require_qdrant,
             "require_ollama": self.require_ollama,
+            "vector_store": self.vector_store,
+            "qdrant_collection": self.qdrant_collection,
+            "autonomy_mode": self.autonomy_mode,
+            "autonomy_autonomous_acknowledged": self.autonomy_autonomous_acknowledged,
+            "autonomy_allow_production": self.autonomy_allow_production,
+            "autonomy_verification_profile": self.autonomy_verification_profile,
             "crawl_host": crawl_host,
             "crawl_delay_s": self.crawl_delay_s,
             "crawl_concurrency": self.crawl_concurrency,

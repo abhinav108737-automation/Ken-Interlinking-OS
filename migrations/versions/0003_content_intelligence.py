@@ -7,13 +7,21 @@ Create Date: 2026-10-14
 Column-for-column with ``ken_core.db.models.intelligence``
 (docs/adr/ADR-0010-content-intelligence.md).
 
-* ``CREATE EXTENSION IF NOT EXISTS vector`` -- the first vector column,
-  ``page_embeddings.embedding``, arrives here (ADR-0003 deferred the extension
-  to exactly this migration). On a server without pgvector this migration fails
-  loudly with pgvector's own error; it never silently skips (ADR-0010 section 1).
-* ``page_embeddings.embedding`` is a DIMENSION-LESS ``vector``. The dimension is
-  the provider's, stored per row in ``dimensions`` and tied to the vector by the
-  CHECK ``vector_dims(embedding) = dimensions``. Nothing here names a dimension.
+* **AMENDED by ADR-0017 (2026-10-16).** This migration originally ran
+  ``CREATE EXTENSION IF NOT EXISTS vector`` and created
+  ``page_embeddings.embedding`` as a dimension-less pgvector ``vector``.
+  ADR-0017 removes that extension from the system entirely -- "never issued" --
+  so the statement is gone and the column is created as a plain ``real[]``
+  instead. Editing an applied migration is normally forbidden; it is done here
+  because the alternative is a chain that still requires the extension on every
+  fresh database while ADR-0017 forbids it. A database already at 0003 or later
+  keeps its ``vector`` column until ``0010_qdrant_and_autonomy`` converts it,
+  which that migration detects and does only when needed -- so both a fresh and
+  an existing database end at exactly the same schema.
+* ``page_embeddings.embedding`` is a DIMENSION-LESS ``real[]`` (float4, exactly
+  the precision pgvector stored). The dimension is the provider's, stored per
+  row in ``dimensions`` and tied to the array by the CHECK
+  ``array_length(embedding, 1) = dimensions``. Nothing here names a dimension.
 * ``page_embeddings.recipe_fingerprint`` (sha256-derived, of the recipe version
   and the settings that shape the embedded text) is part of the embedding's
   identity: the unique key and the similarity index include it, so vectors of
@@ -25,8 +33,8 @@ Column-for-column with ``ken_core.db.models.intelligence``
   application rule; at most one ACTIVE row per (page, source, rule) is enforced
   by a partial unique index).
 
-Downgrade drops the triggers, the five tables in reverse order and then the
-extension, returning exactly to the 0002 state.
+Downgrade drops the triggers and the five tables in reverse order, returning
+exactly to the 0002 state. It drops no extension: none is created.
 """
 
 from __future__ import annotations
@@ -37,7 +45,6 @@ from typing import Any
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import postgresql
-from sqlalchemy.types import UserDefinedType
 
 revision: str = "0003_content_intelligence"
 down_revision: str | Sequence[str] | None = "0002_content_inventory"
@@ -60,18 +67,6 @@ _RELATIONSHIP_TYPES = (
     "'same_geography', 'regional_parent', 'supply_chain_upstream', 'supply_chain_downstream', "
     "'complementary_market', 'industry_adjacency', 'semantic_similar')"
 )
-
-
-class _Vector(UserDefinedType[Any]):
-    """pgvector ``vector`` WITHOUT a dimension. Local to this migration on purpose:
-
-    a migration is a frozen snapshot and must not change when application types do.
-    """
-
-    cache_ok = True
-
-    def get_col_spec(self, **kw: Any) -> str:
-        return "vector"
 
 
 def _ts(name: str, *, nullable: bool = False, default_now: bool = False) -> sa.Column[Any]:
@@ -98,9 +93,6 @@ def _gin(name: str, column: str) -> None:
 
 
 def upgrade() -> None:
-    # pgvector's own error if the extension is not available: never a silent skip.
-    op.execute("CREATE EXTENSION IF NOT EXISTS vector")
-
     # op.f(): names below are final (the naming convention must not be re-applied).
     op.create_table(
         "job_runs",
@@ -195,7 +187,7 @@ def upgrade() -> None:
         sa.Column("recipe_version", sa.Integer(), nullable=False),
         sa.Column("recipe_fingerprint", sa.Text(), nullable=False),
         sa.Column("input_hash", sa.Text(), nullable=False),
-        sa.Column("embedding", _Vector(), nullable=False),
+        sa.Column("embedding", postgresql.ARRAY(sa.REAL()), nullable=False),
         sa.Column("run_id", sa.Uuid(), nullable=True),
         _ts("created_at", default_now=True),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_page_embeddings")),
@@ -223,7 +215,7 @@ def upgrade() -> None:
         ),
         sa.CheckConstraint("dimensions > 0", name=op.f("ck_page_embeddings_dimensions_positive")),
         sa.CheckConstraint(
-            "vector_dims(embedding) = dimensions",
+            "array_length(embedding, 1) = dimensions",
             name=op.f("ck_page_embeddings_dimensions_match"),
         ),
         sa.CheckConstraint(
@@ -341,5 +333,4 @@ def downgrade() -> None:
     op.drop_table("page_embeddings")
     op.drop_table("page_analyses")
     op.drop_table("job_runs")
-    # Only this migration created the extension, and nothing at 0002 uses it.
-    op.execute("DROP EXTENSION IF EXISTS vector")
+

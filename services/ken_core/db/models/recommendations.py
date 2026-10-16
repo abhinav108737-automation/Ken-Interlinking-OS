@@ -227,6 +227,14 @@ class LinkCandidate(Base):
     plan_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid(as_uuid=True), ForeignKey("link_plans.id", ondelete="RESTRICT"), nullable=True
     )
+    attribution: Mapped[list[Any]] = _jsonb("[]")
+    """Migration 0010: a jsonb ARRAY of ``CandidateAttribution`` -- one entry per channel that
+    retrieved this candidate, with its raw AND normalised value and its rank in that channel.
+    Deliberately per channel: a single opaque score cannot be audited, re-derived or ablated
+    (directive section 6)."""
+    graph_signals: Mapped[dict[str, Any]] = _jsonb("{}")
+    """Migration 0010: the TARGET's ``GraphSignals`` as they were when it was retrieved, each
+    signal separately. Snapshotted here rather than joined later because the graph moves."""
     created_at: Mapped[datetime] = _ts(default_now=True)
 
     __table_args__ = (
@@ -237,6 +245,8 @@ class LinkCandidate(Base):
         ),
         # A kept candidate became a plan; a rejected one did not.
         CheckConstraint("(rejection IS NULL) = (plan_id IS NOT NULL)", name="kept_iff_planned"),
+        CheckConstraint("jsonb_typeof(attribution) = 'array'", name="attribution_array"),
+        CheckConstraint("jsonb_typeof(graph_signals) = 'object'", name="graph_signals_object"),
         Index("ix_link_candidates_source_page_id", "source_page_id"),
     )
 

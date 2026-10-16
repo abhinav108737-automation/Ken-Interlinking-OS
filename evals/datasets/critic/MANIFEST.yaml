@@ -1,0 +1,13 @@
+# critic eval dataset -- Phase 8 (ADR-0016 section 7).
+#
+# Re-run `.venv/bin/python evals/datasets/rehash.py` after editing a case file:
+# the runner verifies every sha256 below and refuses a dataset that has drifted.
+suite: critic
+dataset: core
+dataset_version: 1
+case_count: 12
+files:
+  core.v1.jsonl: cc06795e66936ad80508cfeb18cfcc48473c31f6c2f36f20182123b60db1134e
+provenance: Synthetic plans over the synthetic article corpus, with recorded REASONING answers replayed by MockModelProvider (by role, never by model name). No production data.
+contains_production_data: false
+approval_ref: null

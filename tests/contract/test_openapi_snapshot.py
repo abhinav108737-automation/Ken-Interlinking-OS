@@ -139,6 +139,13 @@ def test_operation_ids_and_tags(live: dict[str, Any]) -> None:
         "/learning/skills/{name}": ("getSkill", ["learning"]),
         "/learning/experiments": ("listExperiments", ["learning"]),
         "/learning/experiments/{key}": ("getExperiment", ["learning"]),
+        # Phase 9 (ADR-0018 s5/s6): what replaces the approval inbox.
+        "/autonomy": ("getAutonomySummary", ["autonomy"]),
+        "/autonomy/mode": ("getAutonomyMode", ["autonomy"]),
+        "/autonomy/decisions": ("listAutonomyDecisions", ["autonomy"]),
+        "/autonomy/blocked": ("listBlockedActions", ["autonomy"]),
+        "/autonomy/attempts": ("listPublishAttempts", ["autonomy"]),
+        "/autonomy/plans/{plan_id}/override": ("overrideAutonomyDecision", ["autonomy"]),
     }
 
 
@@ -173,11 +180,15 @@ MUTATIONS = {
     ("post", "/deployments/{deployment_id}/verify"),
     ("post", "/deployments/{deployment_id}/rollback"),
     ("post", "/learning/proposals/{proposal_id}/advance"),
+    ("post", "/autonomy/plans/{plan_id}/override"),
 }
 """The ONLY non-GET operations of the whole API (Phase 5, ADR-0013 s7; Phase 6, ADR-0014 s7:
 the four ``deploy`` operations; Phase 8, ADR-0016 s10: ONE route that records a learning
 proposal's stage change, on the new ``promote`` permission -- and which cannot promote at all
-while ``Settings.learning_demonstration_mode`` is set)."""
+while ``Settings.learning_demonstration_mode`` is set; Phase 9, ADR-0018 s5: ONE operator
+override, on the existing ``deploy`` permission, because publishing or withdrawing one link is
+exactly what ``deploy`` already grants. Autonomy itself RUNS from the CLI: removing the
+approval step did not add a single write route for approving anything)."""
 
 
 def test_inventory_api_is_read_only(live: dict[str, Any]) -> None:

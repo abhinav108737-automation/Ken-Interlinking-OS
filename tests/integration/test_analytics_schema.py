@@ -49,6 +49,10 @@ from ken_core.db.models.analytics import (
     WRITER_GATED_TABLES,
 )
 from tests.integration.conftest import (
+    AUTONOMY_FUNCTIONS,
+    AUTONOMY_TABLES,
+    AUTONOMY_TRIGGERS,
+    HEAD_REVISION,
     ANALYTICS_FUNCTIONS,
     ANALYTICS_TABLES,
     ANALYTICS_TRIGGERS,
@@ -542,12 +546,12 @@ def test_downgrade_to_0007_restores_exactly_the_deployment_schema(
     try:
         state = sync_db.run(_state)
         # A downgrade below 0008 also takes the Phase 8 learning schema with it (0009).
-        assert state["tables"] == head["tables"] - ANALYTICS_TABLES - LEARNING_TABLES
-        assert state["functions"] == head["functions"] - ANALYTICS_FUNCTIONS - LEARNING_FUNCTIONS
-        assert state["triggers"] == head["triggers"] - ANALYTICS_TRIGGERS - LEARNING_TRIGGERS
+        assert state["tables"] == head["tables"] - ANALYTICS_TABLES - LEARNING_TABLES - AUTONOMY_TABLES
+        assert state["functions"] == head["functions"] - ANALYTICS_FUNCTIONS - LEARNING_FUNCTIONS - AUTONOMY_FUNCTIONS
+        assert state["triggers"] == head["triggers"] - ANALYTICS_TRIGGERS - LEARNING_TRIGGERS - AUTONOMY_TRIGGERS
         assert state["revision"] == "0007_controlled_deployment"
     finally:
         command.upgrade(alembic_config, "head")
     state = sync_db.run(_state)
     assert state == head
-    assert state["revision"] == "0009_learning"
+    assert state["revision"] == HEAD_REVISION

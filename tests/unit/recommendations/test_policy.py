@@ -42,7 +42,17 @@ def test_v1_recommendation_policy_loads_with_its_values() -> None:
     assert loaded.selection.min_score == 0.35
     assert loaded.placement.block_kinds == ("p", "li")
     assert "this article" in loaded.placement.forbidden_anchors
-    assert loaded.retrieval.channels_enabled == tuple(RetrievalChannel)
+    # ADR-0018 added ANALYTICS and ORPHAN_RECOVERY to the enum, OFF by default: the
+    # immutable v1 document still enables exactly the original four channels.
+    assert loaded.retrieval.channels_enabled == (
+        RetrievalChannel.SEMANTIC,
+        RetrievalChannel.LEXICAL,
+        RetrievalChannel.TAXONOMY,
+        RetrievalChannel.GRAPH,
+    )
+    assert RetrievalChannel.ANALYTICS not in loaded.retrieval.channels_enabled
+    assert loaded.retrieval.analytics_k == 0
+    assert loaded.retrieval.orphan_recovery_k == 0
     assert loaded.ranking_policy == "policies/ranking/ranking_weights.v1.yaml"
 
 

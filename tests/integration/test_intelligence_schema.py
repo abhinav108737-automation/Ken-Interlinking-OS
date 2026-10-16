@@ -1,8 +1,9 @@
 """Migration 0003 (content intelligence) against the ``*_test`` database.
 
-Covers what ``compare_metadata`` cannot: the extension, CHECK constraints, GIN
-operator classes, the partial unique index, the append-only triggers, the
-``vector_dims`` CHECK, and an exact downgrade to the 0002 state.
+Covers what ``compare_metadata`` cannot: CHECK constraints, GIN operator classes, the
+partial unique index, the append-only triggers, the ``array_length`` dimension CHECK, and an
+exact downgrade to the 0002 state. ADR-0017 removed pgvector, so the extension assertion is
+now the opposite one: it must NOT exist.
 """
 
 from __future__ import annotations
@@ -23,6 +24,7 @@ from sqlalchemy.exc import DBAPIError, IntegrityError
 import ken_core.db.models  # noqa: F401 -- registers every model
 from ken_core.db.base import Base
 from ken_core.db.models.agents import APPEND_ONLY_AGENT_TABLES
+from ken_core.db.models.autonomy import APPEND_ONLY_AUTONOMY_TABLES
 from ken_core.db.models.analytics import APPEND_ONLY_ANALYTICS_TABLES
 from ken_core.db.models.deployment import APPEND_ONLY_DEPLOYMENT_TABLES
 from ken_core.db.models.intelligence import IMMUTABLE_INTELLIGENCE_TABLES
@@ -30,7 +32,7 @@ from ken_core.db.models.inventory import IMMUTABLE_TABLES
 from ken_core.db.models.learning import APPEND_ONLY_LEARNING_TABLES
 from ken_core.db.models.recommendations import APPEND_ONLY_RECOMMENDATION_TABLES
 from ken_core.db.models.review import APPEND_ONLY_REVIEW_TABLES
-from tests.integration.conftest import SyncDb
+from tests.integration.conftest import HEAD_REVISION, SyncDb
 
 pytestmark = pytest.mark.integration
 
@@ -104,15 +106,28 @@ def _analysis(c: Connection, **overrides: Any) -> None:
 
 
 def _embedding(
-    c: Connection, *, vector: str = "[1,0,0]", dimensions: int = 3, fingerprint: str = "r1-a"
+    c: Connection,
+    *,
+    vector: list[float] | None = None,
+    dimensions: int = 3,
+    fingerprint: str = "r1-a",
 ) -> None:
+    """ADR-0017: the column is a plain ``real[]``, so the parameter is a Python list and no
+    extension type is cast to. asyncpg binds a list directly."""
     c.execute(
         text(
             "INSERT INTO page_embeddings (id, page_id, page_version, model, provider, dimensions, "
             "recipe_version, recipe_fingerprint, input_hash, embedding) "
-            "VALUES (:id, :p, 1, 'm', 'mock', :d, 1, :f, :h, CAST(:v AS vector))"
+            "VALUES (:id, :p, 1, 'm', 'mock', :d, 1, :f, :h, :v)"
         ),
-        {"id": uuid.uuid4(), "p": PAGE, "d": dimensions, "f": fingerprint, "h": HASH, "v": vector},
+        {
+            "id": uuid.uuid4(),
+            "p": PAGE,
+            "d": dimensions,
+            "f": fingerprint,
+            "h": HASH,
+            "v": [1.0, 0.0, 0.0] if vector is None else vector,
+        },
     )
 
 
@@ -125,11 +140,14 @@ def _seed(c: Connection) -> None:
 # --------------------------------------------------------------------------- #
 # Structure
 # --------------------------------------------------------------------------- #
-def test_pgvector_is_enabled_at_head(db: SyncDb) -> None:
+def test_the_vector_extension_is_absent_at_head(db: SyncDb) -> None:
+    """ADR-0017 section 2: pgvector is REMOVED, not merely bypassed. No migration creates the
+    extension, so it must not exist at head -- and a leftover one would be unused."""
     extensions: set[str] = db.run(
         lambda c: set(c.execute(text("SELECT extname FROM pg_extension")).scalars())
     )
-    assert "vector" in extensions
+    assert "vector" not in extensions
+    assert extensions == {"plpgsql"}
 
 
 def test_tables_constraints_and_indexes_match_the_orm(db: SyncDb) -> None:
@@ -187,7 +205,7 @@ def test_gin_indexes_use_jsonb_path_ops_and_protection_index_is_partial(db: Sync
     assert active.endswith("WHERE active")
 
 
-def test_embedding_column_is_dimensionless(db: SyncDb) -> None:
+def test_embedding_column_is_a_dimensionless_real_array(db: SyncDb) -> None:
     formatted: str = db.run(
         lambda c: c.execute(
             text(
@@ -196,7 +214,7 @@ def test_embedding_column_is_dimensionless(db: SyncDb) -> None:
             )
         ).scalar_one()
     )
-    assert formatted == "vector"
+    assert formatted == "real[]"
 
 
 def test_trigger_set_covers_all_history_tables(db: SyncDb) -> None:
@@ -221,6 +239,10 @@ def test_trigger_set_covers_all_history_tables(db: SyncDb) -> None:
         # Migration 0009 (Phase 8) extends the same function to the four append-only
         # learning tables: a learning audit trail is never rewritten.
         | set(APPEND_ONLY_LEARNING_TABLES)
+        # Migration 0010 (Phase 9): the autonomy record and the retry budget. Both are
+        # evidence -- what was decided, and what was already attempted -- so neither is
+        # ever rewritten either.
+        | set(APPEND_ONLY_AUTONOMY_TABLES)
     )
 
 
@@ -254,12 +276,14 @@ def test_analyses_and_embeddings_are_append_only(db: SyncDb, statement: str) -> 
     assert counts == (1, 1)
 
 
-def test_vector_dims_must_equal_dimensions(db: SyncDb) -> None:
+def test_array_length_must_equal_dimensions(db: SyncDb) -> None:
+    """ADR-0017: ``array_length(embedding, 1) = dimensions`` replaced ``vector_dims``. The
+    guarantee is unchanged -- a row cannot claim a dimension it does not have."""
     db.run(_page)
-    error = _fails(db, lambda c: _embedding(c, vector="[1,0,0]", dimensions=4))
+    error = _fails(db, lambda c: _embedding(c, vector=[1.0, 0.0, 0.0], dimensions=4))
     assert isinstance(error, IntegrityError)
     assert "ck_page_embeddings_dimensions_match" in str(error.orig)
-    db.run(lambda c: _embedding(c, vector="[1,0,0,0]", dimensions=4))
+    db.run(lambda c: _embedding(c, vector=[1.0, 0.0, 0.0, 0.0], dimensions=4))
 
 
 def test_embedding_input_hash_and_dimensions_checks(db: SyncDb) -> None:
@@ -270,7 +294,7 @@ def test_embedding_input_hash_and_dimensions_checks(db: SyncDb) -> None:
             text(
                 "INSERT INTO page_embeddings (id, page_id, page_version, model, provider, "
                 "dimensions, recipe_version, recipe_fingerprint, input_hash, embedding) VALUES "
-                "(:id, :p, 1, 'm', 'x', 3, 1, 'r1-a', 'not-a-hash', '[1,0,0]')"
+                "(:id, :p, 1, 'm', 'x', 3, 1, 'r1-a', 'not-a-hash', '{1,0,0}')"
             ),
             {"id": uuid.uuid4(), "p": PAGE},
         ),
@@ -292,7 +316,7 @@ def test_one_embedding_per_version_model_recipe_and_fingerprint(db: SyncDb) -> N
             text(
                 "INSERT INTO page_embeddings (id, page_id, page_version, model, provider, "
                 "dimensions, recipe_version, input_hash, embedding) VALUES "
-                "(:id, :p, 1, 'm', 'x', 3, 1, :h, '[1,0,0]')"
+                "(:id, :p, 1, 'm', 'x', 3, 1, :h, '{1,0,0}')"
             ),
             {"id": uuid.uuid4(), "p": PAGE, "h": HASH},
         ),
@@ -457,5 +481,7 @@ def test_downgrade_to_0002_restores_exactly_the_inventory_schema(
         command.upgrade(alembic_config, "head")
     state = sync_db.run(_state)
     assert set(INTELLIGENCE_TABLES) <= state["tables"]
-    assert "vector" in state["extensions"]
-    assert state["revision"] == "0009_learning"
+    # ADR-0017: still just plpgsql at head. The round trip neither creates nor needs the
+    # vector extension, which is what makes the amended 0003 safe.
+    assert state["extensions"] == {"plpgsql"}
+    assert state["revision"] == HEAD_REVISION

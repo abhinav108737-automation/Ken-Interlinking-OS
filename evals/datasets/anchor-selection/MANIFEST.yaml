@@ -1,0 +1,13 @@
+# anchor-selection eval dataset -- Phase 8 (ADR-0016 section 7).
+#
+# Re-run `.venv/bin/python evals/datasets/rehash.py` after editing a case file:
+# the runner verifies every sha256 below and refuses a dataset that has drifted.
+suite: anchor-selection
+dataset: core
+dataset_version: 1
+case_count: 14
+files:
+  core.v1.jsonl: 4ba651f35663cfcc51abbfb5e46de0e5be850defba57d67c74bf2ef22c641763
+provenance: Synthetic article and report bodies parsed by the production normaliser; placement rules from the committed recommendation policy. No production data.
+contains_production_data: false
+approval_ref: null

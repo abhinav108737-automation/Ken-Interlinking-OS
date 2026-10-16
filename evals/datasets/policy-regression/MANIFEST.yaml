@@ -1,0 +1,13 @@
+# policy-regression eval dataset -- Phase 8 (ADR-0016 section 7).
+#
+# Re-run `.venv/bin/python evals/datasets/rehash.py` after editing a case file:
+# the runner verifies every sha256 below and refuses a dataset that has drifted.
+suite: policy-regression
+dataset: core
+dataset_version: 1
+case_count: 12
+files:
+  core.v1.jsonl: e9e65c15abcf940c588ce1a3fbe3f4ecb40fd90894510fdeac2b6920eb40cdc5
+provenance: Synthetic candidate ranking policies replayed over the synthetic corpus against recorded human preferences, plus the safety and frozen-path cases a candidate must not cross. Two cases PIN a known regression deliberately. No production data.
+contains_production_data: false
+approval_ref: null

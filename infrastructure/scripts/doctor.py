@@ -103,9 +103,8 @@ async def _database_facts(database_url: str) -> dict[str, str | None]:
             has_alembic = await scalar("select to_regclass('public.alembic_version')")
             return {
                 "server_version": await scalar("show server_version"),
-                "vector_available": await scalar(
-                    "select default_version from pg_available_extensions where name = 'vector'"
-                ),
+                # ADR-0017 removed pgvector. The extension is no longer created or
+                # required; this fact exists only to report a LEFTOVER one honestly.
                 "vector_installed": await scalar(
                     "select extversion from pg_extension where extname = 'vector'"
                 ),
@@ -140,6 +139,20 @@ def check_settings_and_database() -> list[Row]:
         )
     )
 
+    publishing = settings.autonomy_mode in {"guarded", "autonomous"}
+    rows.append(
+        Row(
+            "WARN" if publishing else "OK",
+            "autonomy mode",
+            f"{settings.autonomy_mode}"
+            + (
+                " — this mode PUBLISHES without a human (ADR-0018)"
+                if publishing
+                else " — evaluates and records only; publishes nothing (ADR-0018 default)"
+            ),
+        )
+    )
+
     if settings.targets_native_postgres() and not settings.allow_native_postgres_port:
         rows.append(
             Row(
@@ -158,18 +171,18 @@ def check_settings_and_database() -> list[Row]:
     try:
         facts = asyncio.run(_database_facts(settings.database_url))
         rows.append(Row("OK", "postgres", f"reachable, server {facts['server_version']}"))
-        available, installed = facts["vector_available"], facts["vector_installed"]
-        if available is None:
+        installed = facts["vector_installed"]
+        if installed is not None:
             rows.append(
                 Row(
                     "WARN",
                     "pgvector",
-                    "NOT available on this server (native degraded mode; ADR-0003)",
+                    f"extension {installed} is still installed but UNUSED (ADR-0017 moved "
+                    "semantic retrieval to the vector store); safe to DROP EXTENSION vector",
                 )
             )
         else:
-            state = f"enabled {installed}" if installed else "not enabled (Phase 2)"
-            rows.append(Row("OK", "pgvector", f"available {available} (provisioned), {state}"))
+            rows.append(Row("OK", "pgvector", "not installed, as ADR-0017 requires"))
         db_revision = facts["db_revision"]
     except Exception as exc:
         rows.append(Row("FAIL", "postgres", f"unreachable: {type(exc).__name__}"))
@@ -194,6 +207,72 @@ def check_settings_and_database() -> list[Row]:
                 f"database at {db_revision!r}, code head {head!r} — run: make migrate",
             )
         )
+    return rows
+
+
+def check_vector_store() -> list[Row]:
+    """The ADR-0017 vector layer: which store is configured, and is it usable.
+
+    ``memory`` is reported as INFO, not a failure: it is the default and makes the test
+    suite container-free. ``qdrant`` is probed over its own HTTP readiness endpoint.
+    """
+    try:
+        from ken_core.config import Settings
+
+        settings = Settings()
+    except Exception as exc:
+        return [Row("FAIL", "vector store", f"{type(exc).__name__}: {exc}")]
+
+    if settings.vector_store == "memory":
+        return [
+            Row(
+                "INFO",
+                "vector store",
+                f"memory (in process, exact cosine); collection "
+                f"{settings.qdrant_collection!r}; required={settings.require_qdrant}",
+            )
+        ]
+
+    try:
+        import httpx
+
+        response = httpx.get(f"{settings.qdrant_url}/readyz", timeout=3.0, trust_env=False)
+        reachable = response.status_code == 200
+    except Exception as exc:
+        return [
+            Row(
+                "FAIL" if settings.require_qdrant else "WARN",
+                "qdrant",
+                f"unreachable ({type(exc).__name__}) at the configured URL — run: "
+                "make qdrant-up",
+            )
+        ]
+    if not reachable:
+        return [
+            Row(
+                "FAIL" if settings.require_qdrant else "WARN",
+                "qdrant",
+                f"not ready (HTTP {response.status_code})",
+            )
+        ]
+    rows = [Row("OK", "qdrant", f"ready; collection {settings.qdrant_collection!r}")]
+    try:
+        info = httpx.get(
+            f"{settings.qdrant_url}/collections/{settings.qdrant_collection}",
+            timeout=3.0,
+            trust_env=False,
+        )
+        if info.status_code == 200:
+            result = info.json().get("result", {})
+            rows.append(
+                Row("OK", "qdrant collection", f"points={result.get('points_count')}")
+            )
+        else:
+            rows.append(
+                Row("WARN", "qdrant collection", "absent — run: make qdrant-index")
+            )
+    except Exception as exc:  # pragma: no cover - best effort only
+        rows.append(Row("WARN", "qdrant collection", f"unknown ({type(exc).__name__})"))
     return rows
 
 
@@ -307,6 +386,7 @@ def main() -> int:
         ("Interpreter", check_python),
         ("Packages", check_packages),
         ("Configuration & database", check_settings_and_database),
+        ("Vector store", check_vector_store),
         ("Model server", check_ollama),
         ("Toolchain & containers", check_toolchain),
     ]

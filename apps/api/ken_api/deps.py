@@ -19,6 +19,11 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from ken_contracts.agents import AgentReader
 from ken_contracts.analytics import AnalyticsReader
 from ken_contracts.auth import AuthProvider, Principal
+from ken_contracts.autonomy import (
+    AutonomyReader,
+    OperatorOverrideRequest,
+    OperatorOverrideResponse,
+)
 from ken_contracts.cms import CMSProvider
 from ken_contracts.common import ServiceIdentity
 from ken_contracts.controlplane import DashboardSummary, EventRecord, PoliciesView
@@ -52,6 +57,8 @@ DEPLOYMENT_COMPOSITION: Final = "ken_services.deployment.compose"
 ANALYTICS_READER: Final = "ken_services.analytics.reader"
 LEARNING_READER: Final = "ken_services.learning.reader"
 LEARNING_SERVICE: Final = "ken_services.learning.promote"
+AUTONOMY_READER: Final = "ken_services.autonomy.reader"
+AUTONOMY_SERVICE: Final = "ken_services.autonomy.override"
 
 
 class TargetOptionsService(ReviewService, Protocol):
@@ -307,6 +314,57 @@ def get_learning_service(
     return service
 
 
+class AutonomyOverrideService(Protocol):
+    """``ken_services.autonomy.override.DatabaseOverrideService`` (structural).
+
+    The frozen signature lives in ``ken_services.autonomy.protocol.OperatorOverrideService``;
+    this is the structural copy the API depends on, so ``apps/api`` keeps importing contracts
+    only. It takes a :class:`~ken_contracts.auth.Principal` and never an actor string: the
+    database can check that an actor LOOKS like ``user:<name>``, but only the session proves
+    it is one (the ADR-0016 15.7.3 rule, applied to overrides).
+    """
+
+    async def override(
+        self,
+        *,
+        principal: Principal,
+        plan_id: uuid.UUID,
+        request: OperatorOverrideRequest,
+    ) -> OperatorOverrideResponse: ...
+
+
+def get_autonomy_reader(
+    settings: Annotated[Settings, Depends(get_app_settings)],
+    sessionmaker: Annotated[async_sessionmaker[AsyncSession], Depends(get_readonly_sessionmaker)],
+) -> AutonomyReader:
+    """``ken_services.autonomy.reader.SqlAutonomyReader`` over the READ ONLY factory (Phase 9,
+    ADR-0018 s6). Resolved by name: until the autonomy workstream lands the module, an
+    autonomy route answers 500 (the staged-stub convention of earlier phases)."""
+    module: Any = importlib.import_module(AUTONOMY_READER)
+    reader: AutonomyReader = module.SqlAutonomyReader(sessionmaker=sessionmaker, settings=settings)
+    return reader
+
+
+def get_autonomy_service(
+    request: Request,
+    settings: Annotated[Settings, Depends(get_app_settings)],
+    sessionmaker: Annotated[async_sessionmaker[AsyncSession], Depends(get_sessionmaker)],
+) -> AutonomyOverrideService:
+    """``app.state.autonomy_service`` if a caller installed one, else the database override
+    service over the READ-WRITE factory.
+
+    It is handed the request's ``Settings`` so the mode and the production gate are checked by
+    the service and not by the route, and it takes a ``Principal`` per call."""
+    installed = getattr(request.app.state, "autonomy_service", None)
+    if installed is not None:
+        return cast(AutonomyOverrideService, installed)
+    module: Any = importlib.import_module(AUTONOMY_SERVICE)
+    service: AutonomyOverrideService = module.DatabaseOverrideService(
+        sessionmaker=sessionmaker, settings=settings
+    )
+    return service
+
+
 def get_auth_provider_dep(request: Request) -> AuthProvider:
     from ken_api.security import get_auth_provider
 
@@ -330,3 +388,5 @@ DeploymentServiceDep = Annotated[DeploymentService, Depends(get_deployment_servi
 AnalyticsReaderDep = Annotated[AnalyticsReader, Depends(get_analytics_reader)]
 LearningReaderDep = Annotated[LearningReader, Depends(get_learning_reader)]
 LearningServiceDep = Annotated[LearningPromotionService, Depends(get_learning_service)]
+AutonomyReaderDep = Annotated[AutonomyReader, Depends(get_autonomy_reader)]
+AutonomyServiceDep = Annotated[AutonomyOverrideService, Depends(get_autonomy_service)]

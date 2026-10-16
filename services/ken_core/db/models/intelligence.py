@@ -31,6 +31,7 @@ from datetime import datetime
 from typing import Any, Final
 
 from sqlalchemy import (
+    REAL,
     BigInteger,
     Boolean,
     CheckConstraint,
@@ -47,7 +48,7 @@ from sqlalchemy import (
     func,
     text,
 )
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ken_contracts.intelligence import Intent, ProtectionSource, RelationshipType
@@ -55,9 +56,13 @@ from ken_contracts.inventory import RunStatus
 from ken_contracts.jobs import JobKind
 from ken_core.db.base import Base
 from ken_core.db.models.inventory import _one_of
-from ken_core.db.types import Vector
 
 IMMUTABLE_INTELLIGENCE_TABLES: Final = ("page_analyses", "page_embeddings")
+
+MAX_METRICS_VERSION_CHARS: Final = 64
+GRAPH_METRICS_VERSION: Final = "graph-alg1"
+"""The link-graph recipe version stamped on every ``page_graph_metrics`` row. Bump it when
+the algorithm changes; rows of two versions are never compared."""
 
 
 def _ts(*, nullable: bool = False, default_now: bool = False) -> Any:
@@ -170,7 +175,9 @@ class PageEmbedding(Base):
     recipe_version: Mapped[int] = mapped_column(Integer, nullable=False)
     recipe_fingerprint: Mapped[str] = mapped_column(Text, nullable=False)
     input_hash: Mapped[str] = mapped_column(Text, nullable=False)
-    embedding: Mapped[list[float]] = mapped_column(Vector(), nullable=False)
+    # ADR-0017: a plain PostgreSQL real[] (float4, exactly the precision the extension
+    # stored), so the values survive without it and stay readable and checkable in SQL.
+    embedding: Mapped[list[float]] = mapped_column(ARRAY(REAL), nullable=False)
     run_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid(as_uuid=True), ForeignKey("job_runs.id", ondelete="RESTRICT"), nullable=True
     )
@@ -186,7 +193,7 @@ class PageEmbedding(Base):
             "page_id", "page_version", "model", "recipe_version", "recipe_fingerprint"
         ),
         CheckConstraint("dimensions > 0", name="dimensions_positive"),
-        CheckConstraint("vector_dims(embedding) = dimensions", name="dimensions_match"),
+        CheckConstraint("array_length(embedding, 1) = dimensions", name="dimensions_match"),
         CheckConstraint("input_hash ~ '^[0-9a-f]{64}$'", name="input_hash_sha256"),
         Index(
             "ix_page_embeddings_model_dimensions_recipe_fingerprint",
@@ -254,5 +261,85 @@ class PageProtection(Base):
             text("coalesce(rule_id, '')"),
             unique=True,
             postgresql_where=text("active"),
+        ),
+    )
+
+
+class PageGraphMetrics(Base):
+    """Internal link-graph position of one page VERSION (migration 0010, directive s5).
+
+    **Recomputable by REPLACE, not append-only, and deliberately so.** Every value here is a
+    pure function of (the current link graph, the recipe version): nothing about it is a
+    historical fact that could be lost, and a graph recomputation touches EVERY page at once.
+    Keeping history would therefore grow the table by the whole corpus on each run while
+    adding nothing an audit could use -- and the Phase 2 precedent for derived, version-
+    stamped data is exactly this: ``page_relationships`` is replaced per run.
+
+    The row is still identified by ``(page_id, page_version, metrics_version)``, so two
+    recipe versions can coexist for a comparison, and ``computed_at`` says when it was
+    derived. What a run REPLACES is a row of the same identity; what it never does is edit a
+    row of a different ``metrics_version``, so a published number stays reproducible.
+
+    Nothing may reference these ids (the Phase 2 rule for derived data).
+    """
+
+    __tablename__ = "page_graph_metrics"
+
+    id: Mapped[int] = mapped_column(BigInteger, Identity(always=True), primary_key=True)
+    page_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("pages.id", ondelete="RESTRICT"), nullable=False
+    )
+    page_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    in_degree: Mapped[int] = mapped_column(Integer, nullable=False)
+    out_degree: Mapped[int] = mapped_column(Integer, nullable=False)
+    internal_pagerank: Mapped[float] = mapped_column(Float, nullable=False)
+    hub_score: Mapped[float] = mapped_column(Float, nullable=False)
+    authority_score: Mapped[float] = mapped_column(Float, nullable=False)
+    crawl_depth: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    """Clicks from the configured entry page; NULL = unreachable (an orphan by definition)."""
+    is_orphan: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    is_nearly_orphan: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    is_bridge: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    component_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    cluster_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    metrics_version: Mapped[str] = mapped_column(Text, nullable=False)
+    """Algorithm/recipe version (e.g. ``graph-alg1``). Two versions are never compared."""
+    run_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("job_runs.id", ondelete="RESTRICT"), nullable=True
+    )
+    computed_at: Mapped[datetime] = _ts(default_now=True)
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["page_id", "page_version"],
+            ["page_versions.page_id", "page_versions.version"],
+            ondelete="RESTRICT",
+        ),
+        UniqueConstraint("page_id", "page_version", "metrics_version"),
+        CheckConstraint("in_degree >= 0 AND out_degree >= 0", name="degrees_non_negative"),
+        CheckConstraint(
+            "internal_pagerank >= 0 AND internal_pagerank <= 1", name="pagerank_range"
+        ),
+        CheckConstraint("hub_score >= 0 AND hub_score <= 1", name="hub_score_range"),
+        CheckConstraint(
+            "authority_score >= 0 AND authority_score <= 1", name="authority_score_range"
+        ),
+        CheckConstraint("crawl_depth IS NULL OR crawl_depth >= 0", name="crawl_depth_valid"),
+        CheckConstraint("component_id IS NULL OR component_id >= 0", name="component_id_valid"),
+        CheckConstraint("cluster_id IS NULL OR cluster_id >= 0", name="cluster_id_valid"),
+        # An orphan has no inbound link, and no inbound link makes it an orphan: the flag and
+        # the count can never disagree.
+        CheckConstraint("is_orphan = (in_degree = 0)", name="orphan_iff_no_inbound"),
+        CheckConstraint("NOT is_orphan OR is_nearly_orphan", name="orphan_implies_nearly"),
+        CheckConstraint(
+            f"length(metrics_version) BETWEEN 1 AND {MAX_METRICS_VERSION_CHARS}",
+            name="metrics_version_bounded",
+        ),
+        Index("ix_page_graph_metrics_metrics_version_page_id", "metrics_version", "page_id"),
+        Index(
+            "ix_page_graph_metrics_orphans",
+            "metrics_version",
+            "page_id",
+            postgresql_where=text("is_orphan OR is_nearly_orphan"),
         ),
     )

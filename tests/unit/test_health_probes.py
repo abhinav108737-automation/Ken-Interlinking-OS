@@ -43,21 +43,23 @@ def test_check_names_are_frozen() -> None:
         cms_provider=FakeCMSProvider(),
     )
     assert [p.name for p in probes] == list(CHECK_NAMES)
-    assert CHECK_NAMES == ("postgres", "migrations", "pgvector", "model_provider", "cms")
+    # ADR-0017 replaced the pgvector check with `qdrant`; the name is stable whichever
+    # store answers (detail.store says which one).
+    assert CHECK_NAMES == ("postgres", "migrations", "qdrant", "model_provider", "cms")
     kinds = {p.name: p.kind for p in probes}
     assert kinds == {
         "postgres": CheckKind.DATABASE,
         "migrations": CheckKind.SCHEMA,
-        "pgvector": CheckKind.EXTENSION,
+        "qdrant": CheckKind.VECTOR_STORE,
         "model_provider": CheckKind.MODEL_SERVER,
         "cms": CheckKind.CMS,
     }
 
 
-@pytest.mark.parametrize(("pgvector", "ollama"), [(False, False), (True, True), (True, False)])
-def test_required_flags_follow_settings(pgvector: bool, ollama: bool) -> None:
+@pytest.mark.parametrize(("qdrant", "ollama"), [(False, False), (True, True), (True, False)])
+def test_required_flags_follow_settings(qdrant: bool, ollama: bool) -> None:
     probes = build_probes(
-        settings=make_settings(require_pgvector=pgvector, require_ollama=ollama),
+        settings=make_settings(require_qdrant=qdrant, require_ollama=ollama),
         sessionmaker=BrokenSessionmaker(),  # type: ignore[arg-type]
         model_provider=FakeModelProvider(),
         cms_provider=FakeCMSProvider(),
@@ -66,7 +68,7 @@ def test_required_flags_follow_settings(pgvector: bool, ollama: bool) -> None:
     assert required == {
         "postgres": True,
         "migrations": True,
-        "pgvector": pgvector,
+        "qdrant": qdrant,
         "model_provider": ollama,
         "cms": True,
     }
@@ -80,9 +82,13 @@ async def test_database_probes_with_broken_sessionmaker_become_error_checks() ->
         cms_provider=FakeCMSProvider(),
     )
     checks = {c.name: c for c in await run_probes(probes, timeout_ms=1000)}
-    for name in ("postgres", "migrations", "pgvector"):
+    for name in ("postgres", "migrations"):
         assert checks[name].status == HealthStatus.ERROR
         assert "hunter2" not in (checks[name].error or "")
+    # The vector store does not touch the database at all (ADR-0017): a broken
+    # sessionmaker cannot make it unready, which is the point of a separate store.
+    assert checks["qdrant"].status == HealthStatus.OK
+    assert checks["qdrant"].detail["collection_present"] is False
     assert checks["cms"].status == HealthStatus.OK
     assert aggregate_status(list(checks.values())) is ReadinessStatus.NOT_READY
 

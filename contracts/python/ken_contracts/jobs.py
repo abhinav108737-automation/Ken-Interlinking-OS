@@ -35,9 +35,14 @@ class JobKind(StrEnum):
 
     Phases 2-7 added exactly one kind each. **Phase 8 adds two** -- ``evaluation`` (reserved
     here from Phase 0) and ``reflection`` -- so the former "one per phase" rule is amended
-    rather than quietly broken (ADR-0016 15.1.6 / 15.7.14). The rule that remains is the one
+    rather than quietly broken (ADR-0016 15.1.6 / 15.7.14). **Phase 9 adds three**:
+    ``autonomy``, ``graph_metrics`` and ``vector_index``. The rule that remains is the one
     that matters: a batch job records itself as a ``job_runs`` row instead of inventing a
     table, and one run of a given kind executes at a time.
+
+    ``job_runs.kind`` carries a FROZEN LITERAL COPY of this enum in a database CHECK, so a
+    member added here needs a migration that replaces it (0009 did it for ``reflection``,
+    0010 for the three above). Adding one without that migration fails at the first INSERT.
     """
 
     ANALYSIS = "analysis"
@@ -62,6 +67,17 @@ class JobKind(StrEnum):
     REASONING call may only pick from a server-enumerated option set."""
     AUTONOMY_SHADOW = "autonomy_shadow"
     """Phase 9: shadow-mode decision-class evaluation."""
+    AUTONOMY = "autonomy"
+    """Phase 9 (ADR-0018): an autonomy evaluation pass in ``guarded`` or ``autonomous`` mode.
+    Separate from ``autonomy_shadow`` on purpose: a shadow pass writes nothing outside
+    ``autonomy_decisions``, while this one can publish, and the two must never share a lock,
+    a counter set or a line in the job list."""
+    GRAPH_METRICS = "graph_metrics"
+    """Phase 9 (directive section 5): recompute ``page_graph_metrics`` over the whole internal
+    link graph. Corpus-level and deterministic, so it is one job run, not one per page."""
+    VECTOR_INDEX = "vector_index"
+    """Phase 9 (ADR-0017): incremental indexing or a full rebuild of the vector collection
+    from ``page_embeddings``. The collection is DERIVED, so this job is always safe to re-run."""
 
 
 class JobRunSummary(FrozenModel):

@@ -218,15 +218,32 @@ assignment tables without competing with stored columns.
 
 ## Approved stack
 
-FastAPI · Pydantic · SQLAlchemy · Alembic · asyncpg · PostgreSQL · pgvector · Ollama · structlog ·
+FastAPI · Pydantic · SQLAlchemy · Alembic · asyncpg · PostgreSQL · Qdrant · Ollama · structlog ·
 httpx · BeautifulSoup (`html.parser` backend, Phase 1) · Next.js · TypeScript · Tailwind CSS. LangGraph (Phase 4), Playwright (Phase 6) and others are
 approved but deliberately deferred — see ADR-0005.
+
+**pgvector is no longer part of the stack.** [ADR-0017](adr/ADR-0017-qdrant-vector-architecture.md)
+replaced it with Qdrant as the derived semantic index; PostgreSQL keeps the embedding values and
+stays the source of truth. `CREATE EXTENSION vector` is never issued and a static test asserts it.
+
+### Dependency licences (Phase 9 additions)
+
+| Dependency | Version | Licence | Why |
+|---|---|---|---|
+| `qdrant-client` | 1.19.1 | Apache-2.0 | The only client for the vector store (ADR-0017 §3) |
+| `qdrant/qdrant` (image) | `v1.19.1`, digest `sha256:12364fe851b9f17356fc88189fc06d1b521262e04659ec7345975b00c9246a10` | Apache-2.0 | The self-hosted server, on 127.0.0.1:6333/6334 |
+
+Transitive, all permissive: `grpcio` (Apache-2.0), `protobuf` (BSD-3), `numpy` (BSD-3),
+`portalocker` (BSD-3), `h2` / `hpack` / `hyperframe` (MIT). Nothing paid, nothing managed.
 
 ## Forbidden without an explicit user decision
 
 These must not be added — not as a dependency, not as a compose service, not "temporarily":
 
-- **Qdrant, Neo4j** — PostgreSQL + pgvector is the store (TRD §2)
+- **Neo4j** — PostgreSQL is the store; the link graph lives in `page_graph_metrics` (TRD §2)
+- ~~Qdrant~~ — **no longer forbidden.** The user's completion directive of 2026-10-16 lifted the
+  prohibition and [ADR-0017](adr/ADR-0017-qdrant-vector-architecture.md) adopted it as the derived,
+  rebuildable semantic index. Everything else on this list stands.
 - **Redis, Kafka, Celery, Temporal** — no queue or broker; the worker is a tick loop (ADR-0005)
 - **Any paid model API** — OpenAI, Anthropic, Gemini, or any other; inference is local via Ollama
 - **Managed vector databases, paid SaaS, paid Browser Use Cloud**
@@ -252,4 +269,7 @@ Proposing one requires stopping and asking the user (CLAUDE.md), with an ADR.
 | [0013](adr/ADR-0013-reviewer-control-plane.md) | Phase 5 reviewer control plane: local auth provider abstraction (scrypt, opaque Bearer sessions, HttpOnly cookie in the web tier), deny-by-default RBAC, idempotent version-aware human review with structured feedback, supersede-on-edit |
 | [0014](adr/ADR-0014-controlled-deployment.md) | Phase 6 controlled deployment: two-phase durable intent with reconciliation, per-source lock, deterministic splice-only HTML mutation, HTTP/HTML verification (browser deferred), simulated CMS, gated production HTTP adapter, DB status-integrity trigger |
 | [0015](adr/ADR-0015-analytics.md) | Phase 7 analytics: a loopback first-party collector and beacon kept off the control API, pseudonymous events, gated GA4/GSC egress with CSV fallback, replace-semantics imports, attribution from plan transitions, before/after with explicit confounders and no causal claim, append-only measurement snapshots |
-| [0010](adr/ADR-0010-content-intelligence.md) | Phase 2 content intelligence: pgvector required from 0003, taxonomy-policy analysis, provider-defined embeddings, version-stamped relationships, protections, read-time eligibility, generic job runs |
+| [0010](adr/ADR-0010-content-intelligence.md) | Phase 2 content intelligence: pgvector required from 0003 (**superseded by ADR-0017**), taxonomy-policy analysis, provider-defined embeddings, version-stamped relationships, protections, read-time eligibility, generic job runs |
+| [0016](adr/ADR-0016-learning.md) | Phase 8 learning: the full proposal ladder, four independent no-self-promotion gates, frozen policy paths, block-only behavioural signals, datasets as files |
+| [0017](adr/ADR-0017-qdrant-vector-architecture.md) | **Qdrant is the derived, rebuildable semantic index; PostgreSQL stays the source of truth. pgvector is REMOVED — supersedes ADR-0003/ADR-0010 and overrides CLAUDE.md #5** |
+| [0018](adr/ADR-0018-autonomy-first-publishing.md) | **Autonomy-first publishing: no human approval in the normal linking workflow; `shadow` is the default mode and deterministic blocks are never waived — supersedes ADR-0013 §1's approval default** |

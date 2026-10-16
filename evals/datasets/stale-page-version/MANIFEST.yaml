@@ -1,0 +1,13 @@
+# stale-page-version eval dataset -- Phase 8 (ADR-0016 section 7).
+#
+# Re-run `.venv/bin/python evals/datasets/rehash.py` after editing a case file:
+# the runner verifies every sha256 below and refuses a dataset that has drifted.
+suite: stale-page-version
+dataset: core
+dataset_version: 1
+case_count: 16
+files:
+  core.v1.jsonl: a1e83d915232dec875f06aa4a5adc32d1c5e3cbddef1a80b2347e68b9ebb1fa8
+provenance: Synthetic before/after page bodies; the freshness check, the deterministic HTML mutator and the CMS optimistic lock. No production data.
+contains_production_data: false
+approval_ref: null

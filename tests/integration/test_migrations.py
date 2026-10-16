@@ -13,7 +13,7 @@ from sqlalchemy.dialects.postgresql import base as postgresql_base
 
 import ken_core.db.models  # noqa: F401 -- registers every model
 from ken_core.db.base import Base
-from ken_core.db.types import Vector, Xid8
+from ken_core.db.types import Xid8
 from tests.integration.conftest import SyncDb
 
 pytestmark = pytest.mark.integration
@@ -57,6 +57,9 @@ APP_TABLES = frozenset(
         "policy_evaluations",
         "experiments",
         "experiment_assignments",
+        "page_graph_metrics",
+        "autonomy_decisions",
+        "publish_attempts",
     }
 )
 
@@ -75,7 +78,7 @@ def _revision(db: SyncDb) -> str | None:
 
 def test_upgrade_downgrade_upgrade_round_trip(alembic_config: Config, sync_db: SyncDb) -> None:
     head = ScriptDirectory.from_config(alembic_config).get_current_head()
-    assert head == "0009_learning"
+    assert head == "0010_qdrant_and_autonomy"
 
     command.upgrade(alembic_config, "head")
     assert _tables(sync_db) >= APP_TABLES
@@ -84,15 +87,14 @@ def test_upgrade_downgrade_upgrade_round_trip(alembic_config: Config, sync_db: S
     command.downgrade(alembic_config, "base")
     assert not APP_TABLES & _tables(sync_db)
     assert _revision(sync_db) is None
-    # Migration 0003 created the extension, so its downgrade removed it again.
     assert "vector" not in _extensions(sync_db)
 
     command.upgrade(alembic_config, "head")
     assert _tables(sync_db) >= APP_TABLES
     assert _revision(sync_db) == head
 
-    # ADR-0010: migration 0003 enables pgvector with the first vector column.
-    assert "vector" in _extensions(sync_db)
+    # ADR-0017: no migration creates the vector extension any more, at any revision.
+    assert "vector" not in _extensions(sync_db)
 
 
 # Alembic compares a Computed column's expression only as crude TEXT (PostgreSQL
@@ -103,9 +105,8 @@ def test_orm_matches_migration(
     alembic_config: Config, sync_db: SyncDb, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     command.upgrade(alembic_config, "head")
-    # Teach reflection the pgvector type, so page_embeddings.embedding is really
-    # compared (as Vector vs Vector) instead of being skipped as an unknown type.
-    monkeypatch.setitem(postgresql_base.ischema_names, "vector", Vector)
+    # ADR-0017: page_embeddings.embedding is a plain real[], which reflection already
+    # understands, so no type needs teaching. xid8 still does.
     monkeypatch.setitem(postgresql_base.ischema_names, "xid8", Xid8)
 
     def _diff(connection: Connection) -> list[object]:

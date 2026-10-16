@@ -1,0 +1,13 @@
+# relationship-detection eval dataset -- Phase 8 (ADR-0016 section 7).
+#
+# Re-run `.venv/bin/python evals/datasets/rehash.py` after editing a case file:
+# the runner verifies every sha256 below and refuses a dataset that has drifted.
+suite: relationship-detection
+dataset: core
+dataset_version: 1
+case_count: 13
+files:
+  core.v1.jsonl: 18e3536b7c6af1d757672978506019c6f8981a45fd0783f0343a768a328e69e0
+provenance: Synthetic page pairs over the committed taxonomy, covering every PRD 7.3 edge type and the no-edge case. No production data.
+contains_production_data: false
+approval_ref: null

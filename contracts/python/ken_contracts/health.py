@@ -29,8 +29,8 @@ class ReadinessStatus(StrEnum):
 
     The distinction between DEGRADED and NOT_READY is the whole point of the
     ``required`` flag on each check: an optional dependency that is missing
-    degrades the service without making it unready. In Phase 0 pgvector and
-    Ollama are both optional, so their absence must not take the API down.
+    degrades the service without making it unready. Qdrant and Ollama are both
+    optional by default, so their absence must not take the API down.
     """
 
     READY = "ready"
@@ -41,12 +41,12 @@ class ReadinessStatus(StrEnum):
 class DependencyCheck(ContractModel):
     """Result of probing exactly one dependency."""
 
-    name: str = Field(description="Stable identifier, e.g. 'postgres'.")
+    name: str = Field(description="Stable identifier, e.g. 'postgres' or 'qdrant'.")
     kind: CheckKind
     required: bool = Field(
         description=(
             "Whether failure makes the service NOT_READY. Computed from settings "
-            "(KEN_REQUIRE_PGVECTOR, KEN_REQUIRE_OLLAMA) so one binary can be "
+            "(KEN_REQUIRE_QDRANT, KEN_REQUIRE_OLLAMA) so one binary can be "
             "lenient in native development and strict elsewhere."
         )
     )

@@ -25,7 +25,7 @@ from ken_core.db.models.recommendations import (
     APPEND_ONLY_RECOMMENDATION_TABLES,
     PLAN_MUTABLE_COLUMNS,
 )
-from tests.integration.conftest import TRUNCATE_ALL, SyncDb
+from tests.integration.conftest import HEAD_REVISION, TRUNCATE_ALL, SyncDb
 
 pytestmark = pytest.mark.integration
 
@@ -432,25 +432,38 @@ def test_two_moves_in_one_transaction_each_need_their_row(db: SyncDb) -> None:
 
 
 def test_the_trigger_transition_table_matches_allowed_transitions() -> None:
-    """Parity: migration 0007's literal table IS ``ALLOWED_TRANSITIONS``."""
+    """Parity: the LATEST literal table in a migration IS ``ALLOWED_TRANSITIONS``.
+
+    The table is a frozen copy per revision: 0007 wrote the first one and 0010 replaced the
+    guard with the ADR-0018 table. What must hold is that the table the guard runs TODAY
+    equals the contract, and that 0010's "restore 0007" copy still equals 0007's -- otherwise
+    a downgrade would install a transition set that never existed.
+    """
     import importlib.util
     from pathlib import Path
 
     from ken_contracts.recommendations import ALLOWED_TRANSITIONS
 
-    path = (
-        Path(__file__).resolve().parents[2]
-        / "migrations"
-        / "versions"
-        / "0007_controlled_deployment.py"
-    )
-    spec = importlib.util.spec_from_file_location("migration_0007", path)
-    assert spec is not None and spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+    versions = Path(__file__).resolve().parents[2] / "migrations" / "versions"
+
+    def load(name: str) -> object:
+        spec = importlib.util.spec_from_file_location(f"migration_{name}", versions / name)
+        assert spec is not None and spec.loader is not None
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+
+    m0007: Any = load("0007_controlled_deployment.py")
+    m0010: Any = load("0010_qdrant_and_autonomy.py")
+
     expected = {(a.value, b.value) for a, targets in ALLOWED_TRANSITIONS.items() for b in targets}
-    assert set(module.PLAN_TRANSITIONS) == expected
-    assert len(module.PLAN_TRANSITIONS) == len(expected)
+    assert set(m0010.PLAN_TRANSITIONS_0010) == expected
+    assert len(m0010.PLAN_TRANSITIONS_0010) == len(expected)
+    # 0010's downgrade must restore EXACTLY what 0007 installed.
+    assert set(m0010.PLAN_TRANSITIONS_0007) == set(m0007.PLAN_TRANSITIONS)
+    assert len(m0010.PLAN_TRANSITIONS_0007) == len(m0007.PLAN_TRANSITIONS)
+    # And the new table is a strict superset: ADR-0018 only ADDED moves.
+    assert set(m0007.PLAN_TRANSITIONS) < expected
 
 
 CONTENT_COLUMNS = {
@@ -837,6 +850,8 @@ def test_downgrade_to_0003_restores_exactly_the_intelligence_schema(
         "ken_skill_guard",
         "ken_experiment_guard",
         "ken_experiment_assignment_guard",
+        # Phase 9 (migration 0010): the autonomy decision guard.
+        "ken_autonomy_decision_guard",
     }
     assert {
         "link_plans_content_immutable",
@@ -844,4 +859,4 @@ def test_downgrade_to_0003_restores_exactly_the_intelligence_schema(
         "link_plan_transitions_immutable",
         "link_candidates_immutable",
     } <= state["triggers"]
-    assert state["revision"] == "0009_learning"
+    assert state["revision"] == HEAD_REVISION

@@ -900,6 +900,375 @@
         "title": "ApproveRequest",
         "type": "object"
       },
+      "AutonomyDecision": {
+        "description": "ADR-0018 section 1. Exactly three outcomes; there is no \"approve\" among them.",
+        "enum": [
+          "block",
+          "auto_publish",
+          "auto_publish_with_extra_verification"
+        ],
+        "title": "AutonomyDecision",
+        "type": "string"
+      },
+      "AutonomyDecisionView": {
+        "additionalProperties": false,
+        "description": "A stored evaluation, with its row id and the plan's current status.",
+        "properties": {
+          "blocks": {
+            "default": [],
+            "description": "The deterministic blocks that FIRED, in enum order. Non-empty implies ``decision == BLOCK``.",
+            "items": {
+              "$ref": "#/components/schemas/BlockCode"
+            },
+            "title": "Blocks",
+            "type": "array"
+          },
+          "calibration_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "None = RAW confidence (ADR-0011: no threshold may treat raw as calibrated). A guarded auto-publish therefore requires a calibration version, which is what keeps Phase 9's calibration on the critical path rather than optional.",
+            "title": "Calibration Version"
+          },
+          "confidence": {
+            "description": "The confidence the decision was taken on.",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence",
+            "type": "number"
+          },
+          "critic_outcome": {
+            "$ref": "#/components/schemas/CriticOutcome"
+          },
+          "critic_verdict": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CriticVerdict"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The raw model-boundary verdict, kept so `uncertain` is not lost."
+          },
+          "decision": {
+            "$ref": "#/components/schemas/AutonomyDecision"
+          },
+          "engine_version": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Engine Version",
+            "type": "string"
+          },
+          "evaluated_at": {
+            "format": "date-time",
+            "title": "Evaluated At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/AutonomyMode",
+            "description": "The mode in force when this was evaluated."
+          },
+          "plan_id": {
+            "format": "uuid",
+            "title": "Plan Id",
+            "type": "string"
+          },
+          "plan_status": {
+            "$ref": "#/components/schemas/LinkPlanStatus"
+          },
+          "policy_version": {
+            "description": "Version of the governing policy document this was evaluated under.",
+            "minimum": 1.0,
+            "title": "Policy Version",
+            "type": "integer"
+          },
+          "risk_tier": {
+            "$ref": "#/components/schemas/RiskTier"
+          },
+          "rollback_available": {
+            "description": "Whether an inverse splice is possible for this plan right now. False forces ``BLOCK`` with ``MISSING_ROLLBACK_METADATA``: nothing is published that cannot be undone.",
+            "title": "Rollback Available",
+            "type": "boolean"
+          },
+          "source_url": {
+            "title": "Source Url",
+            "type": "string"
+          },
+          "target_url": {
+            "title": "Target Url",
+            "type": "string"
+          },
+          "verification_profile": {
+            "$ref": "#/components/schemas/VerificationProfile",
+            "default": "standard"
+          },
+          "would_have_decision": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AutonomyDecision"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "SHADOW ONLY: the decision that WOULD have been taken had the mode been ``autonomous``. Set exactly when ``mode == shadow``; in shadow the effective ``decision`` is never a publish."
+          }
+        },
+        "required": [
+          "plan_id",
+          "decision",
+          "mode",
+          "risk_tier",
+          "confidence",
+          "calibration_version",
+          "critic_outcome",
+          "critic_verdict",
+          "policy_version",
+          "blocks",
+          "rollback_available",
+          "verification_profile",
+          "would_have_decision",
+          "evaluated_at",
+          "engine_version",
+          "id",
+          "plan_status",
+          "source_url",
+          "target_url"
+        ],
+        "title": "AutonomyDecisionView",
+        "type": "object"
+      },
+      "AutonomyHealth": {
+        "additionalProperties": false,
+        "description": "``GET /autonomy/mode``: the mode in force and why it is safe, in one payload.",
+        "properties": {
+          "allow_production": {
+            "title": "Allow Production",
+            "type": "boolean"
+          },
+          "autonomous_acknowledged": {
+            "title": "Autonomous Acknowledged",
+            "type": "boolean"
+          },
+          "calibration_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Calibration Version"
+          },
+          "cms_provider": {
+            "title": "Cms Provider",
+            "type": "string"
+          },
+          "cms_writes_enabled": {
+            "title": "Cms Writes Enabled",
+            "type": "boolean"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/AutonomyMode"
+          },
+          "policy_version": {
+            "minimum": 1.0,
+            "title": "Policy Version",
+            "type": "integer"
+          },
+          "publishing_enabled": {
+            "description": "True only when the mode, the acknowledgement and the CMS all permit a real write. False in shadow, always.",
+            "title": "Publishing Enabled",
+            "type": "boolean"
+          },
+          "verification_profile_default": {
+            "$ref": "#/components/schemas/VerificationProfile"
+          }
+        },
+        "required": [
+          "mode",
+          "autonomous_acknowledged",
+          "allow_production",
+          "cms_provider",
+          "cms_writes_enabled",
+          "publishing_enabled",
+          "verification_profile_default",
+          "calibration_version",
+          "policy_version"
+        ],
+        "title": "AutonomyHealth",
+        "type": "object"
+      },
+      "AutonomyMode": {
+        "description": "``KEN_AUTONOMY_MODE``. Default :attr:`SHADOW`, deliberately.",
+        "enum": [
+          "shadow",
+          "guarded",
+          "autonomous"
+        ],
+        "title": "AutonomyMode",
+        "type": "string"
+      },
+      "AutonomySummary": {
+        "additionalProperties": false,
+        "properties": {
+          "auto_published": {
+            "minimum": 0.0,
+            "title": "Auto Published",
+            "type": "integer"
+          },
+          "blocked_plans": {
+            "minimum": 0.0,
+            "title": "Blocked Plans",
+            "type": "integer"
+          },
+          "blocks_by_code": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Blocks By Code",
+            "type": "object"
+          },
+          "decisions_by_decision": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Decisions By Decision",
+            "type": "object"
+          },
+          "decisions_by_mode": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Decisions By Mode",
+            "type": "object"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/AutonomyMode"
+          },
+          "rolled_back": {
+            "minimum": 0.0,
+            "title": "Rolled Back",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "decisions_by_decision",
+          "decisions_by_mode",
+          "blocks_by_code",
+          "blocked_plans",
+          "auto_published",
+          "rolled_back",
+          "mode"
+        ],
+        "title": "AutonomySummary",
+        "type": "object"
+      },
+      "BlockCode": {
+        "description": "The CLOSED set of deterministic hard blocks (the completion directive section 9).\n\nEvery one of these is computable from stored facts by code alone -- no model call, no\njudgement. A block is terminal for the plan unless an operator overrides it, and the\noverride is recorded with who and why (:class:`OperatorOverrideRequest`).",
+        "enum": [
+          "self_link",
+          "external_destination",
+          "protected_page",
+          "unpublished_destination",
+          "broken_target",
+          "stale_source_version",
+          "duplicate_contextual_link",
+          "prohibited_page_type",
+          "policy_disallowed_destination",
+          "invalid_canonical",
+          "unsupported_redirect",
+          "invalid_page_state",
+          "invalid_anchor",
+          "missing_rollback_metadata",
+          "stale_vector"
+        ],
+        "title": "BlockCode",
+        "type": "string"
+      },
+      "BlockedActionView": {
+        "additionalProperties": false,
+        "description": "A blocked plan, for the operator screen that replaces the approval inbox.",
+        "properties": {
+          "anchor_text": {
+            "title": "Anchor Text",
+            "type": "string"
+          },
+          "blocks": {
+            "items": {
+              "$ref": "#/components/schemas/BlockCode"
+            },
+            "title": "Blocks",
+            "type": "array"
+          },
+          "decided_at": {
+            "format": "date-time",
+            "title": "Decided At",
+            "type": "string"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/AutonomyMode"
+          },
+          "overridden": {
+            "default": false,
+            "description": "An operator has already acted on this block.",
+            "title": "Overridden",
+            "type": "boolean"
+          },
+          "plan_id": {
+            "format": "uuid",
+            "title": "Plan Id",
+            "type": "string"
+          },
+          "risk_tier": {
+            "$ref": "#/components/schemas/RiskTier"
+          },
+          "source_page_id": {
+            "format": "uuid",
+            "title": "Source Page Id",
+            "type": "string"
+          },
+          "source_url": {
+            "title": "Source Url",
+            "type": "string"
+          },
+          "target_page_id": {
+            "format": "uuid",
+            "title": "Target Page Id",
+            "type": "string"
+          },
+          "target_url": {
+            "title": "Target Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "plan_id",
+          "source_page_id",
+          "source_url",
+          "target_page_id",
+          "target_url",
+          "anchor_text",
+          "blocks",
+          "risk_tier",
+          "mode",
+          "decided_at",
+          "overridden"
+        ],
+        "title": "BlockedActionView",
+        "type": "object"
+      },
       "BulkAction": {
         "enum": [
           "approve",
@@ -1030,6 +1399,45 @@
         "title": "BulkReviewResult",
         "type": "object"
       },
+      "CandidateAttribution": {
+        "additionalProperties": false,
+        "description": "Why ONE channel offered this candidate -- the per-channel audit trail (directive s6).\n\nOne row per channel that retrieved the candidate. ``raw`` is the channel's own units\n(cosine, ts_rank_cd, edge weight, an analytics rate); ``normalised`` is the comparable\n[0, 1] value the union used. Both are kept because the raw value is the only one that can\nbe re-derived from the stores, and the normalised one is the only one that explains the\nranking.",
+        "properties": {
+          "channel": {
+            "$ref": "#/components/schemas/RetrievalChannel"
+          },
+          "evidence": {
+            "additionalProperties": true,
+            "description": "Channel-specific facts (the matched relationship type, the keyword hits, the vector's point id and content hash). Never free model text.",
+            "title": "Evidence",
+            "type": "object"
+          },
+          "normalised": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Normalised",
+            "type": "number"
+          },
+          "rank_in_channel": {
+            "minimum": 1.0,
+            "title": "Rank In Channel",
+            "type": "integer"
+          },
+          "raw": {
+            "title": "Raw",
+            "type": "number"
+          }
+        },
+        "required": [
+          "channel",
+          "raw",
+          "normalised",
+          "rank_in_channel",
+          "evidence"
+        ],
+        "title": "CandidateAttribution",
+        "type": "object"
+      },
       "CandidateRejection": {
         "description": "Deterministic filters (FR-006), in EVALUATION ORDER; the first match is recorded.\n\nPair filters run first (self .. page type), then scoring (``below_min_relevance``),\nthen placement in rank order (``no_natural_anchor``, ``below_min_score`` on the\nFINAL score), then selection caps (density, per-source, diversity).",
         "enum": [
@@ -1058,6 +1466,15 @@
         "additionalProperties": false,
         "description": "A retrieved candidate, kept or rejected, for explainability and evals.",
         "properties": {
+          "attribution": {
+            "default": [],
+            "description": "Per-channel attribution, one entry per channel in ``channels`` (additive; empty for rows written before ADR-0018).",
+            "items": {
+              "$ref": "#/components/schemas/CandidateAttribution"
+            },
+            "title": "Attribution",
+            "type": "array"
+          },
           "channel_scores": {
             "additionalProperties": {
               "type": "number"
@@ -1071,6 +1488,17 @@
             },
             "title": "Channels",
             "type": "array"
+          },
+          "graph_signals": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GraphSignals"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The TARGET's link-graph position when it was retrieved."
           },
           "plan_id": {
             "anyOf": [
@@ -1134,7 +1562,9 @@
           "channel_scores",
           "total_score",
           "rejection",
-          "plan_id"
+          "plan_id",
+          "attribution",
+          "graph_signals"
         ],
         "title": "CandidateView",
         "type": "object"
@@ -1214,7 +1644,8 @@
           "schema",
           "extension",
           "model_server",
-          "cms"
+          "cms",
+          "vector_store"
         ],
         "title": "CheckKind",
         "type": "string"
@@ -1277,6 +1708,16 @@
         ],
         "title": "CorpusBanner",
         "type": "object"
+      },
+      "CriticOutcome": {
+        "description": "The autonomy-level view of the critic step.\n\n:attr:`NO_ACTION` is a SEPARATE, EARLIER outcome (ADR-0018 section 1): the plan is not a\ndefect, there is simply nothing worth doing. It never becomes a publish.\n\nRelationship to :class:`~ken_contracts.agents.CriticVerdict`, which is the model-boundary\nvocabulary: ``accept``/``reject`` map across directly; ``uncertain`` does NOT map to\n:attr:`ACCEPT` silently -- it is recorded in\n:attr:`AutonomyEvaluation.critic_verdict` and raises the risk tier, which in\n``guarded`` mode defers the plan instead of publishing it.",
+        "enum": [
+          "accept",
+          "reject",
+          "no_action"
+        ],
+        "title": "CriticOutcome",
+        "type": "string"
       },
       "CriticReason": {
         "enum": [
@@ -1825,12 +2266,12 @@
             "type": "number"
           },
           "name": {
-            "description": "Stable identifier, e.g. 'postgres'.",
+            "description": "Stable identifier, e.g. 'postgres' or 'qdrant'.",
             "title": "Name",
             "type": "string"
           },
           "required": {
-            "description": "Whether failure makes the service NOT_READY. Computed from settings (KEN_REQUIRE_PGVECTOR, KEN_REQUIRE_OLLAMA) so one binary can be lenient in native development and strict elsewhere.",
+            "description": "Whether failure makes the service NOT_READY. Computed from settings (KEN_REQUIRE_QDRANT, KEN_REQUIRE_OLLAMA) so one binary can be lenient in native development and strict elsewhere.",
             "title": "Required",
             "type": "boolean"
           },
@@ -3770,6 +4211,138 @@
         "title": "GeographyMention",
         "type": "object"
       },
+      "GraphSignals": {
+        "additionalProperties": false,
+        "description": "The internal link-graph position of ONE page version (``page_graph_metrics``).\n\nEvery signal is reported SEPARATELY and deliberately: there is no single opaque \"graph\nscore\". A reviewer, an eval and the learning pipeline must all be able to see WHICH\nproperty moved a candidate, and a composite number destroys exactly that. The ranking\npolicy is free to combine them into its ``graph`` component; the record keeps the parts.",
+        "properties": {
+          "authority_score": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Authority Score",
+            "type": "number"
+          },
+          "cluster_id": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Topical cluster ordinal.",
+            "title": "Cluster Id"
+          },
+          "component_id": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Weakly connected component ordinal.",
+            "title": "Component Id"
+          },
+          "computed_at": {
+            "format": "date-time",
+            "title": "Computed At",
+            "type": "string"
+          },
+          "crawl_depth": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Clicks from the configured entry page; None = unreachable.",
+            "title": "Crawl Depth"
+          },
+          "hub_score": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Hub Score",
+            "type": "number"
+          },
+          "in_degree": {
+            "description": "Current internal inbound links.",
+            "minimum": 0.0,
+            "title": "In Degree",
+            "type": "integer"
+          },
+          "internal_pagerank": {
+            "description": "Normalised; sums to ~1.",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Internal Pagerank",
+            "type": "number"
+          },
+          "is_bridge": {
+            "description": "Removing this page would disconnect part of the graph (a cut vertex).",
+            "title": "Is Bridge",
+            "type": "boolean"
+          },
+          "is_nearly_orphan": {
+            "description": "Inbound links below the policy threshold.",
+            "title": "Is Nearly Orphan",
+            "type": "boolean"
+          },
+          "is_orphan": {
+            "description": "No internal inbound link from any current page.",
+            "title": "Is Orphan",
+            "type": "boolean"
+          },
+          "metrics_version": {
+            "description": "Algorithm/recipe version, e.g. 'graph-alg1'. Stored with every row so a recomputation is attributable and two versions are never compared.",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Metrics Version",
+            "type": "string"
+          },
+          "out_degree": {
+            "description": "Current internal outbound links.",
+            "minimum": 0.0,
+            "title": "Out Degree",
+            "type": "integer"
+          },
+          "page_id": {
+            "format": "uuid",
+            "title": "Page Id",
+            "type": "string"
+          },
+          "page_version": {
+            "minimum": 1.0,
+            "title": "Page Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "page_id",
+          "page_version",
+          "in_degree",
+          "out_degree",
+          "internal_pagerank",
+          "hub_score",
+          "authority_score",
+          "crawl_depth",
+          "is_orphan",
+          "is_nearly_orphan",
+          "is_bridge",
+          "component_id",
+          "cluster_id",
+          "metrics_version",
+          "computed_at"
+        ],
+        "title": "GraphSignals",
+        "type": "object"
+      },
       "Heading": {
         "additionalProperties": false,
         "properties": {
@@ -4219,7 +4792,7 @@
         "type": "string"
       },
       "JobKind": {
-        "description": "What a job run does. Adding a member is additive.\n\nPhases 2-7 added exactly one kind each. **Phase 8 adds two** -- ``evaluation`` (reserved\nhere from Phase 0) and ``reflection`` -- so the former \"one per phase\" rule is amended\nrather than quietly broken (ADR-0016 15.1.6 / 15.7.14). The rule that remains is the one\nthat matters: a batch job records itself as a ``job_runs`` row instead of inventing a\ntable, and one run of a given kind executes at a time.",
+        "description": "What a job run does. Adding a member is additive.\n\nPhases 2-7 added exactly one kind each. **Phase 8 adds two** -- ``evaluation`` (reserved\nhere from Phase 0) and ``reflection`` -- so the former \"one per phase\" rule is amended\nrather than quietly broken (ADR-0016 15.1.6 / 15.7.14). **Phase 9 adds three**:\n``autonomy``, ``graph_metrics`` and ``vector_index``. The rule that remains is the one\nthat matters: a batch job records itself as a ``job_runs`` row instead of inventing a\ntable, and one run of a given kind executes at a time.\n\n``job_runs.kind`` carries a FROZEN LITERAL COPY of this enum in a database CHECK, so a\nmember added here needs a migration that replaces it (0009 did it for ``reflection``,\n0010 for the three above). Adding one without that migration fails at the first INSERT.",
         "enum": [
           "analysis",
           "recommendation",
@@ -4228,7 +4801,10 @@
           "analytics_import",
           "evaluation",
           "reflection",
-          "autonomy_shadow"
+          "autonomy_shadow",
+          "autonomy",
+          "graph_metrics",
+          "vector_index"
         ],
         "title": "JobKind",
         "type": "string"
@@ -5472,6 +6048,17 @@
             ],
             "title": "Supersedes"
           },
+          "target_graph_signals": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GraphSignals"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The destination's link-graph position, read at request time (additive; None when graph metrics have not been computed). Deliberately not a plan COLUMN: plan content is immutable, and the graph moves under it."
+          },
           "target_page_id": {
             "format": "uuid",
             "title": "Target Page Id",
@@ -5543,17 +6130,20 @@
           "updated_at",
           "transitions",
           "source_title",
-          "source_block_text"
+          "source_block_text",
+          "target_graph_signals"
         ],
         "title": "LinkPlanDetail",
         "type": "object"
       },
       "LinkPlanStatus": {
-        "description": "PRD v1.1 Appendix C recommendation lifecycle. Moves only along ``ALLOWED_TRANSITIONS``.",
+        "description": "PRD v1.1 Appendix C recommendation lifecycle. Moves only along ``ALLOWED_TRANSITIONS``.\n\nADR-0018 adds ``autonomy_decided`` and ``blocked`` and makes the approval pair\nEXCEPTIONAL. The normal autonomous path is::\n\n    proposed -> critiqued -> policy_checked -> autonomy_decided -> validated\n             -> deployed -> verified -> measured -> learning_captured\n\n``awaiting_approval`` / ``approved`` stay reachable, but only for a ``guarded``-mode\ndeferral and for an operator acting on an exception. They are no longer on the\nnormal path (ADR-0018 s3).",
         "enum": [
           "proposed",
           "critiqued",
           "policy_checked",
+          "autonomy_decided",
+          "blocked",
           "awaiting_approval",
           "approved",
           "rejected",
@@ -5642,6 +6232,48 @@
           "page"
         ],
         "title": "ListResponse[AnalyticsImportView]",
+        "type": "object"
+      },
+      "ListResponse_AutonomyDecisionView_": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AutonomyDecisionView"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          }
+        },
+        "required": [
+          "items",
+          "page"
+        ],
+        "title": "ListResponse[AutonomyDecisionView]",
+        "type": "object"
+      },
+      "ListResponse_BlockedActionView_": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/BlockedActionView"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          }
+        },
+        "required": [
+          "items",
+          "page"
+        ],
+        "title": "ListResponse[BlockedActionView]",
         "type": "object"
       },
       "ListResponse_CandidateView_": {
@@ -5980,6 +6612,27 @@
         "title": "ListResponse[ProposalSummary]",
         "type": "object"
       },
+      "ListResponse_PublishAttemptView_": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PublishAttemptView"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          }
+        },
+        "required": [
+          "items",
+          "page"
+        ],
+        "title": "ListResponse[PublishAttemptView]",
+        "type": "object"
+      },
       "ListResponse_ReviewActionView_": {
         "additionalProperties": false,
         "properties": {
@@ -6201,6 +6854,101 @@
         "format": "uuid",
         "type": "string"
       },
+      "OperatorOverrideRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/OverrideAction"
+          },
+          "expected_status": {
+            "$ref": "#/components/schemas/LinkPlanStatus",
+            "description": "The plan's status the caller saw. A mismatch is refused (version-aware)."
+          },
+          "operation_id": {
+            "description": "Idempotency key; a replay returns the stored result.",
+            "format": "uuid",
+            "title": "Operation Id",
+            "type": "string"
+          },
+          "reason": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "operation_id",
+          "action",
+          "reason",
+          "expected_status"
+        ],
+        "title": "OperatorOverrideRequest",
+        "type": "object"
+      },
+      "OperatorOverrideResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/OverrideAction"
+          },
+          "actor": {
+            "pattern": "^(user:\\S{1,200}|agent:[a-z0-9_-]{1,64}@[0-9A-Za-z._-]{1,32}|system:[a-z0-9_-]{1,64})$",
+            "title": "Actor",
+            "type": "string"
+          },
+          "applied": {
+            "title": "Applied",
+            "type": "boolean"
+          },
+          "blocks": {
+            "default": [],
+            "description": "Blocks still firing. Non-empty with ``action=publish`` means the override was REFUSED: a deterministic block is never overridable.",
+            "items": {
+              "$ref": "#/components/schemas/BlockCode"
+            },
+            "title": "Blocks",
+            "type": "array"
+          },
+          "occurred_at": {
+            "format": "date-time",
+            "title": "Occurred At",
+            "type": "string"
+          },
+          "plan_id": {
+            "format": "uuid",
+            "title": "Plan Id",
+            "type": "string"
+          },
+          "plan_status": {
+            "$ref": "#/components/schemas/LinkPlanStatus"
+          },
+          "refusal": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refusal"
+          }
+        },
+        "required": [
+          "plan_id",
+          "action",
+          "applied",
+          "plan_status",
+          "actor",
+          "blocks",
+          "refusal",
+          "occurred_at"
+        ],
+        "title": "OperatorOverrideResponse",
+        "type": "object"
+      },
       "OpportunityKind": {
         "enum": [
           "orphan",
@@ -6270,6 +7018,15 @@
         ],
         "title": "OpportunityView",
         "type": "object"
+      },
+      "OverrideAction": {
+        "description": "ADR-0018 section 5: an operator may publish or block ONE plan, with a reason.",
+        "enum": [
+          "publish",
+          "block"
+        ],
+        "title": "OverrideAction",
+        "type": "string"
       },
       "PageAnalysis": {
         "additionalProperties": false,
@@ -8709,6 +9466,100 @@
         "title": "PublicationState",
         "type": "string"
       },
+      "PublishAttemptView": {
+        "additionalProperties": false,
+        "description": "One recorded publish attempt for a (source, target) pair. Append-only.",
+        "properties": {
+          "attempt": {
+            "minimum": 1.0,
+            "title": "Attempt",
+            "type": "integer"
+          },
+          "cooldown_until": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cooldown Until"
+          },
+          "decision": {
+            "$ref": "#/components/schemas/AutonomyDecision"
+          },
+          "failure_code": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Code"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/AutonomyMode"
+          },
+          "occurred_at": {
+            "format": "date-time",
+            "title": "Occurred At",
+            "type": "string"
+          },
+          "plan_id": {
+            "format": "uuid",
+            "title": "Plan Id",
+            "type": "string"
+          },
+          "rolled_back": {
+            "default": false,
+            "title": "Rolled Back",
+            "type": "boolean"
+          },
+          "source_page_id": {
+            "format": "uuid",
+            "title": "Source Page Id",
+            "type": "string"
+          },
+          "succeeded": {
+            "title": "Succeeded",
+            "type": "boolean"
+          },
+          "target_page_id": {
+            "format": "uuid",
+            "title": "Target Page Id",
+            "type": "string"
+          },
+          "verification_profile": {
+            "$ref": "#/components/schemas/VerificationProfile"
+          }
+        },
+        "required": [
+          "id",
+          "plan_id",
+          "source_page_id",
+          "target_page_id",
+          "attempt",
+          "decision",
+          "mode",
+          "succeeded",
+          "verification_profile",
+          "failure_code",
+          "rolled_back",
+          "cooldown_until",
+          "occurred_at"
+        ],
+        "title": "PublishAttemptView",
+        "type": "object"
+      },
       "ReadinessResponse": {
         "additionalProperties": false,
         "description": "``GET /ready`` -- aggregate readiness.\n\nHTTP status mapping, implemented in the router and asserted by tests:\n\n==================  =====  ===============================\naggregate status    code   headers\n==================  =====  ===============================\nready               200    Cache-Control: no-store\ndegraded            200    Cache-Control: no-store\nnot_ready           503    no-store, Retry-After: 5\n==================  =====  ===============================\n\nA probe that itself raises yields 503 with that check marked ERROR -- never\na 500, because an unhandled exception in a readiness probe is still a\nreadiness answer.",
@@ -8748,7 +9599,7 @@
         "type": "object"
       },
       "ReadinessStatus": {
-        "description": "Aggregate verdict over all dependency checks.\n\nThe distinction between DEGRADED and NOT_READY is the whole point of the\n``required`` flag on each check: an optional dependency that is missing\ndegrades the service without making it unready. In Phase 0 pgvector and\nOllama are both optional, so their absence must not take the API down.",
+        "description": "Aggregate verdict over all dependency checks.\n\nThe distinction between DEGRADED and NOT_READY is the whole point of the\n``required`` flag on each check: an optional dependency that is missing\ndegrades the service without making it unready. Qdrant and Ollama are both\noptional by default, so their absence must not take the API down.",
         "enum": [
           "ready",
           "degraded",
@@ -8944,7 +9795,9 @@
           "semantic",
           "lexical",
           "taxonomy",
-          "graph"
+          "graph",
+          "analytics",
+          "orphan_recovery"
         ],
         "title": "RetrievalChannel",
         "type": "string"
@@ -9160,6 +10013,16 @@
         ],
         "title": "ReviewResult",
         "type": "object"
+      },
+      "RiskTier": {
+        "description": "How much a mistake on this pair would cost. Deterministic inputs only (page type,\ncommercial importance, inbound traffic, protection proximity, anchor sensitivity).",
+        "enum": [
+          "low",
+          "medium",
+          "high"
+        ],
+        "title": "RiskTier",
+        "type": "string"
       },
       "Role": {
         "enum": [
@@ -10437,6 +11300,15 @@
         "title": "VerificationOutcome",
         "type": "string"
       },
+      "VerificationProfile": {
+        "description": "Which verification runs after a publish (ADR-0014 verification, unchanged in kind).",
+        "enum": [
+          "standard",
+          "strict"
+        ],
+        "title": "VerificationProfile",
+        "type": "string"
+      },
       "VerificationRun": {
         "additionalProperties": false,
         "properties": {
@@ -11579,6 +12451,514 @@
         "summary": "The authenticated user, role and permissions.",
         "tags": [
           "auth"
+        ]
+      }
+    },
+    "/autonomy": {
+      "get": {
+        "operationId": "getAutonomySummary",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutonomySummary"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not authenticated."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The role lacks the permission."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A parameter is invalid."
+          }
+        },
+        "summary": "Decision, mode and block-code counts for the dashboard.",
+        "tags": [
+          "autonomy"
+        ]
+      }
+    },
+    "/autonomy/attempts": {
+      "get": {
+        "operationId": "listPublishAttempts",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "plan_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Plan Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "maximum": 10000000,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListResponse_PublishAttemptView_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not authenticated."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The role lacks the permission."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A parameter is invalid."
+          }
+        },
+        "summary": "Publish attempts per (source, target): the retry budget and its cool-down.",
+        "tags": [
+          "autonomy"
+        ]
+      }
+    },
+    "/autonomy/blocked": {
+      "get": {
+        "operationId": "listBlockedActions",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "code",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/BlockCode"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Code"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "maximum": 10000000,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListResponse_BlockedActionView_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not authenticated."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The role lacks the permission."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A parameter is invalid."
+          }
+        },
+        "summary": "Blocked plans and the deterministic codes that fired, for investigation.",
+        "tags": [
+          "autonomy"
+        ]
+      }
+    },
+    "/autonomy/decisions": {
+      "get": {
+        "operationId": "listAutonomyDecisions",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "decision",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/AutonomyDecision"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Decision"
+            }
+          },
+          {
+            "in": "query",
+            "name": "mode",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/AutonomyMode"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Mode"
+            }
+          },
+          {
+            "in": "query",
+            "name": "plan_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Plan Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "maximum": 10000000,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListResponse_AutonomyDecisionView_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not authenticated."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The role lacks the permission."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A parameter is invalid."
+          }
+        },
+        "summary": "Recorded autonomy decisions, newest first.",
+        "tags": [
+          "autonomy"
+        ]
+      }
+    },
+    "/autonomy/mode": {
+      "get": {
+        "operationId": "getAutonomyMode",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutonomyHealth"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not authenticated."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The role lacks the permission."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A parameter is invalid."
+          }
+        },
+        "summary": "The autonomy mode in force, and whether anything can actually be published.",
+        "tags": [
+          "autonomy"
+        ]
+      }
+    },
+    "/autonomy/plans/{plan_id}/override": {
+      "post": {
+        "operationId": "overrideAutonomyDecision",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "plan_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Plan Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OperatorOverrideRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperatorOverrideResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not authenticated."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The role lacks the permission."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such plan, or it was never evaluated."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The override was refused: a deterministic block still fires, the plan's status moved on, or the retry budget is spent."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A parameter is invalid."
+          }
+        },
+        "summary": "Operator override: publish or block one plan, with a recorded reason.",
+        "tags": [
+          "autonomy"
         ]
       }
     },

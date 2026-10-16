@@ -1,10 +1,11 @@
 # =============================================================================
 # Ken Research Agentic Interlinking OS — local stack
 #
-# TRD.md section 21 services: postgres, ollama, api, worker, web.
+# TRD.md section 21 services: postgres, ollama, api, worker, web, plus qdrant
+# (ADR-0017: the derived semantic index; Qdrant's earlier prohibition is lifted).
 #
-# MODE A (preferred Mac development) — Postgres only; API and web run natively:
-#     docker compose up -d postgres
+# MODE A (preferred Mac development) — Postgres + Qdrant only; API and web run natively:
+#     docker compose up -d postgres qdrant
 #
 # MODE B (optional, full container stack):
 #     docker compose --profile full up -d --build
@@ -55,6 +56,46 @@ services:
     restart: unless-stopped
 
   # ---------------------------------------------------------------------------
+  # qdrant — the DERIVED semantic index (ADR-0017). Starts in EVERY mode, like
+  # postgres, because it is now part of the default local stack.
+  #
+  # It is NOT a system of record: PostgreSQL keeps the embedding values, and the
+  # whole collection is rebuildable with `make qdrant-rebuild`. Losing this
+  # volume costs a reindex, never data.
+  #
+  # Host ports 6333 (HTTP) and 6334 (gRPC), bound to 127.0.0.1 only: nothing
+  # here is exposed off this machine, and nothing binds 8765.
+  #
+  # Pinned to an exact tag, verified by pulling it:
+  #   qdrant/qdrant:v1.19.1
+  #   sha256:12364fe851b9f17356fc88189fc06d1b521262e04659ec7345975b00c9246a10
+  # Apache-2.0, self-hosted, no paid service and no managed vector database.
+  # ---------------------------------------------------------------------------
+  qdrant:
+    image: qdrant/qdrant:v1.19.1
+    ports:
+      - "127.0.0.1:6333:6333"
+      - "127.0.0.1:6334:6334"
+    volumes:
+      - qdrant-storage:/qdrant/storage
+    healthcheck:
+      # /readyz is Qdrant's own readiness endpoint. The image ships bash but no
+      # curl or wget, so the probe is a bash /dev/tcp connect plus a raw GET:
+      # it needs nothing that is not already in the image.
+      # CMD, not CMD-SHELL: CMD-SHELL runs /bin/sh (dash here), which has no
+      # /dev/tcp. bash is invoked explicitly.
+      test:
+        - "CMD"
+        - "bash"
+        - "-c"
+        - "exec 3<>/dev/tcp/127.0.0.1/6333 && printf 'GET /readyz HTTP/1.0\r\n\r\n' >&3 && head -n 1 <&3 | grep -q 200"
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
   # migrate — one-shot job: alembic upgrade head, then exit.
   #
   # Runs migrations exactly once per bring-up, before api and worker start,
@@ -88,6 +129,8 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
+      qdrant:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2).status == 200 else 1)"]
       interval: 10s
@@ -110,6 +153,8 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
+      qdrant:
+        condition: service_healthy
     restart: unless-stopped
 
   # ---------------------------------------------------------------------------
@@ -147,4 +192,5 @@ services:
 
 volumes:
   postgres-data:
+  qdrant-storage:
   ollama-models:

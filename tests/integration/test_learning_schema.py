@@ -44,6 +44,10 @@ from ken_contracts.learning import (
 )
 from ken_core.db.models.learning import APPEND_ONLY_LEARNING_TABLES
 from tests.integration.conftest import (
+    AUTONOMY_FUNCTIONS,
+    AUTONOMY_TABLES,
+    AUTONOMY_TRIGGERS,
+    HEAD_REVISION,
     LEARNING_ACTIVATOR_ON,
     LEARNING_FUNCTIONS,
     LEARNING_PROMOTER_ON,
@@ -1164,9 +1168,9 @@ def test_downgrade_to_0008_restores_exactly_the_analytics_schema(
     command.downgrade(alembic_config, "0008_analytics")
     try:
         state = sync_db.run(_state)
-        assert state["tables"] == head["tables"] - LEARNING_TABLES
-        assert state["functions"] == head["functions"] - LEARNING_FUNCTIONS
-        assert state["triggers"] == head["triggers"] - LEARNING_TRIGGERS
+        assert state["tables"] == head["tables"] - LEARNING_TABLES - AUTONOMY_TABLES
+        assert state["functions"] == head["functions"] - LEARNING_FUNCTIONS - AUTONOMY_FUNCTIONS
+        assert state["triggers"] == head["triggers"] - LEARNING_TRIGGERS - AUTONOMY_TRIGGERS
         assert state["revision"] == "0008_analytics"
         # The job_runs CHECK is restored too, so a downgraded database refuses a reflection run.
         assert _sqlstate(_fails(sync_db, lambda c: _job(c, "reflection"))) == "23514"
@@ -1174,4 +1178,4 @@ def test_downgrade_to_0008_restores_exactly_the_analytics_schema(
         command.upgrade(alembic_config, "head")
     state = sync_db.run(_state)
     assert state == head
-    assert state["revision"] == "0009_learning"
+    assert state["revision"] == HEAD_REVISION

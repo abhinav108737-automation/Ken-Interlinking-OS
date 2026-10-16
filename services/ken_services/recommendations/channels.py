@@ -7,9 +7,12 @@ rejected candidate is still recorded, with its code).
 =========  ===================================================================  ==============
 channel    candidates                                                           score
 =========  ===================================================================  ==============
-semantic   top ``semantic_k`` by exact cosine KNN over current-version          cosine
+semantic   top ``semantic_k`` by exact cosine over current-version               cosine
            embeddings of the CURRENT identity (model, dimensions, recipe
-           version, recipe fingerprint); zero vectors are skipped
+           version, recipe fingerprint); zero vectors are skipped. ADR-0017:
+           the cosine is computed by the shared pure function over the stored
+           ``real[]`` -- no extension, no SQL distance operator. The vector workstream
+           swaps the body for ``VectorStore.search``
 lexical    top ``lexical_k`` by ``ts_rank_cd(page_versions.search_vector, q)``  ts_rank_cd
            where ``q`` is the OR of ``plainto_tsquery('english', keyword)``
            over the source analysis keywords. Keywords are BOUND parameters:
@@ -41,11 +44,11 @@ from sqlalchemy.orm import aliased
 
 from ken_contracts.intelligence import EMBEDDING_RECIPE_VERSION, RelationshipType
 from ken_contracts.recommendations import RetrievalChannel, RetrievalPolicy
+from ken_contracts.vectors import cosine_similarity
 from ken_core.db.models.intelligence import PageAnalysis as PageAnalysisRow
 from ken_core.db.models.intelligence import PageEmbedding, PageRelationship
 from ken_core.db.models.inventory import Page, PageVersion
 from ken_core.db.repositories.intelligence import (
-    cosine_distance,
     current_embedding_join,
     fresh_analysis_join,
 )
@@ -99,11 +102,11 @@ def _finite(value: Any) -> float | None:
 # --------------------------------------------------------------------------- #
 async def source_embedding(
     session: AsyncSession, *, source_page_id: uuid.UUID, key: EmbeddingKey
-) -> tuple[uuid.UUID, int] | None:
-    """(embedding id, dimensions) of the source's current-version, current-identity vector."""
+) -> tuple[list[float], int] | None:
+    """(vector, dimensions) of the source's current-version, current-identity embedding."""
     row = (
         await session.execute(
-            select(PageEmbedding.id, PageEmbedding.dimensions)
+            select(PageEmbedding.embedding, PageEmbedding.dimensions)
             .join(
                 Page, current_embedding_join(key.model, key.recipe_version, key.recipe_fingerprint)
             )
@@ -112,7 +115,7 @@ async def source_embedding(
             .limit(1)
         )
     ).first()
-    return None if row is None else (row[0], int(row[1]))
+    return None if row is None else (list(row[0]), int(row[1]))
 
 
 async def semantic_channel(
@@ -123,14 +126,10 @@ async def semantic_channel(
     source = await source_embedding(session, source_page_id=source_page_id, key=key)
     if source is None:
         return {}
-    embedding_id, dimensions = source
-    vector = (
-        select(PageEmbedding.embedding).where(PageEmbedding.id == embedding_id).scalar_subquery()
-    )
-    distance = cosine_distance(PageEmbedding.embedding, vector)
+    vector, dimensions = source
     rows = (
         await session.execute(
-            select(PageEmbedding.page_id, distance.label("distance"))
+            select(PageEmbedding.page_id, PageEmbedding.embedding)
             .join(
                 Page, current_embedding_join(key.model, key.recipe_version, key.recipe_fingerprint)
             )
@@ -139,17 +138,19 @@ async def semantic_channel(
                 PageEmbedding.page_id != source_page_id,
                 Page.gone_at.is_(None),
             )
-            .order_by(distance, PageEmbedding.page_id)
-            .limit(k)
+            .order_by(PageEmbedding.page_id)
         )
     ).all()
-    out: dict[uuid.UUID, float] = {}
-    for page_id, raw in rows:
-        dist = _finite(raw)
-        if dist is None:  # a zero vector has no direction
+    scored: list[tuple[float, uuid.UUID]] = []
+    for page_id, candidate in rows:
+        score = cosine_similarity(vector, candidate)
+        if score is None:  # a zero vector has no direction
             continue
-        out.setdefault(page_id, max(-1.0, min(1.0, 1.0 - dist)))
-    return out
+        scored.append((score, page_id))
+    # Best first, ties by page id. The limit is applied AFTER scoring: a SQL LIMIT would
+    # have truncated by page id and silently dropped nearer neighbours.
+    scored.sort(key=lambda pair: (-pair[0], str(pair[1])))
+    return {page_id: max(-1.0, min(1.0, score)) for score, page_id in scored[:k]}
 
 
 # --------------------------------------------------------------------------- #
@@ -358,14 +359,10 @@ async def cosine_to(
     source = await source_embedding(session, source_page_id=source_page_id, key=key)
     if source is None:
         return {}
-    embedding_id, dimensions = source
-    vector = (
-        select(PageEmbedding.embedding).where(PageEmbedding.id == embedding_id).scalar_subquery()
-    )
-    distance = cosine_distance(PageEmbedding.embedding, vector)
+    vector, dimensions = source
     rows = (
         await session.execute(
-            select(PageEmbedding.page_id, distance)
+            select(PageEmbedding.page_id, PageEmbedding.embedding)
             .join(
                 Page, current_embedding_join(key.model, key.recipe_version, key.recipe_fingerprint)
             )
@@ -377,8 +374,8 @@ async def cosine_to(
         )
     ).all()
     out: dict[uuid.UUID, float] = {}
-    for page_id, raw in rows:
-        dist = _finite(raw)
-        if dist is not None:
-            out.setdefault(page_id, max(-1.0, min(1.0, 1.0 - dist)))
+    for page_id, candidate in rows:
+        score = cosine_similarity(vector, candidate)
+        if score is not None:
+            out.setdefault(page_id, max(-1.0, min(1.0, score)))
     return out

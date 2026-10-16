@@ -12,12 +12,14 @@ from ken_core.db.models.analytics import (
     LinkMetricsDaily,
     PageMetricsDaily,
 )
+from ken_core.db.models.autonomy import AutonomyDecisionRow, PublishAttempt
 from ken_core.db.models.deployment import Deployment, DeploymentItem, DeploymentVerification
 from ken_core.db.models.event import Event
 from ken_core.db.models.intelligence import (
     JobRun,
     PageAnalysis,
     PageEmbedding,
+    PageGraphMetrics,
     PageProtection,
     PageRelationship,
 )
@@ -52,6 +54,7 @@ __all__ = [
     "AgentStep",
     "AnalyticsImport",
     "AuthSession",
+    "AutonomyDecisionRow",
     "Deployment",
     "DeploymentItem",
     "DeploymentVerification",
@@ -75,12 +78,14 @@ __all__ = [
     "Page",
     "PageAnalysis",
     "PageEmbedding",
+    "PageGraphMetrics",
     "PageMetricsDaily",
     "PageProtection",
     "PageRelationship",
     "PageVersion",
     "PolicyCandidate",
     "PolicyEvaluation",
+    "PublishAttempt",
     "ReviewActionRow",
     "Skill",
     "User",

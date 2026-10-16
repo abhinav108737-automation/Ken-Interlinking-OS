@@ -127,8 +127,12 @@ class CheckKind(StrEnum):
     DATABASE = "database"
     SCHEMA = "schema"
     EXTENSION = "extension"
+    """A PostgreSQL extension. No check uses it since ADR-0017 removed pgvector; the value
+    stays so a stored or client-side kind from an older build still parses."""
     MODEL_SERVER = "model_server"
     CMS = "cms"
+    VECTOR_STORE = "vector_store"
+    """ADR-0017: the derived semantic index (Qdrant, or the in-memory store in tests)."""
 
 
 class ServiceIdentity(FrozenModel):

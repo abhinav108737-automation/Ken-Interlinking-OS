@@ -464,6 +464,30 @@ LEARNING_TRIGGERS = frozenset(
         "experiment_assignments_immutable",
     }
 )
+HEAD_REVISION = "0010_qdrant_and_autonomy"
+"""The single migration head. Named once, so adding a migration touches one line here
+instead of every schema test that asserts "a round trip came back to head"."""
+
+
+# --------------------------------------------------------------------------- #
+# Migration 0010 (Phase 9): what a downgrade below 0010 removes from the head schema
+# --------------------------------------------------------------------------- #
+AUTONOMY_TABLES = frozenset(
+    {
+        "page_graph_metrics",
+        "autonomy_decisions",
+        "publish_attempts",
+    }
+)
+AUTONOMY_FUNCTIONS = frozenset({"ken_autonomy_decision_guard"})
+AUTONOMY_TRIGGERS = frozenset(
+    {
+        "autonomy_decisions_plan_integrity",
+        "autonomy_decisions_immutable",
+        "publish_attempts_immutable",
+    }
+)
+
 LEARNING_PROMOTER_ON = "SELECT set_config('ken.learning_promoter', 'on', true)"
 """The transaction-local setting migration 0009's guards require for a promotion."""
 LEARNING_ACTIVATOR_ON = "SELECT set_config('ken.learning_experiment_activator', 'on', true)"

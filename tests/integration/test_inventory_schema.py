@@ -20,6 +20,7 @@ from sqlalchemy.exc import DBAPIError, IntegrityError
 import ken_core.db.models  # noqa: F401 -- registers every model
 from ken_core.db.base import Base
 from ken_core.db.models.agents import APPEND_ONLY_AGENT_TABLES
+from ken_core.db.models.autonomy import APPEND_ONLY_AUTONOMY_TABLES
 from ken_core.db.models.analytics import APPEND_ONLY_ANALYTICS_TABLES
 from ken_core.db.models.deployment import APPEND_ONLY_DEPLOYMENT_TABLES
 from ken_core.db.models.intelligence import IMMUTABLE_INTELLIGENCE_TABLES
@@ -238,6 +239,8 @@ def test_trigger_set_matches_the_orm_declaration(empty: SyncDb) -> None:
         # Migration 0009 (Phase 8) extends the same function to the four append-only
         # learning tables: a learning audit trail is never rewritten.
         | set(APPEND_ONLY_LEARNING_TABLES)
+        # Migration 0010 (Phase 9): the autonomy decision record and the retry budget.
+        | set(APPEND_ONLY_AUTONOMY_TABLES)
     )
 
 
@@ -408,9 +411,10 @@ def test_downgrade_to_0001_restores_exactly_the_events_schema(
     assert "ken_reject_mutation" in sync_db.run(_ken_functions)
 
 
-def test_no_extension_beyond_plpgsql_and_pgvector(empty: SyncDb) -> None:
+def test_no_extension_beyond_plpgsql(empty: SyncDb) -> None:
     extensions: set[str] = empty.run(
         lambda c: set(c.execute(text("SELECT extname FROM pg_extension")).scalars())
     )
-    # 0002 needs none; pgvector arrives with migration 0003 (ADR-0010).
-    assert extensions == {"plpgsql", "vector"}
+    # ADR-0017: plpgsql (built in) and NOTHING else, at any revision. pgvector used to
+    # arrive with 0003; it is removed from the system, not merely unused.
+    assert extensions == {"plpgsql"}

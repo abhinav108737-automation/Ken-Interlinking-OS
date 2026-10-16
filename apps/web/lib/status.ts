@@ -89,6 +89,7 @@ const CHECK_KIND_LABEL: Readonly<Record<CheckKind, string>> = {
   extension: "Extension",
   model_server: "Model server",
   cms: "CMS",
+  vector_store: "Vector store",
 };
 
 export const HEALTH_STATUSES = Object.keys(HEALTH_STATUS_PRESENTATION) as readonly HealthStatus[];

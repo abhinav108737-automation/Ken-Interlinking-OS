@@ -28,6 +28,16 @@ dependencies = [
   # StateGraph is used: no checkpointer package (langgraph-checkpoint-postgres
   # pulls psycopg, LGPL), and LangSmith tracing is refused at startup.
   "langgraph==1.2.12",
+  # Phase 9 vector store (ADR-0017). Apache-2.0, as is the qdrant/qdrant server
+  # image it talks to (pinned in docker-compose.yml to v1.19.1,
+  # sha256:12364fe851b9f17356fc88189fc06d1b521262e04659ec7345975b00c9246a10).
+  # Self-hosted on loopback: no managed vector database, no paid API. Qdrant was
+  # on the forbidden list until ADR-0017; that prohibition is explicitly lifted
+  # by the user's completion directive, and Neo4j, Redis, Kafka, Celery and
+  # Temporal remain forbidden. Its transitive dependencies are all permissive:
+  # grpcio and protobuf (Apache-2.0 / BSD-3), numpy and portalocker (BSD-3),
+  # h2 / hpack / hyperframe (MIT).
+  "qdrant-client==1.19.1",
 ]
 
 [project.optional-dependencies]

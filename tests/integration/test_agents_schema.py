@@ -27,6 +27,10 @@ from ken_contracts.agents import MAX_STEP_OUTPUT_BYTES
 from ken_core.db.base import Base
 from ken_core.db.models.agents import AGENT_RUN_MUTABLE_COLUMNS, APPEND_ONLY_AGENT_TABLES
 from tests.integration.conftest import (
+    AUTONOMY_FUNCTIONS,
+    AUTONOMY_TABLES,
+    AUTONOMY_TRIGGERS,
+    HEAD_REVISION,
     ANALYTICS_TABLES,
     ANALYTICS_TRIGGERS,
     DEPLOYMENT_TABLES,
@@ -713,7 +717,7 @@ def test_downgrade_to_0004_restores_exactly_the_recommendations_schema(
             - set(REVIEW_TABLES)
             - DEPLOYMENT_TABLES
             - ANALYTICS_TABLES
-            - LEARNING_TABLES
+            - LEARNING_TABLES - AUTONOMY_TABLES
         )
         assert state["functions"] == {"ken_reject_mutation", "ken_link_plan_content_guard"}
         assert state["triggers"] == (
@@ -721,7 +725,7 @@ def test_downgrade_to_0004_restores_exactly_the_recommendations_schema(
             - REVIEW_TRIGGERS
             - DEPLOYMENT_TRIGGERS
             - ANALYTICS_TRIGGERS
-            - LEARNING_TRIGGERS
+            - LEARNING_TRIGGERS - AUTONOMY_TRIGGERS
             - {
                 "agent_runs_guard",
                 "agent_runs_no_delete",
@@ -735,4 +739,4 @@ def test_downgrade_to_0004_restores_exactly_the_recommendations_schema(
         command.upgrade(alembic_config, "head")
     state = sync_db.run(_state)
     assert state == head
-    assert state["revision"] == "0009_learning"
+    assert state["revision"] == HEAD_REVISION

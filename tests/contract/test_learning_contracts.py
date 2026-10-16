@@ -925,9 +925,13 @@ def test_the_migration_copies_the_contract_exactly() -> None:
         status.value for status in learning.HUMAN_ONLY_STATUSES
     }
     # JobKind.REFLECTION must be added to the job_runs CHECK, or `make reflect` cannot run.
+    # 0009's list is a SNAPSHOT of the enum at that revision, so later members belong to
+    # later migrations (0010 adds autonomy / graph_metrics / vector_index); what this
+    # asserts is that 0009 added exactly `reflection` and nothing else.
     from ken_contracts.jobs import JobKind
 
-    assert set(module.JOB_KINDS_0009) == {kind.value for kind in JobKind}
+    assert set(module.JOB_KINDS_0009) <= {kind.value for kind in JobKind}
+    assert set(module.JOB_KINDS_0009) - set(module.JOB_KINDS_0008) == {"reflection"}
     assert "reflection" in module.JOB_KINDS_0009
     assert "reflection" not in module.JOB_KINDS_0008
 

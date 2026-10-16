@@ -1,0 +1,13 @@
+# proposal-safety eval dataset -- Phase 8 (ADR-0016 section 7).
+#
+# Re-run `.venv/bin/python evals/datasets/rehash.py` after editing a case file:
+# the runner verifies every sha256 below and refuses a dataset that has drifted.
+suite: proposal-safety
+dataset: core
+dataset_version: 1
+case_count: 31
+files:
+  core.v1.jsonl: e8123b9d5a346ed7e1017e26e66315ad92ab3d17d8d56b36b5436df7329ce9ab
+provenance: Synthetic policy proposals across every frozen path, cross-check and allowlist boundary, plus prompt-injection payloads and proposer actors. No production data.
+contains_production_data: false
+approval_ref: null

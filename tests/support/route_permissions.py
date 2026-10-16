@@ -62,6 +62,17 @@ _EXACT: Final[dict[tuple[str, str], str]] = {
     ("GET", "/learning/experiments"): "read",
     ("GET", "/learning/experiments/{key}"): "read",
     ("POST", "/learning/proposals/{proposal_id}/advance"): "promote",
+    # Phase 9 (ADR-0018 s5/s6): the surfaces that replace the approval inbox. The GETs are
+    # operational metadata, so `read`. The ONE write route reuses `deploy` rather than adding
+    # a permission: an override either publishes a link or withdraws one, which is exactly the
+    # capability ADR-0014 gave `deploy` (operators only), so it grants nothing new. `review`
+    # would be wrong -- a reviewer may approve a proposal, not write to the live site.
+    ("GET", "/autonomy"): "read",
+    ("GET", "/autonomy/mode"): "read",
+    ("GET", "/autonomy/decisions"): "read",
+    ("GET", "/autonomy/blocked"): "read",
+    ("GET", "/autonomy/attempts"): "read",
+    ("POST", "/autonomy/plans/{plan_id}/override"): "deploy",
 }
 _READ_PREFIXES: Final = ("/inventory", "/intelligence", "/jobs", "/recommendations", "/agents")
 

@@ -8,9 +8,18 @@ never deleted. ``page_relationships`` is derived data and is replaced per run.
 
 "Fresh" always means: for the page's CURRENT version (``pages.current_version``)
 and, for analyses, the current ``analysis_version``; for embeddings, the current
-(model, recipe version, recipe fingerprint) identity. Similarity queries
-additionally filter on ``dimensions``, so vectors of two models or two text
+(model, recipe version, recipe fingerprint) identity. Similarity work
+additionally filters on ``dimensions``, so vectors of two models or two text
 recipes are never compared.
+
+**No similarity SQL lives here any more (ADR-0017).** The extension is removed, not
+bypassed: no distance operator, no distance helper, no extension import. A static test
+(``tests/unit/test_vector_extension_removed.py``) asserts it, so the competing path
+cannot come back by
+accident. Cosine is computed by the ONE pure function every implementation shares,
+``ken_contracts.vectors.cosine_similarity``, over the ``real[]`` values PostgreSQL owns. :func:`nearest_candidates` keeps its signature and
+its exact semantics (exact KNN, deterministic ties) so the relationship builder above it did
+not change; the vector workstream replaces its body with ``VectorStore.search``.
 """
 
 from __future__ import annotations
@@ -21,11 +30,12 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Final
 
-from sqlalchemy import ColumnElement, Float, and_, delete, func, or_, select, update
+from sqlalchemy import ColumnElement, and_, delete, func, or_, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ken_contracts.intelligence import PageAnalysis, RelationshipType
+from ken_contracts.vectors import cosine_similarity
 from ken_core.db.models.intelligence import PageAnalysis as PageAnalysisRow
 from ken_core.db.models.intelligence import (
     PageEmbedding,
@@ -71,11 +81,6 @@ def current_embedding_join(
             model=model, recipe_version=recipe_version, recipe_fingerprint=recipe_fingerprint
         ),
     )
-
-
-def cosine_distance(left: Any, right: Any) -> ColumnElement[float]:
-    """pgvector cosine distance (``<=>``); similarity is ``1 - distance``."""
-    return left.op("<=>", return_type=Float())(right)  # type: ignore[no-any-return]
 
 
 def analysis_from_row(row: PageAnalysisRow) -> PageAnalysis:
@@ -488,29 +493,43 @@ async def nearest_candidates(
 ) -> list[tuple[uuid.UUID, int, float]]:
     """(page id, version, cosine) of the nearest similarity candidates, best first.
 
-    Exact KNN (no index): O(candidates) per call. Candidates are current-version
-    embeddings of the same (model, dimensions, recipe, fingerprint) whose page also has a
-    fresh analysis; the source page itself is excluded.
+    Exact KNN: O(candidates) per call. Candidates are current-version embeddings of the same
+    (model, dimensions, recipe, fingerprint) whose page also has a fresh analysis; the source
+    page itself is excluded. Ties break on page id, so a run is reproducible.
+
+    ADR-0017: the arithmetic happens in Python over the stored ``real[]`` values, not in SQL.
+    A pair whose cosine is undefined (a zero vector) is DROPPED rather than scored 0.0 --
+    "no direction" is not "unrelated".
     """
-    source = (
-        select(PageEmbedding.embedding)
-        .where(PageEmbedding.id == source_embedding_id)
-        .scalar_subquery()
-    )
-    distance = cosine_distance(PageEmbedding.embedding, source)
-    statement = (
-        select(PageEmbedding.page_id, PageEmbedding.page_version, (1.0 - distance).label("score"))
-        .join(Page, current_embedding_join(model, recipe_version, recipe_fingerprint))
-        .join(PageAnalysisRow, fresh_analysis_join(analysis_version))
-        .where(PageEmbedding.dimensions == dimensions, PageEmbedding.page_id != source_page_id)
-        .order_by(distance, PageEmbedding.page_id)
-    )
-    if min_score is not None:
-        statement = statement.where(1.0 - distance >= min_score)
-    if limit is not None:
-        statement = statement.limit(limit)
-    rows = (await session.execute(statement)).all()
-    return [(r.page_id, r.page_version, float(r.score)) for r in rows]
+    source_vector = (
+        await session.execute(
+            select(PageEmbedding.embedding).where(PageEmbedding.id == source_embedding_id)
+        )
+    ).scalar_one_or_none()
+    if source_vector is None:
+        return []
+    rows = (
+        await session.execute(
+            select(PageEmbedding.page_id, PageEmbedding.page_version, PageEmbedding.embedding)
+            .join(Page, current_embedding_join(model, recipe_version, recipe_fingerprint))
+            .join(PageAnalysisRow, fresh_analysis_join(analysis_version))
+            .where(
+                PageEmbedding.dimensions == dimensions,
+                PageEmbedding.page_id != source_page_id,
+            )
+            .order_by(PageEmbedding.page_id)
+        )
+    ).all()
+    scored: list[tuple[uuid.UUID, int, float]] = []
+    for page_id, page_version, vector in rows:
+        score = cosine_similarity(source_vector, vector)
+        if score is None:
+            continue
+        if min_score is not None and score < min_score:
+            continue
+        scored.append((page_id, page_version, score))
+    scored.sort(key=lambda row: (-row[2], str(row[0])))
+    return scored if limit is None else scored[:limit]
 
 
 # --------------------------------------------------------------------------- #

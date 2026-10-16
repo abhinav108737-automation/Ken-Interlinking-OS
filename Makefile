@@ -25,7 +25,9 @@ export NEXT_TELEMETRY_DISABLED := 1
         user-create user-list user-disable user-enable user-set-role user-set-password \
         sessions-prune deployments-reconcile jobs-reap cms-sim-seed cms-sim-serve \
         analytics-import analytics-aggregate analytics-demo-seed analytics-sim-serve \
-        reflect eval shadow policy-promote experiment-create experiment-assign
+        reflect eval shadow policy-promote experiment-create experiment-assign \
+        qdrant-up qdrant-down qdrant-index qdrant-rebuild qdrant-verify \
+        autonomy autonomy-shadow
 
 help: ## List targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "} {printf "  %-18s %s\n", $$1, $$2}'
@@ -57,8 +59,35 @@ db-down: ## Stop the Postgres container (keeps its data volume)
 migrate: ## Apply Alembic migrations to KEN_DATABASE_URL
 	$(VENV)/alembic upgrade head
 
+# ------------------------------------------------- vector store (ADR-0017)
+# Qdrant is a DERIVED index: PostgreSQL keeps the embedding values, so every
+# target here is safe to re-run and `qdrant-rebuild` can always reconstruct the
+# collection from scratch. The container binds 127.0.0.1:6333/6334 only.
+#
+# The index/rebuild/verify bodies resolve `ken_services.vectors.cli`, which the
+# vector workstream lands; until then they fail with a module-not-found, like
+# the staged readers of earlier phases.
+qdrant-up: ## Start the Qdrant container on 127.0.0.1:6333/6334 and wait for healthy
+	$(COMPOSE) up -d qdrant
+	@for i in $$(seq 1 30); do \
+	  s=$$(docker inspect -f '{{.State.Health.Status}}' ken-interlink-qdrant-1 2>/dev/null); \
+	  [ "$$s" = "healthy" ] && echo "qdrant healthy on 127.0.0.1:6333" && exit 0; sleep 2; \
+	done; echo "qdrant did not become healthy" >&2; exit 1
+
+qdrant-down: ## Stop the Qdrant container (keeps its storage volume)
+	$(COMPOSE) stop qdrant
+
+qdrant-index: ## Idempotent incremental indexing from PostgreSQL (ARGS="--force")
+	$(VENV)/python -m ken_services.vectors.cli index $(ARGS)
+
+qdrant-rebuild: ## Drop the collection and refill it from PostgreSQL
+	$(VENV)/python -m ken_services.vectors.cli rebuild $(ARGS)
+
+qdrant-verify: ## Drift report in both directions; non-zero exit on drift
+	$(VENV)/python -m ken_services.vectors.cli verify $(ARGS)
+
 # ---------------------------------------------------------------- run
-dev: db-up migrate ## Start Postgres + migrate, then run dev-api and dev-web in two terminals
+dev: db-up qdrant-up migrate ## Start Postgres + Qdrant + migrate, then run dev-api and dev-web
 	@echo ""; echo "Now run, in two terminals:"; echo "  make dev-api"; echo "  make dev-web"
 
 dev-api: ## FastAPI natively on 127.0.0.1:8000 (host Ollama, container Postgres)
@@ -225,6 +254,20 @@ experiment-create: ## Create a draft policy_ab experiment: make experiment-creat
 experiment-assign: ## Materialise the deterministic arm per source page (draft experiments only)
 	@test -n "$(KEY)" || (echo 'usage: make experiment-assign KEY=<key>' >&2; exit 2)
 	$(VENV)/python -m ken_services.learning.cli experiment-assign --key "$(KEY)" $(ARGS)
+
+# ---------------------------------------------------------------- autonomy (Phase 9)
+# CLI-ONLY (ADR-0018 section 5): no UI button starts an evaluation pass or a publish sweep.
+# The API has GET routes plus ONE operator-override write route. Both targets resolve
+# `ken_services.autonomy.cli`, which the autonomy workstream lands; until then they fail with
+# a module-not-found, like the staged readers.
+#
+# What actually happens depends on KEN_AUTONOMY_MODE, whose default is `shadow`: `make
+# autonomy` in shadow mode records decisions and publishes nothing.
+autonomy: ## Evaluate eligible plans under KEN_AUTONOMY_MODE (ARGS="--source PAGE_ID ...")
+	$(VENV)/python -m ken_services.autonomy.cli evaluate $(ARGS)
+
+autonomy-shadow: ## Force a shadow pass: record what WOULD happen, publish nothing
+	$(VENV)/python -m ken_services.autonomy.cli evaluate --mode shadow $(ARGS)
 
 # ---------------------------------------------------------------- doctor / gate
 doctor: ## Print the environment matrix; non-zero exit only on hard failures

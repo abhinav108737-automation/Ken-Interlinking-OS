@@ -191,6 +191,108 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/autonomy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Decision, mode and block-code counts for the dashboard. */
+        get: operations["getAutonomySummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/autonomy/attempts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Publish attempts per (source, target): the retry budget and its cool-down. */
+        get: operations["listPublishAttempts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/autonomy/blocked": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Blocked plans and the deterministic codes that fired, for investigation. */
+        get: operations["listBlockedActions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/autonomy/decisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Recorded autonomy decisions, newest first. */
+        get: operations["listAutonomyDecisions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/autonomy/mode": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The autonomy mode in force, and whether anything can actually be published. */
+        get: operations["getAutonomyMode"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/autonomy/plans/{plan_id}/override": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Operator override: publish or block one plan, with a recorded reason. */
+        post: operations["overrideAutonomyDecision"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/dashboard": {
         parameters: {
             query?: never;
@@ -1505,6 +1607,179 @@ export interface components {
             reasons?: components["schemas"]["FeedbackReason"][];
         };
         /**
+         * AutonomyDecision
+         * @description ADR-0018 section 1. Exactly three outcomes; there is no "approve" among them.
+         * @enum {string}
+         */
+        AutonomyDecision: "block" | "auto_publish" | "auto_publish_with_extra_verification";
+        /**
+         * AutonomyDecisionView
+         * @description A stored evaluation, with its row id and the plan's current status.
+         */
+        AutonomyDecisionView: {
+            /**
+             * Blocks
+             * @description The deterministic blocks that FIRED, in enum order. Non-empty implies ``decision == BLOCK``.
+             * @default []
+             */
+            blocks: components["schemas"]["BlockCode"][];
+            /**
+             * Calibration Version
+             * @description None = RAW confidence (ADR-0011: no threshold may treat raw as calibrated). A guarded auto-publish therefore requires a calibration version, which is what keeps Phase 9's calibration on the critical path rather than optional.
+             */
+            calibration_version: string | null;
+            /**
+             * Confidence
+             * @description The confidence the decision was taken on.
+             */
+            confidence: number;
+            critic_outcome: components["schemas"]["CriticOutcome"];
+            /** @description The raw model-boundary verdict, kept so `uncertain` is not lost. */
+            critic_verdict: components["schemas"]["CriticVerdict"] | null;
+            decision: components["schemas"]["AutonomyDecision"];
+            /** Engine Version */
+            engine_version: string;
+            /**
+             * Evaluated At
+             * Format: date-time
+             */
+            evaluated_at: string;
+            /** Id */
+            id: number;
+            /** @description The mode in force when this was evaluated. */
+            mode: components["schemas"]["AutonomyMode"];
+            /**
+             * Plan Id
+             * Format: uuid
+             */
+            plan_id: string;
+            plan_status: components["schemas"]["LinkPlanStatus"];
+            /**
+             * Policy Version
+             * @description Version of the governing policy document this was evaluated under.
+             */
+            policy_version: number;
+            risk_tier: components["schemas"]["RiskTier"];
+            /**
+             * Rollback Available
+             * @description Whether an inverse splice is possible for this plan right now. False forces ``BLOCK`` with ``MISSING_ROLLBACK_METADATA``: nothing is published that cannot be undone.
+             */
+            rollback_available: boolean;
+            /** Source Url */
+            source_url: string;
+            /** Target Url */
+            target_url: string;
+            /** @default standard */
+            verification_profile: components["schemas"]["VerificationProfile"];
+            /** @description SHADOW ONLY: the decision that WOULD have been taken had the mode been ``autonomous``. Set exactly when ``mode == shadow``; in shadow the effective ``decision`` is never a publish. */
+            would_have_decision: components["schemas"]["AutonomyDecision"] | null;
+        };
+        /**
+         * AutonomyHealth
+         * @description ``GET /autonomy/mode``: the mode in force and why it is safe, in one payload.
+         */
+        AutonomyHealth: {
+            /** Allow Production */
+            allow_production: boolean;
+            /** Autonomous Acknowledged */
+            autonomous_acknowledged: boolean;
+            /** Calibration Version */
+            calibration_version: string | null;
+            /** Cms Provider */
+            cms_provider: string;
+            /** Cms Writes Enabled */
+            cms_writes_enabled: boolean;
+            mode: components["schemas"]["AutonomyMode"];
+            /** Policy Version */
+            policy_version: number;
+            /**
+             * Publishing Enabled
+             * @description True only when the mode, the acknowledgement and the CMS all permit a real write. False in shadow, always.
+             */
+            publishing_enabled: boolean;
+            verification_profile_default: components["schemas"]["VerificationProfile"];
+        };
+        /**
+         * AutonomyMode
+         * @description ``KEN_AUTONOMY_MODE``. Default :attr:`SHADOW`, deliberately.
+         * @enum {string}
+         */
+        AutonomyMode: "shadow" | "guarded" | "autonomous";
+        /** AutonomySummary */
+        AutonomySummary: {
+            /** Auto Published */
+            auto_published: number;
+            /** Blocked Plans */
+            blocked_plans: number;
+            /** Blocks By Code */
+            blocks_by_code: {
+                [key: string]: number;
+            };
+            /** Decisions By Decision */
+            decisions_by_decision: {
+                [key: string]: number;
+            };
+            /** Decisions By Mode */
+            decisions_by_mode: {
+                [key: string]: number;
+            };
+            mode: components["schemas"]["AutonomyMode"];
+            /** Rolled Back */
+            rolled_back: number;
+        };
+        /**
+         * BlockCode
+         * @description The CLOSED set of deterministic hard blocks (the completion directive section 9).
+         *
+         *     Every one of these is computable from stored facts by code alone -- no model call, no
+         *     judgement. A block is terminal for the plan unless an operator overrides it, and the
+         *     override is recorded with who and why (:class:`OperatorOverrideRequest`).
+         * @enum {string}
+         */
+        BlockCode: "self_link" | "external_destination" | "protected_page" | "unpublished_destination" | "broken_target" | "stale_source_version" | "duplicate_contextual_link" | "prohibited_page_type" | "policy_disallowed_destination" | "invalid_canonical" | "unsupported_redirect" | "invalid_page_state" | "invalid_anchor" | "missing_rollback_metadata" | "stale_vector";
+        /**
+         * BlockedActionView
+         * @description A blocked plan, for the operator screen that replaces the approval inbox.
+         */
+        BlockedActionView: {
+            /** Anchor Text */
+            anchor_text: string;
+            /** Blocks */
+            blocks: components["schemas"]["BlockCode"][];
+            /**
+             * Decided At
+             * Format: date-time
+             */
+            decided_at: string;
+            mode: components["schemas"]["AutonomyMode"];
+            /**
+             * Overridden
+             * @description An operator has already acted on this block.
+             * @default false
+             */
+            overridden: boolean;
+            /**
+             * Plan Id
+             * Format: uuid
+             */
+            plan_id: string;
+            risk_tier: components["schemas"]["RiskTier"];
+            /**
+             * Source Page Id
+             * Format: uuid
+             */
+            source_page_id: string;
+            /** Source Url */
+            source_url: string;
+            /**
+             * Target Page Id
+             * Format: uuid
+             */
+            target_page_id: string;
+            /** Target Url */
+            target_url: string;
+        };
+        /**
          * BulkAction
          * @enum {string}
          */
@@ -1564,6 +1839,32 @@ export interface components {
             operation_id: string;
         };
         /**
+         * CandidateAttribution
+         * @description Why ONE channel offered this candidate -- the per-channel audit trail (directive s6).
+         *
+         *     One row per channel that retrieved the candidate. ``raw`` is the channel's own units
+         *     (cosine, ts_rank_cd, edge weight, an analytics rate); ``normalised`` is the comparable
+         *     [0, 1] value the union used. Both are kept because the raw value is the only one that can
+         *     be re-derived from the stores, and the normalised one is the only one that explains the
+         *     ranking.
+         */
+        CandidateAttribution: {
+            channel: components["schemas"]["RetrievalChannel"];
+            /**
+             * Evidence
+             * @description Channel-specific facts (the matched relationship type, the keyword hits, the vector's point id and content hash). Never free model text.
+             */
+            evidence: {
+                [key: string]: unknown;
+            };
+            /** Normalised */
+            normalised: number;
+            /** Rank In Channel */
+            rank_in_channel: number;
+            /** Raw */
+            raw: number;
+        };
+        /**
          * CandidateRejection
          * @description Deterministic filters (FR-006), in EVALUATION ORDER; the first match is recorded.
          *
@@ -1578,12 +1879,20 @@ export interface components {
          * @description A retrieved candidate, kept or rejected, for explainability and evals.
          */
         CandidateView: {
+            /**
+             * Attribution
+             * @description Per-channel attribution, one entry per channel in ``channels`` (additive; empty for rows written before ADR-0018).
+             * @default []
+             */
+            attribution: components["schemas"]["CandidateAttribution"][];
             /** Channel Scores */
             channel_scores: {
                 [key: string]: number;
             };
             /** Channels */
             channels: components["schemas"]["RetrievalChannel"][];
+            /** @description The TARGET's link-graph position when it was retrieved. */
+            graph_signals: components["schemas"]["GraphSignals"] | null;
             /** Plan Id */
             plan_id: string | null;
             rejection: components["schemas"]["CandidateRejection"] | null;
@@ -1659,7 +1968,7 @@ export interface components {
          * @description Category of a readiness check, so clients can group them in a UI.
          * @enum {string}
          */
-        CheckKind: "database" | "schema" | "extension" | "model_server" | "cms";
+        CheckKind: "database" | "schema" | "extension" | "model_server" | "cms" | "vector_store";
         /**
          * ConfounderFlag
          * @enum {string}
@@ -1690,6 +1999,21 @@ export interface components {
             /** Review Actions Total */
             review_actions_total: number;
         };
+        /**
+         * CriticOutcome
+         * @description The autonomy-level view of the critic step.
+         *
+         *     :attr:`NO_ACTION` is a SEPARATE, EARLIER outcome (ADR-0018 section 1): the plan is not a
+         *     defect, there is simply nothing worth doing. It never becomes a publish.
+         *
+         *     Relationship to :class:`~ken_contracts.agents.CriticVerdict`, which is the model-boundary
+         *     vocabulary: ``accept``/``reject`` map across directly; ``uncertain`` does NOT map to
+         *     :attr:`ACCEPT` silently -- it is recorded in
+         *     :attr:`AutonomyEvaluation.critic_verdict` and raises the risk tier, which in
+         *     ``guarded`` mode defers the plan instead of publishing it.
+         * @enum {string}
+         */
+        CriticOutcome: "accept" | "reject" | "no_action";
         /**
          * CriticReason
          * @enum {string}
@@ -1924,12 +2248,12 @@ export interface components {
             latency_ms: number;
             /**
              * Name
-             * @description Stable identifier, e.g. 'postgres'.
+             * @description Stable identifier, e.g. 'postgres' or 'qdrant'.
              */
             name: string;
             /**
              * Required
-             * @description Whether failure makes the service NOT_READY. Computed from settings (KEN_REQUIRE_PGVECTOR, KEN_REQUIRE_OLLAMA) so one binary can be lenient in native development and strict elsewhere.
+             * @description Whether failure makes the service NOT_READY. Computed from settings (KEN_REQUIRE_QDRANT, KEN_REQUIRE_OLLAMA) so one binary can be lenient in native development and strict elsewhere.
              */
             required: boolean;
             status: components["schemas"]["HealthStatus"];
@@ -2735,6 +3059,83 @@ export interface components {
             /** Score */
             score: number;
         };
+        /**
+         * GraphSignals
+         * @description The internal link-graph position of ONE page version (``page_graph_metrics``).
+         *
+         *     Every signal is reported SEPARATELY and deliberately: there is no single opaque "graph
+         *     score". A reviewer, an eval and the learning pipeline must all be able to see WHICH
+         *     property moved a candidate, and a composite number destroys exactly that. The ranking
+         *     policy is free to combine them into its ``graph`` component; the record keeps the parts.
+         */
+        GraphSignals: {
+            /** Authority Score */
+            authority_score: number;
+            /**
+             * Cluster Id
+             * @description Topical cluster ordinal.
+             */
+            cluster_id: number | null;
+            /**
+             * Component Id
+             * @description Weakly connected component ordinal.
+             */
+            component_id: number | null;
+            /**
+             * Computed At
+             * Format: date-time
+             */
+            computed_at: string;
+            /**
+             * Crawl Depth
+             * @description Clicks from the configured entry page; None = unreachable.
+             */
+            crawl_depth: number | null;
+            /** Hub Score */
+            hub_score: number;
+            /**
+             * In Degree
+             * @description Current internal inbound links.
+             */
+            in_degree: number;
+            /**
+             * Internal Pagerank
+             * @description Normalised; sums to ~1.
+             */
+            internal_pagerank: number;
+            /**
+             * Is Bridge
+             * @description Removing this page would disconnect part of the graph (a cut vertex).
+             */
+            is_bridge: boolean;
+            /**
+             * Is Nearly Orphan
+             * @description Inbound links below the policy threshold.
+             */
+            is_nearly_orphan: boolean;
+            /**
+             * Is Orphan
+             * @description No internal inbound link from any current page.
+             */
+            is_orphan: boolean;
+            /**
+             * Metrics Version
+             * @description Algorithm/recipe version, e.g. 'graph-alg1'. Stored with every row so a recomputation is attributable and two versions are never compared.
+             */
+            metrics_version: string;
+            /**
+             * Out Degree
+             * @description Current internal outbound links.
+             */
+            out_degree: number;
+            /**
+             * Page Id
+             * Format: uuid
+             */
+            page_id: string;
+            /** Page Version */
+            page_version: number;
+        };
         /** Heading */
         Heading: {
             /** Block Id */
@@ -2926,12 +3327,17 @@ export interface components {
          *
          *     Phases 2-7 added exactly one kind each. **Phase 8 adds two** -- ``evaluation`` (reserved
          *     here from Phase 0) and ``reflection`` -- so the former "one per phase" rule is amended
-         *     rather than quietly broken (ADR-0016 15.1.6 / 15.7.14). The rule that remains is the one
+         *     rather than quietly broken (ADR-0016 15.1.6 / 15.7.14). **Phase 9 adds three**:
+         *     ``autonomy``, ``graph_metrics`` and ``vector_index``. The rule that remains is the one
          *     that matters: a batch job records itself as a ``job_runs`` row instead of inventing a
          *     table, and one run of a given kind executes at a time.
+         *
+         *     ``job_runs.kind`` carries a FROZEN LITERAL COPY of this enum in a database CHECK, so a
+         *     member added here needs a migration that replaces it (0009 did it for ``reflection``,
+         *     0010 for the three above). Adding one without that migration fails at the first INSERT.
          * @enum {string}
          */
-        JobKind: "analysis" | "recommendation" | "agent" | "verification" | "analytics_import" | "evaluation" | "reflection" | "autonomy_shadow";
+        JobKind: "analysis" | "recommendation" | "agent" | "verification" | "analytics_import" | "evaluation" | "reflection" | "autonomy_shadow" | "autonomy" | "graph_metrics" | "vector_index";
         /** JobRunDetail */
         JobRunDetail: {
             /** Completed At */
@@ -3443,6 +3849,8 @@ export interface components {
             status: components["schemas"]["LinkPlanStatus"];
             /** Supersedes */
             supersedes: string | null;
+            /** @description The destination's link-graph position, read at request time (additive; None when graph metrics have not been computed). Deliberately not a plan COLUMN: plan content is immutable, and the graph moves under it. */
+            target_graph_signals: components["schemas"]["GraphSignals"] | null;
             /**
              * Target Page Id
              * Format: uuid
@@ -3465,9 +3873,19 @@ export interface components {
         /**
          * LinkPlanStatus
          * @description PRD v1.1 Appendix C recommendation lifecycle. Moves only along ``ALLOWED_TRANSITIONS``.
+         *
+         *     ADR-0018 adds ``autonomy_decided`` and ``blocked`` and makes the approval pair
+         *     EXCEPTIONAL. The normal autonomous path is::
+         *
+         *         proposed -> critiqued -> policy_checked -> autonomy_decided -> validated
+         *                  -> deployed -> verified -> measured -> learning_captured
+         *
+         *     ``awaiting_approval`` / ``approved`` stay reachable, but only for a ``guarded``-mode
+         *     deferral and for an operator acting on an exception. They are no longer on the
+         *     normal path (ADR-0018 s3).
          * @enum {string}
          */
-        LinkPlanStatus: "proposed" | "critiqued" | "policy_checked" | "awaiting_approval" | "approved" | "rejected" | "superseded" | "validated" | "deployed" | "verified" | "failed" | "rolled_back" | "expired" | "measured" | "learning_captured";
+        LinkPlanStatus: "proposed" | "critiqued" | "policy_checked" | "autonomy_decided" | "blocked" | "awaiting_approval" | "approved" | "rejected" | "superseded" | "validated" | "deployed" | "verified" | "failed" | "rolled_back" | "expired" | "measured" | "learning_captured";
         /**
          * LinkResolution
          * @description Whether an internal link's destination is known (computed at read time).
@@ -3501,6 +3919,18 @@ export interface components {
         ListResponse_AnalyticsImportView_: {
             /** Items */
             items: components["schemas"]["AnalyticsImportView"][];
+            page: components["schemas"]["PageInfo"];
+        };
+        /** ListResponse[AutonomyDecisionView] */
+        ListResponse_AutonomyDecisionView_: {
+            /** Items */
+            items: components["schemas"]["AutonomyDecisionView"][];
+            page: components["schemas"]["PageInfo"];
+        };
+        /** ListResponse[BlockedActionView] */
+        ListResponse_BlockedActionView_: {
+            /** Items */
+            items: components["schemas"]["BlockedActionView"][];
             page: components["schemas"]["PageInfo"];
         };
         /** ListResponse[CandidateView] */
@@ -3599,6 +4029,12 @@ export interface components {
             items: components["schemas"]["ProposalSummary"][];
             page: components["schemas"]["PageInfo"];
         };
+        /** ListResponse[PublishAttemptView] */
+        ListResponse_PublishAttemptView_: {
+            /** Items */
+            items: components["schemas"]["PublishAttemptView"][];
+            page: components["schemas"]["PageInfo"];
+        };
         /** ListResponse[ReviewActionView] */
         ListResponse_ReviewActionView_: {
             /** Items */
@@ -3695,6 +4131,47 @@ export interface components {
         NoteText: string;
         /** Format: uuid */
         OperationId: string;
+        /** OperatorOverrideRequest */
+        OperatorOverrideRequest: {
+            action: components["schemas"]["OverrideAction"];
+            /** @description The plan's status the caller saw. A mismatch is refused (version-aware). */
+            expected_status: components["schemas"]["LinkPlanStatus"];
+            /**
+             * Operation Id
+             * Format: uuid
+             * @description Idempotency key; a replay returns the stored result.
+             */
+            operation_id: string;
+            /** Reason */
+            reason: string;
+        };
+        /** OperatorOverrideResponse */
+        OperatorOverrideResponse: {
+            action: components["schemas"]["OverrideAction"];
+            /** Actor */
+            actor: string;
+            /** Applied */
+            applied: boolean;
+            /**
+             * Blocks
+             * @description Blocks still firing. Non-empty with ``action=publish`` means the override was REFUSED: a deterministic block is never overridable.
+             * @default []
+             */
+            blocks: components["schemas"]["BlockCode"][];
+            /**
+             * Occurred At
+             * Format: date-time
+             */
+            occurred_at: string;
+            /**
+             * Plan Id
+             * Format: uuid
+             */
+            plan_id: string;
+            plan_status: components["schemas"]["LinkPlanStatus"];
+            /** Refusal */
+            refusal: string | null;
+        };
         /**
          * OpportunityKind
          * @enum {string}
@@ -3729,6 +4206,12 @@ export interface components {
             /** Title */
             title: string | null;
         };
+        /**
+         * OverrideAction
+         * @description ADR-0018 section 5: an operator may publish or block ONE plan, with a reason.
+         * @enum {string}
+         */
+        OverrideAction: "publish" | "block";
         /**
          * PageAnalysis
          * @description Deterministic understanding of one page version.
@@ -4825,6 +5308,50 @@ export interface components {
          */
         PublicationState: "published" | "draft" | "unpublished" | "unknown";
         /**
+         * PublishAttemptView
+         * @description One recorded publish attempt for a (source, target) pair. Append-only.
+         */
+        PublishAttemptView: {
+            /** Attempt */
+            attempt: number;
+            /** Cooldown Until */
+            cooldown_until: string | null;
+            decision: components["schemas"]["AutonomyDecision"];
+            /** Failure Code */
+            failure_code: string | null;
+            /** Id */
+            id: number;
+            mode: components["schemas"]["AutonomyMode"];
+            /**
+             * Occurred At
+             * Format: date-time
+             */
+            occurred_at: string;
+            /**
+             * Plan Id
+             * Format: uuid
+             */
+            plan_id: string;
+            /**
+             * Rolled Back
+             * @default false
+             */
+            rolled_back: boolean;
+            /**
+             * Source Page Id
+             * Format: uuid
+             */
+            source_page_id: string;
+            /** Succeeded */
+            succeeded: boolean;
+            /**
+             * Target Page Id
+             * Format: uuid
+             */
+            target_page_id: string;
+            verification_profile: components["schemas"]["VerificationProfile"];
+        };
+        /**
          * ReadinessResponse
          * @description ``GET /ready`` -- aggregate readiness.
          *
@@ -4861,8 +5388,8 @@ export interface components {
          *
          *     The distinction between DEGRADED and NOT_READY is the whole point of the
          *     ``required`` flag on each check: an optional dependency that is missing
-         *     degrades the service without making it unready. In Phase 0 pgvector and
-         *     Ollama are both optional, so their absence must not take the API down.
+         *     degrades the service without making it unready. Qdrant and Ollama are both
+         *     optional by default, so their absence must not take the API down.
          * @enum {string}
          */
         ReadinessStatus: "ready" | "degraded" | "not_ready";
@@ -4951,7 +5478,7 @@ export interface components {
          * RetrievalChannel
          * @enum {string}
          */
-        RetrievalChannel: "semantic" | "lexical" | "taxonomy" | "graph";
+        RetrievalChannel: "semantic" | "lexical" | "taxonomy" | "graph" | "analytics" | "orphan_recovery";
         /**
          * ReviewAction
          * @enum {string}
@@ -5034,6 +5561,13 @@ export interface components {
             /** @description The reviewed plan's status afterwards. */
             status: components["schemas"]["LinkPlanStatus"];
         };
+        /**
+         * RiskTier
+         * @description How much a mistake on this pair would cost. Deterministic inputs only (page type,
+         *     commercial importance, inbound traffic, protection proximity, anchor sensitivity).
+         * @enum {string}
+         */
+        RiskTier: "low" | "medium" | "high";
         /**
          * Role
          * @enum {string}
@@ -5576,6 +6110,12 @@ export interface components {
          * @enum {string}
          */
         VerificationOutcome: "passed" | "failed" | "skipped" | "inconclusive";
+        /**
+         * VerificationProfile
+         * @description Which verification runs after a publish (ADR-0014 verification, unchanged in kind).
+         * @enum {string}
+         */
+        VerificationProfile: "standard" | "strict";
         /** VerificationRun */
         VerificationRun: {
             /** Checks */
@@ -6189,6 +6729,326 @@ export interface operations {
             };
             /** @description Not authenticated. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    getAutonomySummary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutonomySummary"];
+                };
+            };
+            /** @description Not authenticated. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The role lacks the permission. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A parameter is invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    listPublishAttempts: {
+        parameters: {
+            query?: {
+                plan_id?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListResponse_PublishAttemptView_"];
+                };
+            };
+            /** @description Not authenticated. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The role lacks the permission. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A parameter is invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    listBlockedActions: {
+        parameters: {
+            query?: {
+                code?: components["schemas"]["BlockCode"] | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListResponse_BlockedActionView_"];
+                };
+            };
+            /** @description Not authenticated. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The role lacks the permission. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A parameter is invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    listAutonomyDecisions: {
+        parameters: {
+            query?: {
+                decision?: components["schemas"]["AutonomyDecision"] | null;
+                mode?: components["schemas"]["AutonomyMode"] | null;
+                plan_id?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListResponse_AutonomyDecisionView_"];
+                };
+            };
+            /** @description Not authenticated. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The role lacks the permission. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A parameter is invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    getAutonomyMode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutonomyHealth"];
+                };
+            };
+            /** @description Not authenticated. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The role lacks the permission. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A parameter is invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    overrideAutonomyDecision: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                plan_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OperatorOverrideRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OperatorOverrideResponse"];
+                };
+            };
+            /** @description Not authenticated. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The role lacks the permission. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No such plan, or it was never evaluated. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The override was refused: a deterministic block still fires, the plan's status moved on, or the retry budget is spent. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A parameter is invalid. */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

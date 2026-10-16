@@ -55,18 +55,22 @@ def _ddl_type(column: Any) -> str:
     return str(column.type.compile(dialect=postgresql.dialect()))  # type: ignore[no-untyped-call]
 
 
-def test_the_only_vector_column_is_the_dimensionless_page_embedding() -> None:
-    """ADR-0010: one vector column, with NO fixed dimension (it is the provider's)."""
+def test_no_pgvector_column_exists_and_the_embedding_is_a_dimensionless_real_array() -> None:
+    """ADR-0017: pgvector is removed. The embedding is a ``real[]`` whose dimension is the
+    provider's, stored per row and CHECKed -- never fixed in the type."""
     vector_columns = [
         (table.name, column.name, _ddl_type(column))
         for table in Base.metadata.sorted_tables
         for column in table.columns
         if _ddl_type(column).lower().startswith("vector")  # pgvector, not full-text TSVECTOR
     ]
-    assert vector_columns == [("page_embeddings", "embedding", "vector")]
+    assert vector_columns == []
+
     table = Base.metadata.tables["page_embeddings"]
+    assert _ddl_type(table.c.embedding) == "REAL[]"
     ddl = str(CreateTable(table).compile(dialect=postgresql.dialect()))  # type: ignore[no-untyped-call]
-    assert "vector(" not in ddl.lower()
+    assert "vector" not in ddl.lower()
+    assert "array_length(embedding, 1) = dimensions" in ddl
 
 
 def test_migration_0001_never_enables_extensions_or_vectors() -> None:

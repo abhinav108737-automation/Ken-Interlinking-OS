@@ -5,7 +5,9 @@ section 12.2-12.4 and PRD section 7.8 (LinkPlan).
 
 Pipeline (deterministic; no LLM in Phase 3)::
 
-    eligible sources --(channels: semantic | lexical | taxonomy | graph)--> candidates
+    eligible sources
+      --(channels: semantic | lexical | taxonomy | graph | analytics | orphan_recovery)
+      --> candidates
       --eligibility filters (reason codes)--> retained candidates
       --scoring (versioned ranking policy, component breakdown)--> ranked
       --diversity + per-source caps--> selected
@@ -48,10 +50,21 @@ SUBJECT_LINK_PLAN: Final = "link_plan"
 
 class RetrievalChannel(StrEnum):
     SEMANTIC = "semantic"
+    """Vector retrieval through ``VectorStore.search`` (ADR-0017; pgvector is gone)."""
     LEXICAL = "lexical"
     TAXONOMY = "taxonomy"
     GRAPH = "graph"
     """Link-graph opportunity: under-linked / orphan targets."""
+    ANALYTICS = "analytics"
+    """Destinations surfaced by stored analytics (demand without supply, under-performing
+    pages). **Analytics may SURFACE and may BLOCK; it may never alone JUSTIFY** (ADR-0016
+    s16.7: first-party counts are spoofable). A candidate found only by this channel still
+    needs a non-analytics relevance signal above the policy floor, and its contribution is
+    recorded per signal in :class:`CandidateAttribution` -- never folded into one score."""
+    ORPHAN_RECOVERY = "orphan_recovery"
+    """Targets that ``page_graph_metrics`` marks ``is_orphan`` / ``is_nearly_orphan``: the
+    explicit recovery pass, separate from the general GRAPH channel so its yield and its
+    precision can be measured (and ablated) on their own."""
 
 
 class CandidateRejection(StrEnum):
@@ -107,11 +120,32 @@ class ReasonCode(StrEnum):
 
 
 class LinkPlanStatus(StrEnum):
-    """PRD v1.1 Appendix C recommendation lifecycle. Moves only along ``ALLOWED_TRANSITIONS``."""
+    """PRD v1.1 Appendix C recommendation lifecycle. Moves only along ``ALLOWED_TRANSITIONS``.
+
+    ADR-0018 adds ``autonomy_decided`` and ``blocked`` and makes the approval pair
+    EXCEPTIONAL. The normal autonomous path is::
+
+        proposed -> critiqued -> policy_checked -> autonomy_decided -> validated
+                 -> deployed -> verified -> measured -> learning_captured
+
+    ``awaiting_approval`` / ``approved`` stay reachable, but only for a ``guarded``-mode
+    deferral and for an operator acting on an exception. They are no longer on the
+    normal path (ADR-0018 s3).
+    """
 
     PROPOSED = "proposed"
     CRITIQUED = "critiqued"
     POLICY_CHECKED = "policy_checked"
+    AUTONOMY_DECIDED = "autonomy_decided"
+    """ADR-0018: an ``autonomy_decisions`` row exists and the decision is a publish. The
+    plan is queued for the deployment service; no human has been, or will be, asked."""
+    BLOCKED = "blocked"
+    """ADR-0018: a deterministic hard block fired, or policy refused. Terminal UNLESS an
+    operator overrides, which records who and why. Deliberately NOT in
+    :data:`OPEN_STATUSES`: a blocked plan must not consume its target's diversity budget
+    forever. The guard against re-proposing the same doomed pair is the per-(source, target)
+    retry budget and cool-down in ``publish_attempts``
+    (:class:`~ken_contracts.autonomy.RetryBudgetState`), not an occupied pair."""
     AWAITING_APPROVAL = "awaiting_approval"
     APPROVED = "approved"
     REJECTED = "rejected"
@@ -137,17 +171,53 @@ ALLOWED_TRANSITIONS: Final[Mapping[LinkPlanStatus, frozenset[LinkPlanStatus]]] =
             _S.CRITIQUED,
             _S.POLICY_CHECKED,
             _S.AWAITING_APPROVAL,
+            _S.BLOCKED,
             _S.REJECTED,
             _S.SUPERSEDED,
             _S.EXPIRED,
         }
     ),
     _S.CRITIQUED: frozenset(
-        {_S.POLICY_CHECKED, _S.AWAITING_APPROVAL, _S.REJECTED, _S.SUPERSEDED, _S.EXPIRED}
+        {
+            _S.POLICY_CHECKED,
+            _S.AWAITING_APPROVAL,
+            _S.BLOCKED,
+            _S.REJECTED,
+            _S.SUPERSEDED,
+            _S.EXPIRED,
+        }
     ),
-    _S.POLICY_CHECKED: frozenset({_S.AWAITING_APPROVAL, _S.REJECTED, _S.SUPERSEDED, _S.EXPIRED}),
-    _S.AWAITING_APPROVAL: frozenset({_S.APPROVED, _S.REJECTED, _S.SUPERSEDED, _S.EXPIRED}),
-    _S.APPROVED: frozenset({_S.VALIDATED, _S.REJECTED, _S.SUPERSEDED, _S.EXPIRED}),
+    _S.POLICY_CHECKED: frozenset(
+        {
+            _S.AUTONOMY_DECIDED,
+            _S.AWAITING_APPROVAL,
+            _S.BLOCKED,
+            _S.REJECTED,
+            _S.SUPERSEDED,
+            _S.EXPIRED,
+        }
+    ),
+    # The normal autonomous path: a publish decision hands the plan straight to the
+    # deployment service. A guarded-mode deferral goes to awaiting_approval instead.
+    _S.AUTONOMY_DECIDED: frozenset(
+        {
+            _S.VALIDATED,
+            _S.AWAITING_APPROVAL,
+            _S.BLOCKED,
+            _S.REJECTED,
+            _S.SUPERSEDED,
+            _S.EXPIRED,
+        }
+    ),
+    # Terminal unless an operator overrides: an override re-enters the autonomous path, and
+    # the deterministic blocks are re-evaluated there (they are never waived).
+    _S.BLOCKED: frozenset({_S.AUTONOMY_DECIDED, _S.SUPERSEDED, _S.EXPIRED}),
+    _S.AWAITING_APPROVAL: frozenset(
+        {_S.APPROVED, _S.BLOCKED, _S.REJECTED, _S.SUPERSEDED, _S.EXPIRED}
+    ),
+    _S.APPROVED: frozenset(
+        {_S.VALIDATED, _S.BLOCKED, _S.REJECTED, _S.SUPERSEDED, _S.EXPIRED}
+    ),
     _S.VALIDATED: frozenset({_S.DEPLOYED, _S.FAILED, _S.EXPIRED}),
     _S.DEPLOYED: frozenset({_S.VERIFIED, _S.FAILED, _S.ROLLED_BACK}),
     _S.VERIFIED: frozenset({_S.MEASURED, _S.ROLLED_BACK}),
@@ -161,13 +231,25 @@ ALLOWED_TRANSITIONS: Final[Mapping[LinkPlanStatus, frozenset[LinkPlanStatus]]] =
 }
 """The ONLY legal status moves, enforced by the single transition service (tested).
 
-Terminal: rejected, superseded, expired, rolled_back. An approval is never resurrected:
-a rejected or expired plan is regenerated as a NEW plan."""
+Terminal: rejected, superseded, expired, rolled_back. ``blocked`` is terminal except for an
+operator override back onto the autonomous path. An approval is never resurrected: a rejected
+or expired plan is regenerated as a NEW plan."""
 
 OPEN_STATUSES: Final = frozenset(
-    {_S.PROPOSED, _S.CRITIQUED, _S.POLICY_CHECKED, _S.AWAITING_APPROVAL, _S.APPROVED, _S.VALIDATED}
+    {
+        _S.PROPOSED,
+        _S.CRITIQUED,
+        _S.POLICY_CHECKED,
+        _S.AUTONOMY_DECIDED,
+        _S.AWAITING_APPROVAL,
+        _S.APPROVED,
+        _S.VALIDATED,
+    }
 )
-"""A plan in one of these occupies its (source, target) pair and its anchor span."""
+"""A plan in one of these occupies its (source, target) pair and its anchor span.
+
+``blocked`` is NOT here on purpose (see :attr:`LinkPlanStatus.BLOCKED`): it would hold the
+pair and a slice of the target's diversity budget for ever."""
 
 LIVE_STATUSES: Final = frozenset({_S.DEPLOYED, _S.VERIFIED, _S.MEASURED, _S.LEARNING_CAPTURED})
 """A deployed link. It also occupies the pair while its ``source_page_version`` is >= the
@@ -189,8 +271,14 @@ TRANSITION_AUTHORITY: Final[Mapping[LinkPlanStatus, frozenset[ActorClass]]] = {
     _S.PROPOSED: frozenset({"system", "agent"}),
     _S.CRITIQUED: frozenset({"system", "agent"}),
     _S.POLICY_CHECKED: frozenset({"system", "agent"}),
+    # ADR-0018 s3: `system:` actors drive the autonomous path, `user:` actors drive
+    # overrides. An AGENT is deliberately absent from both: a model may neither decide a
+    # publish nor block one (ADR-0012 stands).
+    _S.AUTONOMY_DECIDED: frozenset({"system", "user"}),
+    _S.BLOCKED: frozenset({"system", "user"}),
     _S.AWAITING_APPROVAL: frozenset({"system", "agent", "user"}),
     # Editorial decisions are HUMAN decisions (AUTONOMY_AND_PERMISSIONS: approval is ASK).
+    # Approval is now the EXCEPTION path only (ADR-0018 supersedes ADR-0013 s1).
     _S.APPROVED: frozenset({"user"}),
     _S.REJECTED: frozenset({"user"}),
     _S.SUPERSEDED: frozenset({"user"}),
@@ -315,6 +403,14 @@ class RetrievalPolicy(FrozenModel):
     semantic_k: int = Field(default=30, ge=0, le=500)
     lexical_k: int = Field(default=30, ge=0, le=500)
     graph_k: int = Field(default=20, ge=0, le=500)
+    analytics_k: int = Field(
+        default=0,
+        ge=0,
+        le=500,
+        description="ADR-0018 / directive s6. DEFAULT 0, so the channel is inert until an "
+        "operator enables it: analytics may surface but never alone justify a link.",
+    )
+    orphan_recovery_k: int = Field(default=0, ge=0, le=500, description="Default 0 (inert).")
     max_candidates_per_source: int = Field(default=80, ge=1, le=2000)
     channels_enabled: tuple[RetrievalChannel, ...] = Field(
         default=(
@@ -323,7 +419,8 @@ class RetrievalPolicy(FrozenModel):
             RetrievalChannel.TAXONOMY,
             RetrievalChannel.GRAPH,
         ),
-        description="Each channel can be ablated independently (PRD v1.1 section 12.2).",
+        description="Each channel can be ablated independently (PRD v1.1 section 12.2). The "
+        "ANALYTICS and ORPHAN_RECOVERY channels are additive and OFF by default.",
     )
 
 
@@ -548,6 +645,64 @@ class LinkPlan(FrozenModel):
     updated_at: AwareDatetime
 
 
+class GraphSignals(FrozenModel):
+    """The internal link-graph position of ONE page version (``page_graph_metrics``).
+
+    Every signal is reported SEPARATELY and deliberately: there is no single opaque "graph
+    score". A reviewer, an eval and the learning pipeline must all be able to see WHICH
+    property moved a candidate, and a composite number destroys exactly that. The ranking
+    policy is free to combine them into its ``graph`` component; the record keeps the parts.
+    """
+
+    page_id: UUID
+    page_version: int = Field(ge=1)
+    in_degree: int = Field(ge=0, description="Current internal inbound links.")
+    out_degree: int = Field(ge=0, description="Current internal outbound links.")
+    internal_pagerank: float = Field(ge=0.0, le=1.0, description="Normalised; sums to ~1.")
+    hub_score: float = Field(ge=0.0, le=1.0)
+    authority_score: float = Field(ge=0.0, le=1.0)
+    crawl_depth: int | None = Field(
+        default=None, ge=0, description="Clicks from the configured entry page; None = unreachable."
+    )
+    is_orphan: bool = Field(description="No internal inbound link from any current page.")
+    is_nearly_orphan: bool = Field(description="Inbound links below the policy threshold.")
+    is_bridge: bool = Field(
+        description="Removing this page would disconnect part of the graph (a cut vertex)."
+    )
+    component_id: int | None = Field(
+        default=None, ge=0, description="Weakly connected component ordinal."
+    )
+    cluster_id: int | None = Field(default=None, ge=0, description="Topical cluster ordinal.")
+    metrics_version: str = Field(
+        min_length=1,
+        max_length=64,
+        description="Algorithm/recipe version, e.g. 'graph-alg1'. Stored with every row so a "
+        "recomputation is attributable and two versions are never compared.",
+    )
+    computed_at: AwareDatetime
+
+
+class CandidateAttribution(FrozenModel):
+    """Why ONE channel offered this candidate -- the per-channel audit trail (directive s6).
+
+    One row per channel that retrieved the candidate. ``raw`` is the channel's own units
+    (cosine, ts_rank_cd, edge weight, an analytics rate); ``normalised`` is the comparable
+    [0, 1] value the union used. Both are kept because the raw value is the only one that can
+    be re-derived from the stores, and the normalised one is the only one that explains the
+    ranking.
+    """
+
+    channel: RetrievalChannel
+    raw: float
+    normalised: float = Field(ge=0.0, le=1.0)
+    rank_in_channel: int = Field(ge=1)
+    evidence: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Channel-specific facts (the matched relationship type, the keyword hits, "
+        "the vector's point id and content hash). Never free model text.",
+    )
+
+
 class CandidateView(FrozenModel):
     """A retrieved candidate, kept or rejected, for explainability and evals."""
 
@@ -560,6 +715,25 @@ class CandidateView(FrozenModel):
     total_score: float | None = None
     rejection: CandidateRejection | None = None
     plan_id: UUID | None = None
+    attribution: tuple[CandidateAttribution, ...] = Field(
+        default=(),
+        description="Per-channel attribution, one entry per channel in ``channels`` "
+        "(additive; empty for rows written before ADR-0018).",
+    )
+    graph_signals: GraphSignals | None = Field(
+        default=None, description="The TARGET's link-graph position when it was retrieved."
+    )
+
+    @model_validator(mode="after")
+    def _attribution_matches_channels(self) -> CandidateView:
+        if not self.attribution:
+            return self
+        attributed = [entry.channel for entry in self.attribution]
+        if len(set(attributed)) != len(attributed):
+            raise ValueError("at most one attribution entry per channel")
+        if set(attributed) != set(self.channels):
+            raise ValueError("attribution must cover exactly the retrieving channels")
+        return self
 
 
 class PlanTransitionView(FrozenModel):
@@ -576,6 +750,12 @@ class LinkPlanDetail(LinkPlan):
     transitions: list[PlanTransitionView]
     source_title: str | None = None
     source_block_text: str = Field(description="Full block text at the source version.")
+    target_graph_signals: GraphSignals | None = Field(
+        default=None,
+        description="The destination's link-graph position, read at request time (additive; "
+        "None when graph metrics have not been computed). Deliberately not a plan COLUMN: "
+        "plan content is immutable, and the graph moves under it.",
+    )
 
 
 class OpportunityKind(StrEnum):

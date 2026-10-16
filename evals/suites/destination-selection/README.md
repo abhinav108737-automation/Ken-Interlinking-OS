@@ -22,3 +22,25 @@ destination passed deterministic eligibility (PRD §7.5).
 while ignoring taxonomy and geography; duplicate links; self-links; ineligible
 destinations that leak past `FILTER`; ranking weights hardcoded instead of
 read from versioned policy data (TRD §12).
+
+## Phase 8 status: populated (17 cases)
+
+Dataset: [`evals/datasets/destination-selection/core.v1.jsonl`](../../datasets/destination-selection/core.v1.jsonl).
+Gate: `min_pass_rate` 0.80, `max_regression_vs_baseline` 0.05.
+
+Drives the production path for real: `filters.pair_rejection` first (so protection and
+eligibility are decided before any score exists), then `scoring.score_pair` under the committed
+`recommendation.v1.yaml` and `ranking_weights.v1.yaml`, then the `min_relevance` floor, then
+relevance descending with the target key as a stable tiebreak. The decision is the top-ranked
+destination (`select:<key>`) or `no_eligible_candidate`.
+
+**`must_not` means "never among the selected destinations"** — not "never ranked first". Every
+filter case uses it: self-link, already-linked, open-plan duplicate, cooldown, draft, noindex,
+non-canonical, thin, gone, the home page and a transactional page. Four preference cases carry
+a recorded `preferred` order and are the only cases that feed precision@1, recall@3 and
+Kendall tau; a ranking metric averaged over cases with no recorded preference would be a number
+about nothing.
+
+Covered: all ten pair-filter branches, source-side ineligibility (a hub may not carry links),
+and the no-candidate outcome. **Not covered:** retrieval recall (candidate sets are given per
+case) and anything requiring real approved-destination history.

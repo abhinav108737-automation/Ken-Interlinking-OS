@@ -14,10 +14,13 @@ Read-time rules (ADR-0010):
   and recipe fingerprint (``current_recipe_fingerprint``: from the settings).
   When the provider cannot be asked, nothing is fresh and similarity lists are
   empty; ``semantic_search`` raises :class:`EmbeddingUnavailableError` (503).
-* **Similarity** is exact cosine KNN (``<=>``; score = 1 - distance) over
-  current-version embeddings of the same (model, dimensions, recipe version,
-  recipe fingerprint), gone pages excluded. Vectors of two models or two text
-  recipes are never compared.
+* **Similarity** is exact cosine over current-version embeddings of the same
+  (model, dimensions, recipe version, recipe fingerprint), gone pages excluded.
+  Vectors of two models or two text recipes are never compared. ADR-0017: the
+  cosine is computed in Python by the shared
+  ``ken_contracts.vectors.cosine_similarity`` over the stored ``real[]``; there
+  is no SQL distance operator and no extension. The vector workstream replaces it with
+  ``VectorStore.search`` without changing these two method signatures.
 * **Relationships** are served only when NOT stale: both endpoint versions
   recorded on the edge equal the endpoints' current versions. Only STORED types
   are served (``STORED_RELATIONSHIP_TYPES``): the coarse derived-only types
@@ -38,9 +41,7 @@ from sqlalchemy import (
     ColumnElement,
     Select,
     and_,
-    bindparam,
     case,
-    cast,
     exists,
     func,
     or_,
@@ -73,17 +74,16 @@ from ken_contracts.intelligence import (
 )
 from ken_contracts.inventory import CanonicalStatus, PublicationState
 from ken_contracts.model import ModelProvider, ModelRole
+from ken_contracts.vectors import cosine_similarity
 from ken_core.config import Settings
 from ken_core.db.models.intelligence import PageAnalysis as PageAnalysisRow
 from ken_core.db.models.intelligence import PageEmbedding, PageProtection, PageRelationship
 from ken_core.db.models.inventory import Page, PageVersion
 from ken_core.db.repositories.intelligence import (
     analysis_from_row,
-    cosine_distance,
     embedding_identity_filter,
     fresh_analysis_join,
 )
-from ken_core.db.types import Vector
 from ken_core.logging import get_logger
 from ken_services.intelligence.eligibility import EligibilityState, compute_eligibility
 from ken_services.intelligence.embeddings import (
@@ -158,12 +158,6 @@ def _check_paging(limit: int, offset: int) -> None:
         raise ValueError(f"limit must be between 1 and {MAX_LIMIT}")
     if offset < 0:
         raise ValueError("offset must be >= 0")
-
-
-def _score(distance: float | None) -> float | None:
-    if distance is None or not math.isfinite(distance):
-        return None
-    return min(1.0, max(-1.0, 1.0 - distance))
 
 
 def _depths(parents: Mapping[str, str | None]) -> dict[str, int]:
@@ -288,20 +282,21 @@ class SqlIntelligenceReader:
     def _similar_select(
         self,
         *,
-        distance: ColumnElement[float],
         model: str,
         dimensions: int,
         av: str,
         exclude: uuid.UUID | None,
-        limit: int,
     ) -> Select[*tuple[Any, ...]]:
+        """Every comparable candidate, with its stored vector. UNLIMITED on purpose: the
+        cosine is computed in Python (ADR-0017), so the limit is applied after scoring --
+        a SQL ``LIMIT`` here would truncate by page id, not by similarity."""
         fresh = aliased(PageAnalysisRow)
         statement = (
             select(
                 Page.id,
                 Page.canonical_url,
                 Page.title,
-                distance.label("distance"),
+                PageEmbedding.embedding,
                 fresh.page_type,
                 fresh.market_id,
             )
@@ -326,31 +321,38 @@ class SqlIntelligenceReader:
                 PageEmbedding.dimensions == dimensions,
                 Page.gone_at.is_(None),
             )
-            .order_by(distance, Page.id)
-            .limit(limit)
+            .order_by(Page.id)
         )
         if exclude is not None:
             statement = statement.where(Page.id != exclude)
         return statement
 
     async def _similar(
-        self, session: AsyncSession, statement: Select[*tuple[Any, ...]], limit: int
+        self,
+        session: AsyncSession,
+        statement: Select[*tuple[Any, ...]],
+        query_vector: Sequence[float],
+        limit: int,
     ) -> ListResponse[SimilarPage]:
-        items: list[SimilarPage] = []
+        scored: list[tuple[float, Any]] = []
         for row in (await session.execute(statement)).all():
-            score = _score(row.distance)
-            if score is None:  # a zero vector has no direction
+            score = cosine_similarity(query_vector, row.embedding)
+            if score is None:  # a zero vector has no direction; not a score of 0.0
                 continue
-            items.append(
-                SimilarPage(
-                    page_id=row.id,
-                    canonical_url=row.canonical_url,
-                    title=row.title,
-                    score=score,
-                    page_type=row.page_type,
-                    market_id=row.market_id,
-                )
+            scored.append((score, row))
+        # Best first, ties by page id: the same corpus always answers in the same order.
+        scored.sort(key=lambda pair: (-pair[0], str(pair[1].id)))
+        items = [
+            SimilarPage(
+                page_id=row.id,
+                canonical_url=row.canonical_url,
+                title=row.title,
+                score=score,
+                page_type=row.page_type,
+                market_id=row.market_id,
             )
+            for score, row in scored[:limit]
+        ]
         return ListResponse[SimilarPage](
             items=items, page=PageInfo(total=len(items), limit=limit, offset=0)
         )
@@ -524,7 +526,9 @@ class SqlIntelligenceReader:
                 return empty
             source = (
                 await session.execute(
-                    select(PageEmbedding.id, PageEmbedding.dimensions).where(
+                    select(
+                        PageEmbedding.dimensions, PageEmbedding.embedding
+                    ).where(
                         PageEmbedding.page_id == page.id,
                         PageEmbedding.page_version == page.current_version,
                         self._fresh_embedding(identity.model),
@@ -533,20 +537,13 @@ class SqlIntelligenceReader:
             ).one_or_none()
             if source is None:
                 return empty
-            vector = (
-                select(PageEmbedding.embedding)
-                .where(PageEmbedding.id == source.id)
-                .scalar_subquery()
-            )
             statement = self._similar_select(
-                distance=cosine_distance(PageEmbedding.embedding, vector),
                 model=identity.model,
                 dimensions=source.dimensions,
                 av=av,
                 exclude=page.id,
-                limit=limit,
             )
-            return await self._similar(session, statement, limit)
+            return await self._similar(session, statement, source.embedding, limit)
 
     async def semantic_search(self, *, query: str, limit: int) -> ListResponse[SimilarPage]:
         _check_paging(limit, 0)
@@ -570,17 +567,15 @@ class SqlIntelligenceReader:
             # Never compare a vector from another model with the stored ones.
             logger.warning("semantic_search_result_rejected")
             raise EmbeddingUnavailableError("the embedding model returned an unusable result")
-        query_vector = cast(bindparam("query_vector", list(vectors[0]), type_=Vector()), Vector())
+        query_vector = list(vectors[0])
         statement = self._similar_select(
-            distance=cosine_distance(PageEmbedding.embedding, query_vector),
             model=identity.model,
             dimensions=result.dimensions,
             av=av,
             exclude=None,
-            limit=limit,
         )
         async with self._sessionmaker() as session:
-            return await self._similar(session, statement, limit)
+            return await self._similar(session, statement, query_vector, limit)
 
     # --------------------------------------------------------- relationships
     async def list_relationships(

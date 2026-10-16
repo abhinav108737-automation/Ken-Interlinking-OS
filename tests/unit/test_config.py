@@ -88,10 +88,17 @@ def test_driver_error_does_not_echo_credentials() -> None:
 
 def test_defaults_are_safe() -> None:
     s = _settings()
-    # From Phase 2 pgvector is required (embeddings, ADR-0010); Ollama stays optional.
-    assert s.require_pgvector is True
+    # ADR-0017: the vector-store probe replaced the pgvector one and is required; with the
+    # default in-memory store it always answers ok. Ollama stays optional.
+    assert s.require_qdrant is True
+    assert not hasattr(s, "require_pgvector")
+    assert s.vector_store == "memory"
     assert s.require_ollama is False
     assert s.auto_approve_enabled is False
+    # ADR-0018: the default mode publishes NOTHING, and neither acknowledgement is set.
+    assert s.autonomy_mode == "shadow"
+    assert s.autonomy_autonomous_acknowledged is False
+    assert s.autonomy_allow_production is False
     assert s.model_provider == "mock"
     assert ":5433/" in s.database_url  # the project container, never the host's 5432
 

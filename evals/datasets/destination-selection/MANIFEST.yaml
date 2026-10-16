@@ -1,0 +1,13 @@
+# destination-selection eval dataset -- Phase 8 (ADR-0016 section 7).
+#
+# Re-run `.venv/bin/python evals/datasets/rehash.py` after editing a case file:
+# the runner verifies every sha256 below and refuses a dataset that has drifted.
+suite: destination-selection
+dataset: core
+dataset_version: 1
+case_count: 17
+files:
+  core.v1.jsonl: c5a3ec21f40e9071efc35d07defe8d51b7e730e4f9e84b5c88776b281a3d0778
+provenance: Synthetic Ken-Research-shaped market pages; eligibility, pair filters and the committed ranking policy. No production data.
+contains_production_data: false
+approval_ref: null

@@ -5,8 +5,11 @@ runner in :mod:`ken_core.health.aggregate` wraps every probe with a timeout and
 a catch-all, so a probe body may raise freely: the exception becomes a
 ``DependencyCheck`` with status ``error``, never an HTTP 500.
 
-Check names are FROZEN: ``postgres``, ``migrations``, ``pgvector``,
-``model_provider``, ``cms``. Clients and dashboards key on them.
+Check names are FROZEN: ``postgres``, ``migrations``, ``qdrant``,
+``model_provider``, ``cms``. Clients and dashboards key on them. ADR-0017 replaced the
+extension check with ``qdrant``: the name stays ``qdrant`` even when the in-process
+memory store is configured (``detail.store`` says which one answered), so one stable name
+covers the vector layer however it is deployed.
 
 Secrets rule (docs/CONTRACTS.md rule 9): ``detail`` and ``error`` never carry
 the database URL, credentials or raw exception text.
@@ -27,17 +30,16 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from ken_contracts.cms import CMSProvider
 from ken_contracts.common import CheckKind, HealthStatus
 from ken_contracts.model import ModelProvider
+from ken_contracts.vectors import CollectionStatus, VectorStore
 from ken_core.config import Settings
+from ken_core.providers.vectors.factory import build_vector_store
 
 POSTGRES: Final = "postgres"
 MIGRATIONS: Final = "migrations"
-PGVECTOR: Final = "pgvector"
+QDRANT: Final = "qdrant"
 MODEL_PROVIDER: Final = "model_provider"
 CMS: Final = "cms"
-CHECK_NAMES: Final = (POSTGRES, MIGRATIONS, PGVECTOR, MODEL_PROVIDER, CMS)
-
-# Phase in which a migration first runs CREATE EXTENSION vector (ADR-0003).
-PGVECTOR_ENABLED_FROM_PHASE: Final = 2
+CHECK_NAMES: Final = (POSTGRES, MIGRATIONS, QDRANT, MODEL_PROVIDER, CMS)
 
 
 @dataclass(frozen=True, slots=True)
@@ -124,34 +126,43 @@ async def probe_migrations(sessionmaker: SessionFactory, *, alembic_ini_path: st
     return ProbeResult(status=HealthStatus.OK, detail=detail)
 
 
-# --------------------------------------------------------------------- pgvector
-async def probe_pgvector(sessionmaker: SessionFactory) -> ProbeResult:
-    """Phase 0 asks only whether pgvector is AVAILABLE (provisioned), not enabled.
+# ----------------------------------------------------------------------- qdrant
+async def probe_vector_store(store: VectorStore) -> ProbeResult:
+    """Reachability of the vector layer, plus what the collection was built with.
 
-    Reads catalogue views only; never runs CREATE EXTENSION (ADR-0003).
+    ADR-0017 section 5. Uses only the frozen :class:`VectorStore` protocol: ``health()``,
+    which may not raise. The payload names the collection, its point count and the embedding
+    model/version behind it, because a collection built with ANOTHER model is unusable even
+    though it is perfectly reachable -- and that is exactly the failure a probe should
+    surface rather than a retrieval run.
     """
-    async with sessionmaker() as session:
-        available_version = (
-            await session.execute(
-                text("SELECT default_version FROM pg_available_extensions WHERE name = 'vector'")
-            )
-        ).scalar_one_or_none()
-        installed_version = (
-            await session.execute(
-                text("SELECT extversion FROM pg_extension WHERE extname = 'vector'")
-            )
-        ).scalar_one_or_none()
-
-    detail = {
-        "available": available_version is not None,
-        "installed_version": installed_version,
-        "enabled_from_phase": PGVECTOR_ENABLED_FROM_PHASE,
-    }
-    if available_version is None:
+    health = await store.health()
+    detail: dict[str, Any] = {"store": health.provider, **dict(health.detail)}
+    detail.setdefault("collection_present", True)
+    if not health.reachable:
         return ProbeResult(
             status=HealthStatus.UNAVAILABLE,
             detail=detail,
-            error="pgvector extension is not available on this PostgreSQL server",
+            # The provider's own error string is not echoed: it could carry a URL or a key.
+            error="vector store is not reachable",
+        )
+    if detail.get("status") == CollectionStatus.MISSING.value:
+        # Reachable, but nothing is indexed yet. This is OK, not a dependency failure, and
+        # the distinction matters: ``require_qdrant`` is true by default, so returning
+        # DEGRADED here would make every freshly installed system answer /ready 503 before
+        # anyone had run `make qdrant-index`. It mirrors Phase 0's "provisioned, not
+        # enabled". An unreachable or BROKEN store still makes the service not ready, which
+        # is what the required flag is for; index DRIFT is `make qdrant-verify`'s job, not
+        # readiness's.
+        return ProbeResult(
+            status=HealthStatus.OK,
+            detail={**detail, "collection_present": False, "indexed": False},
+        )
+    if detail.get("status") == CollectionStatus.RED.value:
+        return ProbeResult(
+            status=HealthStatus.UNAVAILABLE,
+            detail=detail,
+            error="the vector collection is broken; run `make qdrant-rebuild`",
         )
     return ProbeResult(status=HealthStatus.OK, detail=detail)
 
@@ -204,8 +215,15 @@ def build_probes(
     sessionmaker: SessionFactory,
     model_provider: ModelProvider,
     cms_provider: CMSProvider,
+    vector_store: VectorStore | None = None,
 ) -> list[Probe]:
-    """The Phase 0 readiness probe set, with ``required`` computed from settings."""
+    """The readiness probe set, with ``required`` computed from settings.
+
+    ``vector_store`` is optional so existing callers keep working: when it is omitted the
+    configured store is built here (ADR-0017's factory), which for the default
+    ``KEN_VECTOR_STORE=memory`` is a cheap in-process object.
+    """
+    store = vector_store if vector_store is not None else build_vector_store(settings)
     return [
         Probe(POSTGRES, CheckKind.DATABASE, True, lambda: probe_postgres(sessionmaker)),
         Probe(
@@ -215,10 +233,10 @@ def build_probes(
             lambda: probe_migrations(sessionmaker, alembic_ini_path=settings.alembic_ini_path),
         ),
         Probe(
-            PGVECTOR,
-            CheckKind.EXTENSION,
-            settings.require_pgvector,
-            lambda: probe_pgvector(sessionmaker),
+            QDRANT,
+            CheckKind.VECTOR_STORE,
+            settings.require_qdrant,
+            lambda: probe_vector_store(store),
         ),
         Probe(
             MODEL_PROVIDER,
