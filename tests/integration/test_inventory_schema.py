@@ -24,6 +24,7 @@ from ken_core.db.models.analytics import APPEND_ONLY_ANALYTICS_TABLES
 from ken_core.db.models.deployment import APPEND_ONLY_DEPLOYMENT_TABLES
 from ken_core.db.models.intelligence import IMMUTABLE_INTELLIGENCE_TABLES
 from ken_core.db.models.inventory import IMMUTABLE_TABLES
+from ken_core.db.models.learning import APPEND_ONLY_LEARNING_TABLES
 from ken_core.db.models.recommendations import APPEND_ONLY_RECOMMENDATION_TABLES
 from ken_core.db.models.review import APPEND_ONLY_REVIEW_TABLES
 from tests.integration.conftest import TRUNCATE_ALL, SyncDb
@@ -234,6 +235,9 @@ def test_trigger_set_matches_the_orm_declaration(empty: SyncDb) -> None:
         | set(APPEND_ONLY_REVIEW_TABLES)
         | set(APPEND_ONLY_DEPLOYMENT_TABLES)
         | set(APPEND_ONLY_ANALYTICS_TABLES)
+        # Migration 0009 (Phase 8) extends the same function to the four append-only
+        # learning tables: a learning audit trail is never rewritten.
+        | set(APPEND_ONLY_LEARNING_TABLES)
     )
 
 

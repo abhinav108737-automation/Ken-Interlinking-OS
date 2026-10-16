@@ -830,6 +830,13 @@ def test_downgrade_to_0003_restores_exactly_the_intelligence_schema(
         "ken_deployment_guard",
         "ken_link_plan_status_guard",
         "ken_analytics_writer_guard",
+        # Phase 8 (migration 0009): six guard functions, and no SECURITY DEFINER anywhere.
+        "ken_learning_content_guard",
+        "ken_learning_proposal_guard",
+        "ken_learning_promoter_guard",
+        "ken_skill_guard",
+        "ken_experiment_guard",
+        "ken_experiment_assignment_guard",
     }
     assert {
         "link_plans_content_immutable",

@@ -418,3 +418,92 @@ interfaces are `services/ken_services/analytics/protocol.py`; schema is migratio
 - **Deferred to Phase 8:** experiments (attribution to them is always derived, never stamped
   on events), landing events, query metrics, the retention purge, JSONL import, and a
   standalone or production collector.
+
+### 20. Learning (Phase 8)
+
+Design: [ADR-0016](adr/ADR-0016-learning.md) (**§15 amendments are binding and override §1–§14**;
+§16 records the orchestrator's decisions). Module: `learning.py` (new); service interfaces are
+`services/ken_services/learning/protocol.py`; schema is migration `0009_learning`.
+
+- **Stages.** `ProposalStatus` carries the FULL ladder CLAUDE.md's Learning Design Rule, PRD §10
+  and `evals/README.md` mandate: `proposed → offline_test → shadow → canary → experiment →
+  promoted`, plus `rejected`, `rolled_back`, `withdrawn`. Every stage is in the contract and the
+  schema; `canary` and `experiment` are **stage defined, machinery deferred to Phase 9**. The gate
+  policy declares the MINIMUM required path per kind (§15.3), so six stages are a maximum rather
+  than a mandate. `proposed → promoted` is not a transition: at least one `offline_test` run
+  stands between a hypothesis and production.
+- **No self-promotion, as a mechanism.** Four independent gates, not a docstring:
+  `learning_proposals.proposed_by` CHECK `^(system|agent):`; a transition into
+  `promoted`/`rejected`/`rolled_back` CHECK `actor ~ '^user:'` and `promoted` CHECK
+  `evaluation_run_id IS NOT NULL`; `learning_proposal_transitions.txid` plus the DEFERRABLE
+  `ken_learning_proposal_guard()`, which requires a matching transition row **written by the same
+  transaction** (the 0007 pattern — without it the append-only CHECKs are forgeable across two
+  transactions); and the transaction-local `ken.learning_promoter` setting, which only
+  `ken_services.learning.promote` sets, so exactly one code path can promote. Two static tests
+  keep it honest: no module under `ken_services/learning/` contains a `"user:"` literal, and only
+  `promote.py` writes the transitions table.
+- **Frozen fields are a contract boundary.** `FROZEN_POLICY_PATHS` and `ALLOWED_CHANGE_PATHS` are
+  `Final frozenset`s of dotted paths in `learning.py`, enforced by a validator on `PolicyChange` /
+  `PolicyProposalBody` and re-checked on `PolicyProposedPayload`. The YAML may only **narrow**:
+  it cannot widen the allowlist, drop a frozen path, waive a hard-fail suite or lower
+  `min_sample_count` below 30. A change to `recommendation.selection.max_plans_per_source` must
+  declare `cross_check`, because ADR-0012 §10 cross-checks it against `agents.max_plans_per_run`
+  at load and raises.
+- **Phase 8 promotes nothing, by construction.** `Settings.learning_demonstration_mode` defaults
+  `True` and `PromotionService.advance` refuses `promoted` with `DEMONSTRATION_MODE` before any
+  other check; a decision class below `MIN_SAMPLE_COUNT` (30) makes a gate `inconclusive`, never
+  `pass`. The corpus is ~65 synthetic pages: every number is a demonstration, not evidence.
+- **The model only chooses.** Reflection (`JobKind.REFLECTION`, a deterministic job — not a graph
+  node) computes every number in `aggregate.py` and enumerates the options; the REASONING role
+  returns a `ProposalDraft` whose `choice_index` is validated against the live `option_count`, and
+  the full option set is persisted in `ProposalEvidence`. The prompt carries **enum codes,
+  integers and floats only** — `protocol.code_only_violations` is the whitelist, because anchor
+  text is page content and reflection is corpus-level.
+- **Behavioural may only block.** `protocol.BlockOnly` exposes exactly `blocking_reasons()`, so it
+  structurally cannot pass a gate; search data never gates at all. Both are also pinned as
+  `Literal[True]` on `LearningPolicy`.
+- **Experiments.** Both kinds exist. `policy_ab` assigns by **source** page, needs a candidate and
+  locks nobody. `holdout` assigns by **target** page, carries no candidate, and is gated three
+  ways: `treatment_fraction ≤ 0.20` (a DB CHECK; policy default 0.10),
+  `Settings.experiments_allow_holdout` (default `False`), and the transaction-local
+  `ken.learning_experiment_activator` setting required for `draft → active`.
+  `experiments.unit` is a function of `kind` (a DB CHECK) and `experiment_assignments.page_id`
+  holds whichever page that unit names, which is what makes `SqlExperimentGuard.locked()`
+  coherent: **true iff `target_page_id` has a `control` assignment in an active `holdout`**.
+  That resolves the arm-contamination bug the architecture review found — the draft assigned
+  arms by source page while measuring target pages, so nothing stopped a control page receiving
+  inbound links from an unassigned source. Assignment is deterministic AND materialised.
+  Attribution stays derived; no experiment column is ever added to `link_events`.
+- **Event vocabulary: unchanged.** `policy.proposed` / `skill.proposed` gain typed payloads
+  (`event_version` 1); `*.promoted` keeps `PromotionAuditPayload`, now with `promoted_by`
+  constrained to `user:<username>` and `evaluation_ref` to a UUID (before Phase 8 both were
+  `min_length=1`, so `promoted_by="agent:x@1"` validated despite the docstring). Stage changes live
+  in `learning_proposal_transitions`, and a finished evaluation is announced by `job.completed`.
+- **Version-aware reads** (the owed Phase 0 QA M1 item): `EVENT_PAYLOAD_MODELS` maps
+  `event_name → event_version → model`, `UNTYPED_EVENTS` names the payloads that have no schema by
+  design (a test asserts the two cover `EventName` exactly), and `validate_payload(...)` **never
+  raises** — returning `ok | unknown_version | invalid`, including for an unknown event NAME.
+  `EventRecord.payload_status` carries the verdict. A stored row is never rewritten.
+- **Datasets are files, runs are rows.** `evals/datasets/<suite>/<dataset>.v<N>.jsonl` plus a
+  `MANIFEST.yaml`; `EvalCase` freezes the whole `evals/README.md` §4 skeleton, including
+  `decision_class`, `provenance` and `privacy` (production-derived data needs an `approval_ref`).
+  `DecisionClass` is a typed contract with a canonical string form, and
+  `policy_evaluations.metrics` must carry `by_decision_class` keyed by it — a DB CHECK, so Phase 9
+  reads per-class calibration without a schema change.
+- **API.** GET routes on `read`, **except** `GET /learning/proposals/{id}/candidate`, which returns
+  a candidate POLICY DOCUMENT and is therefore `read_settings` (ADR-0013 §7 reserves policy
+  documents to `operator_admin`). One write route, `POST /learning/proposals/{id}/advance`, on the
+  new `Permission.PROMOTE` — `operator_admin` only. Everything else is CLI-only (`make reflect`,
+  `eval`, `shadow`, `policy-promote`, `experiment-create`, `experiment-assign`): no UI button
+  starts a model run or writes a policy file.
+- **Policy.** `policies/learning/learning.v1.yaml` (`LearningPolicy`), also served by
+  `/settings/policies` (`PolicyKind` gains `learning`).
+- **Promotion writes files only from the CLI**, and for `ranking` it is **two files atomically**:
+  `policies/ranking/ranking_weights.v<N+1>.yaml` plus a new recommendation document whose
+  `ranking_policy:` pointer names it, because `resolve_ranking_policy` reads the active ranking
+  policy from that pointer and not from `Settings`. A released file is never edited or deleted.
+  Promotion needs an operator restart (`Settings` is frozen); hot reload would be a material
+  architecture change and is an open user decision.
+- **Known limitation, stated plainly.** Every guard above is a trigger, so they defend against
+  application bugs, not against a DB superuser (`session_replication_role = replica` disables all
+  of them). No `SECURITY DEFINER` function exists in this schema, and a test asserts it.

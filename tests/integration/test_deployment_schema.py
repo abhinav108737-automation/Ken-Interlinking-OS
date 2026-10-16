@@ -40,6 +40,9 @@ from tests.integration.conftest import (
     DEPLOYMENT_FUNCTIONS,
     DEPLOYMENT_TABLES,
     DEPLOYMENT_TRIGGERS,
+    LEARNING_FUNCTIONS,
+    LEARNING_TABLES,
+    LEARNING_TRIGGERS,
     SyncDb,
 )
 from tests.integration.test_review_schema import (
@@ -464,9 +467,18 @@ def test_downgrade_to_0006_restores_exactly_the_review_schema(
     command.downgrade(alembic_config, "0006_review_control_plane")
     try:
         state = sync_db.run(_state)
-        assert state["tables"] == head["tables"] - DEPLOYMENT_TABLES - ANALYTICS_TABLES
-        assert state["functions"] == head["functions"] - DEPLOYMENT_FUNCTIONS - ANALYTICS_FUNCTIONS
-        assert state["triggers"] == head["triggers"] - DEPLOYMENT_TRIGGERS - ANALYTICS_TRIGGERS
+        assert (
+            state["tables"]
+            == head["tables"] - DEPLOYMENT_TABLES - ANALYTICS_TABLES - LEARNING_TABLES
+        )
+        assert (
+            state["functions"]
+            == head["functions"] - DEPLOYMENT_FUNCTIONS - ANALYTICS_FUNCTIONS - LEARNING_FUNCTIONS
+        )
+        assert (
+            state["triggers"]
+            == head["triggers"] - DEPLOYMENT_TRIGGERS - ANALYTICS_TRIGGERS - LEARNING_TRIGGERS
+        )
         assert state["revision"] == "0006_review_control_plane"
         assert not sync_db.run(_txid)
 

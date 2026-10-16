@@ -56,7 +56,12 @@ system is local-first and must stay free and self-hosted, and it must remain Ele
 |---|---|
 | `viewer` | `read` |
 | `reviewer` | `read`, `review` |
-| `operator_admin` | `read`, `review`, `read_audit`, `read_settings` |
+| `operator_admin` | `read`, `review`, `read_audit`, `read_settings`, `deploy`, `promote` |
+
+*(Amended, factually: `deploy` was added by [ADR-0014](ADR-0014-controlled-deployment.md) §7 and
+`promote` by [ADR-0016](ADR-0016-learning.md) §10/§16.2, both `operator_admin` only. The matrix
+above had gone stale against `ken_contracts.auth.ROLE_PERMISSIONS`, which is the single source of
+truth and is asserted against an independent copy in `tests/support/route_permissions.py`.)*
 
 - Every route declares the permission it needs. Only `/health` and `/ready` (liveness and
   readiness probes) and `POST /auth/login` are public. `/meta` requires `read`.
@@ -145,7 +150,9 @@ only through `app.dependency_overrides` (`make_app`).
 | `read` | `/meta`, `/inventory/*`, `/intelligence/*`, `/jobs/*`, `/recommendations/*` (GET), `/agents/*`, `GET /recommendations/{id}/review-actions`, `GET /dashboard` |
 | `review` | `POST /recommendations/{id}/approve`, `/reject`, `/edit-anchor`, `/replace-target`; `POST /recommendations/bulk-review`; `GET /recommendations/{id}/target-options` (eligible replacement targets) |
 | `read_audit` | `GET /review/actions` (all actions, filters), `GET /events` (the event log, paged) |
-| `read_settings` | `GET /settings/policies`: the four active policy documents, parsed and validated, with versions and paths. `/meta` stays the minimal public-settings view. |
+| `read_settings` | `GET /settings/policies`: the active policy documents, parsed and validated, with versions, paths and per-file sha256. `/meta` stays the minimal public-settings view. Amended factually: four at Phase 5, five with `analytics` ([ADR-0015](ADR-0015-analytics.md)), six with `learning` ([ADR-0016](ADR-0016-learning.md)) — which is also why a learning proposal's CANDIDATE policy document is served here (`GET /learning/proposals/{id}/candidate`) and never under `read`. |
+| `deploy` | Phase 6 ([ADR-0014](ADR-0014-controlled-deployment.md) §7): `POST /deployments/dry-run`, `POST /deployments`, `POST /deployments/{id}/verify`, `POST /deployments/{id}/rollback`. |
+| `promote` | Phase 8 ([ADR-0016](ADR-0016-learning.md) §10): `POST /learning/proposals/{id}/advance`, the only learning write route. It cannot promote anything while `Settings.learning_demonstration_mode` is set, which is the default. |
 
 **Deviation from TRD §14.** TRD §14 names `PATCH /api/recommendations/{id}` for edits. Edits
 here never mutate a plan; they supersede it. They are therefore explicit POST actions

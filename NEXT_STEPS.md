@@ -1,6 +1,8 @@
 # Next Steps
 
-**Current state:** Phase 7 (Analytics) is **complete**; see
+**Current state:** Phase 7 (Analytics) is **complete**; Phase 8 (Learning) is **in progress** —
+its contract freeze (W0: `ken_contracts/learning.py`, migration `0009_learning`, the learning
+policy, the frozen service interfaces and the API route signatures) has landed. See
 [PHASE_7_REPORT.md](PHASE_7_REPORT.md). The earlier phases are covered in
 [PHASE_6_REPORT.md](PHASE_6_REPORT.md), [PHASE_5_REPORT.md](PHASE_5_REPORT.md), [PHASE_4_REPORT.md](PHASE_4_REPORT.md), [PHASE_3_REPORT.md](PHASE_3_REPORT.md), [PHASE_2_REPORT.md](PHASE_2_REPORT.md), [PHASE_1_REPORT.md](PHASE_1_REPORT.md) and
 [PHASE_0_REPORT.md](PHASE_0_REPORT.md).
@@ -41,6 +43,11 @@ any governing document, so none was guessed.
 | 18 | **Where production first-party collection lives.** Until you decide, the aggregated daily CSV (`ken_link_daily`) is the import contract and the collector stays loopback-only. | The local collector is a demo and a reference implementation, not a production service | decision |
 | 8 | **PRD v1.1 §17.1 wording:** "a genuine native degraded mode" now holds only for schema ≤ 0002 (pgvector is required from Phase 2, ADR-0010) | A product-document revision, for your approval | decision |
 
+| 19 | **Hot policy reload (Phase 8, ADR-0016 §16).** Promotion writes a new policy file and changes the ACTIVE policy path, and `Settings` is frozen, so a promotion needs an operator restart. Hot reload would be a material architecture change. It is also moot while promotion is blocked. | Operability of promotion once it is unblocked | decision (**ASK** — architecture change) |
+| 20 | **Turning off learning demonstration mode (Phase 8, ADR-0016 §16.1).** `KEN_LEARNING_DEMONSTRATION_MODE` defaults `true` and refuses every promotion, so Phase 8 exits with zero promotions by construction. The corpus is ~65 **synthetic** pages, 48 plans and scripted review actions: the one stream the design calls trustworthy — human editorial decisions — is the stream with no real data. Real editorial volume is the gate on learning being more than plumbing. | Nothing on synthetic data should be promoted | decision (**ASK**) |
+| 21 | **Enabling holdout experiments (Phase 8).** `KEN_EXPERIMENTS_ALLOW_HOLDOUT` defaults `false`. A holdout deliberately WITHHOLDS inbound links from its control **target** pages, a real editorial and SEO cost on the live site. The share is capped at 20 % by a database CHECK (policy default 10 %), and while the setting is off the lifecycle service refuses activation AND withholds the transaction-local `ken.learning_experiment_activator` setting migration 0009's guard requires — so no code path, not even a raw UPDATE, can start one. `policy_ab` (both arms get links) is unaffected. | Withholding links from real content is your decision | decision (**ASK** to enable) |
+| 22 | **The deferred Search Console query import** (`page_query_metrics_daily`, `--queries`), without which search-side learning has no data at all. It is Google egress. | Search signals stay diagnostic-only and currently empty | **ASK** |
+| 23 | **`review_performance` (ADR-0012 §42) is carried to Phase 9**, not implemented in Phase 8. The reviewer-performance view it reserves for "Phases 6–8" needs editorial volume that the synthetic corpus does not have; it is recorded here rather than left silent. | Avoids a silent gap against ADR-0012 | decision (orchestrator default: defer) |
 ## Hard gates carried into later phases (from the Phase 3 QA review)
 
 | Gate | Phase |

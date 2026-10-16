@@ -95,6 +95,18 @@ gates:
     skill:
       - offline_test
 
+experiments:
+  # A HOLDOUT deliberately withholds inbound links from its control TARGET pages, which is a
+  # real editorial and SEO cost on the live site. Three independent gates, in increasing order
+  # of authority: this default (0.10), the contract/DB hard maximum (0.20, which this file
+  # cannot raise), and Settings.experiments_allow_holdout — default false, without which the
+  # lifecycle service refuses to activate a holdout AND withholds the transaction-local
+  # 'ken.learning_experiment_activator' setting migration 0009's guard requires. A policy_ab
+  # (both arms get links, only the ranking policy differs) is unaffected by any of this.
+  holdout_treatment_fraction: 0.10
+  policy_ab_treatment_fraction: 0.5
+  min_pages_per_arm: 10
+
 changes:
   # A NARROWED copy of ken_contracts.learning.ALLOWED_CHANGE_PATHS. Removing an entry here is
   # how an operator takes a knob away from learning without a code change.

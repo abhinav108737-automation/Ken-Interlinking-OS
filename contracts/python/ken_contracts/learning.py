@@ -104,6 +104,16 @@ it, so a CLI one-off, a data fix or a test helper cannot forge a promotion."""
 MIN_SAMPLE_COUNT: Final = 30
 """Floor per decision class (ADR-0016 section 15.4 / 16.1). Below it a gate is
 ``inconclusive``, never ``pass``. The policy may raise this number and never lower it."""
+MAX_HOLDOUT_TREATMENT_FRACTION: Final = 0.20
+"""Hard maximum share of pages a ``holdout`` may withhold links from. CHECKed in the database
+too: a human-editable policy cannot raise it."""
+DEFAULT_HOLDOUT_TREATMENT_FRACTION: Final = 0.10
+"""The policy default, half the hard maximum."""
+EXPERIMENT_ACTIVATOR_SETTING: Final = "ken.learning_experiment_activator"
+"""Transaction-local GUC (the :data:`LEARNING_PROMOTER_SETTING` pattern) required to move a
+``holdout`` from ``draft`` to ``active``. ``ken_services.learning.experiments`` sets it, and
+only after checking ``Settings.experiments_allow_holdout`` -- so "the user has not enabled
+holdouts" is enforced by the database and not only by a Python branch."""
 MAX_TITLE_CHARS: Final = 200
 MAX_RATIONALE_CHARS: Final = 2000
 MAX_NOTE_CHARS: Final = 500
@@ -631,6 +641,11 @@ def is_canonical_decision_class(value: str) -> bool:
 class EvalSuite(StrEnum):
     """Every suite the runner knows. The first seven are the TRD section 19 minimums.
 
+    **Correction to ADR-0016 section 7** (its section 15.1.3 records it): these suites are NOT
+    "promoted from recorded fixtures". All eight existing ``evals/suites/*/`` directories hold
+    only a 24-25 line ``README.md``, so EVERY case has to be authored. That is where the
+    phase's effort belongs, and it is the draft's largest effort mis-estimate.
+
     TRD section 19 is the SUITE list; the per-decision-class metrics live in TRD section 20
     (``evals/README.md`` section 5 sources them from there). Phase 9 should look in section 20.
     """
@@ -1034,6 +1049,26 @@ class ChangePolicy(FrozenModel):
         return value
 
 
+class ExperimentPolicy(FrozenModel):
+    """Experiment defaults. The HOLDOUT fraction is the only one with teeth: the hard maximum
+    is a database CHECK, so this field can lower it and never raise it."""
+
+    holdout_treatment_fraction: float = Field(
+        default=DEFAULT_HOLDOUT_TREATMENT_FRACTION,
+        gt=0.0,
+        le=MAX_HOLDOUT_TREATMENT_FRACTION,
+        description="Share of TARGET pages a holdout withholds inbound links from. Capped at "
+        "0.20 by the contract and again by a DB CHECK; activating one at all needs "
+        "Settings.experiments_allow_holdout.",
+    )
+    policy_ab_treatment_fraction: float = Field(
+        default=0.5, gt=0.0, le=1.0, description="Both arms get links, so this is unconstrained."
+    )
+    min_pages_per_arm: int = Field(
+        default=10, ge=1, le=10_000, description="Below this an activation is refused."
+    )
+
+
 class LearningPolicy(FrozenModel):
     """``policies/learning/learning.v<N>.yaml``, served by ``/settings/policies``.
 
@@ -1049,6 +1084,7 @@ class LearningPolicy(FrozenModel):
     source: str = Field(min_length=1, max_length=MAX_DESCRIPTION_CHARS)
     gates: GatePolicy
     changes: ChangePolicy
+    experiments: ExperimentPolicy = Field(default_factory=ExperimentPolicy)
     behavioural_may_block_only: Literal[True] = Field(
         default=True,
         description="Pinned at the contract level (the PoliciesView.auto_approve_enabled "
@@ -1257,18 +1293,73 @@ class SkillDetail(SkillSummary):
 # Experiments (owed by ADR-0015 12.8; plumbing only -- ADR-0016 16.6)
 # --------------------------------------------------------------------------- #
 class ExperimentKind(StrEnum):
-    """Capped to one member. ``holdout`` is CUT entirely (ADR-0016 16.4), not defaulted off:
-    withholding links from live pages is a real editorial and SEO cost and remains the user's
-    decision, and removing the member also removes the review's arm-contamination bug. No code
-    path can withhold a link from a page."""
+    """What an experiment varies. Both kinds exist; ``holdout`` is DEFAULTED OFF, not omitted.
+
+    ADR-0016 16.4 cut ``holdout`` entirely; the user has since decided it is built and gated
+    instead. Withholding links from live pages is a real editorial and SEO cost, so the safety
+    is three independent gates rather than a missing enum member:
+
+    1. ``treatment_fraction <= 0.20`` for a ``holdout`` -- a hard maximum, CHECKed in the
+       database as well as here. The policy default is
+       :data:`DEFAULT_HOLDOUT_TREATMENT_FRACTION` (0.10).
+    2. ``Settings.experiments_allow_holdout`` defaults ``False``, and
+       ``ExperimentLifecycle.activate`` refuses ``draft -> active`` for a ``holdout`` with
+       :attr:`ExperimentRefusal.HOLDOUT_NOT_ENABLED` while it is unset.
+    3. The same transaction must hold the transaction-local
+       :data:`EXPERIMENT_ACTIVATOR_SETTING`, which only that one service sets -- so a raw
+       ``UPDATE experiments SET status = 'active'`` cannot start a holdout either.
+    """
 
     POLICY_AB = "policy_ab"
+    """Both arms get links; only the ranking policy differs, resolved per source from the arm.
+    Locks nobody. Requires a ``policy_candidates`` row."""
+    HOLDOUT = "holdout"
+    """Control pages are deliberately WITHHELD inbound links, so their search performance can
+    be compared with treatment pages. Assigned by TARGET page (see
+    :class:`ExperimentUnit`), carries no candidate, and is the only kind
+    :meth:`~ken_services.learning.protocol.SqlExperimentGuard.locked` ever locks."""
+
+
+class ExperimentUnit(StrEnum):
+    """Which page an arm is assigned to -- determined by the kind, never chosen freely.
+
+    This resolves the arm-contamination bug the pre-fan-out review found (ADR-0016 15.5): the
+    draft assigned arms by SOURCE page while saying a holdout's comparison is the TARGET page's
+    metric. Those are different pages, so the arms were contaminated -- nothing stopped a
+    control page from receiving inbound links from an unassigned source.
+
+    Resolution (a) of the two the user offered: **a holdout assigns by TARGET page**, and
+    ``locked()`` refuses any plan whose TARGET is a control page. That is coherent with the
+    existing ``ExperimentGuard.locked(*, source_page_id, target_page_id)`` signature, which
+    already takes both pages, and it is the question a holdout is actually for -- "withhold
+    inbound links from these pages and compare their search performance".
+    """
+
+    SOURCE_PAGE = "source_page"
+    """``policy_ab``: the arm picks which ranking policy ranks that source's candidates."""
+    TARGET_PAGE = "target_page"
+    """``holdout``: the arm decides whether that page may receive new inbound links."""
+
+
+EXPERIMENT_UNIT_BY_KIND: Final[Mapping[ExperimentKind, ExperimentUnit]] = {
+    ExperimentKind.POLICY_AB: ExperimentUnit.SOURCE_PAGE,
+    ExperimentKind.HOLDOUT: ExperimentUnit.TARGET_PAGE,
+}
+"""The unit is a FUNCTION of the kind (a DB CHECK pins the pair), so no experiment can be
+created whose comparison is about one page while its arms are assigned to another."""
+
+
+def experiment_unit(kind: ExperimentKind) -> ExperimentUnit:
+    """The assignment unit of ``kind``. Total over :class:`ExperimentKind`."""
+    return EXPERIMENT_UNIT_BY_KIND[ExperimentKind(kind)]
 
 
 class ExperimentStatus(StrEnum):
     DRAFT = "draft"
     ACTIVE = "active"
-    """No activation path ships in Phase 8 (16.6)."""
+    """A ``policy_ab`` may be activated freely (both arms get links). A ``holdout`` may not,
+    unless ``Settings.experiments_allow_holdout`` is on AND the activating transaction holds
+    :data:`EXPERIMENT_ACTIVATOR_SETTING`."""
     ENDED = "ended"
 
 
@@ -1284,17 +1375,16 @@ class ExperimentArm(StrEnum):
     TREATMENT = "treatment"
 
 
-EXPERIMENT_UNIT: Final = "source_page"
-"""The only assignment unit (a DB CHECK pins the column to this string)."""
-
-
 class ExperimentAssignmentView(FrozenModel):
     """Deterministic AND materialised: the arm comes from the first 8 bytes of
-    ``sha256(key + ':' + str(source_page_id))`` against ``treatment_fraction``, and the row is
-    written, so the arm stays auditable even if the hash function ever changes."""
+    ``sha256(key + ':' + str(page_id))`` against ``treatment_fraction``, and the row is
+    WRITTEN, so the arm stays auditable even if the hash function ever changes.
+
+    ``page_id`` is the source page for a ``policy_ab`` and the TARGET page for a ``holdout``
+    (:class:`ExperimentUnit`)."""
 
     experiment_id: UUID
-    source_page_id: UUID
+    page_id: UUID
     arm: ExperimentArm
     assigned_by: str
     assigned_at: AwareDatetime
@@ -1304,10 +1394,12 @@ class ExperimentView(FrozenModel):
     id: UUID
     key: str = Field(pattern=EXPERIMENT_KEY_PATTERN)
     description: str
-    unit: Literal["source_page"] = EXPERIMENT_UNIT
+    unit: ExperimentUnit
     kind: ExperimentKind
     status: ExperimentStatus
-    candidate_id: UUID | None = None
+    candidate_id: UUID | None = Field(
+        default=None, description="Required for policy_ab, forbidden for holdout."
+    )
     proposal_id: UUID | None = None
     treatment_fraction: float = Field(gt=0.0, le=1.0)
     created_by: str
@@ -1317,6 +1409,24 @@ class ExperimentView(FrozenModel):
     ended_at: AwareDatetime | None = None
     control_pages: int = Field(default=0, ge=0)
     treatment_pages: int = Field(default=0, ge=0)
+
+    @model_validator(mode="after")
+    def _kind_determines_unit_candidate_and_cap(self) -> Self:
+        if self.unit is not experiment_unit(self.kind):
+            raise ValueError(
+                f"a {self.kind.value} experiment assigns arms by {experiment_unit(self.kind).value}"
+            )
+        if self.kind is ExperimentKind.POLICY_AB and self.candidate_id is None:
+            raise ValueError("a policy_ab experiment names the candidate it tests")
+        if self.kind is ExperimentKind.HOLDOUT:
+            if self.candidate_id is not None:
+                raise ValueError("a holdout tests no candidate policy")
+            if self.treatment_fraction > MAX_HOLDOUT_TREATMENT_FRACTION:
+                raise ValueError(
+                    "a holdout may withhold links from at most "
+                    f"{MAX_HOLDOUT_TREATMENT_FRACTION:.0%} of pages"
+                )
+        return self
 
 
 class ExperimentDetail(ExperimentView):
@@ -1584,6 +1694,24 @@ class PromotionRefusal(StrEnum):
     """The transaction-local ``ken.learning_promoter`` setting was not established."""
 
 
+class ExperimentRefusal(StrEnum):
+    """Why :meth:`ExperimentLifecycle.activate` or an assignment was refused."""
+
+    HOLDOUT_NOT_ENABLED = "holdout_not_enabled"
+    """``Settings.experiments_allow_holdout`` is unset, which is the default. Withholding
+    inbound links from live pages is the user's decision, so nothing activates a holdout until
+    they make it."""
+    FRACTION_TOO_LARGE = "fraction_too_large"
+    """A holdout above :data:`MAX_HOLDOUT_TREATMENT_FRACTION`."""
+    NOT_A_DRAFT = "not_a_draft"
+    NO_ASSIGNMENTS = "no_assignments"
+    """Activating with no materialised arms would silently measure nothing."""
+    TRANSITION_NOT_ALLOWED = "transition_not_allowed"
+    PAGE_ALREADY_IN_A_LIVE_EXPERIMENT = "page_already_in_a_live_experiment"
+    WRONG_UNIT = "wrong_unit"
+    """An assignment whose page role does not match the experiment's unit."""
+
+
 class LearningError(Exception):
     """Base of learning failures."""
 
@@ -1606,6 +1734,14 @@ class SkillNotFoundError(LearningError):
 class ExperimentNotFoundError(LearningError):
     def __init__(self) -> None:
         super().__init__("experiment not found")
+
+
+class ExperimentRefusedError(LearningError):
+    """A refused activation or assignment. Carries the code only."""
+
+    def __init__(self, refusal: ExperimentRefusal) -> None:
+        super().__init__(refusal.value)
+        self.refusal = refusal
 
 
 class PromotionRefusedError(LearningError):
@@ -1706,10 +1842,12 @@ __all__ = [
     "CASE_ID_PATTERN",
     "CROSS_CHECKED_PATHS",
     "DECISION_CLASS_PATTERN",
+    "DEFAULT_HOLDOUT_TREATMENT_FRACTION",
     "DEFERRED_SUITES",
+    "EXPERIMENT_ACTIVATOR_SETTING",
     "EXPERIMENT_KEY_PATTERN",
     "EXPERIMENT_TRANSITIONS",
-    "EXPERIMENT_UNIT",
+    "EXPERIMENT_UNIT_BY_KIND",
     "FROZEN_POLICY_PATHS",
     "HARD_FAIL_SUITES",
     "HUMAN_ONLY_STATUSES",
@@ -1719,6 +1857,7 @@ __all__ = [
     "MAX_CASE_ID_CHARS",
     "MAX_CHANGES_PER_PROPOSAL",
     "MAX_DESCRIPTION_CHARS",
+    "MAX_HOLDOUT_TREATMENT_FRACTION",
     "MAX_INSTRUCTIONS_CHARS",
     "MAX_NOTE_CHARS",
     "MAX_OBSERVATIONS",
@@ -1730,8 +1869,10 @@ __all__ = [
     "NO_RELATIONSHIP",
     "OPEN_PROPOSAL_STATUSES",
     "PATH_PATTERN",
+    "PROMOTER_ACTOR_PATTERN",
     "PROPOSAL_TRANSITIONS",
     "PROPOSAL_TRANSITION_AUTHORITY",
+    "PROPOSER_PATTERN",
     "REASONS_BY_PROPOSAL_STATUS",
     "SHA256_PATTERN",
     "SKILL_NAME_PATTERN",
@@ -1768,7 +1909,11 @@ __all__ = [
     "ExperimentDetail",
     "ExperimentKind",
     "ExperimentNotFoundError",
+    "ExperimentPolicy",
+    "ExperimentRefusal",
+    "ExperimentRefusedError",
     "ExperimentStatus",
+    "ExperimentUnit",
     "ExperimentView",
     "GatePolicy",
     "GateReason",
@@ -1810,6 +1955,7 @@ __all__ = [
     "SuiteMetrics",
     "TargetKind",
     "TitleText",
+    "experiment_unit",
     "fingerprint_payload",
     "is_allowed_proposal_transition",
     "is_canonical_decision_class",

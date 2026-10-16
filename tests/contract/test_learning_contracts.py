@@ -17,6 +17,7 @@ exist so the same thing cannot happen again: each one pins a mechanism, not a do
 from __future__ import annotations
 
 import re
+import uuid
 from typing import Any
 
 import pytest
@@ -46,11 +47,13 @@ from ken_contracts.learning import (
     ProposalStatus,
     TargetKind,
 )
+from ken_contracts.recommendations import RetrievalChannel
 from ken_core.config import REPO_ROOT
 from ken_services.learning.policy import PolicyError, load_learning_policy
 
 POLICY_PATH = REPO_ROOT / "policies" / "learning" / "learning.v1.yaml"
 EVAL_UUID = "2b4e6a8c-1d3f-4a5b-8c7d-9e0f1a2b3c4d"
+OPERATION_ID = uuid.UUID("33333333-3333-4333-8333-333333333333")
 
 
 def _raw_policy() -> dict[str, Any]:
@@ -265,7 +268,7 @@ def test_the_yaml_cannot_widen_the_change_allowlist() -> None:
 def test_the_yaml_cannot_allowlist_a_frozen_path() -> None:
     """Two independent refusals cover this, and the contract keeps the sets disjoint so the
     allowlist check normally fires first: either way a frozen path cannot be allowlisted."""
-    with pytest.raises(ValidationError, match="only NARROW|frozen field can never"):
+    with pytest.raises(ValidationError, match=r"only NARROW|frozen field can never"):
         ChangePolicy(
             allowed_paths=("analytics.windows.comparison_days",),
             frozen_paths=tuple(sorted(FROZEN_POLICY_PATHS)),
@@ -389,12 +392,12 @@ def test_the_canonical_form_round_trips_and_is_order_independent() -> None:
     first = DecisionClass(
         relationship_type=RelationshipType.SAME_MARKET,
         anchor_source="target_topic",
-        channels=("semantic", "graph"),  # type: ignore[arg-type]
+        channels=(RetrievalChannel.SEMANTIC, RetrievalChannel.GRAPH),
     )
     second = DecisionClass(
         relationship_type=RelationshipType.SAME_MARKET,
         anchor_source="target_topic",
-        channels=("graph", "semantic"),  # type: ignore[arg-type]
+        channels=(RetrievalChannel.GRAPH, RetrievalChannel.SEMANTIC),
     )
     assert first.canonical == second.canonical == "same_market|target_topic|graph+semantic"
     assert DecisionClass.parse(first.canonical) == first
@@ -402,7 +405,7 @@ def test_the_canonical_form_round_trips_and_is_order_independent() -> None:
 
 
 def test_a_class_without_a_relationship_type_is_still_canonical() -> None:
-    cls = DecisionClass(anchor_source="edited", channels=("lexical",))  # type: ignore[arg-type]
+    cls = DecisionClass(anchor_source="edited", channels=(RetrievalChannel.LEXICAL,))
     assert cls.canonical == "none|edited|lexical"
     assert DecisionClass.parse("none|edited|lexical") == cls
 
@@ -562,7 +565,7 @@ def test_every_event_name_is_either_registered_or_explicitly_untyped() -> None:
     assert not set(events.EVENT_PAYLOAD_MODELS) & events.UNTYPED_EVENTS
 
 
-@pytest.mark.parametrize("name", sorted(events.EVENT_PAYLOAD_MODELS, key=lambda item: item.value))
+@pytest.mark.parametrize("name", sorted(events.EVENT_PAYLOAD_MODELS, key=str))
 def test_a_registered_name_validates_its_own_version(name: events.EventName) -> None:
     for version in events.EVENT_PAYLOAD_MODELS[name]:
         unknown = events.validate_payload(
@@ -576,7 +579,7 @@ def test_a_registered_name_validates_its_own_version(name: events.EventName) -> 
         assert corrupt.status is events.PayloadStatus.INVALID
 
 
-@pytest.mark.parametrize("name", sorted(events.UNTYPED_EVENTS, key=lambda item: item.value))
+@pytest.mark.parametrize("name", sorted(events.UNTYPED_EVENTS, key=str))
 def test_an_untyped_name_has_no_payload_schema_to_violate(name: events.EventName) -> None:
     verdict = events.validate_payload(
         event_name=name.value, event_version=1, payload={"anything": [1, "two"]}
@@ -720,15 +723,111 @@ def test_a_promotion_must_cite_an_evaluation_run_id(ref: str) -> None:
 
 
 # --------------------------------------------------------------------------- #
-# Experiments: holdout is CUT, not defaulted off (16.4)
+# Experiments: BOTH kinds, with holdout defaulted off and capped (user decision)
 # --------------------------------------------------------------------------- #
-def test_the_experiment_kind_enum_has_no_holdout_member() -> None:
-    assert {kind.value for kind in learning.ExperimentKind} == {"policy_ab"}
-    assert "holdout" not in {kind.value for kind in learning.ExperimentKind}
+def test_both_experiment_kinds_exist() -> None:
+    assert {kind.value for kind in learning.ExperimentKind} == {"policy_ab", "holdout"}
 
 
-def test_the_only_assignment_unit_is_the_source_page() -> None:
-    assert learning.EXPERIMENT_UNIT == "source_page"
+def test_the_assignment_unit_is_a_function_of_the_kind() -> None:
+    """The fix for the review's arm-contamination bug: a holdout compares TARGET pages, so its
+    arms are assigned to target pages. No experiment can measure one page while assigning
+    another."""
+    assert learning.experiment_unit(learning.ExperimentKind.HOLDOUT) is (
+        learning.ExperimentUnit.TARGET_PAGE
+    )
+    assert learning.experiment_unit(learning.ExperimentKind.POLICY_AB) is (
+        learning.ExperimentUnit.SOURCE_PAGE
+    )
+    assert set(learning.EXPERIMENT_UNIT_BY_KIND) == set(learning.ExperimentKind)
+
+
+def _experiment_view(**overrides: Any) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "id": "44444444-4444-4444-8444-444444444444",
+        "key": "ranking-ab-1",
+        "description": "d",
+        "unit": "source_page",
+        "kind": "policy_ab",
+        "status": "draft",
+        "candidate_id": "55555555-5555-4555-8555-555555555555",
+        "treatment_fraction": 0.5,
+        "created_by": "user:ops",
+        "created_at": "2026-10-16T09:00:00Z",
+        "updated_at": "2026-10-16T09:00:00Z",
+    }
+    payload.update(overrides)
+    return payload
+
+
+def test_a_holdout_must_assign_by_target_page_and_carry_no_candidate() -> None:
+    with pytest.raises(ValidationError, match="assigns arms by target_page"):
+        learning.ExperimentView.model_validate(
+            _experiment_view(kind="holdout", candidate_id=None, treatment_fraction=0.1)
+        )
+    with pytest.raises(ValidationError, match="tests no candidate policy"):
+        learning.ExperimentView.model_validate(
+            _experiment_view(kind="holdout", unit="target_page", treatment_fraction=0.1)
+        )
+    holdout = learning.ExperimentView.model_validate(
+        _experiment_view(
+            kind="holdout", unit="target_page", candidate_id=None, treatment_fraction=0.1
+        )
+    )
+    assert holdout.treatment_fraction == learning.DEFAULT_HOLDOUT_TREATMENT_FRACTION
+
+
+def test_a_policy_ab_must_name_its_candidate_and_assign_by_source_page() -> None:
+    with pytest.raises(ValidationError, match="names the candidate"):
+        learning.ExperimentView.model_validate(_experiment_view(candidate_id=None))
+    with pytest.raises(ValidationError, match="assigns arms by source_page"):
+        learning.ExperimentView.model_validate(_experiment_view(unit="target_page"))
+
+
+@pytest.mark.parametrize("fraction", [0.21, 0.5, 1.0])
+def test_a_holdout_above_the_hard_maximum_is_refused(fraction: float) -> None:
+    """20% is the hard maximum, and the database CHECKs it too: a policy file cannot raise it."""
+    assert learning.MAX_HOLDOUT_TREATMENT_FRACTION == 0.20
+    with pytest.raises(ValidationError, match="at most 20%"):
+        learning.ExperimentView.model_validate(
+            _experiment_view(
+                kind="holdout",
+                unit="target_page",
+                candidate_id=None,
+                treatment_fraction=fraction,
+            )
+        )
+
+
+def test_the_policy_default_holdout_fraction_is_half_the_maximum() -> None:
+    policy = load_learning_policy(POLICY_PATH)
+    assert policy.experiments.holdout_treatment_fraction == 0.10
+    assert policy.experiments.holdout_treatment_fraction <= learning.MAX_HOLDOUT_TREATMENT_FRACTION
+
+
+def test_the_learning_policy_cannot_raise_the_holdout_cap() -> None:
+    raw = _raw_policy()
+    raw["experiments"]["holdout_treatment_fraction"] = 0.5
+    with pytest.raises(ValidationError):
+        LearningPolicy.model_validate(raw)
+
+
+def test_activation_has_a_typed_refusal_for_an_unenabled_holdout() -> None:
+    error = learning.ExperimentRefusedError(learning.ExperimentRefusal.HOLDOUT_NOT_ENABLED)
+    assert error.refusal is learning.ExperimentRefusal.HOLDOUT_NOT_ENABLED
+    assert str(error) == "holdout_not_enabled"
+
+
+def test_the_arm_is_deterministic_and_depends_on_the_assigned_page() -> None:
+    from ken_services.learning.protocol import experiment_arm
+
+    page = uuid.UUID("66666666-6666-4666-8666-666666666666")
+    first = experiment_arm(key="ab-1", page_id=page, treatment_fraction=0.5)
+    assert first is experiment_arm(key="ab-1", page_id=page, treatment_fraction=0.5)
+    assert (
+        experiment_arm(key="ab-1", page_id=page, treatment_fraction=1.0)
+        is learning.ExperimentArm.TREATMENT
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -737,7 +836,7 @@ def test_the_only_assignment_unit_is_the_source_page() -> None:
 def test_a_promotion_request_must_cite_an_evaluation_run() -> None:
     with pytest.raises(ValidationError, match="passing evaluation run"):
         learning.AdvanceProposalRequest(
-            operation_id="33333333-3333-4333-8333-333333333333",  # type: ignore[arg-type]
+            operation_id=OPERATION_ID,
             to_status=ProposalStatus.PROMOTED,
         )
 
@@ -745,26 +844,26 @@ def test_a_promotion_request_must_cite_an_evaluation_run() -> None:
 def test_a_non_promotion_request_may_not_carry_an_evaluation_run() -> None:
     with pytest.raises(ValidationError, match="only a promotion"):
         learning.AdvanceProposalRequest(
-            operation_id="33333333-3333-4333-8333-333333333333",  # type: ignore[arg-type]
+            operation_id=OPERATION_ID,
             to_status=ProposalStatus.SHADOW,
-            evaluation_run_id=EVAL_UUID,  # type: ignore[arg-type]
+            evaluation_run_id=uuid.UUID(EVAL_UUID),
         )
 
 
 def test_a_rejection_needs_a_structured_reason_from_its_own_set() -> None:
     with pytest.raises(ValidationError, match="requires a structured reason"):
         learning.AdvanceProposalRequest(
-            operation_id="33333333-3333-4333-8333-333333333333",  # type: ignore[arg-type]
+            operation_id=OPERATION_ID,
             to_status=ProposalStatus.REJECTED,
         )
     with pytest.raises(ValidationError, match="is not a reason for"):
         learning.AdvanceProposalRequest(
-            operation_id="33333333-3333-4333-8333-333333333333",  # type: ignore[arg-type]
+            operation_id=OPERATION_ID,
             to_status=ProposalStatus.REJECTED,
             reason=learning.ProposalRejectionReason.REGRESSION_OBSERVED,
         )
     accepted = learning.AdvanceProposalRequest(
-        operation_id="33333333-3333-4333-8333-333333333333",  # type: ignore[arg-type]
+        operation_id=OPERATION_ID,
         to_status=ProposalStatus.REJECTED,
         reason=learning.ProposalRejectionReason.DEMONSTRATION_ONLY,
         note="synthetic corpus",
@@ -775,7 +874,7 @@ def test_a_rejection_needs_a_structured_reason_from_its_own_set() -> None:
 def test_a_note_cannot_carry_an_unstorable_character() -> None:
     with pytest.raises(ValidationError):
         learning.AdvanceProposalRequest(
-            operation_id="33333333-3333-4333-8333-333333333333",  # type: ignore[arg-type]
+            operation_id=OPERATION_ID,
             to_status=ProposalStatus.SHADOW,
             note="bad\x00note",
         )
@@ -797,7 +896,10 @@ def test_the_migration_copies_the_contract_exactly() -> None:
     assert set(module.OPEN_STATUSES) == {status.value for status in OPEN_PROPOSAL_STATUSES}
     assert set(module.SKILL_STATUSES) == {status.value for status in learning.SkillStatus}
     assert set(module.EXPERIMENT_STATUSES) == {s.value for s in learning.ExperimentStatus}
-    assert module.EXPERIMENT_KINDS == "'policy_ab'"
+    assert set(module.EXPERIMENT_KINDS) == {kind.value for kind in learning.ExperimentKind}
+    assert set(module.EXPERIMENT_UNITS) == {unit.value for unit in learning.ExperimentUnit}
+    assert module.MAX_HOLDOUT_TREATMENT_FRACTION == learning.MAX_HOLDOUT_TREATMENT_FRACTION
+    assert module.ACTIVATOR_SETTING == learning.EXPERIMENT_ACTIVATOR_SETTING
     contract_pairs = {
         (source.value, target.value)
         for source, targets in PROPOSAL_TRANSITIONS.items()

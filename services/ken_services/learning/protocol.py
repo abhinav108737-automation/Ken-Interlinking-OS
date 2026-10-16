@@ -97,6 +97,7 @@ __all__ = [
     "BlockOnly",
     "EvaluationOutcome",
     "EvaluationRequest",
+    "ExperimentLifecycle",
     "GateEvaluator",
     "PolicyFileWriter",
     "PromotionService",
@@ -181,14 +182,18 @@ def _walk(value: Any, path: str, depth: int) -> list[str]:
     return [f"{path}: {type(value).__name__} is not allowed in a prompt"]
 
 
-def experiment_arm(*, key: str, source_page_id: UUID, treatment_fraction: float) -> ExperimentArm:
+def experiment_arm(*, key: str, page_id: UUID, treatment_fraction: float) -> ExperimentArm:
     """The arm ``make experiment-assign`` MATERIALISES for one page.
 
-    Deterministic AND stored: the first 8 bytes of ``sha256(key + ':' + str(source_page_id))``
-    as a big-endian integer, compared with ``treatment_fraction`` of the 64-bit space. Writing
-    the row keeps the arm auditable and stable even if this function ever changes.
+    Deterministic AND stored: the first 8 bytes of ``sha256(key + ':' + str(page_id))`` as a
+    big-endian integer, compared with ``treatment_fraction`` of the 64-bit space. Writing the
+    row keeps the arm auditable and stable even if this function ever changes.
+
+    ``page_id`` is the SOURCE page for a ``policy_ab`` and the TARGET page for a ``holdout``
+    (:class:`~ken_contracts.learning.ExperimentUnit`), which is the whole fix for the review's
+    arm-contamination bug: the pages an experiment measures are the pages it assigns.
     """
-    digest = hashlib.sha256(f"{key}:{source_page_id}".encode("ascii")).digest()[:8]
+    digest = hashlib.sha256(f"{key}:{page_id}".encode("ascii")).digest()[:8]
     position = int.from_bytes(digest, "big") / 2**64
     return ExperimentArm.TREATMENT if position < treatment_fraction else ExperimentArm.CONTROL
 
@@ -469,15 +474,30 @@ class SqlExperimentGuard(Protocol):
     """``ken_services.learning.experiments.SqlExperimentGuard``: the real
     :class:`~ken_contracts.recommendations.ExperimentGuard` replacing ``NoExperiments()``.
 
-    Its contract is PRD 7.5's "an active experiment forbids modification". A ``control``
-    assignment in an ACTIVE experiment whose kind withholds links locks the source page; a
-    ``policy_ab`` experiment locks NOBODY, because both arms get links and only the ranking
-    policy differs -- the pipeline resolves the policy per source from the arm.
+    Its contract is PRD 7.5's "an active experiment forbids modification".
+    (A correction to ADR-0016 section 1, recorded in its 15.1.2:
+    ``ken_contracts.recommendations.ExperimentGuard`` is a ``@runtime_checkable Protocol``, not
+    "a frozen protocol" -- so a structural implementation satisfies it and no base class is
+    inherited.)
 
-    Since ``experiments.kind`` is capped to ``policy_ab`` (ADR-0016 16.4 cut ``holdout``
-    entirely), :meth:`locked` returns ``False`` for every pair in Phase 8 BY CONSTRUCTION, not
-    by omission. That is the point: the hook is wired, the tables are real, and adding a
-    withholding kind later is a schema change a human must make deliberately.
+    **The rule, stated exactly** (this is the resolution of the arm-contamination bug the
+    pre-fan-out review found, ADR-0016 15.5, and it is the reason the frozen
+    ``ExperimentGuard.locked(*, source_page_id, target_page_id)`` signature takes BOTH pages):
+
+        ``locked()`` is true iff ``target_page_id`` has a ``control`` assignment in an ACTIVE
+        ``holdout`` experiment.
+
+    A ``holdout`` exists to ask "withhold inbound links from these pages and compare their
+    search performance", so its arms are assigned BY TARGET PAGE
+    (:class:`~ken_contracts.learning.ExperimentUnit.TARGET_PAGE`, pinned to the kind by a DB
+    CHECK) and the guard refuses any plan pointing AT a control page -- whatever its source.
+    The draft assigned arms by source page while measuring target pages, which left control
+    pages free to receive inbound links from unassigned sources: the arms were contaminated and
+    the comparison meaningless. ``source_page_id`` is still accepted, and still used, because a
+    later kind may withhold outbound links instead; today it affects nothing.
+
+    A ``policy_ab`` locks NOBODY: both arms get links and only the ranking policy differs, which
+    the pipeline resolves per source from that source's arm.
 
     Backed by a per-run cached assignment map, never per-pair SQL (one round trip per candidate
     would be a real cost). ``refresh`` rebuilds it; a failure keeps the previous map and never
@@ -487,6 +507,48 @@ class SqlExperimentGuard(Protocol):
     async def locked(self, *, source_page_id: UUID, target_page_id: UUID) -> bool: ...
 
     async def refresh(self) -> None: ...
+
+
+class ExperimentLifecycle(Protocol):
+    """``ken_services.learning.experiments.ExperimentLifecycleService``: create, assign, activate,
+    end. CLI-only -- there is no API route that starts an experiment.
+
+    **Activating a holdout is the one genuinely destructive act in this phase**: its control
+    pages are deliberately denied inbound links on the client's live site. Three gates, each a
+    mechanism:
+
+    1. ``treatment_fraction <= MAX_HOLDOUT_TREATMENT_FRACTION`` (0.20) -- a DB CHECK, so no
+       policy file and no caller can raise it. The policy default is 0.10.
+    2. :meth:`activate` raises
+       :class:`~ken_contracts.learning.ExperimentRefusedError` with
+       :attr:`~ken_contracts.learning.ExperimentRefusal.HOLDOUT_NOT_ENABLED` while
+       ``Settings.experiments_allow_holdout`` is unset, which is the default.
+    3. Only when that setting is on does it run
+       ``SELECT set_config('ken.learning_experiment_activator', 'on', true)`` in the SAME
+       transaction as the ``draft -> active`` UPDATE. Migration 0009's guard requires it for a
+       ``holdout``, so a raw ``UPDATE experiments SET status = 'active'`` fails too --
+       "the user has not enabled holdouts" is enforced by the database, not only by a branch.
+
+    A ``policy_ab`` activation is unaffected by the setting and needs no GUC: both arms get
+    links. :meth:`activate` still refuses a non-draft, a transition outside the ladder and an
+    experiment with no materialised assignments (activating with no arms would silently measure
+    nothing).
+
+    :meth:`assign` materialises :func:`experiment_arm` for every eligible page of the
+    experiment's ``unit``, while the experiment is still ``draft``. Its ``actor`` is a
+    ``system:`` actor, NOT a human one: the arm is a deterministic computation, not a judgement,
+    and the human act is recorded on ``experiments.created_by`` (CHECKed ``^user:``) and on the
+    activation. The static test that forbids a ``"user:"`` literal in this package is what stops
+    an implementation from passing a forged human actor here.
+    """
+
+    async def assign(
+        self, *, key: str, page_ids: Sequence[UUID] | None = None, actor: str
+    ) -> Mapping[ExperimentArm, int]: ...
+
+    async def activate(self, *, principal: Principal, key: str) -> None: ...
+
+    async def end(self, *, principal: Principal, key: str) -> None: ...
 
 
 class ExperimentAttribution(Protocol):

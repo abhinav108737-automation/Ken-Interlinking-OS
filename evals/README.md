@@ -94,7 +94,27 @@ Phase 8 ("Evaluation datasets … offline evals") is when these suites become
 formal, versioned datasets with a runner. Before Phase 8, the phases above may
 add recorded fixtures as they build the corresponding nodes.
 
-## 4. Fixture format (Proposed — NOT frozen, NOT implemented)
+## 4. Fixture format
+
+> **FROZEN in Phase 8 (W0).** The skeleton below is now the frozen
+> `ken_contracts.learning.EvalCase` — every field, including `decision_class`,
+> `provenance` and `privacy` — and `DecisionClass` is a typed contract with a
+> canonical string form (`<relationship|none>|<anchor_source>|<channels>`) that
+> `policy_evaluations.metrics.by_decision_class` is keyed by. The deferred
+> file-format choice is settled: **JSON Lines**, at
+> `evals/datasets/<suite>/<dataset>.v<N>.jsonl`, with a per-dataset
+> `MANIFEST.yaml` (`ken_contracts.learning.DatasetManifest`) recording the
+> dataset version, a per-file sha256, the case count, the provenance and the
+> privacy flags. See [ADR-0016](../docs/adr/ADR-0016-learning.md) §7 and
+> `docs/CONTRACTS.md` §20.
+>
+> The privacy pair below is load-bearing and enforced by a validator: a case
+> with `contains_production_data: true` and no `approval_ref` is refused.
+>
+> Note on where to look for metrics: §5 below sources the per-decision-class
+> metrics from **TRD §20**. TRD §19 is only the suite list. Phase 9 should read
+> §20.
+
 
 One case per file, or JSON Lines per suite. The choice is deferred to Phase 8.
 `pyyaml` is already an approved dependency, so YAML is one option. Skeleton

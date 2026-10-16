@@ -13,7 +13,10 @@ reason it is not. In order of importance:
   is the model);
 * content immutability, the status ladder, and no DELETE anywhere;
 * at most one promoted skill per name; a promoted skill always names a human and an evaluation;
-* ``experiments.kind`` REJECTS ``'holdout'`` (16.4 cut it; there is no member to set);
+* a ``holdout`` above ``treatment_fraction = 0.20`` is REFUSED by the database; a ``holdout``
+  cannot be activated without the transaction-local ``ken.learning_experiment_activator``
+  setting, while a ``policy_ab`` activation is unaffected; and a holdout's arms must be assigned
+  by TARGET page (the fix for the review's arm-contamination bug);
 * one live experiment per page, and assignment only while the experiment is a draft;
 * ``policy_evaluations.metrics`` must carry ``by_decision_class`` (15.7.11);
 * ``job_runs.kind`` accepts ``'reflection'``, without which ``make reflect`` cannot run;
@@ -41,6 +44,7 @@ from ken_contracts.learning import (
 )
 from ken_core.db.models.learning import APPEND_ONLY_LEARNING_TABLES
 from tests.integration.conftest import (
+    LEARNING_ACTIVATOR_ON,
     LEARNING_FUNCTIONS,
     LEARNING_PROMOTER_ON,
     LEARNING_TABLES,
@@ -199,6 +203,7 @@ def _experiment(c: Connection, **overrides: Any) -> None:
         "id": EXPERIMENT,
         "key": "ranking-ab-1",
         "description": "Shadow the candidate ranking policy on half the sources.",
+        "unit": "source_page",
         "kind": "policy_ab",
         "candidate": CANDIDATE,
         "proposal": PROPOSAL,
@@ -208,11 +213,28 @@ def _experiment(c: Connection, **overrides: Any) -> None:
     } | overrides
     c.execute(
         text(
-            "INSERT INTO experiments (id, key, description, kind, candidate_id, proposal_id, "
-            "treatment_fraction, status, created_by) VALUES (:id, :key, :description, :kind, "
-            ":candidate, :proposal, :fraction, :status, :by)"
+            "INSERT INTO experiments (id, key, description, unit, kind, candidate_id, "
+            "proposal_id, treatment_fraction, status, created_by) VALUES (:id, :key, "
+            ":description, :unit, :kind, :candidate, :proposal, :fraction, :status, :by)"
         ),
         values,
+    )
+
+
+def _holdout(c: Connection, **overrides: Any) -> None:
+    """A holdout: assigned by TARGET page, no candidate, fraction at the policy default."""
+    _experiment(
+        c,
+        **{
+            "id": OTHER_EXPERIMENT,
+            "key": "inbound-holdout-1",
+            "description": "Withhold inbound links from a tenth of target pages.",
+            "unit": "target_page",
+            "kind": "holdout",
+            "candidate": None,
+            "fraction": 0.1,
+            **overrides,
+        },
     )
 
 
@@ -225,8 +247,8 @@ def _assignment(c: Connection, **overrides: Any) -> None:
     } | overrides
     c.execute(
         text(
-            "INSERT INTO experiment_assignments (experiment_id, source_page_id, arm, "
-            "assigned_by) VALUES (:experiment, :page, :arm, :by)"
+            "INSERT INTO experiment_assignments (experiment_id, page_id, arm, assigned_by) "
+            "VALUES (:experiment, :page, :arm, :by)"
         ),
         values,
     )
@@ -279,6 +301,16 @@ def _count(db: SyncDb, table: str) -> int:
     )
 
 
+def _experiment_status(db: SyncDb, experiment: uuid.UUID) -> str:
+    return str(
+        db.run(
+            lambda c: c.execute(
+                text("SELECT status FROM experiments WHERE id = :i"), {"i": experiment}
+            ).scalar_one()
+        )
+    )
+
+
 def _status(db: SyncDb) -> str:
     return str(
         db.run(
@@ -303,8 +335,8 @@ def test_the_transitions_table_carries_a_txid_with_a_volatile_default(db: SyncDb
     """Without this column the append-only CHECKs are forgeable across two transactions
     (ADR-0016 15.7.1). It mirrors ``link_plan_transitions.txid`` from 0007."""
 
-    def _column(c: Connection) -> dict[str, Any]:
-        rows = inspect(c).get_columns("learning_proposal_transitions")
+    def _column(c: Connection) -> Any:
+        rows: Any = inspect(c).get_columns("learning_proposal_transitions")
         return next(row for row in rows if row["name"] == "txid")
 
     column = db.run(_column)
@@ -438,6 +470,30 @@ def test_a_promotion_with_the_promoter_setting_succeeds(db: SyncDb) -> None:
     db.run(_to_offline_test)
     db.run(_promote)
     assert _status(db) == "promoted"
+
+
+def test_clearing_the_promoter_setting_after_writing_the_row_still_fails(db: SyncDb) -> None:
+    """The deferred guard re-checks the setting at COMMIT, so the two triggers are not
+    redundant in the one order that could otherwise slip through: set the setting, write the
+    transition, clear it, then update the proposal."""
+    db.run(_to_offline_test)
+
+    def _forge(c: Connection) -> None:
+        c.execute(text(LEARNING_PROMOTER_ON))
+        _transition(
+            c,
+            **{
+                "from": "offline_test",
+                "to": "promoted",
+                "actor": "user:ops",
+                "evaluation": EVALUATION,
+            },
+        )
+        c.execute(text("SELECT set_config('ken.learning_promoter', '', true)"))
+        _set_status(c, "promoted")
+
+    assert _guarded(_fails(db, _forge))
+    assert _status(db) == "offline_test"
 
 
 def test_a_promotion_by_an_agent_actor_is_refused(db: SyncDb) -> None:
@@ -780,8 +836,12 @@ def test_a_reflection_sourced_skill_must_cite_its_proposal(db: SyncDb) -> None:
 def test_metrics_must_carry_a_by_decision_class_object(db: SyncDb) -> None:
     """ADR-0016 15.7.11: Phase 9 reads per-class calibration from here, so the DB -- not only
     the contract -- requires the key."""
+
+    def _insert(metrics: str) -> Callable[[Connection], Any]:
+        return lambda c: _evaluation(c, id=uuid.uuid4(), metrics=metrics)
+
     for metrics in ('{"cases_total": 0}', '{"by_decision_class": []}', "{}"):
-        error = _fails(db, lambda c, m=metrics: _evaluation(c, id=uuid.uuid4(), metrics=m))
+        error = _fails(db, _insert(metrics))
         assert _sqlstate(error) == "23514"
         assert "metrics_by_decision_class" in str(error.orig)
 
@@ -841,13 +901,125 @@ def test_an_evaluation_cannot_be_its_own_baseline(db: SyncDb) -> None:
 # --------------------------------------------------------------------------- #
 # Experiments: holdout does not exist (16.4)
 # --------------------------------------------------------------------------- #
-def test_the_experiment_kind_check_rejects_holdout(db: SyncDb) -> None:
-    """Withholding links from live pages is a real editorial and SEO cost and remains the
-    user's decision. Cutting the member -- not defaulting it off -- means no code path can do
-    it, and it also removes the review's arm-contamination bug."""
-    error = _fails(db, lambda c: _experiment(c, id=uuid.uuid4(), key="holdout-1", kind="holdout"))
+def test_both_kinds_are_accepted(db: SyncDb) -> None:
+    db.run(_experiment)
+    db.run(_holdout)
+    assert _count(db, "experiments") == 2
+
+
+def test_an_unknown_kind_is_still_rejected(db: SyncDb) -> None:
+    error = _fails(db, lambda c: _experiment(c, id=uuid.uuid4(), key="ab-x", kind="bandit"))
     assert _sqlstate(error) == "23514"
     assert "kind_valid" in str(error.orig)
+
+
+@pytest.mark.parametrize("fraction", [0.21, 0.5, 1.0])
+def test_a_holdout_over_twenty_percent_is_refused_by_the_database(
+    db: SyncDb, fraction: float
+) -> None:
+    """The hard maximum lives in the DATABASE, so no policy file, no CLI flag and no service
+    bug can widen how much of a live site has links withheld from it."""
+    error = _fails(db, lambda c: _holdout(c, fraction=fraction))
+    assert _sqlstate(error) == "23514"
+    assert "holdout_fraction_capped" in str(error.orig)
+    db.run(lambda c: _holdout(c, fraction=0.2))
+
+
+def test_the_unit_is_pinned_to_the_kind(db: SyncDb) -> None:
+    """The arm-contamination fix: a holdout compares TARGET pages, so it assigns target
+    pages -- the database will not let the two come apart."""
+    assert _sqlstate(_fails(db, lambda c: _holdout(c, unit="source_page"))) == "23514"
+    assert (
+        _sqlstate(
+            _fails(db, lambda c: _experiment(c, id=uuid.uuid4(), key="ab-u", unit="target_page"))
+        )
+        == "23514"
+    )
+
+
+def test_a_holdout_carries_no_candidate_and_a_policy_ab_must(db: SyncDb) -> None:
+    assert _sqlstate(_fails(db, lambda c: _holdout(c, candidate=CANDIDATE))) == "23514"
+    assert (
+        _sqlstate(_fails(db, lambda c: _experiment(c, id=uuid.uuid4(), key="ab-c", candidate=None)))
+        == "23514"
+    )
+
+
+def _activate(experiment: uuid.UUID, *, guc: bool) -> Callable[[Connection], Any]:
+    def _go(c: Connection) -> None:
+        if guc:
+            c.execute(text(LEARNING_ACTIVATOR_ON))
+        c.execute(
+            text("UPDATE experiments SET status = 'active', started_at = now() WHERE id = :i"),
+            {"i": experiment},
+        )
+
+    return _go
+
+
+def test_activating_a_holdout_without_the_activator_setting_is_refused(db: SyncDb) -> None:
+    """``Settings.experiments_allow_holdout`` defaults false, and the lifecycle service is the
+    only thing that sets this transaction-local GUC -- so a raw UPDATE cannot start a holdout
+    either. 'The user has not enabled holdouts' is enforced by the database."""
+    db.run(_holdout)
+    assert _guarded(_fails(db, _activate(OTHER_EXPERIMENT, guc=False)))
+    assert _experiment_status(db, OTHER_EXPERIMENT) == "draft"
+
+
+def test_activating_a_holdout_with_the_activator_setting_succeeds(db: SyncDb) -> None:
+    db.run(_holdout)
+    db.run(_activate(OTHER_EXPERIMENT, guc=True))
+    assert _experiment_status(db, OTHER_EXPERIMENT) == "active"
+
+
+def test_activating_a_policy_ab_needs_no_activator_setting(db: SyncDb) -> None:
+    """Both arms of a policy_ab get links, so it is not gated: only the ranking policy varies."""
+    db.run(_experiment)
+    db.run(_activate(EXPERIMENT, guc=False))
+    assert _experiment_status(db, EXPERIMENT) == "active"
+
+
+async def test_the_activator_setting_never_leaks_to_the_next_transaction(
+    db: SyncDb, test_database_url: str
+) -> None:
+    """Transaction-local, like the promoter setting: a holdout cannot be activated by a later
+    transaction riding on an earlier one's setting.
+
+    Everything runs on the async engine -- ``SyncDb.run`` calls ``asyncio.run``, which cannot be
+    reached from inside a running loop (the ``db`` fixture seeded the base rows before the loop
+    started)."""
+    del db
+    engine: AsyncEngine = create_async_engine(test_database_url, pool_size=1, max_overflow=0)
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(
+                text(
+                    "INSERT INTO experiments (id, key, description, unit, kind, "
+                    "treatment_fraction, status, created_by) VALUES (:i, "
+                    "'inbound-holdout-2', 'd', 'target_page', 'holdout', 0.1, 'draft', "
+                    "'user:ops')"
+                ),
+                {"i": OTHER_EXPERIMENT},
+            )
+        async with engine.begin() as conn:
+            pid_1: Any = (await conn.execute(text("SELECT pg_backend_pid()"))).scalar_one()
+            await conn.execute(text(LEARNING_ACTIVATOR_ON))
+        async with engine.connect() as conn:
+            pid_2: Any = (await conn.execute(text("SELECT pg_backend_pid()"))).scalar_one()
+            assert pid_2 == pid_1
+            await conn.rollback()
+            with pytest.raises(DBAPIError) as info:
+                async with conn.begin():
+                    await conn.execute(
+                        text(
+                            "UPDATE experiments SET status = 'active', started_at = now() "
+                            "WHERE id = :i"
+                        ),
+                        {"i": OTHER_EXPERIMENT},
+                    )
+            assert _sqlstate(info.value) == "55000"
+    finally:
+        await engine.dispose()
 
 
 def test_a_policy_ab_experiment_must_name_its_candidate(db: SyncDb) -> None:

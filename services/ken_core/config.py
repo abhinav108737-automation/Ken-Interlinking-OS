@@ -398,6 +398,21 @@ class Settings(BaseSettings):
         ),
     )
 
+    experiments_allow_holdout: bool = Field(
+        default=False,
+        description=(
+            "Allow a HOLDOUT experiment to be ACTIVATED. Default false, and deliberately so: "
+            "a holdout deliberately WITHHOLDS inbound links from its control pages, which is "
+            "a real editorial and SEO cost on the client's live site. While this is unset, "
+            "ExperimentLifecycle.activate refuses a holdout with a typed "
+            "HOLDOUT_NOT_ENABLED error and does not set the transaction-local "
+            "'ken.learning_experiment_activator' setting that migration 0009's guard requires "
+            "-- so no code path, not even a raw UPDATE, can start one. The share of pages is "
+            "capped at 20% by a database CHECK whatever this is set to, and a policy_ab "
+            "experiment (both arms get links) is unaffected."
+        ),
+    )
+
     # -------------------------------------------------------------- readiness
     require_pgvector: bool = Field(
         default=True,

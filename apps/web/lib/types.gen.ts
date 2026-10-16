@@ -692,7 +692,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Experiments. Phase 8 ships policy_ab plumbing only. */
+        /** Experiments. A holdout is off unless the operator enabled holdouts. */
         get: operations["listExperiments"];
         put?: never;
         post?: never;
@@ -2233,6 +2233,11 @@ export interface components {
          * EvalSuite
          * @description Every suite the runner knows. The first seven are the TRD section 19 minimums.
          *
+         *     **Correction to ADR-0016 section 7** (its section 15.1.3 records it): these suites are NOT
+         *     "promoted from recorded fixtures". All eight existing ``evals/suites/*\/`` directories hold
+         *     only a 24-25 line ``README.md``, so EVERY case has to be authored. That is where the
+         *     phase's effort belongs, and it is the draft's largest effort mis-estimate.
+         *
          *     TRD section 19 is the SUITE list; the per-decision-class metrics live in TRD section 20
          *     (``evals/README.md`` section 5 sources them from there). Phase 9 should look in section 20.
          * @enum {string}
@@ -2506,8 +2511,11 @@ export interface components {
         /**
          * ExperimentAssignmentView
          * @description Deterministic AND materialised: the arm comes from the first 8 bytes of
-         *     ``sha256(key + ':' + str(source_page_id))`` against ``treatment_fraction``, and the row is
-         *     written, so the arm stays auditable even if the hash function ever changes.
+         *     ``sha256(key + ':' + str(page_id))`` against ``treatment_fraction``, and the row is
+         *     WRITTEN, so the arm stays auditable even if the hash function ever changes.
+         *
+         *     ``page_id`` is the source page for a ``policy_ab`` and the TARGET page for a ``holdout``
+         *     (:class:`ExperimentUnit`).
          */
         ExperimentAssignmentView: {
             arm: components["schemas"]["ExperimentArm"];
@@ -2524,10 +2532,10 @@ export interface components {
              */
             experiment_id: string;
             /**
-             * Source Page Id
+             * Page Id
              * Format: uuid
              */
-            source_page_id: string;
+            page_id: string;
         };
         /** ExperimentDetail */
         ExperimentDetail: {
@@ -2536,7 +2544,10 @@ export interface components {
              * @default []
              */
             assignments: components["schemas"]["ExperimentAssignmentView"][];
-            /** Candidate Id */
+            /**
+             * Candidate Id
+             * @description Required for policy_ab, forbidden for holdout.
+             */
             candidate_id: string | null;
             /**
              * Comparison
@@ -2580,12 +2591,7 @@ export interface components {
              * @default 0
              */
             treatment_pages: number;
-            /**
-             * Unit
-             * @default source_page
-             * @constant
-             */
-            unit: "source_page";
+            unit: components["schemas"]["ExperimentUnit"];
             /**
              * Updated At
              * Format: date-time
@@ -2594,21 +2600,52 @@ export interface components {
         };
         /**
          * ExperimentKind
-         * @description Capped to one member. ``holdout`` is CUT entirely (ADR-0016 16.4), not defaulted off:
-         *     withholding links from live pages is a real editorial and SEO cost and remains the user's
-         *     decision, and removing the member also removes the review's arm-contamination bug. No code
-         *     path can withhold a link from a page.
+         * @description What an experiment varies. Both kinds exist; ``holdout`` is DEFAULTED OFF, not omitted.
+         *
+         *     ADR-0016 16.4 cut ``holdout`` entirely; the user has since decided it is built and gated
+         *     instead. Withholding links from live pages is a real editorial and SEO cost, so the safety
+         *     is three independent gates rather than a missing enum member:
+         *
+         *     1. ``treatment_fraction <= 0.20`` for a ``holdout`` -- a hard maximum, CHECKed in the
+         *        database as well as here. The policy default is
+         *        :data:`DEFAULT_HOLDOUT_TREATMENT_FRACTION` (0.10).
+         *     2. ``Settings.experiments_allow_holdout`` defaults ``False``, and
+         *        ``ExperimentLifecycle.activate`` refuses ``draft -> active`` for a ``holdout`` with
+         *        :attr:`ExperimentRefusal.HOLDOUT_NOT_ENABLED` while it is unset.
+         *     3. The same transaction must hold the transaction-local
+         *        :data:`EXPERIMENT_ACTIVATOR_SETTING`, which only that one service sets -- so a raw
+         *        ``UPDATE experiments SET status = 'active'`` cannot start a holdout either.
          * @enum {string}
          */
-        ExperimentKind: "policy_ab";
+        ExperimentKind: "policy_ab" | "holdout";
         /**
          * ExperimentStatus
          * @enum {string}
          */
         ExperimentStatus: "draft" | "active" | "ended";
+        /**
+         * ExperimentUnit
+         * @description Which page an arm is assigned to -- determined by the kind, never chosen freely.
+         *
+         *     This resolves the arm-contamination bug the pre-fan-out review found (ADR-0016 15.5): the
+         *     draft assigned arms by SOURCE page while saying a holdout's comparison is the TARGET page's
+         *     metric. Those are different pages, so the arms were contaminated -- nothing stopped a
+         *     control page from receiving inbound links from an unassigned source.
+         *
+         *     Resolution (a) of the two the user offered: **a holdout assigns by TARGET page**, and
+         *     ``locked()`` refuses any plan whose TARGET is a control page. That is coherent with the
+         *     existing ``ExperimentGuard.locked(*, source_page_id, target_page_id)`` signature, which
+         *     already takes both pages, and it is the question a holdout is actually for -- "withhold
+         *     inbound links from these pages and compare their search performance".
+         * @enum {string}
+         */
+        ExperimentUnit: "source_page" | "target_page";
         /** ExperimentView */
         ExperimentView: {
-            /** Candidate Id */
+            /**
+             * Candidate Id
+             * @description Required for policy_ab, forbidden for holdout.
+             */
             candidate_id: string | null;
             /**
              * Control Pages
@@ -2646,12 +2683,7 @@ export interface components {
              * @default 0
              */
             treatment_pages: number;
-            /**
-             * Unit
-             * @default source_page
-             * @constant
-             */
-            unit: "source_page";
+            unit: components["schemas"]["ExperimentUnit"];
             /**
              * Updated At
              * Format: date-time

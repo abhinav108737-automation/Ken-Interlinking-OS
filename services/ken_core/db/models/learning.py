@@ -22,10 +22,16 @@ by the binding section 15).
 ``policy_evaluations``              one run, inserted once on completion. ``metrics`` must carry
                                     ``by_decision_class`` (a CHECK), so Phase 9 reads per-class
                                     calibration without a schema change.
-``experiments`` /                   ``kind`` is capped to ``policy_ab``; there is no ``holdout``
-``experiment_assignments``          member anywhere, so no code path can withhold links from a
-                                    page (ADR-0016 16.4). Assignment only while ``draft``, and a
-                                    page has at most one assignment in a live experiment.
+``experiments`` /                   BOTH ``policy_ab`` and ``holdout``, with ``holdout``
+``experiment_assignments``          DEFAULTED OFF rather than omitted: capped at
+                                    ``treatment_fraction <= 0.20`` by CHECK, gated by
+                                    ``Settings.experiments_allow_holdout`` (default False), and
+                                    activatable only under the transaction-local
+                                    ``ken.learning_experiment_activator`` setting. ``unit`` is a
+                                    function of the kind, which is what stops a holdout
+                                    comparing one page while its arms sit on another.
+                                    Assignment only while ``draft``, and a page has at most one
+                                    assignment in a live experiment.
 
 Every guard is a trigger, so these defend against application bugs, not against a DB
 superuser. No ``SECURITY DEFINER`` function exists in this schema.
@@ -57,6 +63,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ken_contracts.learning import (
+    EXPERIMENT_ACTIVATOR_SETTING,
     EXPERIMENT_KEY_PATTERN,
     LEARNING_PROMOTER_SETTING,
     MAX_DESCRIPTION_CHARS,
@@ -85,6 +92,11 @@ from ken_contracts.recommendations import ACTOR_PATTERN
 from ken_core.db.base import Base
 from ken_core.db.models.inventory import _one_of
 from ken_core.db.types import Xid8
+
+EXPERIMENT_ACTIVATOR_GUC: Final = EXPERIMENT_ACTIVATOR_SETTING
+"""``SELECT set_config('ken.learning_experiment_activator', 'on', true)`` in the SAME
+transaction is the only way to move a ``holdout`` from ``draft`` to ``active``. The lifecycle
+service sets it, and only after checking ``Settings.experiments_allow_holdout``."""
 
 LEARNING_PROMOTER_GUC: Final = LEARNING_PROMOTER_SETTING
 """Re-exported so a writer imports the GUC name from the model package, as Phase 7 does with
@@ -468,7 +480,8 @@ class Experiment(Base):
     description: Mapped[str] = mapped_column(Text, nullable=False)
     unit: Mapped[str] = mapped_column(Text, nullable=False, server_default="source_page")
     kind: Mapped[str] = mapped_column(Text, nullable=False)
-    """``policy_ab`` and nothing else: ``holdout`` is cut entirely (ADR-0016 16.4)."""
+    """``policy_ab`` or ``holdout``. A holdout withholds inbound links from its control pages,
+    so it is capped, setting-gated and GUC-gated rather than merely discouraged."""
     candidate_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid(as_uuid=True), ForeignKey("policy_candidates.id", ondelete="RESTRICT"), nullable=True
     )
@@ -527,23 +540,23 @@ class ExperimentAssignment(Base):
     experiment_id: Mapped[uuid.UUID] = mapped_column(
         Uuid(as_uuid=True), ForeignKey("experiments.id", ondelete="RESTRICT"), nullable=False
     )
-    source_page_id: Mapped[uuid.UUID] = mapped_column(
+    page_id: Mapped[uuid.UUID] = mapped_column(
         Uuid(as_uuid=True), ForeignKey("pages.id", ondelete="RESTRICT"), nullable=False
     )
+    """The SOURCE page for a ``policy_ab`` and the TARGET page for a ``holdout``, per the
+    experiment's ``unit``."""
     arm: Mapped[str] = mapped_column(Text, nullable=False)
     """Deterministic AND materialised: computed from the first 8 bytes of
-    ``sha256(key + ':' + str(source_page_id))``, then WRITTEN, so the arm stays auditable even
-    if the hash function ever changes."""
+    ``sha256(key + ':' + str(page_id))``, then WRITTEN, so the arm stays auditable even if the
+    hash function ever changes."""
     assigned_by: Mapped[str] = mapped_column(Text, nullable=False)
     assigned_at: Mapped[datetime] = _ts(default_now=True)
 
     __table_args__ = (
         UniqueConstraint(
-            "experiment_id",
-            "source_page_id",
-            name="uq_experiment_assignments_experiment_id_source_page_id",
+            "experiment_id", "page_id", name="uq_experiment_assignments_experiment_id_page_id"
         ),
         CheckConstraint(_one_of("arm", ExperimentArm), name="arm_valid"),
         CheckConstraint(f"assigned_by ~ '{ACTOR_PATTERN}'", name="assigned_by_valid"),
-        Index("ix_experiment_assignments_source_page_id", "source_page_id"),
+        Index("ix_experiment_assignments_page_id", "page_id"),
     )

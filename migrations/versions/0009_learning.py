@@ -43,10 +43,20 @@ The rest:
 * ``policy_evaluations`` -- append-only, inserted once on completion (failures live in
   ``job_runs``, like ``analytics_imports``). ``metrics`` MUST carry a ``by_decision_class``
   object (a CHECK), so Phase 9 reads per-class calibration without a schema change (15.7.11).
-* ``experiments`` / ``experiment_assignments`` -- ``kind`` is capped to ``'policy_ab'``: there
-  is no ``holdout`` member anywhere (16.4), so no code path can withhold links from a page.
-  Assignment is allowed only while the experiment is ``draft``, and a page may have at most
-  one assignment in a non-``ended`` experiment.
+* ``experiments`` / ``experiment_assignments`` -- BOTH ``policy_ab`` and ``holdout`` exist, and
+  ``holdout`` is DEFAULTED OFF rather than omitted (user decision, superseding ADR-0016 16.4).
+  Withholding inbound links from live pages is a real editorial and SEO cost, so it is gated
+  three ways: ``treatment_fraction <= 0.20`` as a CHECK (a hard maximum no policy file can
+  raise), ``Settings.experiments_allow_holdout`` (default ``False``) checked by the lifecycle
+  service, and the transaction-local ``ken.learning_experiment_activator`` setting required to
+  move a ``holdout`` from ``draft`` to ``active`` -- so a raw
+  ``UPDATE experiments SET status = 'active'`` cannot start one either.
+  ``unit`` is a FUNCTION of the kind (``policy_ab`` -> ``source_page``, ``holdout`` ->
+  ``target_page``), which is what fixes the review's arm-contamination bug (15.5): a holdout
+  compares TARGET pages' search performance, so its arms are assigned to target pages and
+  ``locked()`` refuses a plan whose TARGET is a control page. Assignment is allowed only while
+  the experiment is ``draft``, and a page may have at most one assignment in a non-``ended``
+  experiment.
 
 Known limitation, stated plainly: every guard here is a trigger, so they defend against
 application bugs and not against a DB superuser (``session_replication_role = replica``
@@ -54,8 +64,11 @@ disables all of them). No ``SECURITY DEFINER`` function exists anywhere in this 
 
 The value lists below are frozen copies of the contract enums at this revision.
 
-Downgrade drops the triggers, the six new guard functions and the seven tables, returning
-exactly to the 0008 state.
+Downgrade drops the triggers, the six new guard functions and the seven tables, restores the
+0003 ``ck_job_runs_kind_valid`` CHECK, and returns exactly to the 0008 state. It therefore FAILS
+while a ``reflection`` job run exists, because the restored CHECK is validated against the
+existing rows -- deliberately: the alternative is deleting audit rows, and nothing in this
+schema ever does that. Delete the Phase 8 data yourself first if a downgrade is really wanted.
 """
 
 from __future__ import annotations
@@ -190,8 +203,19 @@ SKILL_SOURCES: Final = "'human', 'reflection'"
 MODEL_ROLES: Final = "'fast', 'reasoning', 'embedding'"
 EVALUATION_MODES: Final = "'offline', 'shadow', 'canary'"
 GATE_RESULTS: Final = "'pass', 'fail', 'inconclusive'"
-EXPERIMENT_KINDS: Final = "'policy_ab'"
-"""``holdout`` is CUT, not defaulted off (ADR-0016 16.4): no code path can withhold links."""
+EXPERIMENT_KINDS: Final[tuple[str, ...]] = ("policy_ab", "holdout")
+"""BOTH kinds exist; ``holdout`` is DEFAULTED OFF, not omitted (user decision, superseding
+ADR-0016 16.4). Three gates, not a missing enum member: ``treatment_fraction <= 0.20`` as a
+CHECK, ``Settings.experiments_allow_holdout`` (default False) checked by the lifecycle service,
+and the transaction-local ``ken.learning_experiment_activator`` setting required to move a
+holdout ``draft -> active`` -- so a raw UPDATE cannot start one either."""
+EXPERIMENT_UNITS: Final[tuple[str, ...]] = ("source_page", "target_page")
+"""The unit is a FUNCTION of the kind: ``policy_ab`` -> ``source_page``, ``holdout`` ->
+``target_page``. That pairing is what fixes the review's arm-contamination bug (ADR-0016 15.5):
+a holdout's comparison is the TARGET page's search performance, so its arms must be assigned to
+target pages, and ``locked()`` refuses a plan whose TARGET is a control page."""
+MAX_HOLDOUT_TREATMENT_FRACTION: Final = 0.20
+ACTIVATOR_SETTING: Final = "ken.learning_experiment_activator"
 EXPERIMENT_ARMS: Final = "'control', 'treatment'"
 PROPOSAL_REASONS: Final = (
     "'insufficient_evidence', 'gate_failed', 'frozen_field', 'out_of_scope', "
@@ -680,17 +704,31 @@ def upgrade() -> None:
             f"length(description) BETWEEN 1 AND {MAX_DESCRIPTION_CHARS}",
             "ck_experiments_description_bounded",
         ),
-        _check("unit = 'source_page'", "ck_experiments_unit_is_source_page"),
-        # Capped to one member on purpose: there is no holdout arm anywhere in the schema.
-        _check(_one_of("kind", ("policy_ab",)), "ck_experiments_kind_valid"),
+        _check(_one_of("unit", EXPERIMENT_UNITS), "ck_experiments_unit_valid"),
+        _check(_one_of("kind", EXPERIMENT_KINDS), "ck_experiments_kind_valid"),
+        # The unit is a function of the kind, so no experiment can compare one page's metric
+        # while its arms sit on another (the review's arm-contamination bug).
+        _check(
+            "(kind = 'holdout') = (unit = 'target_page')", "ck_experiments_unit_matches_kind"
+        ),
         _check(_one_of("status", EXPERIMENT_STATUSES), "ck_experiments_status_valid"),
         _check(
             "kind <> 'policy_ab' OR candidate_id IS NOT NULL",
             "ck_experiments_policy_ab_has_candidate",
         ),
         _check(
+            "kind <> 'holdout' OR candidate_id IS NULL",
+            "ck_experiments_holdout_has_no_candidate",
+        ),
+        _check(
             "treatment_fraction > 0.0 AND treatment_fraction <= 1.0",
             "ck_experiments_treatment_fraction_bounded",
+        ),
+        # The hard maximum share of pages a holdout may withhold links from. In the DATABASE,
+        # so no policy file and no code path can raise it.
+        _check(
+            f"kind <> 'holdout' OR treatment_fraction <= {MAX_HOLDOUT_TREATMENT_FRACTION}",
+            "ck_experiments_holdout_fraction_capped",
         ),
         _check(f"created_by {_PROMOTER}", "ck_experiments_created_by_human"),
         _check(
@@ -713,7 +751,7 @@ def upgrade() -> None:
         "experiment_assignments",
         sa.Column("id", sa.BigInteger(), sa.Identity(always=True), nullable=False),
         sa.Column("experiment_id", sa.Uuid(), nullable=False),
-        sa.Column("source_page_id", sa.Uuid(), nullable=False),
+        sa.Column("page_id", sa.Uuid(), nullable=False),
         sa.Column("arm", sa.Text(), nullable=False),
         sa.Column("assigned_by", sa.Text(), nullable=False),
         _ts("assigned_at", default_now=True),
@@ -725,23 +763,21 @@ def upgrade() -> None:
             ondelete="RESTRICT",
         ),
         sa.ForeignKeyConstraint(
-            ["source_page_id"],
+            ["page_id"],
             ["pages.id"],
-            name=op.f("fk_experiment_assignments_source_page_id_pages"),
+            name=op.f("fk_experiment_assignments_page_id_pages"),
             ondelete="RESTRICT",
         ),
         sa.UniqueConstraint(
             "experiment_id",
-            "source_page_id",
-            name=op.f("uq_experiment_assignments_experiment_id_source_page_id"),
+            "page_id",
+            name=op.f("uq_experiment_assignments_experiment_id_page_id"),
         ),
         _check(_one_of("arm", ("control", "treatment")), "ck_experiment_assignments_arm_valid"),
         _check(f"assigned_by {_ACTOR}", "ck_experiment_assignments_assigned_by_valid"),
     )
     op.create_index(
-        op.f("ix_experiment_assignments_source_page_id"),
-        "experiment_assignments",
-        ["source_page_id"],
+        op.f("ix_experiment_assignments_page_id"), "experiment_assignments", ["page_id"]
     )
 
     _create_guards()
@@ -910,6 +946,12 @@ def _create_guards() -> None:
                     OLD.status, NEW.status
                     USING ERRCODE = '55000';
             END IF;
+            IF NEW.status = 'active' AND NEW.kind = 'holdout'
+                AND coalesce(current_setting('{ACTIVATOR_SETTING}', true), '') <> 'on' THEN
+                RAISE EXCEPTION
+                    'activating a holdout requires the experiment lifecycle service'
+                    USING ERRCODE = '55000';
+            END IF;
             RETURN NEW;
         END;
         $$
@@ -943,12 +985,11 @@ def _create_guards() -> None:
             IF EXISTS (
                 SELECT 1 FROM experiment_assignments a
                 JOIN experiments e ON e.id = a.experiment_id
-                WHERE a.source_page_id = NEW.source_page_id
+                WHERE a.page_id = NEW.page_id
                   AND a.experiment_id <> NEW.experiment_id
                   AND e.status <> 'ended'
             ) THEN
-                RAISE EXCEPTION 'page % is already assigned to a live experiment',
-                    NEW.source_page_id
+                RAISE EXCEPTION 'page % is already assigned to a live experiment', NEW.page_id
                     USING ERRCODE = '55000';
             END IF;
             RETURN NEW;

@@ -35,6 +35,9 @@ from tests.integration.conftest import (
     DEPLOYMENT_FUNCTIONS,
     DEPLOYMENT_TABLES,
     DEPLOYMENT_TRIGGERS,
+    LEARNING_FUNCTIONS,
+    LEARNING_TABLES,
+    LEARNING_TRIGGERS,
     SyncDb,
 )
 
@@ -554,10 +557,18 @@ def test_downgrade_to_0005_restores_exactly_the_agents_schema(
         state = sync_db.run(_state)
         assert (
             state["tables"]
-            == head["tables"] - set(REVIEW_TABLES) - DEPLOYMENT_TABLES - ANALYTICS_TABLES
+            == head["tables"]
+            - set(REVIEW_TABLES)
+            - DEPLOYMENT_TABLES
+            - ANALYTICS_TABLES
+            - LEARNING_TABLES
         )
         assert state["functions"] == (
-            head["functions"] - REVIEW_FUNCTIONS - DEPLOYMENT_FUNCTIONS - ANALYTICS_FUNCTIONS
+            head["functions"]
+            - REVIEW_FUNCTIONS
+            - DEPLOYMENT_FUNCTIONS
+            - ANALYTICS_FUNCTIONS
+            - LEARNING_FUNCTIONS
         )
         assert state["functions"] == {
             "ken_reject_mutation",
@@ -570,6 +581,7 @@ def test_downgrade_to_0005_restores_exactly_the_agents_schema(
             - {t[0] for t in REVIEW_TRIGGERS}
             - DEPLOYMENT_TRIGGERS
             - ANALYTICS_TRIGGERS
+            - LEARNING_TRIGGERS
         )
         assert state["revision"] == "0005_agent_runs"
 

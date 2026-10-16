@@ -123,6 +123,22 @@ def test_operation_ids_and_tags(live: dict[str, Any]) -> None:
         "/analytics/links/{plan_id}": ("getLinkPerformance", ["analytics"]),
         "/analytics/pages/{page_id}": ("getPageImpact", ["analytics"]),
         "/analytics/imports": ("listAnalyticsImports", ["analytics"]),
+        # Phase 8 (ADR-0016 s10 / s15): GET-only except ONE write route. The candidate route
+        # returns a policy DOCUMENT, so it is `read_settings`, not `read` (ADR-0013 s7).
+        "/learning": ("getLearningOverview", ["learning"]),
+        "/learning/proposals": ("listLearningProposals", ["learning"]),
+        "/learning/proposals/{proposal_id}": ("getLearningProposal", ["learning"]),
+        "/learning/proposals/{proposal_id}/candidate": (
+            "getLearningProposalCandidate",
+            ["learning"],
+        ),
+        "/learning/proposals/{proposal_id}/advance": ("advanceLearningProposal", ["learning"]),
+        "/learning/evaluations": ("listLearningEvaluations", ["learning"]),
+        "/learning/evaluations/{evaluation_id}": ("getLearningEvaluation", ["learning"]),
+        "/learning/skills": ("listSkills", ["learning"]),
+        "/learning/skills/{name}": ("getSkill", ["learning"]),
+        "/learning/experiments": ("listExperiments", ["learning"]),
+        "/learning/experiments/{key}": ("getExperiment", ["learning"]),
     }
 
 
@@ -156,9 +172,12 @@ MUTATIONS = {
     ("post", "/deployments"),
     ("post", "/deployments/{deployment_id}/verify"),
     ("post", "/deployments/{deployment_id}/rollback"),
+    ("post", "/learning/proposals/{proposal_id}/advance"),
 }
 """The ONLY non-GET operations of the whole API (Phase 5, ADR-0013 s7; Phase 6, ADR-0014 s7:
-the four ``deploy`` operations)."""
+the four ``deploy`` operations; Phase 8, ADR-0016 s10: ONE route that records a learning
+proposal's stage change, on the new ``promote`` permission -- and which cannot promote at all
+while ``Settings.learning_demonstration_mode`` is set)."""
 
 
 def test_inventory_api_is_read_only(live: dict[str, Any]) -> None:
@@ -208,6 +227,19 @@ def test_the_only_mutations_are_review_deploy_and_login_logout(live: dict[str, A
         (method, path) for path, item in live["paths"].items() for method in item if method != "get"
     }
     assert writes == MUTATIONS
+
+
+def test_the_learning_api_is_get_only_except_the_advance_route(live: dict[str, Any]) -> None:
+    """ADR-0016 s10: reflection, evaluation, shadow and policy promotion are CLI-only, so no UI
+    button starts a model run or writes a policy file. The one write route records a stage
+    change; the CLI materialises any file afterwards."""
+    writes = {
+        (method, path)
+        for path, item in live["paths"].items()
+        for method in item
+        if path.startswith("/learning") and method != "get"
+    }
+    assert writes == {("post", "/learning/proposals/{proposal_id}/advance")}
 
 
 def test_errors_are_always_error_response(live: dict[str, Any]) -> None:

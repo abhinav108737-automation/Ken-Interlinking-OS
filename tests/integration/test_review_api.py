@@ -236,6 +236,9 @@ async def test_dashboard_events_and_policies(sessionmaker: SM, plans: Any) -> No
         "ranking",
         "agents",
         "analytics",
+        # Phase 8 (ADR-0016 s10): the learning gate policy is a policy DOCUMENT like the rest,
+        # so it is served here too (read_settings, operator_admin only).
+        "learning",
     ]
     for document in policies.policies:
         assert not document.path.startswith("/")

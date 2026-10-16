@@ -466,3 +466,6 @@ LEARNING_TRIGGERS = frozenset(
 )
 LEARNING_PROMOTER_ON = "SELECT set_config('ken.learning_promoter', 'on', true)"
 """The transaction-local setting migration 0009's guards require for a promotion."""
+LEARNING_ACTIVATOR_ON = "SELECT set_config('ken.learning_experiment_activator', 'on', true)"
+"""The transaction-local setting migration 0009's guard requires to ACTIVATE a holdout
+experiment (a policy_ab needs none: both arms get links)."""

@@ -204,7 +204,7 @@ async def get_skill(
 @router.get(
     "/learning/experiments",
     operation_id="listExperiments",
-    summary="Experiments. Phase 8 ships policy_ab plumbing only.",
+    summary="Experiments. A holdout is off unless the operator enabled holdouts.",
     response_model=ListResponse[ExperimentView],
     responses=_AUTH,
 )

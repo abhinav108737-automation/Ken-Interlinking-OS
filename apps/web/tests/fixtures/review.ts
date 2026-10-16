@@ -23,7 +23,7 @@ export const TOKEN = "tok_A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8S9t0U1v";
 const PERMISSIONS: Readonly<Record<Role, PrincipalView["permissions"]>> = {
   viewer: ["read"],
   reviewer: ["read", "review"],
-  operator_admin: ["read", "review", "read_audit", "read_settings", "deploy"],
+  operator_admin: ["read", "review", "read_audit", "read_settings", "deploy", "promote"],
 };
 
 export function principal(role: Role = "reviewer", overrides: Partial<PrincipalView> = {}): PrincipalView {
