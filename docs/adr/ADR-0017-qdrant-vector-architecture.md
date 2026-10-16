@@ -120,3 +120,40 @@ latest published version (Apache-2.0). Nothing binds 8765.
   for derived data that must be rebuildable, directly against §3.
 - **Convert the column to `bytea`.** Rejected: `real[]` keeps the values readable and checkable in SQL
   without the extension.
+
+## Amendments settled during the contract freeze (2026-10-16)
+
+1. **§2 was internally contradictory and is resolved as follows.** It said migration 0010 converts the
+   column from `vector` to `real[]` *and* that `CREATE EXTENSION vector` is never issued; both cannot
+   hold on a fresh chain, because 0003 created the `vector` column. Resolution: **migration 0003 was
+   amended** to create `real[]` from the start with no extension, and 0010's conversion is **guarded
+   by the live column type** — a fresh database skips it, an existing one converts. This edits a
+   historical migration, which is normally avoided; it is safe here because the guard makes the
+   upgrade path identical for any database already past 0003. **Verified by the orchestrator on a
+   clone of the real dev database** (67 embeddings, previously stored as pgvector at 0008): upgrade
+   through 0009 and 0010 left a byte-identical fingerprint of every vector, the downgrade restored a
+   pgvector column with the same fingerprint, a second upgrade succeeded and `alembic check`
+   reported no drift.
+2. **§5 "required when the semantic channel is enabled".** `KEN_REQUIRE_QDRANT` defaults true, but a
+   store that is reachable and merely not yet indexed reports `ok` with `collection_present: false`
+   (the Phase 0 "provisioned, not enabled" precedent). Otherwise a fresh install would answer
+   `/ready` 503 before anyone ran `make qdrant-index`. An unreachable or red store still makes the
+   service not ready; drift is `make qdrant-verify`'s job.
+3. **Freshness cannot live in the derived store.** `VectorFilters.include_stale` cannot be honoured by
+   Qdrant, because "stale" depends on `pages.current_version` and `content_hash`, which live in
+   PostgreSQL. Stores return `stale=False`; the retrieval layer re-checks against PostgreSQL before a
+   hit may be used. This is a direct consequence of PostgreSQL being the source of truth.
+4. **The Qdrant image is pinned to `qdrant/qdrant:v1.19.1`**, digest
+   `sha256:12364fe851b9f17356fc88189fc06d1b521262e04659ec7345975b00c9246a10`, verified by pulling it,
+   with the compose healthcheck reaching `healthy` and a live check that the deterministic `point_id`
+   is idempotent (two upserts of one id produce one point).
+5. **Non-additive renames:** `KEN_REQUIRE_PGVECTOR` → `KEN_REQUIRE_QDRANT`; the readiness check
+   `pgvector` → `qdrant`; `ken_core.db.types.Vector`, `format_vector`, `parse_vector` and
+   `repositories.intelligence.cosine_distance` are deleted. `CheckKind.EXTENSION` is retained so an
+   old stored kind still parses.
+6. **Licences.** `qdrant-client` 1.19.1 is Apache-2.0. Its transitive dependencies are `grpcio`
+   (Apache-2.0), `protobuf` (BSD-3), `numpy` (BSD-3 AND 0BSD AND MIT AND Zlib AND CC0-1.0),
+   `portalocker` (BSD-3) and `h2`/`hpack`/`hyperframe` (MIT) — all permissive. The package metadata
+   was checked; libraries bundled inside binary wheels were not independently audited. `numpy` is now
+   present transitively but is not used for any statistics (ADR-0016 still makes no significance claims).
+

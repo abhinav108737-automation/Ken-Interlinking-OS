@@ -123,3 +123,37 @@ This is what Phase 9 calibration and Phase 8 learning read, and it is append-onl
 - **Delete the approval machinery.** Rejected: §20 requires operator override and exception
   handling, and `guarded` mode needs somewhere to defer a risky action to. Deleting it would also
   throw away the editorial feedback stream that is the only trustworthy learning signal (ADR-0016 §2).
+
+## Amendments settled during the contract freeze (2026-10-16)
+
+1. **The production gate covers `guarded` as well as `autonomous`.** §2 gated only `autonomous` behind
+   `KEN_AUTONOMY_ALLOW_PRODUCTION`. `guarded` also publishes without a human, so a gate covering only
+   the louder mode is not a gate. Verified: against the simulated CMS (the local demo path) `shadow`,
+   `guarded` and acknowledged `autonomous` are all allowed; against a write-enabled `http` CMS both
+   `guarded` and `autonomous` are refused unless `KEN_AUTONOMY_ALLOW_PRODUCTION=true` is also set;
+   `autonomous` is refused unacknowledged anywhere; the legacy `KEN_AUTO_APPROVE_ENABLED=true` is
+   still refused. A tightening, not a loosening.
+2. **A deferral is not a block.** The three-decision vocabulary has no "defer", yet `guarded` mode
+   must keep deferring a merely-too-risky plan (§3 keeps `awaiting_approval` for exactly this).
+   `decision_for` returns `BLOCK` both for a fired hard block and for a guarded plan that is too
+   risky, so the contract adds `target_status_for` to keep them apart: a deferral records
+   `awaiting_approval`, a real block records `blocked`. Without it the deferral path would be
+   silently deleted.
+3. **`blocked` is deliberately not an open status.** Holding the (source, target) pair and a slice of
+   the target's diversity budget for ever would be a leak. The per-pair cool-down in `publish_attempts`
+   is the churn guard instead.
+4. **The block evaluator is synchronous by contract.** `DeterministicBlockEvaluator.evaluate` is a
+   plain function, so code with no I/O cannot smuggle in a model call; the 15-member `BlockCode`
+   enum equals `DETERMINISTIC_BLOCK_CODES`.
+5. **The operator override reuses `deploy`**, not a new permission: it publishes or withdraws one
+   link, which is exactly what ADR-0014 gave `deploy`. `review` would be wrong in the other
+   direction — a reviewer may approve a proposal, not write to the live site.
+6. **The frozen-enum-copy trap, found in five places.** Migration 0010 replaces literal copies of
+   enums that the new statuses and job kinds would otherwise violate: `ck_job_runs_kind_valid`
+   (0003), the `link_plans` / `link_plan_transitions` status CHECKs and two partial-unique-index
+   predicates (0004), the `review_actions` status CHECKs (0006), and the body of
+   `ken_link_plan_status_guard()` (0007). A parametrised test asserts each now lists the new values.
+7. **Open: a database CHECK for `critic_outcome = no_action` with a `BLOCK` decision.** The contract
+   refuses the combination; the schema does not. Closing it is one line in 0010, deferred to the final
+   integration pass so it does not invalidate the test databases of workstreams already running.
+
