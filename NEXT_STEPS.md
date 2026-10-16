@@ -48,6 +48,25 @@ any governing document, so none was guessed.
 | 21 | **Enabling holdout experiments (Phase 8).** `KEN_EXPERIMENTS_ALLOW_HOLDOUT` defaults `false`. A holdout deliberately WITHHOLDS inbound links from its control **target** pages, a real editorial and SEO cost on the live site. The share is capped at 20 % by a database CHECK (policy default 10 %), and while the setting is off the lifecycle service refuses activation AND withholds the transaction-local `ken.learning_experiment_activator` setting migration 0009's guard requires — so no code path, not even a raw UPDATE, can start one. `policy_ab` (both arms get links) is unaffected. | Withholding links from real content is your decision | decision (**ASK** to enable) |
 | 22 | **The deferred Search Console query import** (`page_query_metrics_daily`, `--queries`), without which search-side learning has no data at all. It is Google egress. | Search signals stay diagnostic-only and currently empty | **ASK** |
 | 23 | **`review_performance` (ADR-0012 §42) is carried to Phase 9**, not implemented in Phase 8. The reviewer-performance view it reserves for "Phases 6–8" needs editorial volume that the synthetic corpus does not have; it is recorded here rather than left silent. | Avoids a silent gap against ADR-0012 | decision (orchestrator default: defer) |
+## Licence hazards in the research references (standing warning)
+
+Two of the five interlinking repositories named as research references **cannot be reused as code**,
+and both are the kind of thing a future contributor would be tempted to "borrow a helper" from.
+Verified 2026-10-16 (see [docs/research/INTERLINKING_REFERENCE_REPOS.md](docs/research/INTERLINKING_REFERENCE_REPOS.md)):
+
+| Repository | Licence | Consequence |
+|---|---|---|
+| `searchsolved/search-solved-public-seo` | **CC BY-NC 4.0** (NonCommercial) | Unusable in this commercial project. It is also the most popular of the five, so the most tempting. **Read the published technique only.** |
+| `Deepak-J0shi/SEO-Interlinking-Tool` | **none declared** | Default copyright: no permission is granted to copy, modify or distribute anything. **Read only.** |
+| `martech-engineer/WebKnoGraph` | Apache-2.0 | Reusable with attribution, if ever needed. |
+| `avansaber/seo-monster` | MIT | Reusable with attribution, if ever needed. |
+| `andersongrowth/internal-link-mapper` | MIT | Reusable with attribution, if ever needed. |
+
+**Current state: nothing was copied.** A repository-wide search finds no reference to any of these
+projects outside that one document, no vendored directory and no dependency naming them; the
+influence is conceptual only. Copying from either of the first two would introduce a licence
+incompatibility, which this project treats as a hard stop.
+
 ## Hard gates carried into later phases (from the Phase 3 QA review)
 
 | Gate | Phase |
