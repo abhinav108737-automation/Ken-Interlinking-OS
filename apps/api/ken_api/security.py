@@ -102,3 +102,6 @@ Reviewer = Annotated[Principal, Depends(require(Permission.REVIEW))]
 Auditor = Annotated[Principal, Depends(require(Permission.READ_AUDIT))]
 SettingsReader = Annotated[Principal, Depends(require(Permission.READ_SETTINGS))]
 Deployer = Annotated[Principal, Depends(require(Permission.DEPLOY))]
+Promoter = Annotated[Principal, Depends(require(Permission.PROMOTE))]
+"""Phase 8: advancing a learning proposal (``operator_admin`` only). Holding it is not enough
+to promote: ``Settings.learning_demonstration_mode`` refuses every promotion while set."""

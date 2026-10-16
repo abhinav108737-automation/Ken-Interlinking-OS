@@ -32,8 +32,11 @@ GOOD_PROMOTION: dict[str, Any] = {
     "name": "select_natural_anchor",
     "version": "2",
     "previous_version": "1",
-    "promoted_by": "seo-manager@example.com",
-    "evaluation_ref": "eval-run-0001",
+    # Phase 8 (ADR-0016 15.7.4) TIGHTENED both: ``promoted_by`` must be ``user:<username>``
+    # (before, ``agent:reflector@1`` validated despite the docstring claiming a human) and
+    # ``evaluation_ref`` must be ``str(policy_evaluations.id)``.
+    "promoted_by": "user:seo-manager",
+    "evaluation_ref": "2b4e6a8c-1d3f-4a5b-8c7d-9e0f1a2b3c4d",
 }
 
 
@@ -92,10 +95,14 @@ def test_promotion_payload_is_stored_normalised() -> None:
         emitted_by="ken-api",
         subject_type="skill",
         subject_id="select_natural_anchor",
-        payload={**GOOD_PROMOTION, "name": "select_natural_anchor  ", "promoted_by": " bob "},
+        payload={
+            **GOOD_PROMOTION,
+            "name": "select_natural_anchor  ",
+            "promoted_by": " user:bob ",
+        },
     )
     assert envelope.payload["name"] == "select_natural_anchor"
-    assert envelope.payload["promoted_by"] == "bob"
+    assert envelope.payload["promoted_by"] == "user:bob"
     assert envelope.payload["name"] == envelope.subject_id
 
 

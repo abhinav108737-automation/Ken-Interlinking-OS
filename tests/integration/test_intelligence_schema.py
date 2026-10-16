@@ -454,4 +454,4 @@ def test_downgrade_to_0002_restores_exactly_the_inventory_schema(
     state = sync_db.run(_state)
     assert set(INTELLIGENCE_TABLES) <= state["tables"]
     assert "vector" in state["extensions"]
-    assert state["revision"] == "0008_analytics"
+    assert state["revision"] == "0009_learning"

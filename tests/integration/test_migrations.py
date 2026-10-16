@@ -1,4 +1,4 @@
-"""Migrations 0001-0008 against a real PostgreSQL (the ``*_test`` database)."""
+"""Migrations 0001-0009 against a real PostgreSQL (the ``*_test`` database)."""
 
 from __future__ import annotations
 
@@ -50,6 +50,13 @@ APP_TABLES = frozenset(
         "link_metrics_daily",
         "page_metrics_daily",
         "link_measurements",
+        "learning_proposals",
+        "learning_proposal_transitions",
+        "policy_candidates",
+        "skills",
+        "policy_evaluations",
+        "experiments",
+        "experiment_assignments",
     }
 )
 
@@ -68,7 +75,7 @@ def _revision(db: SyncDb) -> str | None:
 
 def test_upgrade_downgrade_upgrade_round_trip(alembic_config: Config, sync_db: SyncDb) -> None:
     head = ScriptDirectory.from_config(alembic_config).get_current_head()
-    assert head == "0008_analytics"
+    assert head == "0009_learning"
 
     command.upgrade(alembic_config, "head")
     assert _tables(sync_db) >= APP_TABLES

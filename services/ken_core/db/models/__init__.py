@@ -29,6 +29,15 @@ from ken_core.db.models.inventory import (
     Page,
     PageVersion,
 )
+from ken_core.db.models.learning import (
+    Experiment,
+    ExperimentAssignment,
+    LearningProposal,
+    LearningProposalTransition,
+    PolicyCandidate,
+    PolicyEvaluation,
+    Skill,
+)
 from ken_core.db.models.recommendations import (
     LinkCandidate,
     LinkPlan,
@@ -48,10 +57,14 @@ __all__ = [
     "DeploymentVerification",
     "Event",
     "ExistingLink",
+    "Experiment",
+    "ExperimentAssignment",
     "IngestionIssue",
     "IngestionRun",
     "JobRun",
     "KnownUrl",
+    "LearningProposal",
+    "LearningProposalTransition",
     "LinkCandidate",
     "LinkEvent",
     "LinkMeasurementRow",
@@ -66,6 +79,9 @@ __all__ = [
     "PageProtection",
     "PageRelationship",
     "PageVersion",
+    "PolicyCandidate",
+    "PolicyEvaluation",
     "ReviewActionRow",
+    "Skill",
     "User",
 ]

@@ -1,6 +1,81 @@
 {
   "components": {
     "schemas": {
+      "AdvanceProposalRequest": {
+        "additionalProperties": false,
+        "description": "``POST /learning/proposals/{id}/advance`` -- the ONLY write route of the phase.\n\nThe actor is NEVER in the body: it is derived from the session (``principal.actor``), as\nPhase 3 QA H3 requires and as ``PromotionService.advance`` enforces by taking a\n``Principal``. ``operation_id`` makes a replay detectable.",
+        "properties": {
+          "evaluation_run_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Required for 'promoted'; refused otherwise.",
+            "title": "Evaluation Run Id"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NoteText"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "operation_id": {
+            "$ref": "#/components/schemas/OperationId"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProposalRejectionReason"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "to_status": {
+            "$ref": "#/components/schemas/ProposalStatus"
+          }
+        },
+        "required": [
+          "operation_id",
+          "to_status"
+        ],
+        "title": "AdvanceProposalRequest",
+        "type": "object"
+      },
+      "AdvanceProposalResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "proposal": {
+            "$ref": "#/components/schemas/ProposalDetail"
+          },
+          "replayed": {
+            "default": false,
+            "description": "True when operation_id matched an earlier call.",
+            "title": "Replayed",
+            "type": "boolean"
+          },
+          "transition": {
+            "$ref": "#/components/schemas/ProposalTransitionView"
+          }
+        },
+        "required": [
+          "proposal",
+          "transition",
+          "replayed"
+        ],
+        "title": "AdvanceProposalResponse",
+        "type": "object"
+      },
       "AgentErrorCode": {
         "description": "Typed, recoverable node failures (TRD section 9). Never exception text.",
         "enum": [
@@ -1157,6 +1232,52 @@
         "title": "ConfounderFlag",
         "type": "string"
       },
+      "CorpusBanner": {
+        "additionalProperties": false,
+        "description": "The banner every ``/learning`` screen carries (ADR-0016 15.4 iii / 16.1). Honest by\nconstruction: the numbers come from the database, and the refusal is a mechanism.",
+        "properties": {
+          "demonstration_mode": {
+            "description": "Settings.learning_demonstration_mode. True: no promotion can succeed.",
+            "title": "Demonstration Mode",
+            "type": "boolean"
+          },
+          "min_sample_count": {
+            "minimum": 30.0,
+            "title": "Min Sample Count",
+            "type": "integer"
+          },
+          "note": {
+            "description": "A fixed sentence naming the corpus size and that nothing on this data may be promoted. Never model output.",
+            "title": "Note",
+            "type": "string"
+          },
+          "pages_total": {
+            "minimum": 0.0,
+            "title": "Pages Total",
+            "type": "integer"
+          },
+          "plans_total": {
+            "minimum": 0.0,
+            "title": "Plans Total",
+            "type": "integer"
+          },
+          "review_actions_total": {
+            "minimum": 0.0,
+            "title": "Review Actions Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "demonstration_mode",
+          "pages_total",
+          "plans_total",
+          "review_actions_total",
+          "min_sample_count",
+          "note"
+        ],
+        "title": "CorpusBanner",
+        "type": "object"
+      },
       "CriticReason": {
         "enum": [
           "natural_anchor",
@@ -1339,6 +1460,337 @@
           "end"
         ],
         "title": "DateRange",
+        "type": "object"
+      },
+      "DecisionClassMetrics": {
+        "additionalProperties": false,
+        "description": "The TRD section 20 per-class row. ``positive_outcome_rate`` and the calibration fields\nare what Phase 9 needs and what the ADR draft omitted (15.6).",
+        "properties": {
+          "approval_rate": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval Rate"
+          },
+          "calibrated_confidence": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "None until a calibration exists (Phase 9).",
+            "title": "Calibrated Confidence"
+          },
+          "decision_class": {
+            "pattern": "^[a-z][a-z0-9_]*\\|[a-z][a-z0-9_]*\\|[a-z]+(\\+[a-z]+)*$",
+            "title": "Decision Class",
+            "type": "string"
+          },
+          "edit_rate": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Edit Rate"
+          },
+          "expected_calibration_error": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Calibration Error"
+          },
+          "mean_raw_confidence": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mean Raw Confidence"
+          },
+          "positive_outcome_rate": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Share with a non-negative measured outcome. BEHAVIOURAL: it may block a gate and may never pass one.",
+            "title": "Positive Outcome Rate"
+          },
+          "reject_rate": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reject Rate"
+          },
+          "reliability_bins": {
+            "default": [],
+            "description": "(bin_upper, observed_rate, n). Reported only.",
+            "items": {
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "integer"
+                }
+              ],
+              "type": "array"
+            },
+            "maxItems": 20,
+            "title": "Reliability Bins",
+            "type": "array"
+          },
+          "rollback_rate": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rollback Rate"
+          },
+          "sample_count": {
+            "minimum": 0.0,
+            "title": "Sample Count",
+            "type": "integer"
+          },
+          "sufficient": {
+            "description": "sample_count >= the policy's min_sample_count. False forces inconclusive.",
+            "title": "Sufficient",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "decision_class",
+          "sample_count",
+          "approval_rate",
+          "edit_rate",
+          "reject_rate",
+          "rollback_rate",
+          "positive_outcome_rate",
+          "mean_raw_confidence",
+          "calibrated_confidence",
+          "expected_calibration_error",
+          "reliability_bins",
+          "sufficient"
+        ],
+        "title": "DecisionClassMetrics",
+        "type": "object"
+      },
+      "DecisionClassObservation": {
+        "additionalProperties": false,
+        "description": "One row of the aggregate table. EVERY number here is computed in SQL/Python by\n``ken_services.learning.aggregate``; a static test asserts no other module builds\nevidence, and no model-produced number may appear in it.",
+        "properties": {
+          "anchor_edit_char_delta": {
+            "default": 0,
+            "description": "Net characters humans added to or removed from anchors.",
+            "title": "Anchor Edit Char Delta",
+            "type": "integer"
+          },
+          "approval_rate": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval Rate"
+          },
+          "approvals": {
+            "minimum": 0.0,
+            "title": "Approvals",
+            "type": "integer"
+          },
+          "behavioural_flags": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ConfounderFlag"
+            },
+            "title": "Behavioural Flags",
+            "type": "array"
+          },
+          "decision_class": {
+            "pattern": "^[a-z][a-z0-9_]*\\|[a-z][a-z0-9_]*\\|[a-z]+(\\+[a-z]+)*$",
+            "title": "Decision Class",
+            "type": "string"
+          },
+          "edit_rate": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Edit Rate"
+          },
+          "edits": {
+            "minimum": 0.0,
+            "title": "Edits",
+            "type": "integer"
+          },
+          "link_totals": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/MetricTotals"
+            },
+            "description": "ADVISORY (behavioural): may block, never pass.",
+            "propertyNames": {
+              "$ref": "#/components/schemas/AnalyticsSource"
+            },
+            "title": "Link Totals",
+            "type": "object"
+          },
+          "positive_outcome_rate": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Positive Outcome Rate"
+          },
+          "positive_outcomes": {
+            "minimum": 0.0,
+            "title": "Positive Outcomes",
+            "type": "integer"
+          },
+          "reason_histogram": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "description": "Structured review reason code -> count.",
+            "title": "Reason Histogram",
+            "type": "object"
+          },
+          "reject_rate": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reject Rate"
+          },
+          "rejections": {
+            "minimum": 0.0,
+            "title": "Rejections",
+            "type": "integer"
+          },
+          "rollback_rate": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rollback Rate"
+          },
+          "rollbacks": {
+            "minimum": 0.0,
+            "title": "Rollbacks",
+            "type": "integer"
+          },
+          "sample_count": {
+            "minimum": 0.0,
+            "title": "Sample Count",
+            "type": "integer"
+          },
+          "sufficient": {
+            "description": "sample_count >= the policy's min_sample_count.",
+            "title": "Sufficient",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "decision_class",
+          "sample_count",
+          "approvals",
+          "edits",
+          "rejections",
+          "rollbacks",
+          "positive_outcomes",
+          "approval_rate",
+          "edit_rate",
+          "reject_rate",
+          "rollback_rate",
+          "positive_outcome_rate",
+          "reason_histogram",
+          "anchor_edit_char_delta",
+          "link_totals",
+          "behavioural_flags",
+          "sufficient"
+        ],
+        "title": "DecisionClassObservation",
         "type": "object"
       },
       "DependencyCheck": {
@@ -2177,6 +2629,414 @@
         "title": "ErrorResponse",
         "type": "object"
       },
+      "EvalSuite": {
+        "description": "Every suite the runner knows. The first seven are the TRD section 19 minimums.\n\nTRD section 19 is the SUITE list; the per-decision-class metrics live in TRD section 20\n(``evals/README.md`` section 5 sources them from there). Phase 9 should look in section 20.",
+        "enum": [
+          "destination-selection",
+          "anchor-selection",
+          "relationship-detection",
+          "critic",
+          "no-action",
+          "protected-content",
+          "stale-page-version",
+          "policy-regression",
+          "reflection-grounding",
+          "proposal-safety",
+          "editorial-agreement"
+        ],
+        "title": "EvalSuite",
+        "type": "string"
+      },
+      "EvaluationDetail": {
+        "additionalProperties": false,
+        "description": "``evaluation_ref`` is ``str(policy_evaluations.id)``; the promotion service accepts\nnothing else.",
+        "properties": {
+          "baseline_evaluation_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Baseline Evaluation Id"
+          },
+          "candidate_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Candidate Id"
+          },
+          "dataset_manifests": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Dataset name -> manifest sha256, so a run is reproducible from a checkout.",
+            "title": "Dataset Manifests",
+            "type": "object"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "gate_reasons": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/GateReason"
+            },
+            "title": "Gate Reasons",
+            "type": "array"
+          },
+          "gate_result": {
+            "$ref": "#/components/schemas/GateResult"
+          },
+          "git_sha": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Git Sha"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "job_run_id": {
+            "format": "uuid",
+            "title": "Job Run Id",
+            "type": "string"
+          },
+          "metrics": {
+            "$ref": "#/components/schemas/EvaluationMetrics"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/EvaluationMode"
+          },
+          "model_provider": {
+            "title": "Model Provider",
+            "type": "string"
+          },
+          "model_role_models": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "The RESOLVED model per role at run time.",
+            "propertyNames": {
+              "$ref": "#/components/schemas/ModelRole"
+            },
+            "title": "Model Role Models",
+            "type": "object"
+          },
+          "policy_shas": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Policy Shas",
+            "type": "object"
+          },
+          "proposal_fingerprint": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Proposal Fingerprint"
+          },
+          "proposal_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Proposal Id"
+          },
+          "runner_version": {
+            "title": "Runner Version",
+            "type": "string"
+          },
+          "seed": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seed"
+          },
+          "skill_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Skill Id"
+          },
+          "started_at": {
+            "format": "date-time",
+            "title": "Started At",
+            "type": "string"
+          },
+          "suites": {
+            "items": {
+              "$ref": "#/components/schemas/EvalSuite"
+            },
+            "title": "Suites",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "job_run_id",
+          "mode",
+          "proposal_id",
+          "candidate_id",
+          "skill_id",
+          "proposal_fingerprint",
+          "suites",
+          "gate_result",
+          "baseline_evaluation_id",
+          "runner_version",
+          "model_provider",
+          "git_sha",
+          "started_at",
+          "finished_at",
+          "dataset_manifests",
+          "metrics",
+          "gate_reasons",
+          "model_role_models",
+          "seed",
+          "policy_shas"
+        ],
+        "title": "EvaluationDetail",
+        "type": "object"
+      },
+      "EvaluationMetrics": {
+        "additionalProperties": false,
+        "description": "``policy_evaluations.metrics``. ``by_decision_class`` is REQUIRED (15.7.11): keying it\nby the canonical decision-class form is what lets Phase 9 read calibration without a\nschema change.",
+        "properties": {
+          "by_decision_class": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/DecisionClassMetrics"
+            },
+            "description": "Canonical decision class -> its metrics. May be empty, never absent.",
+            "title": "By Decision Class",
+            "type": "object"
+          },
+          "by_suite": {
+            "items": {
+              "$ref": "#/components/schemas/SuiteMetrics"
+            },
+            "minItems": 1,
+            "title": "By Suite",
+            "type": "array"
+          },
+          "cases_passed": {
+            "minimum": 0.0,
+            "title": "Cases Passed",
+            "type": "integer"
+          },
+          "cases_total": {
+            "minimum": 0.0,
+            "title": "Cases Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "cases_total",
+          "cases_passed",
+          "by_suite",
+          "by_decision_class"
+        ],
+        "title": "EvaluationMetrics",
+        "type": "object"
+      },
+      "EvaluationMode": {
+        "enum": [
+          "offline",
+          "shadow",
+          "canary"
+        ],
+        "title": "EvaluationMode",
+        "type": "string"
+      },
+      "EvaluationSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "baseline_evaluation_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Baseline Evaluation Id"
+          },
+          "candidate_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Candidate Id"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "gate_result": {
+            "$ref": "#/components/schemas/GateResult"
+          },
+          "git_sha": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Git Sha"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "job_run_id": {
+            "format": "uuid",
+            "title": "Job Run Id",
+            "type": "string"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/EvaluationMode"
+          },
+          "model_provider": {
+            "title": "Model Provider",
+            "type": "string"
+          },
+          "proposal_fingerprint": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Proposal Fingerprint"
+          },
+          "proposal_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Proposal Id"
+          },
+          "runner_version": {
+            "title": "Runner Version",
+            "type": "string"
+          },
+          "skill_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Skill Id"
+          },
+          "started_at": {
+            "format": "date-time",
+            "title": "Started At",
+            "type": "string"
+          },
+          "suites": {
+            "items": {
+              "$ref": "#/components/schemas/EvalSuite"
+            },
+            "title": "Suites",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "job_run_id",
+          "mode",
+          "proposal_id",
+          "candidate_id",
+          "skill_id",
+          "proposal_fingerprint",
+          "suites",
+          "gate_result",
+          "baseline_evaluation_id",
+          "runner_version",
+          "model_provider",
+          "git_sha",
+          "started_at",
+          "finished_at"
+        ],
+        "title": "EvaluationSummary",
+        "type": "object"
+      },
       "EventName": {
         "description": "The TRD.md section 15 vocabulary, plus governed additions.\n\nPhase 0 emits only ``worker.heartbeat``. The remaining names are frozen\nhere so later phases cannot invent divergent spellings for the same fact.\n\nAdditions beyond TRD.md section 15, each an explicit decision:\n\n* ``skill.promoted`` -- added at the user's direction (post-Phase-0\n  cleanup, 2026-10-13). TRD.md had ``policy.promoted`` but no skill\n  equivalent, although AUTONOMY_AND_PERMISSIONS.md makes PROMOTE_SKILL an\n  ASK-level action, which therefore needs an audit event.\n* ``worker.heartbeat`` -- operational, recorded in docs/adr/ADR-0005.md.\n* ``job.completed`` -- operational, Phase 2 (docs/adr/ADR-0010-content-intelligence.md):\n  every finished generic job run (analysis, recommendation, verification,\n  analytics import, evaluation, autonomy shadow), including failed ones.\n  Ingestion keeps ``crawl.completed``.\n\nGoverned lifecycles (no learning behaviour is implemented yet)::\n\n    skill.proposed  -> offline/human evaluation -> skill.promoted\n    policy.proposed -> offline/human evaluation -> policy.promoted\n\nProposal is ALLOW for agents; promotion is ASK and requires a human. Both\n``*.promoted`` events must carry a :class:`PromotionAuditPayload`, which\n:class:`EventEnvelope` enforces.",
         "enum": [
@@ -2248,6 +3108,17 @@
             "title": "Payload",
             "type": "object"
           },
+          "payload_status": {
+            "default": "ok",
+            "description": "Phase 8, additive (ADR-0016 section 8): the verdict of ``ken_contracts.events.validate_payload`` for THIS row's ``event_version``. ``unknown_version``: no model is registered for that version (or the stored name is outside the vocabulary) and the payload is returned verbatim. ``invalid``: a model exists and the payload does not satisfy it. A stored row is never rewritten, so one bad row no longer makes the audit log unreadable.",
+            "enum": [
+              "ok",
+              "unknown_version",
+              "invalid"
+            ],
+            "title": "Payload Status",
+            "type": "string"
+          },
           "subject_id": {
             "anyOf": [
               {
@@ -2281,9 +3152,31 @@
           "subject_type",
           "subject_id",
           "payload",
-          "correlation_id"
+          "correlation_id",
+          "payload_status"
         ],
         "title": "EventRecord",
+        "type": "object"
+      },
+      "EvidenceWindow": {
+        "additionalProperties": false,
+        "properties": {
+          "end": {
+            "format": "date",
+            "title": "End",
+            "type": "string"
+          },
+          "start": {
+            "format": "date",
+            "title": "Start",
+            "type": "string"
+          }
+        },
+        "required": [
+          "start",
+          "end"
+        ],
+        "title": "EvidenceWindow",
         "type": "object"
       },
       "ExistingLinkView": {
@@ -2396,6 +3289,349 @@
         "title": "ExistingLinkView",
         "type": "object"
       },
+      "ExperimentArm": {
+        "enum": [
+          "control",
+          "treatment"
+        ],
+        "title": "ExperimentArm",
+        "type": "string"
+      },
+      "ExperimentAssignmentView": {
+        "additionalProperties": false,
+        "description": "Deterministic AND materialised: the arm comes from the first 8 bytes of\n``sha256(key + ':' + str(source_page_id))`` against ``treatment_fraction``, and the row is\nwritten, so the arm stays auditable even if the hash function ever changes.",
+        "properties": {
+          "arm": {
+            "$ref": "#/components/schemas/ExperimentArm"
+          },
+          "assigned_at": {
+            "format": "date-time",
+            "title": "Assigned At",
+            "type": "string"
+          },
+          "assigned_by": {
+            "title": "Assigned By",
+            "type": "string"
+          },
+          "experiment_id": {
+            "format": "uuid",
+            "title": "Experiment Id",
+            "type": "string"
+          },
+          "source_page_id": {
+            "format": "uuid",
+            "title": "Source Page Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "experiment_id",
+          "source_page_id",
+          "arm",
+          "assigned_by",
+          "assigned_at"
+        ],
+        "title": "ExperimentAssignmentView",
+        "type": "object"
+      },
+      "ExperimentDetail": {
+        "additionalProperties": false,
+        "properties": {
+          "assignments": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ExperimentAssignmentView"
+            },
+            "title": "Assignments",
+            "type": "array"
+          },
+          "candidate_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Candidate Id"
+          },
+          "comparison": {
+            "default": [],
+            "description": "Per-arm editorial comparison. PERMITTED claim: 'observed difference between arms over [interval], N_control/N_treatment pages, with these confounder flags'. FORBIDDEN: significance, causal lift, revenue, ranking causation.",
+            "items": {
+              "$ref": "#/components/schemas/DecisionClassMetrics"
+            },
+            "title": "Comparison",
+            "type": "array"
+          },
+          "control_pages": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Control Pages",
+            "type": "integer"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by": {
+            "title": "Created By",
+            "type": "string"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "ended_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ended At"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "key": {
+            "pattern": "^[a-z0-9][a-z0-9_-]{2,63}$",
+            "title": "Key",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/ExperimentKind"
+          },
+          "proposal_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Proposal Id"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ExperimentStatus"
+          },
+          "treatment_fraction": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 1.0,
+            "title": "Treatment Fraction",
+            "type": "number"
+          },
+          "treatment_pages": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Treatment Pages",
+            "type": "integer"
+          },
+          "unit": {
+            "const": "source_page",
+            "default": "source_page",
+            "title": "Unit",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "key",
+          "description",
+          "unit",
+          "kind",
+          "status",
+          "candidate_id",
+          "proposal_id",
+          "treatment_fraction",
+          "created_by",
+          "created_at",
+          "updated_at",
+          "started_at",
+          "ended_at",
+          "control_pages",
+          "treatment_pages",
+          "assignments",
+          "comparison"
+        ],
+        "title": "ExperimentDetail",
+        "type": "object"
+      },
+      "ExperimentKind": {
+        "description": "Capped to one member. ``holdout`` is CUT entirely (ADR-0016 16.4), not defaulted off:\nwithholding links from live pages is a real editorial and SEO cost and remains the user's\ndecision, and removing the member also removes the review's arm-contamination bug. No code\npath can withhold a link from a page.",
+        "enum": [
+          "policy_ab"
+        ],
+        "title": "ExperimentKind",
+        "type": "string"
+      },
+      "ExperimentStatus": {
+        "enum": [
+          "draft",
+          "active",
+          "ended"
+        ],
+        "title": "ExperimentStatus",
+        "type": "string"
+      },
+      "ExperimentView": {
+        "additionalProperties": false,
+        "properties": {
+          "candidate_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Candidate Id"
+          },
+          "control_pages": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Control Pages",
+            "type": "integer"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by": {
+            "title": "Created By",
+            "type": "string"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "ended_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ended At"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "key": {
+            "pattern": "^[a-z0-9][a-z0-9_-]{2,63}$",
+            "title": "Key",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/ExperimentKind"
+          },
+          "proposal_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Proposal Id"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ExperimentStatus"
+          },
+          "treatment_fraction": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 1.0,
+            "title": "Treatment Fraction",
+            "type": "number"
+          },
+          "treatment_pages": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Treatment Pages",
+            "type": "integer"
+          },
+          "unit": {
+            "const": "source_page",
+            "default": "source_page",
+            "title": "Unit",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "key",
+          "description",
+          "unit",
+          "kind",
+          "status",
+          "candidate_id",
+          "proposal_id",
+          "treatment_fraction",
+          "created_by",
+          "created_at",
+          "updated_at",
+          "started_at",
+          "ended_at",
+          "control_pages",
+          "treatment_pages"
+        ],
+        "title": "ExperimentView",
+        "type": "object"
+      },
       "FallbackReason": {
         "enum": [
           "model_disabled",
@@ -2423,6 +3659,74 @@
           "other"
         ],
         "title": "FeedbackReason",
+        "type": "string"
+      },
+      "GateReason": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "$ref": "#/components/schemas/GateReasonCode"
+          },
+          "decision_class": {
+            "anyOf": [
+              {
+                "pattern": "^[a-z][a-z0-9_]*\\|[a-z][a-z0-9_]*\\|[a-z]+(\\+[a-z]+)*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decision Class"
+          },
+          "detail": {
+            "$ref": "#/components/schemas/NoteText",
+            "default": ""
+          },
+          "suite": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EvalSuite"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "code",
+          "suite",
+          "decision_class",
+          "detail"
+        ],
+        "title": "GateReason",
+        "type": "object"
+      },
+      "GateReasonCode": {
+        "description": "Why a gate did not pass. Fixed vocabulary, so the UI never shows prose from a model.",
+        "enum": [
+          "hard_fail_suite",
+          "must_not_violation",
+          "below_min_pass_rate",
+          "regression_vs_baseline",
+          "suite_not_run",
+          "sample_too_small",
+          "behavioural_signal_negative",
+          "evidence_not_reproducible",
+          "frozen_field_touched",
+          "baseline_missing"
+        ],
+        "title": "GateReasonCode",
+        "type": "string"
+      },
+      "GateResult": {
+        "enum": [
+          "pass",
+          "fail",
+          "inconclusive"
+        ],
+        "title": "GateResult",
         "type": "string"
       },
       "GeographyMention": {
@@ -2909,7 +4213,7 @@
         "type": "string"
       },
       "JobKind": {
-        "description": "What a job run does. Adding a member is additive (one per phase).",
+        "description": "What a job run does. Adding a member is additive.\n\nPhases 2-7 added exactly one kind each. **Phase 8 adds two** -- ``evaluation`` (reserved\nhere from Phase 0) and ``reflection`` -- so the former \"one per phase\" rule is amended\nrather than quietly broken (ADR-0016 15.1.6 / 15.7.14). The rule that remains is the one\nthat matters: a batch job records itself as a ``job_runs`` row instead of inventing a\ntable, and one run of a given kind executes at a time.",
         "enum": [
           "analysis",
           "recommendation",
@@ -2917,6 +4221,7 @@
           "verification",
           "analytics_import",
           "evaluation",
+          "reflection",
           "autonomy_shadow"
         ],
         "title": "JobKind",
@@ -3054,6 +4359,85 @@
           "counters"
         ],
         "title": "JobRunSummary",
+        "type": "object"
+      },
+      "LearningOverview": {
+        "additionalProperties": false,
+        "description": "``GET /learning``: the banner plus the counts the list screens need.",
+        "properties": {
+          "banner": {
+            "$ref": "#/components/schemas/CorpusBanner"
+          },
+          "evaluations_by_gate_result": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Evaluations By Gate Result",
+            "type": "object"
+          },
+          "experiments_by_status": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Experiments By Status",
+            "type": "object"
+          },
+          "latest_evaluation_run_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Evaluation Run Id"
+          },
+          "latest_reflection_run_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Reflection Run Id"
+          },
+          "policy_version": {
+            "description": "The active learning policy version.",
+            "minimum": 1.0,
+            "title": "Policy Version",
+            "type": "integer"
+          },
+          "proposals_by_status": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Proposals By Status",
+            "type": "object"
+          },
+          "skills_by_status": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Skills By Status",
+            "type": "object"
+          }
+        },
+        "required": [
+          "banner",
+          "proposals_by_status",
+          "skills_by_status",
+          "evaluations_by_gate_result",
+          "experiments_by_status",
+          "latest_reflection_run_id",
+          "latest_evaluation_run_id",
+          "policy_version"
+        ],
+        "title": "LearningOverview",
         "type": "object"
       },
       "LinkAttribution": {
@@ -4296,6 +5680,27 @@
         "title": "ListResponse[DeploymentView]",
         "type": "object"
       },
+      "ListResponse_EvaluationSummary_": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/EvaluationSummary"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          }
+        },
+        "required": [
+          "items",
+          "page"
+        ],
+        "title": "ListResponse[EvaluationSummary]",
+        "type": "object"
+      },
       "ListResponse_EventRecord_": {
         "additionalProperties": false,
         "properties": {
@@ -4336,6 +5741,27 @@
           "page"
         ],
         "title": "ListResponse[ExistingLinkView]",
+        "type": "object"
+      },
+      "ListResponse_ExperimentView_": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ExperimentView"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          }
+        },
+        "required": [
+          "items",
+          "page"
+        ],
+        "title": "ListResponse[ExperimentView]",
         "type": "object"
       },
       "ListResponse_IngestionIssueView_": {
@@ -4527,6 +5953,27 @@
         "title": "ListResponse[PageVersionSummary]",
         "type": "object"
       },
+      "ListResponse_ProposalSummary_": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ProposalSummary"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          }
+        },
+        "required": [
+          "items",
+          "page"
+        ],
+        "title": "ListResponse[ProposalSummary]",
+        "type": "object"
+      },
       "ListResponse_ReviewActionView_": {
         "additionalProperties": false,
         "properties": {
@@ -4567,6 +6014,27 @@
           "page"
         ],
         "title": "ListResponse[SimilarPage]",
+        "type": "object"
+      },
+      "ListResponse_SkillSummary_": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/SkillSummary"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          }
+        },
+        "required": [
+          "items",
+          "page"
+        ],
+        "title": "ListResponse[SkillSummary]",
         "type": "object"
       },
       "LiveWindow": {
@@ -4717,6 +6185,14 @@
           "embedding"
         ],
         "title": "ModelRole",
+        "type": "string"
+      },
+      "NoteText": {
+        "maxLength": 500,
+        "type": "string"
+      },
+      "OperationId": {
+        "format": "uuid",
         "type": "string"
       },
       "OpportunityKind": {
@@ -6164,7 +7640,8 @@
           "review",
           "read_audit",
           "read_settings",
-          "deploy"
+          "deploy",
+          "promote"
         ],
         "title": "Permission",
         "type": "string"
@@ -6322,6 +7799,133 @@
         "title": "PoliciesView",
         "type": "object"
       },
+      "PolicyCandidateRef": {
+        "additionalProperties": false,
+        "description": "Read-safe reference to a stored candidate: identity and digest, never the document.\n\nThe DOCUMENT is a policy document, and ADR-0013 reserves policy documents to\n``operator_admin`` through ``read_settings``; exposing a candidate under ``read`` would be\na permission downgrade. :class:`PolicyCandidateView` carries the document and is served\nonly behind ``read_settings``.",
+        "properties": {
+          "base_version": {
+            "title": "Base Version",
+            "type": "string"
+          },
+          "candidate_version": {
+            "title": "Candidate Version",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "document_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Document Sha256",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "policy_kind": {
+            "$ref": "#/components/schemas/TargetKind"
+          },
+          "proposal_id": {
+            "format": "uuid",
+            "title": "Proposal Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "proposal_id",
+          "policy_kind",
+          "base_version",
+          "candidate_version",
+          "document_sha256",
+          "created_at"
+        ],
+        "title": "PolicyCandidateRef",
+        "type": "object"
+      },
+      "PolicyCandidateView": {
+        "additionalProperties": false,
+        "description": "``read_settings`` ONLY. The full validated candidate document, so ``offline_test`` is\nreplayable without a file on disk.",
+        "properties": {
+          "base_version": {
+            "title": "Base Version",
+            "type": "string"
+          },
+          "candidate_version": {
+            "title": "Candidate Version",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "document": {
+            "additionalProperties": true,
+            "description": "The validated candidate policy document.",
+            "title": "Document",
+            "type": "object"
+          },
+          "document_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Document Sha256",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "policy_kind": {
+            "$ref": "#/components/schemas/TargetKind"
+          },
+          "proposal_id": {
+            "format": "uuid",
+            "title": "Proposal Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "proposal_id",
+          "policy_kind",
+          "base_version",
+          "candidate_version",
+          "document_sha256",
+          "created_at",
+          "document"
+        ],
+        "title": "PolicyCandidateView",
+        "type": "object"
+      },
+      "PolicyChange": {
+        "additionalProperties": false,
+        "description": "One parameter change: the path, the value it had, the value proposed.\n\n``from_value`` is what the BASE document held, so the diff a human sees on the promotion\nscreen is reconstructable from the row alone. Values are JSON scalars, arrays or objects;\nthey are never rendered as code and never interpolated into SQL.",
+        "properties": {
+          "from_value": {
+            "description": "The value in the base document (JSON).",
+            "title": "From Value"
+          },
+          "path": {
+            "$ref": "#/components/schemas/PolicyPath"
+          },
+          "to_value": {
+            "description": "The proposed value (JSON).",
+            "title": "To Value"
+          }
+        },
+        "required": [
+          "path",
+          "from_value",
+          "to_value"
+        ],
+        "title": "PolicyChange",
+        "type": "object"
+      },
       "PolicyDocument": {
         "additionalProperties": false,
         "properties": {
@@ -6337,7 +7941,8 @@
               "recommendation",
               "ranking",
               "agents",
-              "analytics"
+              "analytics",
+              "learning"
             ],
             "title": "Kind",
             "type": "string"
@@ -6373,6 +7978,12 @@
         ],
         "title": "PolicyDocument",
         "type": "object"
+      },
+      "PolicyPath": {
+        "maxLength": 200,
+        "minLength": 1,
+        "pattern": "^[a-z][a-z0-9_]*(\\.[a-z0-9_]+)*$",
+        "type": "string"
       },
       "PrincipalView": {
         "additionalProperties": false,
@@ -6410,6 +8021,665 @@
           "session_expires_at"
         ],
         "title": "PrincipalView",
+        "type": "object"
+      },
+      "PromotionPreview": {
+        "additionalProperties": false,
+        "description": "What the human must see before promoting (ADR-0016 section 10), computed, never stored.\n\n``target_paths`` holds EVERY file a promotion would write. For ``ranking`` that is TWO\nfiles and the write is atomic (15.7.8): the active ranking policy is resolved from\n``policies/recommendation/recommendation.v1.yaml``'s ``ranking_policy:`` pointer by\n``resolve_ranking_policy``, NOT from ``Settings`` -- so promoting weights also requires a\nnew recommendation document. Only the CLI writes a policy file; the API records the event.",
+        "properties": {
+          "blocked": {
+            "description": "True while any refusal below applies.",
+            "title": "Blocked",
+            "type": "boolean"
+          },
+          "blocked_by": {
+            "default": [],
+            "description": "Empty only when the button may be enabled.",
+            "items": {
+              "$ref": "#/components/schemas/PromotionRefusal"
+            },
+            "title": "Blocked By",
+            "type": "array"
+          },
+          "next_version": {
+            "title": "Next Version",
+            "type": "string"
+          },
+          "requires_operator_restart": {
+            "default": true,
+            "description": "Promotion changes the active policy path and Settings is frozen, so it needs a restart. Hot reload would be a material architecture change (16, open).",
+            "title": "Requires Operator Restart",
+            "type": "boolean"
+          },
+          "rollback_to_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The version a rollback would restore.",
+            "title": "Rollback To Version"
+          },
+          "target_paths": {
+            "description": "Repository-relative paths the CLI would write.",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Target Paths",
+            "type": "array"
+          }
+        },
+        "required": [
+          "target_paths",
+          "next_version",
+          "rollback_to_version",
+          "requires_operator_restart",
+          "blocked",
+          "blocked_by"
+        ],
+        "title": "PromotionPreview",
+        "type": "object"
+      },
+      "PromotionRefusal": {
+        "description": "Why :meth:`PromotionService.advance` refused. Fixed vocabulary; the message is the code,\nnever exception text and never a database message.",
+        "enum": [
+          "demonstration_mode",
+          "not_a_human",
+          "permission_denied",
+          "transition_not_allowed",
+          "required_stage_missing",
+          "evaluation_missing",
+          "evaluation_not_found",
+          "evaluation_not_passed",
+          "evaluation_foreign",
+          "fingerprint_mismatch",
+          "dataset_changed",
+          "evaluation_too_old",
+          "sample_too_small",
+          "behavioural_block",
+          "frozen_field",
+          "reason_required",
+          "replayed_with_different_body",
+          "promoter_guard_missing"
+        ],
+        "title": "PromotionRefusal",
+        "type": "string"
+      },
+      "ProposalDetail": {
+        "additionalProperties": false,
+        "properties": {
+          "base_version": {
+            "title": "Base Version",
+            "type": "string"
+          },
+          "candidate": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PolicyCandidateRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "changes": {
+            "default": [],
+            "description": "The exact parameter diff; empty for a skill proposal.",
+            "items": {
+              "$ref": "#/components/schemas/PolicyChange"
+            },
+            "title": "Changes",
+            "type": "array"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "evaluations": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/EvaluationSummary"
+            },
+            "title": "Evaluations",
+            "type": "array"
+          },
+          "evidence": {
+            "$ref": "#/components/schemas/ProposalEvidence"
+          },
+          "fallback_used": {
+            "default": false,
+            "title": "Fallback Used",
+            "type": "boolean"
+          },
+          "fingerprint": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Fingerprint",
+            "type": "string"
+          },
+          "frozen_fields_untouched": {
+            "const": true,
+            "default": true,
+            "description": "A contract-level assertion, not a computed opinion: a proposal touching a frozen path cannot be constructed, so a stored one never has.",
+            "title": "Frozen Fields Untouched",
+            "type": "boolean"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "job_run_id": {
+            "format": "uuid",
+            "title": "Job Run Id",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/ProposalKind"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "promotion": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PromotionPreview"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "proposed_by": {
+            "description": "Always ``system:`` or ``agent:`` (a DB CHECK).",
+            "title": "Proposed By",
+            "type": "string"
+          },
+          "rationale": {
+            "title": "Rationale",
+            "type": "string"
+          },
+          "required_stages": {
+            "default": [],
+            "description": "The minimum path the gate policy requires for this kind.",
+            "items": {
+              "$ref": "#/components/schemas/ProposalStatus"
+            },
+            "title": "Required Stages",
+            "type": "array"
+          },
+          "skill": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SkillSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "stages_completed": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ProposalStatus"
+            },
+            "title": "Stages Completed",
+            "type": "array"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ProposalStatus"
+          },
+          "supersedes": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Set only by a human (15.3 cut automatic superseding).",
+            "title": "Supersedes"
+          },
+          "target_kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TargetKind"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "None for a skill."
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "transitions": {
+            "items": {
+              "$ref": "#/components/schemas/ProposalTransitionView"
+            },
+            "title": "Transitions",
+            "type": "array"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "status",
+          "target_kind",
+          "base_version",
+          "title",
+          "fingerprint",
+          "proposed_by",
+          "job_run_id",
+          "model",
+          "fallback_used",
+          "supersedes",
+          "created_at",
+          "updated_at",
+          "rationale",
+          "changes",
+          "frozen_fields_untouched",
+          "evidence",
+          "transitions",
+          "evaluations",
+          "candidate",
+          "skill",
+          "promotion",
+          "required_stages",
+          "stages_completed"
+        ],
+        "title": "ProposalDetail",
+        "type": "object"
+      },
+      "ProposalEvidence": {
+        "additionalProperties": false,
+        "description": "``learning_proposals.evidence``: the observation window, every count, the policy and\nengine versions in scope, and the FULL option set the model chose from (15.7.7), so the\nchoice is reconstructable long after the run.",
+        "properties": {
+          "aggregate_version": {
+            "pattern": "^[0-9A-Za-z][0-9A-Za-z._-]{0,63}$",
+            "title": "Aggregate Version",
+            "type": "string"
+          },
+          "analysis_version": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Analysis Version",
+            "type": "string"
+          },
+          "chosen_index": {
+            "minimum": 0.0,
+            "title": "Chosen Index",
+            "type": "integer"
+          },
+          "engine_version": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Engine Version",
+            "type": "string"
+          },
+          "fallback_reason": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FallbackReason"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fallback_used": {
+            "default": false,
+            "title": "Fallback Used",
+            "type": "boolean"
+          },
+          "generated_at": {
+            "format": "date-time",
+            "title": "Generated At",
+            "type": "string"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Resolved REASONING model, or None when none answered.",
+            "title": "Model"
+          },
+          "observations": {
+            "items": {
+              "$ref": "#/components/schemas/DecisionClassObservation"
+            },
+            "maxItems": 500,
+            "title": "Observations",
+            "type": "array"
+          },
+          "options": {
+            "items": {
+              "$ref": "#/components/schemas/ProposalOption"
+            },
+            "maxItems": 10,
+            "minItems": 1,
+            "title": "Options",
+            "type": "array"
+          },
+          "policy_versions": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Policy kind -> the version in scope (ranking, recommendation, agents, taxonomy, analytics, learning).",
+            "title": "Policy Versions",
+            "type": "object"
+          },
+          "sample_count_total": {
+            "minimum": 0.0,
+            "title": "Sample Count Total",
+            "type": "integer"
+          },
+          "window": {
+            "$ref": "#/components/schemas/EvidenceWindow"
+          }
+        },
+        "required": [
+          "window",
+          "generated_at",
+          "aggregate_version",
+          "observations",
+          "options",
+          "chosen_index",
+          "sample_count_total",
+          "policy_versions",
+          "engine_version",
+          "analysis_version",
+          "model",
+          "fallback_used",
+          "fallback_reason"
+        ],
+        "title": "ProposalEvidence",
+        "type": "object"
+      },
+      "ProposalKind": {
+        "enum": [
+          "policy",
+          "skill"
+        ],
+        "title": "ProposalKind",
+        "type": "string"
+      },
+      "ProposalOption": {
+        "additionalProperties": false,
+        "description": "One SERVER-ENUMERATED option. The model picks an index; it never emits a number that is\nstored and never names a field, so it cannot reach a frozen path.",
+        "properties": {
+          "changes": {
+            "default": [],
+            "description": "Empty for 'do nothing'.",
+            "items": {
+              "$ref": "#/components/schemas/PolicyChange"
+            },
+            "maxItems": 50,
+            "title": "Changes",
+            "type": "array"
+          },
+          "index": {
+            "maximum": 9.0,
+            "minimum": 0.0,
+            "title": "Index",
+            "type": "integer"
+          },
+          "label": {
+            "description": "Rendered from enum codes.",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "index",
+          "label",
+          "changes"
+        ],
+        "title": "ProposalOption",
+        "type": "object"
+      },
+      "ProposalRejectionReason": {
+        "description": "Structured reason required with ``rejected`` / ``rolled_back`` (ADR-0013's rule that an\neditorial decision carries a code, not only prose).",
+        "enum": [
+          "insufficient_evidence",
+          "gate_failed",
+          "frozen_field",
+          "out_of_scope",
+          "risk_too_high",
+          "superseded_by_newer",
+          "demonstration_only",
+          "regression_observed",
+          "operational_incident"
+        ],
+        "title": "ProposalRejectionReason",
+        "type": "string"
+      },
+      "ProposalStatus": {
+        "description": "The lifecycle PRD.md section 10 and CLAUDE.md's Learning Design Rule mandate.\n\nEvery stage is part of the CONTRACT even where Phase 8 ships no machinery for it: removing\na stage would bake a deviation from the governing specs into the schema. What Phase 8\nimplements is a scheduling choice, recorded per stage below.",
+        "enum": [
+          "proposed",
+          "offline_test",
+          "shadow",
+          "canary",
+          "experiment",
+          "promoted",
+          "rejected",
+          "rolled_back",
+          "withdrawn"
+        ],
+        "title": "ProposalStatus",
+        "type": "string"
+      },
+      "ProposalSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "base_version": {
+            "title": "Base Version",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "fallback_used": {
+            "default": false,
+            "title": "Fallback Used",
+            "type": "boolean"
+          },
+          "fingerprint": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Fingerprint",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "job_run_id": {
+            "format": "uuid",
+            "title": "Job Run Id",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/ProposalKind"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "proposed_by": {
+            "description": "Always ``system:`` or ``agent:`` (a DB CHECK).",
+            "title": "Proposed By",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ProposalStatus"
+          },
+          "supersedes": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Set only by a human (15.3 cut automatic superseding).",
+            "title": "Supersedes"
+          },
+          "target_kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TargetKind"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "None for a skill."
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "status",
+          "target_kind",
+          "base_version",
+          "title",
+          "fingerprint",
+          "proposed_by",
+          "job_run_id",
+          "model",
+          "fallback_used",
+          "supersedes",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "ProposalSummary",
+        "type": "object"
+      },
+      "ProposalTransitionView": {
+        "additionalProperties": false,
+        "description": "One append-only ``learning_proposal_transitions`` row. This table, plus its\nsame-transaction ``txid`` guard, is where \"no self-promotion\" is enforced.",
+        "properties": {
+          "actor": {
+            "title": "Actor",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "evaluation_run_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evaluation Run Id"
+          },
+          "from_status": {
+            "$ref": "#/components/schemas/ProposalStatus"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "proposal_id": {
+            "format": "uuid",
+            "title": "Proposal Id",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProposalRejectionReason"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "to_status": {
+            "$ref": "#/components/schemas/ProposalStatus"
+          }
+        },
+        "required": [
+          "id",
+          "proposal_id",
+          "from_status",
+          "to_status",
+          "actor",
+          "reason",
+          "note",
+          "evaluation_run_id",
+          "created_at"
+        ],
+        "title": "ProposalTransitionView",
         "type": "object"
       },
       "ProtectionSource": {
@@ -7303,6 +9573,285 @@
         "title": "SimilarPage",
         "type": "object"
       },
+      "SkillDetail": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "evaluation_run_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evaluation Run Id"
+          },
+          "evaluation_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Display scalar only. The real record is the policy_evaluations run and its per-suite metric map (TRD section 17 amended, ADR-0016 13.1).",
+            "title": "Evaluation Score"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "input_schema": {
+            "additionalProperties": true,
+            "title": "Input Schema",
+            "type": "object"
+          },
+          "instructions": {
+            "title": "Instructions",
+            "type": "string"
+          },
+          "model_role": {
+            "$ref": "#/components/schemas/ModelRole"
+          },
+          "name": {
+            "pattern": "^[a-z][a-z0-9_]{2,63}$",
+            "title": "Name",
+            "type": "string"
+          },
+          "output_schema": {
+            "additionalProperties": true,
+            "title": "Output Schema",
+            "type": "object"
+          },
+          "promoted_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Promoted At"
+          },
+          "promoted_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Promoted By"
+          },
+          "proposal_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Proposal Id"
+          },
+          "source": {
+            "$ref": "#/components/schemas/SkillSource"
+          },
+          "status": {
+            "$ref": "#/components/schemas/SkillStatus"
+          },
+          "suites": {
+            "items": {
+              "$ref": "#/components/schemas/EvalSuite"
+            },
+            "title": "Suites",
+            "type": "array"
+          },
+          "version": {
+            "minimum": 1.0,
+            "title": "Version",
+            "type": "integer"
+          },
+          "versions": {
+            "default": [],
+            "description": "Every version of this name, newest first.",
+            "items": {
+              "$ref": "#/components/schemas/SkillSummary"
+            },
+            "title": "Versions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "version",
+          "description",
+          "status",
+          "source",
+          "proposal_id",
+          "evaluation_run_id",
+          "evaluation_score",
+          "promoted_by",
+          "promoted_at",
+          "created_at",
+          "instructions",
+          "input_schema",
+          "output_schema",
+          "suites",
+          "model_role",
+          "versions"
+        ],
+        "title": "SkillDetail",
+        "type": "object"
+      },
+      "SkillSource": {
+        "enum": [
+          "human",
+          "reflection"
+        ],
+        "title": "SkillSource",
+        "type": "string"
+      },
+      "SkillStatus": {
+        "description": "``skills.status`` (ADR-0016 section 4). Shorter than the policy ladder on purpose:\nnothing consumes a skill at runtime in Phase 8, so a shadow stage would be theatre.",
+        "enum": [
+          "draft",
+          "offline_test",
+          "promoted",
+          "rejected",
+          "retired"
+        ],
+        "title": "SkillStatus",
+        "type": "string"
+      },
+      "SkillSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "evaluation_run_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evaluation Run Id"
+          },
+          "evaluation_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Display scalar only. The real record is the policy_evaluations run and its per-suite metric map (TRD section 17 amended, ADR-0016 13.1).",
+            "title": "Evaluation Score"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "pattern": "^[a-z][a-z0-9_]{2,63}$",
+            "title": "Name",
+            "type": "string"
+          },
+          "promoted_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Promoted At"
+          },
+          "promoted_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Promoted By"
+          },
+          "proposal_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Proposal Id"
+          },
+          "source": {
+            "$ref": "#/components/schemas/SkillSource"
+          },
+          "status": {
+            "$ref": "#/components/schemas/SkillStatus"
+          },
+          "version": {
+            "minimum": 1.0,
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "version",
+          "description",
+          "status",
+          "source",
+          "proposal_id",
+          "evaluation_run_id",
+          "evaluation_score",
+          "promoted_by",
+          "promoted_at",
+          "created_at"
+        ],
+        "title": "SkillSummary",
+        "type": "object"
+      },
       "SortOrder": {
         "enum": [
           "asc",
@@ -7403,6 +9952,124 @@
           "failed"
         ],
         "title": "StepStatus",
+        "type": "string"
+      },
+      "SuiteMetrics": {
+        "additionalProperties": false,
+        "properties": {
+          "baseline_pass_rate": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Baseline Pass Rate"
+          },
+          "cases": {
+            "minimum": 0.0,
+            "title": "Cases",
+            "type": "integer"
+          },
+          "failed": {
+            "minimum": 0.0,
+            "title": "Failed",
+            "type": "integer"
+          },
+          "kendall_tau": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": -1.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kendall Tau"
+          },
+          "must_not_violations": {
+            "minimum": 0.0,
+            "title": "Must Not Violations",
+            "type": "integer"
+          },
+          "pass_rate": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "None when the suite produced no cases.",
+            "title": "Pass Rate"
+          },
+          "passed": {
+            "minimum": 0.0,
+            "title": "Passed",
+            "type": "integer"
+          },
+          "precision_at_1": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Precision At 1"
+          },
+          "recall_at_3": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recall At 3"
+          },
+          "suite": {
+            "$ref": "#/components/schemas/EvalSuite"
+          }
+        },
+        "required": [
+          "suite",
+          "cases",
+          "passed",
+          "failed",
+          "must_not_violations",
+          "pass_rate",
+          "baseline_pass_rate",
+          "precision_at_1",
+          "recall_at_3",
+          "kendall_tau"
+        ],
+        "title": "SuiteMetrics",
+        "type": "object"
+      },
+      "TargetKind": {
+        "description": "Which policy document a ``policy`` proposal targets. ``None`` for a skill proposal.",
+        "enum": [
+          "ranking",
+          "recommendation",
+          "agents"
+        ],
+        "title": "TargetKind",
         "type": "string"
       },
       "TargetOption": {
@@ -11283,6 +13950,952 @@
         "summary": "One job run with its configuration snapshot.",
         "tags": [
           "jobs"
+        ]
+      }
+    },
+    "/learning": {
+      "get": {
+        "operationId": "getLearningOverview",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LearningOverview"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not authenticated."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The role lacks the permission."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A parameter is invalid."
+          }
+        },
+        "summary": "Corpus banner plus proposal, skill, evaluation and experiment counts.",
+        "tags": [
+          "learning"
+        ]
+      }
+    },
+    "/learning/evaluations": {
+      "get": {
+        "operationId": "listLearningEvaluations",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "mode",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/EvaluationMode"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Mode"
+            }
+          },
+          {
+            "in": "query",
+            "name": "gate_result",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/GateResult"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Gate Result"
+            }
+          },
+          {
+            "in": "query",
+            "name": "proposal_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Proposal Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "maximum": 10000000,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListResponse_EvaluationSummary_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not authenticated."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The role lacks the permission."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A parameter is invalid."
+          }
+        },
+        "summary": "Evaluation runs, newest first.",
+        "tags": [
+          "learning"
+        ]
+      }
+    },
+    "/learning/evaluations/{evaluation_id}": {
+      "get": {
+        "operationId": "getLearningEvaluation",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "evaluation_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Evaluation Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvaluationDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not authenticated."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The role lacks the permission."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such record."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A parameter is invalid."
+          }
+        },
+        "summary": "One run: per-suite and per-decision-class metrics, the gate and its reasons.",
+        "tags": [
+          "learning"
+        ]
+      }
+    },
+    "/learning/experiments": {
+      "get": {
+        "operationId": "listExperiments",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/ExperimentStatus"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "maximum": 10000000,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListResponse_ExperimentView_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not authenticated."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The role lacks the permission."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A parameter is invalid."
+          }
+        },
+        "summary": "Experiments. Phase 8 ships policy_ab plumbing only.",
+        "tags": [
+          "learning"
+        ]
+      }
+    },
+    "/learning/experiments/{key}": {
+      "get": {
+        "operationId": "getExperiment",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-z0-9][a-z0-9_-]{2,63}$",
+              "title": "Key",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExperimentDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not authenticated."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The role lacks the permission."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such record."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A parameter is invalid."
+          }
+        },
+        "summary": "One experiment: arms, assignments and the observed (not causal) comparison.",
+        "tags": [
+          "learning"
+        ]
+      }
+    },
+    "/learning/proposals": {
+      "get": {
+        "operationId": "listLearningProposals",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "kind",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/ProposalKind"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Kind"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/ProposalStatus"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "target_kind",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/TargetKind"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Target Kind"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "maximum": 10000000,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListResponse_ProposalSummary_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not authenticated."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The role lacks the permission."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A parameter is invalid."
+          }
+        },
+        "summary": "Learning proposals, newest first.",
+        "tags": [
+          "learning"
+        ]
+      }
+    },
+    "/learning/proposals/{proposal_id}": {
+      "get": {
+        "operationId": "getLearningProposal",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "proposal_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Proposal Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProposalDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not authenticated."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The role lacks the permission."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such record."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A parameter is invalid."
+          }
+        },
+        "summary": "One proposal: the parameter diff, the evidence, every stage transition.",
+        "tags": [
+          "learning"
+        ]
+      }
+    },
+    "/learning/proposals/{proposal_id}/advance": {
+      "post": {
+        "operationId": "advanceLearningProposal",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "proposal_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Proposal Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdvanceProposalRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdvanceProposalResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not authenticated."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The role lacks the permission."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such record."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The advance was refused; one detail carries the PromotionRefusal code."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A parameter is invalid."
+          }
+        },
+        "summary": "Advance a proposal's stage. The only write route of the phase.",
+        "tags": [
+          "learning"
+        ]
+      }
+    },
+    "/learning/proposals/{proposal_id}/candidate": {
+      "get": {
+        "operationId": "getLearningProposalCandidate",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "proposal_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Proposal Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PolicyCandidateView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not authenticated."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The role lacks the permission."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such record."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A parameter is invalid."
+          }
+        },
+        "summary": "The full candidate policy document (operator only).",
+        "tags": [
+          "learning"
+        ]
+      }
+    },
+    "/learning/skills": {
+      "get": {
+        "operationId": "listSkills",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/SkillStatus"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "maximum": 10000000,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListResponse_SkillSummary_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not authenticated."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The role lacks the permission."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A parameter is invalid."
+          }
+        },
+        "summary": "The skill registry.",
+        "tags": [
+          "learning"
+        ]
+      }
+    },
+    "/learning/skills/{name}": {
+      "get": {
+        "operationId": "getSkill",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-z][a-z0-9_]{2,63}$",
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SkillDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not authenticated."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The role lacks the permission."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such record."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A parameter is invalid."
+          }
+        },
+        "summary": "One skill by name: the promoted version, with its history.",
+        "tags": [
+          "learning"
         ]
       }
     },

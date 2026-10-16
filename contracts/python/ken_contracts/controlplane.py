@@ -51,9 +51,26 @@ class EventRecord(FrozenModel):
     subject_id: str | None = None
     payload: dict[str, Any]
     correlation_id: UUID | None = None
+    payload_status: Literal["ok", "unknown_version", "invalid"] = Field(
+        default="ok",
+        description=(
+            "Phase 8, additive (ADR-0016 section 8): the verdict of "
+            "``ken_contracts.events.validate_payload`` for THIS row's ``event_version``. "
+            "``unknown_version``: no model is registered for that version (or the stored name "
+            "is outside the vocabulary) and the payload is returned verbatim. ``invalid``: a "
+            "model exists and the payload does not satisfy it. A stored row is never "
+            "rewritten, so one bad row no longer makes the audit log unreadable."
+        ),
+    )
 
 
-PolicyKind = Literal["taxonomy", "recommendation", "ranking", "agents", "analytics"]
+PolicyKind = Literal["taxonomy", "recommendation", "ranking", "agents", "analytics", "learning"]
+"""The active policy documents ``GET /settings/policies`` serves. ``learning`` is Phase 8's
+additive member (ADR-0016 section 10, the three-place edit ADR-0015 section 12.9.10 records).
+
+A policy document is reserved to ``operator_admin`` through ``read_settings`` (ADR-0013
+section 7), which is also why a learning PROPOSAL's candidate document is served behind
+``read_settings`` and never behind ``read``."""
 
 
 class PolicyDocument(FrozenModel):

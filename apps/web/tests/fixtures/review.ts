@@ -132,6 +132,7 @@ export function eventRecord(overrides: Partial<EventRecord> = {}): EventRecord {
     subject_type: "link_plan",
     subject_id: PLAN_ID,
     payload: { plan_id: PLAN_ID, actor: "user:jane" },
+    payload_status: "ok",
     correlation_id: OPERATION_ID,
     ...overrides,
   };

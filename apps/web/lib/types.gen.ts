@@ -634,6 +634,193 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/learning": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Corpus banner plus proposal, skill, evaluation and experiment counts. */
+        get: operations["getLearningOverview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/learning/evaluations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Evaluation runs, newest first. */
+        get: operations["listLearningEvaluations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/learning/evaluations/{evaluation_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One run: per-suite and per-decision-class metrics, the gate and its reasons. */
+        get: operations["getLearningEvaluation"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/learning/experiments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Experiments. Phase 8 ships policy_ab plumbing only. */
+        get: operations["listExperiments"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/learning/experiments/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One experiment: arms, assignments and the observed (not causal) comparison. */
+        get: operations["getExperiment"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/learning/proposals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Learning proposals, newest first. */
+        get: operations["listLearningProposals"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/learning/proposals/{proposal_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One proposal: the parameter diff, the evidence, every stage transition. */
+        get: operations["getLearningProposal"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/learning/proposals/{proposal_id}/advance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Advance a proposal's stage. The only write route of the phase. */
+        post: operations["advanceLearningProposal"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/learning/proposals/{proposal_id}/candidate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The full candidate policy document (operator only). */
+        get: operations["getLearningProposalCandidate"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/learning/skills": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The skill registry. */
+        get: operations["listSkills"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/learning/skills/{name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One skill by name: the promoted version, with its history. */
+        get: operations["getSkill"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/meta": {
         parameters: {
             query?: never;
@@ -927,6 +1114,36 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * AdvanceProposalRequest
+         * @description ``POST /learning/proposals/{id}/advance`` -- the ONLY write route of the phase.
+         *
+         *     The actor is NEVER in the body: it is derived from the session (``principal.actor``), as
+         *     Phase 3 QA H3 requires and as ``PromotionService.advance`` enforces by taking a
+         *     ``Principal``. ``operation_id`` makes a replay detectable.
+         */
+        AdvanceProposalRequest: {
+            /**
+             * Evaluation Run Id
+             * @description Required for 'promoted'; refused otherwise.
+             */
+            evaluation_run_id?: string | null;
+            note?: components["schemas"]["NoteText"] | null;
+            operation_id: components["schemas"]["OperationId"];
+            reason?: components["schemas"]["ProposalRejectionReason"] | null;
+            to_status: components["schemas"]["ProposalStatus"];
+        };
+        /** AdvanceProposalResponse */
+        AdvanceProposalResponse: {
+            proposal: components["schemas"]["ProposalDetail"];
+            /**
+             * Replayed
+             * @description True when operation_id matched an earlier call.
+             * @default false
+             */
+            replayed: boolean;
+            transition: components["schemas"]["ProposalTransitionView"];
+        };
         /**
          * AgentErrorCode
          * @description Typed, recoverable node failures (TRD section 9). Never exception text.
@@ -1449,6 +1666,31 @@ export interface components {
          */
         ConfounderFlag: "overlapping_changes" | "content_changed" | "post_window_truncated" | "rolled_back_in_window" | "insufficient_data" | "sampled_data" | "synthetic_data";
         /**
+         * CorpusBanner
+         * @description The banner every ``/learning`` screen carries (ADR-0016 15.4 iii / 16.1). Honest by
+         *     construction: the numbers come from the database, and the refusal is a mechanism.
+         */
+        CorpusBanner: {
+            /**
+             * Demonstration Mode
+             * @description Settings.learning_demonstration_mode. True: no promotion can succeed.
+             */
+            demonstration_mode: boolean;
+            /** Min Sample Count */
+            min_sample_count: number;
+            /**
+             * Note
+             * @description A fixed sentence naming the corpus size and that nothing on this data may be promoted. Never model output.
+             */
+            note: string;
+            /** Pages Total */
+            pages_total: number;
+            /** Plans Total */
+            plans_total: number;
+            /** Review Actions Total */
+            review_actions_total: number;
+        };
+        /**
          * CriticReason
          * @enum {string}
          */
@@ -1546,6 +1788,116 @@ export interface components {
              * Format: date
              */
             start: string;
+        };
+        /**
+         * DecisionClassMetrics
+         * @description The TRD section 20 per-class row. ``positive_outcome_rate`` and the calibration fields
+         *     are what Phase 9 needs and what the ADR draft omitted (15.6).
+         */
+        DecisionClassMetrics: {
+            /** Approval Rate */
+            approval_rate: number | null;
+            /**
+             * Calibrated Confidence
+             * @description None until a calibration exists (Phase 9).
+             */
+            calibrated_confidence: number | null;
+            /** Decision Class */
+            decision_class: string;
+            /** Edit Rate */
+            edit_rate: number | null;
+            /** Expected Calibration Error */
+            expected_calibration_error: number | null;
+            /** Mean Raw Confidence */
+            mean_raw_confidence: number | null;
+            /**
+             * Positive Outcome Rate
+             * @description Share with a non-negative measured outcome. BEHAVIOURAL: it may block a gate and may never pass one.
+             */
+            positive_outcome_rate: number | null;
+            /** Reject Rate */
+            reject_rate: number | null;
+            /**
+             * Reliability Bins
+             * @description (bin_upper, observed_rate, n). Reported only.
+             * @default []
+             */
+            reliability_bins: [
+                number,
+                number,
+                number
+            ][];
+            /** Rollback Rate */
+            rollback_rate: number | null;
+            /** Sample Count */
+            sample_count: number;
+            /**
+             * Sufficient
+             * @description sample_count >= the policy's min_sample_count. False forces inconclusive.
+             */
+            sufficient: boolean;
+        };
+        /**
+         * DecisionClassObservation
+         * @description One row of the aggregate table. EVERY number here is computed in SQL/Python by
+         *     ``ken_services.learning.aggregate``; a static test asserts no other module builds
+         *     evidence, and no model-produced number may appear in it.
+         */
+        DecisionClassObservation: {
+            /**
+             * Anchor Edit Char Delta
+             * @description Net characters humans added to or removed from anchors.
+             * @default 0
+             */
+            anchor_edit_char_delta: number;
+            /** Approval Rate */
+            approval_rate: number | null;
+            /** Approvals */
+            approvals: number;
+            /**
+             * Behavioural Flags
+             * @default []
+             */
+            behavioural_flags: components["schemas"]["ConfounderFlag"][];
+            /** Decision Class */
+            decision_class: string;
+            /** Edit Rate */
+            edit_rate: number | null;
+            /** Edits */
+            edits: number;
+            /**
+             * Link Totals
+             * @description ADVISORY (behavioural): may block, never pass.
+             */
+            link_totals: {
+                [key: string]: components["schemas"]["MetricTotals"];
+            };
+            /** Positive Outcome Rate */
+            positive_outcome_rate: number | null;
+            /** Positive Outcomes */
+            positive_outcomes: number;
+            /**
+             * Reason Histogram
+             * @description Structured review reason code -> count.
+             */
+            reason_histogram: {
+                [key: string]: number;
+            };
+            /** Reject Rate */
+            reject_rate: number | null;
+            /** Rejections */
+            rejections: number;
+            /** Rollback Rate */
+            rollback_rate: number | null;
+            /** Rollbacks */
+            rollbacks: number;
+            /** Sample Count */
+            sample_count: number;
+            /**
+             * Sufficient
+             * @description sample_count >= the policy's min_sample_count.
+             */
+            sufficient: boolean;
         };
         /**
          * DependencyCheck
@@ -1878,6 +2230,151 @@ export interface components {
             request_id: string | null;
         };
         /**
+         * EvalSuite
+         * @description Every suite the runner knows. The first seven are the TRD section 19 minimums.
+         *
+         *     TRD section 19 is the SUITE list; the per-decision-class metrics live in TRD section 20
+         *     (``evals/README.md`` section 5 sources them from there). Phase 9 should look in section 20.
+         * @enum {string}
+         */
+        EvalSuite: "destination-selection" | "anchor-selection" | "relationship-detection" | "critic" | "no-action" | "protected-content" | "stale-page-version" | "policy-regression" | "reflection-grounding" | "proposal-safety" | "editorial-agreement";
+        /**
+         * EvaluationDetail
+         * @description ``evaluation_ref`` is ``str(policy_evaluations.id)``; the promotion service accepts
+         *     nothing else.
+         */
+        EvaluationDetail: {
+            /** Baseline Evaluation Id */
+            baseline_evaluation_id: string | null;
+            /** Candidate Id */
+            candidate_id: string | null;
+            /**
+             * Dataset Manifests
+             * @description Dataset name -> manifest sha256, so a run is reproducible from a checkout.
+             */
+            dataset_manifests: {
+                [key: string]: string;
+            };
+            /** Finished At */
+            finished_at: string | null;
+            /**
+             * Gate Reasons
+             * @default []
+             */
+            gate_reasons: components["schemas"]["GateReason"][];
+            gate_result: components["schemas"]["GateResult"];
+            /** Git Sha */
+            git_sha: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Job Run Id
+             * Format: uuid
+             */
+            job_run_id: string;
+            metrics: components["schemas"]["EvaluationMetrics"];
+            mode: components["schemas"]["EvaluationMode"];
+            /** Model Provider */
+            model_provider: string;
+            /**
+             * Model Role Models
+             * @description The RESOLVED model per role at run time.
+             */
+            model_role_models: {
+                [key: string]: string;
+            };
+            /** Policy Shas */
+            policy_shas: {
+                [key: string]: string;
+            };
+            /** Proposal Fingerprint */
+            proposal_fingerprint: string | null;
+            /** Proposal Id */
+            proposal_id: string | null;
+            /** Runner Version */
+            runner_version: string;
+            /** Seed */
+            seed: number | null;
+            /** Skill Id */
+            skill_id: string | null;
+            /**
+             * Started At
+             * Format: date-time
+             */
+            started_at: string;
+            /** Suites */
+            suites: components["schemas"]["EvalSuite"][];
+        };
+        /**
+         * EvaluationMetrics
+         * @description ``policy_evaluations.metrics``. ``by_decision_class`` is REQUIRED (15.7.11): keying it
+         *     by the canonical decision-class form is what lets Phase 9 read calibration without a
+         *     schema change.
+         */
+        EvaluationMetrics: {
+            /**
+             * By Decision Class
+             * @description Canonical decision class -> its metrics. May be empty, never absent.
+             */
+            by_decision_class: {
+                [key: string]: components["schemas"]["DecisionClassMetrics"];
+            };
+            /** By Suite */
+            by_suite: components["schemas"]["SuiteMetrics"][];
+            /** Cases Passed */
+            cases_passed: number;
+            /** Cases Total */
+            cases_total: number;
+        };
+        /**
+         * EvaluationMode
+         * @enum {string}
+         */
+        EvaluationMode: "offline" | "shadow" | "canary";
+        /** EvaluationSummary */
+        EvaluationSummary: {
+            /** Baseline Evaluation Id */
+            baseline_evaluation_id: string | null;
+            /** Candidate Id */
+            candidate_id: string | null;
+            /** Finished At */
+            finished_at: string | null;
+            gate_result: components["schemas"]["GateResult"];
+            /** Git Sha */
+            git_sha: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Job Run Id
+             * Format: uuid
+             */
+            job_run_id: string;
+            mode: components["schemas"]["EvaluationMode"];
+            /** Model Provider */
+            model_provider: string;
+            /** Proposal Fingerprint */
+            proposal_fingerprint: string | null;
+            /** Proposal Id */
+            proposal_id: string | null;
+            /** Runner Version */
+            runner_version: string;
+            /** Skill Id */
+            skill_id: string | null;
+            /**
+             * Started At
+             * Format: date-time
+             */
+            started_at: string;
+            /** Suites */
+            suites: components["schemas"]["EvalSuite"][];
+        };
+        /**
          * EventName
          * @description The TRD.md section 15 vocabulary, plus governed additions.
          *
@@ -1935,10 +2432,30 @@ export interface components {
             payload: {
                 [key: string]: unknown;
             };
+            /**
+             * Payload Status
+             * @description Phase 8, additive (ADR-0016 section 8): the verdict of ``ken_contracts.events.validate_payload`` for THIS row's ``event_version``. ``unknown_version``: no model is registered for that version (or the stored name is outside the vocabulary) and the payload is returned verbatim. ``invalid``: a model exists and the payload does not satisfy it. A stored row is never rewritten, so one bad row no longer makes the audit log unreadable.
+             * @default ok
+             * @enum {string}
+             */
+            payload_status: "ok" | "unknown_version" | "invalid";
             /** Subject Id */
             subject_id: string | null;
             /** Subject Type */
             subject_type: string | null;
+        };
+        /** EvidenceWindow */
+        EvidenceWindow: {
+            /**
+             * End
+             * Format: date
+             */
+            end: string;
+            /**
+             * Start
+             * Format: date
+             */
+            start: string;
         };
         /**
          * ExistingLinkView
@@ -1982,6 +2499,166 @@ export interface components {
             target_page_id: string | null;
         };
         /**
+         * ExperimentArm
+         * @enum {string}
+         */
+        ExperimentArm: "control" | "treatment";
+        /**
+         * ExperimentAssignmentView
+         * @description Deterministic AND materialised: the arm comes from the first 8 bytes of
+         *     ``sha256(key + ':' + str(source_page_id))`` against ``treatment_fraction``, and the row is
+         *     written, so the arm stays auditable even if the hash function ever changes.
+         */
+        ExperimentAssignmentView: {
+            arm: components["schemas"]["ExperimentArm"];
+            /**
+             * Assigned At
+             * Format: date-time
+             */
+            assigned_at: string;
+            /** Assigned By */
+            assigned_by: string;
+            /**
+             * Experiment Id
+             * Format: uuid
+             */
+            experiment_id: string;
+            /**
+             * Source Page Id
+             * Format: uuid
+             */
+            source_page_id: string;
+        };
+        /** ExperimentDetail */
+        ExperimentDetail: {
+            /**
+             * Assignments
+             * @default []
+             */
+            assignments: components["schemas"]["ExperimentAssignmentView"][];
+            /** Candidate Id */
+            candidate_id: string | null;
+            /**
+             * Comparison
+             * @description Per-arm editorial comparison. PERMITTED claim: 'observed difference between arms over [interval], N_control/N_treatment pages, with these confounder flags'. FORBIDDEN: significance, causal lift, revenue, ranking causation.
+             * @default []
+             */
+            comparison: components["schemas"]["DecisionClassMetrics"][];
+            /**
+             * Control Pages
+             * @default 0
+             */
+            control_pages: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Created By */
+            created_by: string;
+            /** Description */
+            description: string;
+            /** Ended At */
+            ended_at: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Key */
+            key: string;
+            kind: components["schemas"]["ExperimentKind"];
+            /** Proposal Id */
+            proposal_id: string | null;
+            /** Started At */
+            started_at: string | null;
+            status: components["schemas"]["ExperimentStatus"];
+            /** Treatment Fraction */
+            treatment_fraction: number;
+            /**
+             * Treatment Pages
+             * @default 0
+             */
+            treatment_pages: number;
+            /**
+             * Unit
+             * @default source_page
+             * @constant
+             */
+            unit: "source_page";
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /**
+         * ExperimentKind
+         * @description Capped to one member. ``holdout`` is CUT entirely (ADR-0016 16.4), not defaulted off:
+         *     withholding links from live pages is a real editorial and SEO cost and remains the user's
+         *     decision, and removing the member also removes the review's arm-contamination bug. No code
+         *     path can withhold a link from a page.
+         * @enum {string}
+         */
+        ExperimentKind: "policy_ab";
+        /**
+         * ExperimentStatus
+         * @enum {string}
+         */
+        ExperimentStatus: "draft" | "active" | "ended";
+        /** ExperimentView */
+        ExperimentView: {
+            /** Candidate Id */
+            candidate_id: string | null;
+            /**
+             * Control Pages
+             * @default 0
+             */
+            control_pages: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Created By */
+            created_by: string;
+            /** Description */
+            description: string;
+            /** Ended At */
+            ended_at: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Key */
+            key: string;
+            kind: components["schemas"]["ExperimentKind"];
+            /** Proposal Id */
+            proposal_id: string | null;
+            /** Started At */
+            started_at: string | null;
+            status: components["schemas"]["ExperimentStatus"];
+            /** Treatment Fraction */
+            treatment_fraction: number;
+            /**
+             * Treatment Pages
+             * @default 0
+             */
+            treatment_pages: number;
+            /**
+             * Unit
+             * @default source_page
+             * @constant
+             */
+            unit: "source_page";
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /**
          * FallbackReason
          * @enum {string}
          */
@@ -1992,6 +2669,26 @@ export interface components {
          * @enum {string}
          */
         FeedbackReason: "good_as_is" | "irrelevant_destination" | "better_destination_exists" | "misleading_anchor" | "unnatural_anchor" | "wrong_placement" | "over_linking" | "duplicate_of_existing_link" | "outdated_or_changed_content" | "sensitive_or_protected" | "reader_journey_mismatch" | "other";
+        /** GateReason */
+        GateReason: {
+            code: components["schemas"]["GateReasonCode"];
+            /** Decision Class */
+            decision_class: string | null;
+            /** @default  */
+            detail: components["schemas"]["NoteText"];
+            suite: components["schemas"]["EvalSuite"] | null;
+        };
+        /**
+         * GateReasonCode
+         * @description Why a gate did not pass. Fixed vocabulary, so the UI never shows prose from a model.
+         * @enum {string}
+         */
+        GateReasonCode: "hard_fail_suite" | "must_not_violation" | "below_min_pass_rate" | "regression_vs_baseline" | "suite_not_run" | "sample_too_small" | "behavioural_signal_negative" | "evidence_not_reproducible" | "frozen_field_touched" | "baseline_missing";
+        /**
+         * GateResult
+         * @enum {string}
+         */
+        GateResult: "pass" | "fail" | "inconclusive";
         /** GeographyMention */
         GeographyMention: {
             /** Geo Id */
@@ -2193,10 +2890,16 @@ export interface components {
         IssueSeverity: "info" | "warning" | "error";
         /**
          * JobKind
-         * @description What a job run does. Adding a member is additive (one per phase).
+         * @description What a job run does. Adding a member is additive.
+         *
+         *     Phases 2-7 added exactly one kind each. **Phase 8 adds two** -- ``evaluation`` (reserved
+         *     here from Phase 0) and ``reflection`` -- so the former "one per phase" rule is amended
+         *     rather than quietly broken (ADR-0016 15.1.6 / 15.7.14). The rule that remains is the one
+         *     that matters: a batch job records itself as a ``job_runs`` row instead of inventing a
+         *     table, and one run of a given kind executes at a time.
          * @enum {string}
          */
-        JobKind: "analysis" | "recommendation" | "agent" | "verification" | "analytics_import" | "evaluation" | "autonomy_shadow";
+        JobKind: "analysis" | "recommendation" | "agent" | "verification" | "analytics_import" | "evaluation" | "reflection" | "autonomy_shadow";
         /** JobRunDetail */
         JobRunDetail: {
             /** Completed At */
@@ -2266,6 +2969,38 @@ export interface components {
              * @description Actor or component that started the run, e.g. 'cli'.
              */
             triggered_by: string;
+        };
+        /**
+         * LearningOverview
+         * @description ``GET /learning``: the banner plus the counts the list screens need.
+         */
+        LearningOverview: {
+            banner: components["schemas"]["CorpusBanner"];
+            /** Evaluations By Gate Result */
+            evaluations_by_gate_result: {
+                [key: string]: number;
+            };
+            /** Experiments By Status */
+            experiments_by_status: {
+                [key: string]: number;
+            };
+            /** Latest Evaluation Run Id */
+            latest_evaluation_run_id: string | null;
+            /** Latest Reflection Run Id */
+            latest_reflection_run_id: string | null;
+            /**
+             * Policy Version
+             * @description The active learning policy version.
+             */
+            policy_version: number;
+            /** Proposals By Status */
+            proposals_by_status: {
+                [key: string]: number;
+            };
+            /** Skills By Status */
+            skills_by_status: {
+                [key: string]: number;
+            };
         };
         /**
          * LinkAttribution
@@ -2748,6 +3483,12 @@ export interface components {
             items: components["schemas"]["DeploymentView"][];
             page: components["schemas"]["PageInfo"];
         };
+        /** ListResponse[EvaluationSummary] */
+        ListResponse_EvaluationSummary_: {
+            /** Items */
+            items: components["schemas"]["EvaluationSummary"][];
+            page: components["schemas"]["PageInfo"];
+        };
         /** ListResponse[EventRecord] */
         ListResponse_EventRecord_: {
             /** Items */
@@ -2758,6 +3499,12 @@ export interface components {
         ListResponse_ExistingLinkView_: {
             /** Items */
             items: components["schemas"]["ExistingLinkView"][];
+            page: components["schemas"]["PageInfo"];
+        };
+        /** ListResponse[ExperimentView] */
+        ListResponse_ExperimentView_: {
+            /** Items */
+            items: components["schemas"]["ExperimentView"][];
             page: components["schemas"]["PageInfo"];
         };
         /** ListResponse[IngestionIssueView] */
@@ -2814,6 +3561,12 @@ export interface components {
             items: components["schemas"]["PageVersionSummary"][];
             page: components["schemas"]["PageInfo"];
         };
+        /** ListResponse[ProposalSummary] */
+        ListResponse_ProposalSummary_: {
+            /** Items */
+            items: components["schemas"]["ProposalSummary"][];
+            page: components["schemas"]["PageInfo"];
+        };
         /** ListResponse[ReviewActionView] */
         ListResponse_ReviewActionView_: {
             /** Items */
@@ -2824,6 +3577,12 @@ export interface components {
         ListResponse_SimilarPage_: {
             /** Items */
             items: components["schemas"]["SimilarPage"][];
+            page: components["schemas"]["PageInfo"];
+        };
+        /** ListResponse[SkillSummary] */
+        ListResponse_SkillSummary_: {
+            /** Items */
+            items: components["schemas"]["SkillSummary"][];
             page: components["schemas"]["PageInfo"];
         };
         /**
@@ -2901,6 +3660,9 @@ export interface components {
          * @enum {string}
          */
         ModelRole: "fast" | "reasoning" | "embedding";
+        NoteText: string;
+        /** Format: uuid */
+        OperationId: string;
         /**
          * OpportunityKind
          * @enum {string}
@@ -3508,7 +4270,7 @@ export interface components {
          * Permission
          * @enum {string}
          */
-        Permission: "read" | "review" | "read_audit" | "read_settings" | "deploy";
+        Permission: "read" | "review" | "read_audit" | "read_settings" | "deploy" | "promote";
         /**
          * PlacementLocator
          * @description Where the anchor goes. Mirrors ``ken_contracts.cms.LinkLocator`` plus offsets.
@@ -3580,6 +4342,96 @@ export interface components {
             /** Policies */
             policies: components["schemas"]["PolicyDocument"][];
         };
+        /**
+         * PolicyCandidateRef
+         * @description Read-safe reference to a stored candidate: identity and digest, never the document.
+         *
+         *     The DOCUMENT is a policy document, and ADR-0013 reserves policy documents to
+         *     ``operator_admin`` through ``read_settings``; exposing a candidate under ``read`` would be
+         *     a permission downgrade. :class:`PolicyCandidateView` carries the document and is served
+         *     only behind ``read_settings``.
+         */
+        PolicyCandidateRef: {
+            /** Base Version */
+            base_version: string;
+            /** Candidate Version */
+            candidate_version: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Document Sha256 */
+            document_sha256: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            policy_kind: components["schemas"]["TargetKind"];
+            /**
+             * Proposal Id
+             * Format: uuid
+             */
+            proposal_id: string;
+        };
+        /**
+         * PolicyCandidateView
+         * @description ``read_settings`` ONLY. The full validated candidate document, so ``offline_test`` is
+         *     replayable without a file on disk.
+         */
+        PolicyCandidateView: {
+            /** Base Version */
+            base_version: string;
+            /** Candidate Version */
+            candidate_version: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Document
+             * @description The validated candidate policy document.
+             */
+            document: {
+                [key: string]: unknown;
+            };
+            /** Document Sha256 */
+            document_sha256: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            policy_kind: components["schemas"]["TargetKind"];
+            /**
+             * Proposal Id
+             * Format: uuid
+             */
+            proposal_id: string;
+        };
+        /**
+         * PolicyChange
+         * @description One parameter change: the path, the value it had, the value proposed.
+         *
+         *     ``from_value`` is what the BASE document held, so the diff a human sees on the promotion
+         *     screen is reconstructable from the row alone. Values are JSON scalars, arrays or objects;
+         *     they are never rendered as code and never interpolated into SQL.
+         */
+        PolicyChange: {
+            /**
+             * From Value
+             * @description The value in the base document (JSON).
+             */
+            from_value: unknown;
+            path: components["schemas"]["PolicyPath"];
+            /**
+             * To Value
+             * @description The proposed value (JSON).
+             */
+            to_value: unknown;
+        };
         /** PolicyDocument */
         PolicyDocument: {
             /**
@@ -3593,7 +4445,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "taxonomy" | "recommendation" | "ranking" | "agents" | "analytics";
+            kind: "taxonomy" | "recommendation" | "ranking" | "agents" | "analytics" | "learning";
             /**
              * Path
              * @description Repository-relative path of the active file.
@@ -3604,6 +4456,7 @@ export interface components {
             /** Version */
             version: number | string;
         };
+        PolicyPath: string;
         /**
          * PrincipalView
          * @description ``GET /auth/me``: who the caller is and what they may do (drives the UI).
@@ -3621,6 +4474,307 @@ export interface components {
             session_expires_at: string;
             /** Username */
             username: string;
+        };
+        /**
+         * PromotionPreview
+         * @description What the human must see before promoting (ADR-0016 section 10), computed, never stored.
+         *
+         *     ``target_paths`` holds EVERY file a promotion would write. For ``ranking`` that is TWO
+         *     files and the write is atomic (15.7.8): the active ranking policy is resolved from
+         *     ``policies/recommendation/recommendation.v1.yaml``'s ``ranking_policy:`` pointer by
+         *     ``resolve_ranking_policy``, NOT from ``Settings`` -- so promoting weights also requires a
+         *     new recommendation document. Only the CLI writes a policy file; the API records the event.
+         */
+        PromotionPreview: {
+            /**
+             * Blocked
+             * @description True while any refusal below applies.
+             */
+            blocked: boolean;
+            /**
+             * Blocked By
+             * @description Empty only when the button may be enabled.
+             * @default []
+             */
+            blocked_by: components["schemas"]["PromotionRefusal"][];
+            /** Next Version */
+            next_version: string;
+            /**
+             * Requires Operator Restart
+             * @description Promotion changes the active policy path and Settings is frozen, so it needs a restart. Hot reload would be a material architecture change (16, open).
+             * @default true
+             */
+            requires_operator_restart: boolean;
+            /**
+             * Rollback To Version
+             * @description The version a rollback would restore.
+             */
+            rollback_to_version: string | null;
+            /**
+             * Target Paths
+             * @description Repository-relative paths the CLI would write.
+             */
+            target_paths: string[];
+        };
+        /**
+         * PromotionRefusal
+         * @description Why :meth:`PromotionService.advance` refused. Fixed vocabulary; the message is the code,
+         *     never exception text and never a database message.
+         * @enum {string}
+         */
+        PromotionRefusal: "demonstration_mode" | "not_a_human" | "permission_denied" | "transition_not_allowed" | "required_stage_missing" | "evaluation_missing" | "evaluation_not_found" | "evaluation_not_passed" | "evaluation_foreign" | "fingerprint_mismatch" | "dataset_changed" | "evaluation_too_old" | "sample_too_small" | "behavioural_block" | "frozen_field" | "reason_required" | "replayed_with_different_body" | "promoter_guard_missing";
+        /** ProposalDetail */
+        ProposalDetail: {
+            /** Base Version */
+            base_version: string;
+            candidate: components["schemas"]["PolicyCandidateRef"] | null;
+            /**
+             * Changes
+             * @description The exact parameter diff; empty for a skill proposal.
+             * @default []
+             */
+            changes: components["schemas"]["PolicyChange"][];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Evaluations
+             * @default []
+             */
+            evaluations: components["schemas"]["EvaluationSummary"][];
+            evidence: components["schemas"]["ProposalEvidence"];
+            /**
+             * Fallback Used
+             * @default false
+             */
+            fallback_used: boolean;
+            /** Fingerprint */
+            fingerprint: string;
+            /**
+             * Frozen Fields Untouched
+             * @description A contract-level assertion, not a computed opinion: a proposal touching a frozen path cannot be constructed, so a stored one never has.
+             * @default true
+             * @constant
+             */
+            frozen_fields_untouched: true;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Job Run Id
+             * Format: uuid
+             */
+            job_run_id: string;
+            kind: components["schemas"]["ProposalKind"];
+            /** Model */
+            model: string | null;
+            promotion: components["schemas"]["PromotionPreview"] | null;
+            /**
+             * Proposed By
+             * @description Always ``system:`` or ``agent:`` (a DB CHECK).
+             */
+            proposed_by: string;
+            /** Rationale */
+            rationale: string;
+            /**
+             * Required Stages
+             * @description The minimum path the gate policy requires for this kind.
+             * @default []
+             */
+            required_stages: components["schemas"]["ProposalStatus"][];
+            skill: components["schemas"]["SkillSummary"] | null;
+            /**
+             * Stages Completed
+             * @default []
+             */
+            stages_completed: components["schemas"]["ProposalStatus"][];
+            status: components["schemas"]["ProposalStatus"];
+            /**
+             * Supersedes
+             * @description Set only by a human (15.3 cut automatic superseding).
+             */
+            supersedes: string | null;
+            /** @description None for a skill. */
+            target_kind: components["schemas"]["TargetKind"] | null;
+            /** Title */
+            title: string;
+            /** Transitions */
+            transitions: components["schemas"]["ProposalTransitionView"][];
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /**
+         * ProposalEvidence
+         * @description ``learning_proposals.evidence``: the observation window, every count, the policy and
+         *     engine versions in scope, and the FULL option set the model chose from (15.7.7), so the
+         *     choice is reconstructable long after the run.
+         */
+        ProposalEvidence: {
+            /** Aggregate Version */
+            aggregate_version: string;
+            /** Analysis Version */
+            analysis_version: string;
+            /** Chosen Index */
+            chosen_index: number;
+            /** Engine Version */
+            engine_version: string;
+            fallback_reason: components["schemas"]["FallbackReason"] | null;
+            /**
+             * Fallback Used
+             * @default false
+             */
+            fallback_used: boolean;
+            /**
+             * Generated At
+             * Format: date-time
+             */
+            generated_at: string;
+            /**
+             * Model
+             * @description Resolved REASONING model, or None when none answered.
+             */
+            model: string | null;
+            /** Observations */
+            observations: components["schemas"]["DecisionClassObservation"][];
+            /** Options */
+            options: components["schemas"]["ProposalOption"][];
+            /**
+             * Policy Versions
+             * @description Policy kind -> the version in scope (ranking, recommendation, agents, taxonomy, analytics, learning).
+             */
+            policy_versions: {
+                [key: string]: string;
+            };
+            /** Sample Count Total */
+            sample_count_total: number;
+            window: components["schemas"]["EvidenceWindow"];
+        };
+        /**
+         * ProposalKind
+         * @enum {string}
+         */
+        ProposalKind: "policy" | "skill";
+        /**
+         * ProposalOption
+         * @description One SERVER-ENUMERATED option. The model picks an index; it never emits a number that is
+         *     stored and never names a field, so it cannot reach a frozen path.
+         */
+        ProposalOption: {
+            /**
+             * Changes
+             * @description Empty for 'do nothing'.
+             * @default []
+             */
+            changes: components["schemas"]["PolicyChange"][];
+            /** Index */
+            index: number;
+            /**
+             * Label
+             * @description Rendered from enum codes.
+             */
+            label: string;
+        };
+        /**
+         * ProposalRejectionReason
+         * @description Structured reason required with ``rejected`` / ``rolled_back`` (ADR-0013's rule that an
+         *     editorial decision carries a code, not only prose).
+         * @enum {string}
+         */
+        ProposalRejectionReason: "insufficient_evidence" | "gate_failed" | "frozen_field" | "out_of_scope" | "risk_too_high" | "superseded_by_newer" | "demonstration_only" | "regression_observed" | "operational_incident";
+        /**
+         * ProposalStatus
+         * @description The lifecycle PRD.md section 10 and CLAUDE.md's Learning Design Rule mandate.
+         *
+         *     Every stage is part of the CONTRACT even where Phase 8 ships no machinery for it: removing
+         *     a stage would bake a deviation from the governing specs into the schema. What Phase 8
+         *     implements is a scheduling choice, recorded per stage below.
+         * @enum {string}
+         */
+        ProposalStatus: "proposed" | "offline_test" | "shadow" | "canary" | "experiment" | "promoted" | "rejected" | "rolled_back" | "withdrawn";
+        /** ProposalSummary */
+        ProposalSummary: {
+            /** Base Version */
+            base_version: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Fallback Used
+             * @default false
+             */
+            fallback_used: boolean;
+            /** Fingerprint */
+            fingerprint: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Job Run Id
+             * Format: uuid
+             */
+            job_run_id: string;
+            kind: components["schemas"]["ProposalKind"];
+            /** Model */
+            model: string | null;
+            /**
+             * Proposed By
+             * @description Always ``system:`` or ``agent:`` (a DB CHECK).
+             */
+            proposed_by: string;
+            status: components["schemas"]["ProposalStatus"];
+            /**
+             * Supersedes
+             * @description Set only by a human (15.3 cut automatic superseding).
+             */
+            supersedes: string | null;
+            /** @description None for a skill. */
+            target_kind: components["schemas"]["TargetKind"] | null;
+            /** Title */
+            title: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /**
+         * ProposalTransitionView
+         * @description One append-only ``learning_proposal_transitions`` row. This table, plus its
+         *     same-transaction ``txid`` guard, is where "no self-promotion" is enforced.
+         */
+        ProposalTransitionView: {
+            /** Actor */
+            actor: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Evaluation Run Id */
+            evaluation_run_id: string | null;
+            from_status: components["schemas"]["ProposalStatus"];
+            /** Id */
+            id: number;
+            /** Note */
+            note: string | null;
+            /**
+             * Proposal Id
+             * Format: uuid
+             */
+            proposal_id: string;
+            reason: components["schemas"]["ProposalRejectionReason"] | null;
+            to_status: components["schemas"]["ProposalStatus"];
         };
         /**
          * ProtectionSource
@@ -4077,6 +5231,105 @@ export interface components {
             /** Title */
             title: string | null;
         };
+        /** SkillDetail */
+        SkillDetail: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Description */
+            description: string;
+            /** Evaluation Run Id */
+            evaluation_run_id: string | null;
+            /**
+             * Evaluation Score
+             * @description Display scalar only. The real record is the policy_evaluations run and its per-suite metric map (TRD section 17 amended, ADR-0016 13.1).
+             */
+            evaluation_score: number | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Input Schema */
+            input_schema: {
+                [key: string]: unknown;
+            };
+            /** Instructions */
+            instructions: string;
+            model_role: components["schemas"]["ModelRole"];
+            /** Name */
+            name: string;
+            /** Output Schema */
+            output_schema: {
+                [key: string]: unknown;
+            };
+            /** Promoted At */
+            promoted_at: string | null;
+            /** Promoted By */
+            promoted_by: string | null;
+            /** Proposal Id */
+            proposal_id: string | null;
+            source: components["schemas"]["SkillSource"];
+            status: components["schemas"]["SkillStatus"];
+            /** Suites */
+            suites: components["schemas"]["EvalSuite"][];
+            /** Version */
+            version: number;
+            /**
+             * Versions
+             * @description Every version of this name, newest first.
+             * @default []
+             */
+            versions: components["schemas"]["SkillSummary"][];
+        };
+        /**
+         * SkillSource
+         * @enum {string}
+         */
+        SkillSource: "human" | "reflection";
+        /**
+         * SkillStatus
+         * @description ``skills.status`` (ADR-0016 section 4). Shorter than the policy ladder on purpose:
+         *     nothing consumes a skill at runtime in Phase 8, so a shadow stage would be theatre.
+         * @enum {string}
+         */
+        SkillStatus: "draft" | "offline_test" | "promoted" | "rejected" | "retired";
+        /** SkillSummary */
+        SkillSummary: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Description */
+            description: string;
+            /** Evaluation Run Id */
+            evaluation_run_id: string | null;
+            /**
+             * Evaluation Score
+             * @description Display scalar only. The real record is the policy_evaluations run and its per-suite metric map (TRD section 17 amended, ADR-0016 13.1).
+             */
+            evaluation_score: number | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Promoted At */
+            promoted_at: string | null;
+            /** Promoted By */
+            promoted_by: string | null;
+            /** Proposal Id */
+            proposal_id: string | null;
+            source: components["schemas"]["SkillSource"];
+            status: components["schemas"]["SkillStatus"];
+            /** Version */
+            version: number;
+        };
         /**
          * SortOrder
          * @enum {string}
@@ -4116,6 +5369,37 @@ export interface components {
          * @enum {string}
          */
         StepStatus: "succeeded" | "skipped" | "failed";
+        /** SuiteMetrics */
+        SuiteMetrics: {
+            /** Baseline Pass Rate */
+            baseline_pass_rate: number | null;
+            /** Cases */
+            cases: number;
+            /** Failed */
+            failed: number;
+            /** Kendall Tau */
+            kendall_tau: number | null;
+            /** Must Not Violations */
+            must_not_violations: number;
+            /**
+             * Pass Rate
+             * @description None when the suite produced no cases.
+             */
+            pass_rate: number | null;
+            /** Passed */
+            passed: number;
+            /** Precision At 1 */
+            precision_at_1: number | null;
+            /** Recall At 3 */
+            recall_at_3: number | null;
+            suite: components["schemas"]["EvalSuite"];
+        };
+        /**
+         * TargetKind
+         * @description Which policy document a ``policy`` proposal targets. ``None`` for a skill proposal.
+         * @enum {string}
+         */
+        TargetKind: "ranking" | "recommendation" | "agents";
         /**
          * TargetOption
          * @description ``GET /recommendations/{id}/target-options``: an eligible replacement destination for
@@ -6408,6 +7692,622 @@ export interface operations {
                 };
             };
             /** @description No such resource. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A parameter is invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    getLearningOverview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LearningOverview"];
+                };
+            };
+            /** @description Not authenticated. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The role lacks the permission. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A parameter is invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    listLearningEvaluations: {
+        parameters: {
+            query?: {
+                mode?: components["schemas"]["EvaluationMode"] | null;
+                gate_result?: components["schemas"]["GateResult"] | null;
+                proposal_id?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListResponse_EvaluationSummary_"];
+                };
+            };
+            /** @description Not authenticated. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The role lacks the permission. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A parameter is invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    getLearningEvaluation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                evaluation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvaluationDetail"];
+                };
+            };
+            /** @description Not authenticated. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The role lacks the permission. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No such record. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A parameter is invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    listExperiments: {
+        parameters: {
+            query?: {
+                status?: components["schemas"]["ExperimentStatus"] | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListResponse_ExperimentView_"];
+                };
+            };
+            /** @description Not authenticated. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The role lacks the permission. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A parameter is invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    getExperiment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExperimentDetail"];
+                };
+            };
+            /** @description Not authenticated. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The role lacks the permission. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No such record. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A parameter is invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    listLearningProposals: {
+        parameters: {
+            query?: {
+                kind?: components["schemas"]["ProposalKind"] | null;
+                status?: components["schemas"]["ProposalStatus"] | null;
+                target_kind?: components["schemas"]["TargetKind"] | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListResponse_ProposalSummary_"];
+                };
+            };
+            /** @description Not authenticated. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The role lacks the permission. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A parameter is invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    getLearningProposal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                proposal_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProposalDetail"];
+                };
+            };
+            /** @description Not authenticated. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The role lacks the permission. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No such record. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A parameter is invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    advanceLearningProposal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                proposal_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdvanceProposalRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdvanceProposalResponse"];
+                };
+            };
+            /** @description Not authenticated. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The role lacks the permission. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No such record. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The advance was refused; one detail carries the PromotionRefusal code. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A parameter is invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    getLearningProposalCandidate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                proposal_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PolicyCandidateView"];
+                };
+            };
+            /** @description Not authenticated. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The role lacks the permission. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No such record. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A parameter is invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    listSkills: {
+        parameters: {
+            query?: {
+                status?: components["schemas"]["SkillStatus"] | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListResponse_SkillSummary_"];
+                };
+            };
+            /** @description Not authenticated. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The role lacks the permission. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A parameter is invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    getSkill: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SkillDetail"];
+                };
+            };
+            /** @description Not authenticated. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The role lacks the permission. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No such record. */
             404: {
                 headers: {
                     [name: string]: unknown;

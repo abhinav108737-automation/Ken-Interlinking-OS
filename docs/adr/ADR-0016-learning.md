@@ -160,6 +160,29 @@ Migration: round trip; content immutability; a status change without a transitio
 
 ---
 
+## 17. Doc-consistency review, and the user's decisions
+
+A second review cross-checked the draft against the governing documents only. It found that **§15.3's and §16.3's cut of CANARY was not the orchestrator's to make**: `CLAUDE.md:88` (the Learning Design Rule), `PRD.md:131` (§10) and `evals/README.md:37-52` all mandate shadow → canary → experiment before any promotion, and `CLAUDE.md:30` forbids silently modifying an architecture decision. It was put to the user instead.
+
+**The user decided (2026-10-16):**
+
+1. **Stages defined, machinery staged.** All nine statuses — `proposed | offline_test | shadow | canary | experiment | promoted | rejected | rolled_back | withdrawn` — exist in the contract and the schema, so nothing contradicts PRD §10. Phase 8 implements SHADOW; CANARY and EXPERIMENT are **stage-defined, machinery deferred to Phase 9**, because both need real traffic and editorial volume to carry information. This supersedes §15.3's "CUT/DEFER" for those two stages and §16.3.
+2. **`holdout` experiments are built, defaulted off**, superseding §16.4's outright cut. `experiments.kind` holds both `holdout` and `policy_ab`; a holdout's `treatment_fraction` is CHECK-constrained to ≤ 0.20 with a 0.10 default; and `Settings.experiments_allow_holdout` defaults **false**, refusing the `draft → active` transition for a holdout while unset. Withholding links from real pages therefore requires an explicit act by the user, but the capability exists.
+
+**Further corrections applied from that review:**
+
+- **Permission.** Anything returning a policy document (`policy_candidates.document`, a promoted document) is served under `read_settings`, not `read`: `ADR-0013:122,:148` reserves policy documents to `operator_admin`, so serving a candidate under `read` would have been a permission downgrade. Proposal, evaluation, skill and experiment *metadata* stays on `read`.
+- **`EvalCase` carries the whole `evals/README.md:100-137` skeleton**, including `decision_class` (which Phase 9 needs), `acceptable_alternatives`, `rationale`, `provenance` and **`privacy{contains_production_data, approval_ref}}` — the last is load-bearing for `evals/README.md:138-151`, which forbids real production data in a suite without a recorded approval reference.
+- **An allowlist conflict fixed.** `ADR-0012:199-201` cross-checks at load that `agents.max_plans_per_run ≤ recommendation.selection.max_plans_per_source`, so a proposal lowering the latter could make the agents policy fail to load. A candidate violating the cross-check is refused at the contract boundary.
+- **The holdout arm-contamination bug.** Arms were assigned by source page while the comparison was a target-page metric, and `locked()` did not stop a control page receiving inbound links. Resolved in the frozen protocol, which states the unit and what a holdout measures.
+- **Four `NoExperiments` injection sites**, not two: `pipeline.py:867` and `:891`, `review/service.py:308` and `:316` (`ADR-0015:375`).
+- **Citations corrected.** `skill.promoted` is **not** a TRD §15 name; it is a governed addition recorded at `docs/CONTRACTS.md:157`. ADR-0012's rule is that agents never *insert, edit, reject, approve or expire* a plan ("edit" was dropped in the draft). `policy-regression` is not a TRD §19 suite either — it comes from the eval-learning-engineer role definition (`evals/README.md:64-76`) and is already scheduled for Phase 8.
+- **Deviations now recorded rather than quietly taken:** TRD §10 lists Learning under *Agent Responsibilities*, while this ADR makes reflection a deterministic job (justified by `CLAUDE.md:20`, "prefer deterministic code over LLM reasoning"); TRD §5 requires a `policies` table that does not and will not exist, since policies are versioned YAML (`ADR-0011:6`) plus `policy_candidates`; `JobKind.REFLECTION` is governed by this ADR alone, as the "one kind per phase" convention has no basis in the documents.
+- **Stale rows to fix while here:** `ADR-0013:148` says `/settings/policies` serves "the four active policy documents" (Phase 7 made it five, `learning` makes it six), and `ADR-0013:55-59`'s role→permission table never gained Phase 6's `deploy`. Both are corrected alongside the new `promote` permission.
+- **PRD §6 non-goals** (`PRD.md:69`) lists "automatic policy/model promotion" as an explicit v1 non-goal — the strongest textual basis for §16.1's zero-promotion enforcement.
+- **PRD §8 is read, not amended.** It requires the system to *learn from* editorial, behavioural and search signals; it does not say any of them may *gate a promotion*. All three streams therefore feed learning, and only editorial evidence may pass a gate, with behavioural signals able to block but never to pass (§16.7). This preserves PRD §8 verbatim and still yields the safety property, so §13.3's proposed amendment is withdrawn.
+- **`review_performance`**, reserved by `ADR-0012:42` for "Phases 6–8", is **not** implemented here and is explicitly carried to Phase 9 in NEXT_STEPS.md rather than left silent.
+
 ### Critical files for implementation
 - /Users/abhinav/Documents/Projects/Ken-Interlinking OS/contracts/python/ken_contracts/events.py
 - /Users/abhinav/Documents/Projects/Ken-Interlinking OS/contracts/python/ken_contracts/recommendations.py

@@ -9,9 +9,10 @@ The API resolves this module by name (``ken_api.deps.CONTROL_PLANE_READER``) and
   counts a still-running run under ``running``.
 * :meth:`list_events` -- the append-only event log, newest first (by id: insertion order is
   total and stable), filtered by event name and/or subject id; rows are re-validated.
-* :meth:`policies` -- the four ACTIVE policy documents (taxonomy, recommendation, ranking,
-  agents), loaded and validated by the existing loaders: the validated model dump, its
-  version, the sha256 of the file's bytes and its repository-relative path (only the file
+* :meth:`policies` -- the ACTIVE policy documents (taxonomy, recommendation, ranking, agents,
+  analytics and, from Phase 8, learning), loaded and validated by the existing loaders: the
+  validated model dump, its version, the sha256 of the file's bytes and its
+  repository-relative path (only the file
   name for a file outside the repository: the filesystem layout is not published).
 """
 
@@ -49,6 +50,7 @@ from ken_core.db.repositories import review as review_repo
 from ken_services.agents.policy import load_configured_agent_policy
 from ken_services.analytics.policy import load_analytics_policy
 from ken_services.intelligence.taxonomy import load_taxonomy
+from ken_services.learning.policy import load_learning_policy
 from ken_services.recommendations.policy import load_recommendation_policy, resolve_ranking_policy
 
 __all__ = ["MAX_LIMIT", "RECENT_REVIEW_ACTIONS", "ControlPlaneReader", "SqlControlPlaneReader"]
@@ -229,6 +231,8 @@ class SqlControlPlaneReader:
         agents = load_configured_agent_policy(settings)
         analytics_path = Path(settings.analytics_policy_path)
         analytics = load_analytics_policy(analytics_path)
+        learning_path = Path(settings.learning_policy_path)
+        learning = load_learning_policy(learning_path)
         documents: list[tuple[PolicyKind, int | str, Path, dict[str, object]]] = [
             ("taxonomy", taxonomy.version, taxonomy_path, taxonomy.model_dump(mode="json")),
             (
@@ -244,6 +248,12 @@ class SqlControlPlaneReader:
                 analytics.version,
                 analytics_path,
                 analytics.model_dump(mode="json"),
+            ),
+            (
+                "learning",
+                learning.version,
+                learning_path,
+                learning.model_dump(mode="json"),
             ),
         ]
         return PoliciesView(

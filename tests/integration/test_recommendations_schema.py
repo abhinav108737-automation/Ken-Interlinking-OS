@@ -837,4 +837,4 @@ def test_downgrade_to_0003_restores_exactly_the_intelligence_schema(
         "link_plan_transitions_immutable",
         "link_candidates_immutable",
     } <= state["triggers"]
-    assert state["revision"] == "0008_analytics"
+    assert state["revision"] == "0009_learning"

@@ -95,6 +95,7 @@ const JOB_KIND_LABEL: Readonly<Record<JobKind, string>> = {
   verification: "Verification",
   analytics_import: "Analytics import",
   evaluation: "Evaluation",
+  reflection: "Reflection",
   autonomy_shadow: "Autonomy shadow",
 };
 

@@ -373,6 +373,31 @@ class Settings(BaseSettings):
         description="Allow a non-loopback collector bind or origin (ASK to enable).",
     )
 
+    # --------------------------------------------------------------- learning
+    # Phase 8 (docs/adr/ADR-0016-learning.md, section 15 binding). Gate thresholds, the sample
+    # floor, the required stage path per kind and the (narrowed) change allowlist are versioned
+    # POLICY DATA. Reading learning data is ALLOW; advancing a proposal needs
+    # Permission.PROMOTE (operator_admin only) -- and even that cannot promote while
+    # demonstration mode is on.
+    learning_policy_path: str = Field(
+        default=str(REPO_ROOT / "policies" / "learning" / "learning.v1.yaml"),
+        description="A relative value is resolved against the repository root.",
+    )
+    learning_demonstration_mode: bool = Field(
+        default=True,
+        description=(
+            "DEFAULT TRUE, and deliberately so (ADR-0016 15.4 / 16.1). The corpus is ~65 "
+            "SYNTHETIC pages, 48 plans and scripted review actions, so the one stream the "
+            "learning design calls trustworthy -- human editorial decisions -- is the stream "
+            "with no real data. While this is set, PromotionService.advance refuses "
+            "to_status='promoted' with a typed DEMONSTRATION_MODE error and every /learning "
+            "screen carries a banner naming the corpus size. Phase 8 therefore exits with "
+            "zero promotions BY CONSTRUCTION rather than by promise. Turning it off is the "
+            "user's decision and does not by itself make anything promotable: a passing "
+            "evaluation bound to the current fingerprint is still required."
+        ),
+    )
+
     # -------------------------------------------------------------- readiness
     require_pgvector: bool = Field(
         default=True,
@@ -427,6 +452,7 @@ class Settings(BaseSettings):
         "recommendation_policy_path",
         "agents_policy_path",
         "analytics_policy_path",
+        "learning_policy_path",
     )
     @classmethod
     def _resolve_against_repo_root(cls, value: str) -> str:

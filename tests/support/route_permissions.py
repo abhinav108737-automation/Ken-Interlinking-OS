@@ -47,6 +47,21 @@ _EXACT: Final[dict[tuple[str, str], str]] = {
     ("GET", "/analytics/links/{plan_id}"): "read",
     ("GET", "/analytics/pages/{page_id}"): "read",
     ("GET", "/analytics/imports"): "read",
+    # Phase 8 (ADR-0016 s10 / s15): GETs are `read`, EXCEPT the candidate policy document,
+    # which ADR-0013 s7 reserves to operator_admin via `read_settings` -- serving a candidate
+    # policy under `read` would be a permission downgrade. The one write route needs `promote`
+    # (operator_admin only), and even that cannot promote while demonstration mode is on.
+    ("GET", "/learning"): "read",
+    ("GET", "/learning/proposals"): "read",
+    ("GET", "/learning/proposals/{proposal_id}"): "read",
+    ("GET", "/learning/proposals/{proposal_id}/candidate"): "read_settings",
+    ("GET", "/learning/evaluations"): "read",
+    ("GET", "/learning/evaluations/{evaluation_id}"): "read",
+    ("GET", "/learning/skills"): "read",
+    ("GET", "/learning/skills/{name}"): "read",
+    ("GET", "/learning/experiments"): "read",
+    ("GET", "/learning/experiments/{key}"): "read",
+    ("POST", "/learning/proposals/{proposal_id}/advance"): "promote",
 }
 _READ_PREFIXES: Final = ("/inventory", "/intelligence", "/jobs", "/recommendations", "/agents")
 
@@ -63,9 +78,12 @@ def expected_permission(method: str, path: str) -> str | None:
 ROLE_PERMISSIONS: Final[dict[str, frozenset[str]]] = {
     "viewer": frozenset({"read"}),
     "reviewer": frozenset({"read", "review"}),
-    "operator_admin": frozenset({"read", "review", "read_audit", "read_settings", "deploy"}),
+    "operator_admin": frozenset(
+        {"read", "review", "read_audit", "read_settings", "deploy", "promote"}
+    ),
 }
-"""Independent copy of the ADR-0013 s3 matrix (plus ADR-0014's ``deploy``, operators only)."""
+"""Independent copy of the ADR-0013 s3 matrix, plus ADR-0014's ``deploy`` and ADR-0016's
+``promote`` -- both operators only."""
 
 _PARAM = re.compile(r"\{([^}]+)\}")
 
@@ -79,6 +97,8 @@ def concrete_path(path: str) -> str:
             return "1"
         if name == "node_id":
             return "ev"
+        if name in {"name", "key"}:
+            return "a_learning_fixture"
         return str(uuid.uuid4())
 
     return _PARAM.sub(fill, path)

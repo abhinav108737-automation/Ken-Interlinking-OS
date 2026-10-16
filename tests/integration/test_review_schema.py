@@ -587,4 +587,4 @@ def test_downgrade_to_0005_restores_exactly_the_agents_schema(
         command.upgrade(alembic_config, "head")
     state = sync_db.run(_state)
     assert state == head
-    assert state["revision"] == "0008_analytics"
+    assert state["revision"] == "0009_learning"

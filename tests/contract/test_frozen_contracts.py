@@ -205,8 +205,8 @@ def _promotion(kind: str = "skill", **overrides: object) -> dict[str, object]:
         "name": "select_natural_anchor",
         "version": "2",
         "previous_version": "1",
-        "promoted_by": "seo-manager@example.com",
-        "evaluation_ref": "eval-run-0001",
+        "promoted_by": "user:seo-manager",
+        "evaluation_ref": "2b4e6a8c-1d3f-4a5b-8c7d-9e0f1a2b3c4d",
     }
     payload.update(overrides)
     return payload
@@ -231,7 +231,7 @@ def test_a_complete_promotion_event_is_accepted(event_name: events.EventName, ki
         subject_id="select_natural_anchor",
         payload=_promotion(kind),
     )
-    assert envelope.payload["promoted_by"] == "seo-manager@example.com"
+    assert envelope.payload["promoted_by"] == "user:seo-manager"
 
 
 @pytest.mark.parametrize(
@@ -243,8 +243,25 @@ def test_a_complete_promotion_event_is_accepted(event_name: events.EventName, ki
         _promotion(version=""),
         {k: v for k, v in _promotion().items() if k != "evaluation_ref"},
         _promotion(unexpected="field"),  # extra keys are a contract violation
+        # Phase 8, ADR-0016 15.7.4: these two used to VALIDATE, which made the module's
+        # "a human authorised this" claim decorative.
+        _promotion(promoted_by="agent:reflector@1"),
+        _promotion(promoted_by="seo-manager@example.com"),
+        _promotion(promoted_by="system:learning"),
+        _promotion(evaluation_ref="eval-run-0001"),
     ],
-    ids=["empty", "no-evaluation", "no-authoriser", "no-version", "missing-eval-key", "extra-key"],
+    ids=[
+        "empty",
+        "no-evaluation",
+        "no-authoriser",
+        "no-version",
+        "missing-eval-key",
+        "extra-key",
+        "agent-authoriser",
+        "bare-email-authoriser",
+        "system-authoriser",
+        "non-uuid-evaluation-ref",
+    ],
 )
 def test_an_ungoverned_skill_promotion_is_rejected(payload: dict[str, object]) -> None:
     with pytest.raises(ValidationError):

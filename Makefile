@@ -24,7 +24,8 @@ export NEXT_TELEMETRY_DISABLED := 1
         ingest-file ingest-cms-mock crawl analyze recommend agents \
         user-create user-list user-disable user-enable user-set-role user-set-password \
         sessions-prune deployments-reconcile jobs-reap cms-sim-seed cms-sim-serve \
-        analytics-import analytics-aggregate analytics-demo-seed analytics-sim-serve
+        analytics-import analytics-aggregate analytics-demo-seed analytics-sim-serve \
+        reflect eval shadow policy-promote experiment-create experiment-assign
 
 help: ## List targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "} {printf "  %-18s %s\n", $$1, $$2}'
@@ -192,6 +193,38 @@ compose-full-up: ## Mode B: full container stack (api, worker, web, postgres)
 
 compose-full-down: ## Stop Mode B app containers; Postgres keeps running for Mode A
 	$(COMPOSE) --profile full stop api worker web
+
+# ----------------------------------------------------------------- learning (Phase 8)
+# CLI-ONLY, deliberately (ADR-0016 section 10): no UI button starts a model run, writes a
+# policy file or triggers egress. The API has GET routes plus ONE write route that records a
+# stage change. These targets resolve `ken_services.learning.cli`, which the Phase 8
+# workstreams land; until then they fail with a module-not-found, like the staged readers.
+#
+# There is deliberately NO experiment-start / experiment-end target: `policy_ab` ships as
+# plumbing only, with `draft` status and no activation path (ADR-0016 16.6), and `holdout` is
+# cut entirely (16.4) so no command can withhold links from a page.
+reflect: ## Corpus-level reflection -> learning proposals: make reflect [START= END= ARGS=--no-model]
+	$(VENV)/python -m ken_services.learning.cli reflect $(if $(START),--start "$(START)") $(if $(END),--end "$(END)") $(ARGS)
+
+eval: ## Offline evaluation: make eval SUITES=critic,no-action [PROPOSAL=<uuid>] [SKILL=<uuid>]
+	@test -n "$(SUITES)" || (echo 'usage: make eval SUITES=<comma-separated> [PROPOSAL=<uuid>] [SKILL=<uuid>]' >&2; exit 2)
+	$(VENV)/python -m ken_services.learning.cli eval --suites "$(SUITES)" $(if $(PROPOSAL),--proposal "$(PROPOSAL)") $(if $(SKILL),--skill "$(SKILL)") $(ARGS)
+
+shadow: ## Re-run selection with a candidate beside production, writing no plans: make shadow CANDIDATE=<uuid>
+	@test -n "$(CANDIDATE)" || (echo 'usage: make shadow CANDIDATE=<uuid>' >&2; exit 2)
+	$(VENV)/python -m ken_services.learning.cli shadow --candidate "$(CANDIDATE)" $(ARGS)
+
+policy-promote: ## Write the promoted policy file(s). Refuses unless a human `promoted` transition with an eval ref exists.
+	@test -n "$(PROPOSAL)" || (echo 'usage: make policy-promote PROPOSAL=<uuid> [ARGS=--apply]' >&2; exit 2)
+	$(VENV)/python -m ken_services.learning.cli policy-promote --proposal "$(PROPOSAL)" $(ARGS)
+
+experiment-create: ## Create a draft policy_ab experiment: make experiment-create KEY=<key> CANDIDATE=<uuid> FRACTION=0.5
+	@test -n "$(KEY)" -a -n "$(CANDIDATE)" || (echo 'usage: make experiment-create KEY=<key> CANDIDATE=<uuid> [FRACTION=0.5]' >&2; exit 2)
+	$(VENV)/python -m ken_services.learning.cli experiment-create --key "$(KEY)" --candidate "$(CANDIDATE)" $(if $(FRACTION),--fraction "$(FRACTION)") $(ARGS)
+
+experiment-assign: ## Materialise the deterministic arm per source page (draft experiments only)
+	@test -n "$(KEY)" || (echo 'usage: make experiment-assign KEY=<key>' >&2; exit 2)
+	$(VENV)/python -m ken_services.learning.cli experiment-assign --key "$(KEY)" $(ARGS)
 
 # ---------------------------------------------------------------- doctor / gate
 doctor: ## Print the environment matrix; non-zero exit only on hard failures

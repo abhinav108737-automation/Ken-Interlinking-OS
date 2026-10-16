@@ -25,7 +25,8 @@ const ROLE: Readonly<Record<Role, { readonly label: string; readonly description
   },
   operator_admin: {
     label: "Operator admin",
-    description: "Everything a reviewer may do, plus deploying approved links, the audit log and read-only settings.",
+    description:
+      "Everything a reviewer may do, plus deploying approved links, advancing learning proposals, the audit log and read-only settings.",
   },
 };
 
@@ -35,6 +36,7 @@ const PERMISSION_LABEL: Readonly<Record<Permission, string>> = {
   read_audit: "Read the audit log",
   read_settings: "Read settings and policies",
   deploy: "Deploy, verify and roll back links",
+  promote: "Advance and promote learning proposals",
 };
 
 export const ROLES = Object.keys(ROLE) as readonly Role[];

@@ -27,6 +27,14 @@ from ken_contracts.errors import ErrorCode, ErrorDetail, ErrorResponse
 from ken_contracts.intelligence import EmbeddingUnavailableError, IntelligenceNotFoundError
 from ken_contracts.inventory import InventoryNotFoundError
 from ken_contracts.jobs import JobRunNotFoundError
+from ken_contracts.learning import (
+    EvaluationNotFoundError,
+    ExperimentNotFoundError,
+    PromotionRefusal,
+    PromotionRefusedError,
+    ProposalNotFoundError,
+    SkillNotFoundError,
+)
 from ken_contracts.recommendations import PlanNotFoundError
 from ken_contracts.review import ReviewError
 from ken_core.logging import get_logger
@@ -339,6 +347,48 @@ async def embedding_unavailable_handler(request: Request, exc: Exception) -> JSO
     return _respond(request, 503, body, {"Retry-After": "30"})
 
 
+_PROMOTION_STATUS: Final[dict[str, int]] = {
+    PromotionRefusal.PERMISSION_DENIED.value: 403,
+    PromotionRefusal.NOT_A_HUMAN.value: 403,
+    PromotionRefusal.EVALUATION_NOT_FOUND.value: 404,
+}
+"""Refusals that are not a 409. Everything else -- demonstration mode, a stale, failed or
+foreign evaluation, a fingerprint mismatch, a missing required stage -- is a 409 ``conflict``.
+The stable :class:`~ken_contracts.learning.PromotionRefusal` value travels as the detail
+``code``, so a client branches on the code and never on the message."""
+
+
+async def learning_not_found_handler(request: Request, exc: Exception) -> JSONResponse:
+    """A missing learning proposal, evaluation, skill or experiment -> 404 ``not_found``."""
+    del exc
+    body = ErrorResponse.of(ErrorCode.NOT_FOUND, "Not found.", request_id=_request_id(request))
+    return _respond(request, 404, body)
+
+
+async def promotion_refused_handler(request: Request, exc: Exception) -> JSONResponse:
+    """``PromotionRefusedError`` (ADR-0016 section 10): the refusal CODE and nothing else.
+
+    No message quotes a policy path, an evaluation id or a database error. The common case in
+    Phase 8 is ``demonstration_mode``: a 409 that says, honestly, that nothing on a synthetic
+    corpus may be promoted."""
+    if not isinstance(exc, PromotionRefusedError):  # registration guarantees it
+        return await unhandled_exception_handler(request, exc)
+    refusal = exc.refusal.value
+    status = _PROMOTION_STATUS.get(refusal, 409)
+    code = (
+        ErrorCode.PERMISSION_DENIED
+        if status == 403
+        else (ErrorCode.NOT_FOUND if status == 404 else ErrorCode.CONFLICT)
+    )
+    body = ErrorResponse.of(
+        code,
+        "The proposal was not advanced.",
+        request_id=_request_id(request),
+        details=[ErrorDetail(message="Refusal reason.", code=refusal)],
+    )
+    return _respond(request, status, body)
+
+
 async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     request_id = _request_id(request)
     logger.error(
@@ -366,4 +416,12 @@ def install_exception_handlers(app: FastAPI) -> None:
     app.add_exception_handler(ReviewError, review_error_handler)
     app.add_exception_handler(DeploymentError, deployment_error_handler)
     app.add_exception_handler(DeploymentNotFoundError, deployment_not_found_handler)
+    for learning_missing in (
+        ProposalNotFoundError,
+        EvaluationNotFoundError,
+        SkillNotFoundError,
+        ExperimentNotFoundError,
+    ):
+        app.add_exception_handler(learning_missing, learning_not_found_handler)
+    app.add_exception_handler(PromotionRefusedError, promotion_refused_handler)
     app.add_exception_handler(Exception, unhandled_exception_handler)

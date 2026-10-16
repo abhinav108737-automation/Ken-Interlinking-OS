@@ -43,8 +43,8 @@ class Role(StrEnum):
     REVIEWER = "reviewer"
     """Approves, rejects and edits recommendations; records editorial feedback."""
     OPERATOR_ADMIN = "operator_admin"
-    """Everything a reviewer may do, plus operator views (audit log, settings, policies) and
-    deployment (Phase 6)."""
+    """Everything a reviewer may do, plus operator views (audit log, settings, policies),
+    deployment (Phase 6) and advancing a learning proposal (Phase 8)."""
 
 
 class Permission(StrEnum):
@@ -58,6 +58,18 @@ class Permission(StrEnum):
     """Non-secret settings and the active policy documents."""
     DEPLOY = "deploy"
     """Phase 6 (ADR-0014): dry-run, deploy, verify and roll back approved plans."""
+    PROMOTE = "promote"
+    """Phase 8 (ADR-0016 section 10, decided in 16.2): advance a learning proposal, including
+    the ASK-level promotion of a skill or policy. ``operator_admin`` ONLY.
+
+    It exists to NARROW who may promote. Reusing ``review`` would let every reviewer promote a
+    policy, which is categorically different from editorial judgement; reusing
+    ``read_settings`` would disguise a write as a read. CLAUDE.md's ASK covers changing
+    authentication SETTINGS, not adding a least-privilege permission.
+
+    Holding it is still not enough to promote anything: ``Settings.learning_demonstration_mode``
+    defaults ``True`` and refuses every promotion, so Phase 8 exits with zero promotions by
+    construction (ADR-0016 16.1)."""
 
 
 ROLE_PERMISSIONS: Final[dict[Role, frozenset[Permission]]] = {
@@ -70,6 +82,7 @@ ROLE_PERMISSIONS: Final[dict[Role, frozenset[Permission]]] = {
             Permission.READ_AUDIT,
             Permission.READ_SETTINGS,
             Permission.DEPLOY,
+            Permission.PROMOTE,
         }
     ),
 }

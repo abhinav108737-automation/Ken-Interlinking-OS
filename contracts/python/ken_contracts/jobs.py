@@ -31,7 +31,14 @@ SUBJECT_JOB_RUN = "job_run"
 
 
 class JobKind(StrEnum):
-    """What a job run does. Adding a member is additive (one per phase)."""
+    """What a job run does. Adding a member is additive.
+
+    Phases 2-7 added exactly one kind each. **Phase 8 adds two** -- ``evaluation`` (reserved
+    here from Phase 0) and ``reflection`` -- so the former "one per phase" rule is amended
+    rather than quietly broken (ADR-0016 15.1.6 / 15.7.14). The rule that remains is the one
+    that matters: a batch job records itself as a ``job_runs`` row instead of inventing a
+    table, and one run of a given kind executes at a time.
+    """
 
     ANALYSIS = "analysis"
     """Phase 2: classification, summaries, embeddings, relationships, protections."""
@@ -44,7 +51,15 @@ class JobKind(StrEnum):
     ANALYTICS_IMPORT = "analytics_import"
     """Phase 7: GA4 / GSC / first-party aggregation."""
     EVALUATION = "evaluation"
-    """Phase 8: offline evaluation of a skill, policy or model."""
+    """Phase 8: offline evaluation of a skill, policy or model. One ``policy_evaluations``
+    row per run, recording every dataset manifest sha256, the provider and the resolved model
+    per role, the seed and the git sha (ADR-0016 section 7)."""
+    REFLECTION = "reflection"
+    """Phase 8: corpus-level reflection over the editorial, behavioural and search streams,
+    producing learning PROPOSALS. A deterministic job, NOT an agent-graph node: the graph is
+    per-source-page and terminates at hand-off (ADR-0012), while reflection spans the corpus.
+    Every number it records is computed by ``ken_services.learning.aggregate``; the optional
+    REASONING call may only pick from a server-enumerated option set."""
     AUTONOMY_SHADOW = "autonomy_shadow"
     """Phase 9: shadow-mode decision-class evaluation."""
 

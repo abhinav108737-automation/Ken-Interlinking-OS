@@ -33,6 +33,7 @@ from ken_api.routers.health import router as health_router
 from ken_api.routers.intelligence import jobs_router
 from ken_api.routers.intelligence import router as intelligence_router
 from ken_api.routers.inventory import router as inventory_router
+from ken_api.routers.learning import router as learning_router
 from ken_api.routers.recommendations import router as recommendations_router
 from ken_api.routers.review import router as review_router
 from ken_contracts.cms import CMSProvider
@@ -177,6 +178,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(controlplane_router)
     app.include_router(deployments_router)
     app.include_router(analytics_router)
+    app.include_router(learning_router)
     _install_openapi(app)
     return app
 

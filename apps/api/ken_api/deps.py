@@ -18,7 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from ken_contracts.agents import AgentReader
 from ken_contracts.analytics import AnalyticsReader
-from ken_contracts.auth import AuthProvider
+from ken_contracts.auth import AuthProvider, Principal
 from ken_contracts.cms import CMSProvider
 from ken_contracts.common import ServiceIdentity
 from ken_contracts.controlplane import DashboardSummary, EventRecord, PoliciesView
@@ -28,6 +28,11 @@ from ken_contracts.events import EventName
 from ken_contracts.intelligence import IntelligenceReader
 from ken_contracts.inventory import InventoryReader
 from ken_contracts.jobs import JobReader
+from ken_contracts.learning import (
+    AdvanceProposalRequest,
+    AdvanceProposalResponse,
+    LearningReader,
+)
 from ken_contracts.model import ModelProvider
 from ken_contracts.recommendations import RecommendationReader
 from ken_contracts.review import ReviewReader, ReviewService, TargetOption
@@ -45,12 +50,31 @@ CONTROL_PLANE_READER: Final = "ken_services.review.controlplane"
 DEPLOYMENT_READER: Final = "ken_services.deployment.reader"
 DEPLOYMENT_COMPOSITION: Final = "ken_services.deployment.compose"
 ANALYTICS_READER: Final = "ken_services.analytics.reader"
+LEARNING_READER: Final = "ken_services.learning.reader"
+LEARNING_SERVICE: Final = "ken_services.learning.promote"
 
 
 class TargetOptionsService(ReviewService, Protocol):
     """The review service plus the replacement-destination picker (ADR-0013 s7)."""
 
     async def target_options(self, *, plan_id: uuid.UUID, limit: int) -> list[TargetOption]: ...
+
+
+class LearningPromotionService(Protocol):
+    """``ken_services.learning.promote.DatabasePromotionService`` (structural).
+
+    The frozen signature lives in ``ken_services.learning.protocol.PromotionService``; this is
+    the structural copy the API depends on, so ``apps/api`` keeps importing contracts only. It
+    takes a :class:`~ken_contracts.auth.Principal` and never an actor string (ADR-0016 15.7.3).
+    """
+
+    async def advance(
+        self,
+        *,
+        principal: Principal,
+        proposal_id: uuid.UUID,
+        request: AdvanceProposalRequest,
+    ) -> AdvanceProposalResponse: ...
 
 
 class ControlPlaneReader(Protocol):
@@ -250,6 +274,39 @@ def get_analytics_reader(
     return reader
 
 
+def get_learning_reader(
+    settings: Annotated[Settings, Depends(get_app_settings)],
+    sessionmaker: Annotated[async_sessionmaker[AsyncSession], Depends(get_readonly_sessionmaker)],
+) -> LearningReader:
+    """``ken_services.learning.reader.SqlLearningReader`` over the READ ONLY factory (Phase 8,
+    ADR-0016 s10). Resolved by name: until the backend workstream lands the module, a learning
+    route answers 500 (the staged-stub convention of earlier phases)."""
+    module: Any = importlib.import_module(LEARNING_READER)
+    reader: LearningReader = module.SqlLearningReader(sessionmaker=sessionmaker, settings=settings)
+    return reader
+
+
+def get_learning_service(
+    request: Request,
+    settings: Annotated[Settings, Depends(get_app_settings)],
+    sessionmaker: Annotated[async_sessionmaker[AsyncSession], Depends(get_sessionmaker)],
+) -> LearningPromotionService:
+    """``app.state.learning_service`` if a caller installed one, else the database promotion
+    service over the READ-WRITE factory.
+
+    It is handed the request's ``Settings`` so that ``learning_demonstration_mode`` is checked
+    by the service and not by the route, and it takes a ``Principal`` per call -- never an
+    actor string (ADR-0016 15.7.3)."""
+    installed = getattr(request.app.state, "learning_service", None)
+    if installed is not None:
+        return cast(LearningPromotionService, installed)
+    module: Any = importlib.import_module(LEARNING_SERVICE)
+    service: LearningPromotionService = module.DatabasePromotionService(
+        sessionmaker=sessionmaker, settings=settings
+    )
+    return service
+
+
 def get_auth_provider_dep(request: Request) -> AuthProvider:
     from ken_api.security import get_auth_provider
 
@@ -271,3 +328,5 @@ AuthProviderDep = Annotated[AuthProvider, Depends(get_auth_provider_dep)]
 DeploymentReaderDep = Annotated[DeploymentReader, Depends(get_deployment_reader)]
 DeploymentServiceDep = Annotated[DeploymentService, Depends(get_deployment_service)]
 AnalyticsReaderDep = Annotated[AnalyticsReader, Depends(get_analytics_reader)]
+LearningReaderDep = Annotated[LearningReader, Depends(get_learning_reader)]
+LearningServiceDep = Annotated[LearningPromotionService, Depends(get_learning_service)]

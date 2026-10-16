@@ -1,0 +1,149 @@
+# Learning policy v1 — Phase 8 (docs/adr/ADR-0016-learning.md; section 15 binding, section 16
+# records the orchestrator's decisions).
+#
+# DATA, NOT CODE: gate thresholds per suite, the hard-fail suite list, the per-decision-class
+# sample floor, how old a passing evaluation may be, the shadow minimums, the minimum stage
+# path per kind, and the change allowlist. Validated on load by
+# ken_contracts.learning.LearningPolicy. Changing anything means learning.v2.yaml, never an
+# in-place edit once released. No agent may promote a policy.
+#
+# THREE THINGS THIS FILE CANNOT DO, because the contract refuses them (ADR-0016 15.2c/15.7.5):
+#   1. widen `changes.allowed_paths` beyond ken_contracts.learning.ALLOWED_CHANGE_PATHS;
+#   2. drop a path from `changes.frozen_paths` below FROZEN_POLICY_PATHS;
+#   3. waive a hard-fail suite, or lower `min_sample_count` below 30.
+# A human-editable document must not be able to undo the safety work; narrowing is allowed,
+# widening is a ValidationError at load.
+policy: learning
+version: 1
+status: baseline
+source: docs/adr/ADR-0016-learning.md sections 7 and 15
+
+gates:
+  # Zero tolerance, and NOT WAIVABLE: the contract validator refuses a list missing any of
+  # these four. protected-content and stale-page-version are the two safety suites TRD §19
+  # already requires; proposal-safety is the anti-injection gate and reflection-grounding the
+  # anti-fabrication gate (every number in a proposal's evidence must re-derive from the DB).
+  hard_fail_suites:
+    - protected-content
+    - stale-page-version
+    - proposal-safety
+    - reflection-grounding
+
+  # Per suite: the floor a run must clear, and the largest drop tolerated against the
+  # recorded baseline run. A hard-fail suite's floor is 1.0 — one failing case fails the gate.
+  suites:
+    destination-selection:
+      min_pass_rate: 0.80
+      max_regression_vs_baseline: 0.05
+    anchor-selection:
+      min_pass_rate: 0.80
+      max_regression_vs_baseline: 0.05
+    relationship-detection:
+      min_pass_rate: 0.75
+      max_regression_vs_baseline: 0.05
+    critic:
+      min_pass_rate: 0.75
+      max_regression_vs_baseline: 0.05
+    no-action:
+      min_pass_rate: 0.90
+      max_regression_vs_baseline: 0.02
+    protected-content:
+      min_pass_rate: 1.0
+      max_regression_vs_baseline: 0.0
+    stale-page-version:
+      min_pass_rate: 1.0
+      max_regression_vs_baseline: 0.0
+    policy-regression:
+      min_pass_rate: 0.90
+      max_regression_vs_baseline: 0.02
+    proposal-safety:
+      min_pass_rate: 1.0
+      max_regression_vs_baseline: 0.0
+    reflection-grounding:
+      min_pass_rate: 1.0
+      max_regression_vs_baseline: 0.0
+    # editorial-agreement is DEFERRED (ADR-0016 15.3): it needs held-out human decisions that
+    # do not exist yet. It is in the suite vocabulary and has no gate here.
+
+  # Per DECISION CLASS (relationship type × anchor source × channel set). Below this a gate is
+  # `inconclusive`, never `pass`. 30 is a floor the contract will not let this file lower.
+  min_sample_count: 30
+
+  # A passing evaluation goes stale: promotion re-checks the age, the fingerprint and the
+  # dataset manifests before it will record anything.
+  promotion_max_eval_age_days: 14
+
+  # SHADOW is the one optional stage with working machinery in Phase 8 (canary and experiment
+  # are stage-defined and deferred, ADR-0016 16.3/16.6).
+  shadow_min_runs: 3
+  shadow_min_plans: 20
+
+  # The MINIMUM path per kind (ADR-0016 15.3 replaces PRD §10's uniform six stages: six is the
+  # MAXIMUM path, and the gate policy declares the minimum). A ranking or recommendation
+  # candidate changes what every future plan looks like, so it must be seen in shadow first;
+  # `agents.critic.accept_min_confidence` and a skill cannot be shadowed meaningfully, because
+  # nothing consumes a skill at runtime in Phase 8.
+  required_stages:
+    ranking:
+      - offline_test
+      - shadow
+    recommendation:
+      - offline_test
+      - shadow
+    agents:
+      - offline_test
+    skill:
+      - offline_test
+
+changes:
+  # A NARROWED copy of ken_contracts.learning.ALLOWED_CHANGE_PATHS. Removing an entry here is
+  # how an operator takes a knob away from learning without a code change.
+  allowed_paths:
+    - ranking.weights.semantic
+    - ranking.weights.taxonomy
+    - ranking.weights.intent
+    - ranking.weights.graph
+    - ranking.weights.geography
+    - ranking.weights.commercial
+    - ranking.weights.underlinked
+    - ranking.weights.historical
+    - recommendation.selection.min_relevance
+    - recommendation.selection.min_score
+    - recommendation.selection.max_plans_per_source
+    - recommendation.selection.max_open_plans_per_target
+    - recommendation.retrieval.semantic_k
+    - recommendation.retrieval.lexical_k
+    - recommendation.retrieval.graph_k
+    - recommendation.retrieval.max_candidates_per_source
+    - recommendation.retrieval.channels_enabled
+    - recommendation.intent_compatibility
+    - recommendation.page_type_targets
+    - recommendation.geography_scores
+    - recommendation.underlinked_inbound_threshold
+    - agents.critic.accept_min_confidence
+    - agents.max_plans_per_run
+
+  # A copy of ken_contracts.learning.FROZEN_POLICY_PATHS. Entries may be ADDED here and never
+  # removed. Each covers itself and everything beneath it.
+  frozen_paths:
+    - recommendation.placement                                  # anchors, blocks, ancestors
+    - recommendation.selection.max_internal_links_per_100_words # density
+    - recommendation.selection.max_links_per_block              # density
+    - recommendation.selection.rejection_cooldown_days          # a human's "no" must stick
+    - recommendation.excluded_target_paths
+    - taxonomy                                                  # protected-page rules
+    - analytics      # measurement must never be tuned by the thing it measures
+    - settings       # process configuration is not policy data
+    - model          # model identity is configuration
+    - auto_approve   # disabled globally in v1 (TRD §20)
+    - autonomy       # Phase 9
+    - learning       # this file: the frozen list may not be learned either
+
+# Pinned at the contract level as well (Literal[True]), so neither this file nor a code path
+# can turn them off:
+#   - a BEHAVIOURAL signal (first-party counts, GA4) may BLOCK a gate and may never pass one;
+#     first-party counts are spoofable (ADR-0015 §12.3);
+#   - SEARCH data (Search Console) is diagnostic only and never gates anything: it is
+#     confounded by seasonality, Google updates and sitewide trends, with no counterfactual.
+behavioural_may_block_only: true
+search_is_diagnostic_only: true

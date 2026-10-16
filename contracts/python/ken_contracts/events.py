@@ -21,14 +21,32 @@ than a database enum, so the vocabulary can grow without a migration.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any, Final, Literal
 from uuid import UUID, uuid4
 
-from pydantic import ConfigDict, Field, model_validator
+from pydantic import ConfigDict, Field, ValidationError, model_validator
 
+from ken_contracts.analytics import AnalyticsUpdatedPayload
+from ken_contracts.auth import USERNAME_PATTERN
 from ken_contracts.common import ContractModel, CorrelationId, FrozenModel
+from ken_contracts.deployment import (
+    LinkDeployedPayload,
+    LinkFailedPayload,
+    LinkRolledBackPayload,
+    LinkVerifiedPayload,
+)
+from ken_contracts.inventory import CrawlCompletedPayload, PageDeletedPayload, PageEventPayload
+from ken_contracts.jobs import JobCompletedPayload
+from ken_contracts.learning import (
+    PROPOSER_PATTERN,
+    EvidenceWindow,
+    SkillSource,
+    TargetKind,
+    is_learnable_path,
+)
 
 
 class EventName(StrEnum):
@@ -86,6 +104,16 @@ class EventName(StrEnum):
     JOB_COMPLETED = "job.completed"
 
 
+PROMOTER_PATTERN: Final = "^user:" + USERNAME_PATTERN.removeprefix("^")
+"""``^user:`` + :data:`~ken_contracts.auth.USERNAME_PATTERN`: the only shape a promotion
+authoriser may have. ``ken_contracts.learning.PROMOTER_ACTOR_PATTERN`` is the literal copy
+migration 0009 uses as a CHECK; a contract test asserts the two agree."""
+EVALUATION_REF_PATTERN: Final = (
+    r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+)
+"""``evaluation_ref`` is ``str(policy_evaluations.id)``: a UUID string, nothing else."""
+
+
 class PromotionAuditPayload(FrozenModel):
     """Required payload of every ``skill.promoted`` / ``policy.promoted`` event.
 
@@ -109,15 +137,22 @@ class PromotionAuditPayload(FrozenModel):
         description="The version it replaces, if any -- what a rollback would restore.",
     )
     promoted_by: str = Field(
-        min_length=1,
+        pattern=PROMOTER_PATTERN,
         description=(
-            "The HUMAN who authorised the promotion. Agents may propose but never "
-            "promote; from Phase 5 this must be an authenticated RBAC principal."
+            "The HUMAN who authorised the promotion: ``user:<username>`` and nothing else. "
+            "Agents may propose but never promote. Phase 8 (ADR-0016 15.7.4) made this a "
+            "PATTERN: until then the docstring claimed a human while "
+            "``promoted_by='agent:reflector@1'`` validated, so the module's central claim was "
+            "decorative. The actor is always derived from the session (ken_contracts.auth)."
         ),
     )
     evaluation_ref: str = Field(
-        min_length=1,
-        description="Identifier of the passing offline/human evaluation that justified promotion.",
+        pattern=EVALUATION_REF_PATTERN,
+        description=(
+            "``str(policy_evaluations.id)`` of the passing evaluation that justified the "
+            "promotion -- a UUID, so the run is resolvable rather than merely cited "
+            "(ADR-0016 section 7 / 15.7.4)."
+        ),
     )
 
 
@@ -178,3 +213,156 @@ class EventEnvelope(ContractModel):
                 f"{kind} name, so every event about it is one indexed query"
             )
         return self
+
+
+# --------------------------------------------------------------------------- #
+# Phase 8 (ADR-0016 section 8): the two new typed payloads.
+#
+# No new event name. ``skill.proposed`` / ``skill.promoted`` / ``policy.proposed`` /
+# ``policy.promoted`` already exist and are exactly the four facts worth announcing;
+# ``skill.promoted`` is a GOVERNED ADDITION recorded in docs/CONTRACTS.md section 12, not a
+# TRD section 15 name. Stage changes live in the append-only ``learning_proposal_transitions``
+# table (queryable, no vocabulary growth) and a finished evaluation is already announced by
+# ``job.completed`` with ``kind=evaluation``.
+# --------------------------------------------------------------------------- #
+class PolicyProposedPayload(FrozenModel):
+    """``policy.proposed`` (``event_version`` 1).
+
+    ``change_paths`` is re-checked against the learning allowlist here, at the event boundary,
+    so a proposal that touched a frozen field cannot even be ANNOUNCED. ``proposed_by`` is
+    constrained to ``system:`` / ``agent:``: a proposal can never claim a human author.
+    """
+
+    model_config = ConfigDict(frozen=True, extra="forbid", str_strip_whitespace=True)
+
+    proposal_id: UUID
+    fingerprint: str = Field(pattern=r"^[0-9a-f]{64}$")
+    target_kind: TargetKind
+    base_version: str = Field(min_length=1, max_length=64)
+    change_paths: tuple[str, ...] = Field(min_length=1, max_length=50)
+    proposed_by: str = Field(pattern=PROPOSER_PATTERN)
+    job_run_id: UUID
+    evidence_window: EvidenceWindow
+    model: str | None = Field(default=None, description="Resolved REASONING model, or None.")
+    fallback_used: bool = False
+
+    @model_validator(mode="after")
+    def _paths_are_learnable(self) -> PolicyProposedPayload:
+        offending = sorted(path for path in self.change_paths if not is_learnable_path(path))
+        if offending:
+            raise ValueError(
+                "a proposal may not change " + ", ".join(offending) + " (frozen or not "
+                "allowlisted in ken_contracts.learning)"
+            )
+        if len(set(self.change_paths)) != len(self.change_paths):
+            raise ValueError("change_paths must be unique")
+        return self
+
+
+class SkillProposedPayload(FrozenModel):
+    """``skill.proposed`` (``event_version`` 1)."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid", str_strip_whitespace=True)
+
+    proposal_id: UUID
+    fingerprint: str = Field(pattern=r"^[0-9a-f]{64}$")
+    name: str = Field(pattern=r"^[a-z][a-z0-9_]{2,63}$")
+    version: int = Field(ge=1)
+    source: SkillSource
+    proposed_by: str = Field(pattern=PROPOSER_PATTERN)
+    job_run_id: UUID
+    model: str | None = None
+    fallback_used: bool = False
+
+
+# --------------------------------------------------------------------------- #
+# Version-aware reads (the owed Phase 0 "cleanup QA M1" item; ADR-0016 section 8 / 15.7.14)
+# --------------------------------------------------------------------------- #
+EVENT_PAYLOAD_MODELS: Final[Mapping[EventName, Mapping[int, type[FrozenModel]]]] = {
+    EventName.PAGE_CREATED: {1: PageEventPayload},
+    EventName.PAGE_UPDATED: {1: PageEventPayload},
+    EventName.PAGE_DELETED: {1: PageDeletedPayload},
+    EventName.CRAWL_COMPLETED: {1: CrawlCompletedPayload},
+    EventName.LINK_DEPLOYED: {1: LinkDeployedPayload},
+    EventName.LINK_VERIFIED: {1: LinkVerifiedPayload},
+    EventName.LINK_FAILED: {1: LinkFailedPayload},
+    EventName.LINK_ROLLED_BACK: {1: LinkRolledBackPayload},
+    EventName.ANALYTICS_UPDATED: {1: AnalyticsUpdatedPayload},
+    EventName.SKILL_PROPOSED: {1: SkillProposedPayload},
+    EventName.SKILL_PROMOTED: {1: PromotionAuditPayload},
+    EventName.POLICY_PROPOSED: {1: PolicyProposedPayload},
+    EventName.POLICY_PROMOTED: {1: PromotionAuditPayload},
+    EventName.JOB_COMPLETED: {1: JobCompletedPayload},
+}
+"""``event_name -> event_version -> the model that validates that version's payload``.
+
+An old row is read by the model registered for ITS ``event_version``. A stored row is NEVER
+rewritten: the registry grows, the log does not change. This is what removes the standing risk
+that one bad row makes the audit log unreadable forever."""
+
+UNTYPED_EVENTS: Final = frozenset(
+    {
+        EventName.LINK_PROPOSED,
+        EventName.LINK_APPROVED,
+        EventName.LINK_REJECTED,
+        EventName.WORKER_HEARTBEAT,
+    }
+)
+"""Names with no payload schema BY DESIGN (their payloads are free-form context). A test
+asserts :data:`EVENT_PAYLOAD_MODELS` and this set together cover every :class:`EventName`, so
+adding a name forces a decision instead of silently defaulting to "untyped"."""
+
+
+class PayloadStatus(StrEnum):
+    """Verdict of :func:`validate_payload`. Also ``EventRecord.payload_status``."""
+
+    OK = "ok"
+    """Validated by the model registered for this (name, version) -- or untyped by design."""
+    UNKNOWN_VERSION = "unknown_version"
+    """No model is registered for this ``event_version``, or the stored event NAME is outside
+    the vocabulary. The payload is returned verbatim; nothing is rewritten."""
+    INVALID = "invalid"
+    """A model exists and the stored payload does not satisfy it."""
+
+
+class PayloadValidation(FrozenModel):
+    """Why a stored payload is ``ok`` / ``unknown_version`` / ``invalid``. Carries no error
+    TEXT: a validation message can quote stored content, and this travels to the audit UI."""
+
+    status: PayloadStatus
+    event_name: EventName | None = Field(
+        default=None, description="None when the stored name is outside the vocabulary."
+    )
+    model: str | None = Field(default=None, description="Class name used, when status is ok.")
+    error_count: int = Field(default=0, ge=0)
+
+
+def validate_payload(*, event_name: str, event_version: int, payload: Any) -> PayloadValidation:
+    """Validate ONE stored event row's payload. NEVER raises, for any input.
+
+    ``list_events`` and the learning readers run every row through this, so a single
+    malformed row degrades to a flagged row instead of a 500 that hides the whole log. The
+    check covers an unknown event NAME too, not only an unknown payload version: before
+    Phase 8 an unknown name broke listing at ``EventName(row.event_name)`` (ADR-0016 15.1.7).
+    """
+    try:
+        name = EventName(event_name)
+    except ValueError:
+        return PayloadValidation(status=PayloadStatus.UNKNOWN_VERSION)
+    try:
+        versions = EVENT_PAYLOAD_MODELS.get(name)
+        if versions is None:
+            return PayloadValidation(status=PayloadStatus.OK, event_name=name)
+        model = versions.get(int(event_version))
+        if model is None:
+            return PayloadValidation(status=PayloadStatus.UNKNOWN_VERSION, event_name=name)
+        try:
+            model.model_validate(payload)
+        except ValidationError as exc:
+            return PayloadValidation(
+                status=PayloadStatus.INVALID, event_name=name, error_count=exc.error_count()
+            )
+        return PayloadValidation(status=PayloadStatus.OK, event_name=name, model=model.__name__)
+    # Totality is the contract: a stored row must never be able to raise out of here.
+    except Exception:
+        return PayloadValidation(status=PayloadStatus.INVALID, event_name=name)

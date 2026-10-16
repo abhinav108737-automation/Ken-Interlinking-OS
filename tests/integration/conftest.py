@@ -46,7 +46,9 @@ from tests.conftest import make_settings
 ALEMBIC_INI = Path(__file__).resolve().parents[2] / "alembic.ini"
 
 TRUNCATE_ALL = (
-    "TRUNCATE link_measurements, page_metrics_daily, link_metrics_daily, link_events, "
+    "TRUNCATE experiment_assignments, experiments, learning_proposal_transitions, "
+    "policy_evaluations, skills, policy_candidates, learning_proposals, "
+    "link_measurements, page_metrics_daily, link_metrics_daily, link_events, "
     "analytics_imports, deployment_verifications, deployment_items, deployments, "
     "review_actions, auth_sessions, users, agent_run_plans, agent_steps, agent_runs, "
     "link_candidates, link_plan_transitions, link_plans, opportunities, "
@@ -419,3 +421,48 @@ ANALYTICS_TRIGGERS = frozenset(
         "link_measurements_immutable",
     }
 )
+
+
+# --------------------------------------------------------------------------- #
+# Migration 0009 (Phase 8): what a downgrade below 0009 removes from the head schema
+# --------------------------------------------------------------------------- #
+LEARNING_TABLES = frozenset(
+    {
+        "learning_proposals",
+        "learning_proposal_transitions",
+        "policy_candidates",
+        "skills",
+        "policy_evaluations",
+        "experiments",
+        "experiment_assignments",
+    }
+)
+LEARNING_FUNCTIONS = frozenset(
+    {
+        "ken_learning_content_guard",
+        "ken_learning_proposal_guard",
+        "ken_learning_promoter_guard",
+        "ken_skill_guard",
+        "ken_experiment_guard",
+        "ken_experiment_assignment_guard",
+    }
+)
+LEARNING_TRIGGERS = frozenset(
+    {
+        "learning_proposals_content_guard",
+        "learning_proposals_no_delete",
+        "learning_proposals_status_integrity",
+        "learning_proposal_transitions_promoter_guard",
+        "learning_proposal_transitions_immutable",
+        "policy_candidates_immutable",
+        "policy_evaluations_immutable",
+        "skills_guard",
+        "skills_no_delete",
+        "experiments_guard",
+        "experiments_no_delete",
+        "experiment_assignments_guard",
+        "experiment_assignments_immutable",
+    }
+)
+LEARNING_PROMOTER_ON = "SELECT set_config('ken.learning_promoter', 'on', true)"
+"""The transaction-local setting migration 0009's guards require for a promotion."""
