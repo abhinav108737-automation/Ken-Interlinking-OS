@@ -175,9 +175,20 @@ describe("activeNavHref", () => {
     expect(activeNavHref(null)).toBeNull();
   });
 
-  it("keeps System in the navigation", () => {
+  // Operations first (ADR-0018 §5): Autonomy and Blocked sit next to the
+  // dashboard, and System stays in the navigation.
+  it("puts the operations entries first and keeps System in the navigation", () => {
     expect(NAV_LINKS.map((link) => link.label)).toEqual([
-      "Dashboard", "Inventory", "Runs", "Intelligence", "Recommendations", "Agents", "Deployments", "Analytics", "Jobs", "Audit", "Settings", "System",
+      "Dashboard", "Autonomy", "Blocked", "Recommendations", "Deployments", "Inventory", "Runs", "Intelligence",
+      "Agents", "Analytics", "Learning", "Jobs", "Audit", "Settings", "System",
     ]);
+    // "Blocked" is a deeper path than "Autonomy", so it must own its own
+    // sub-pages rather than lighting up the Autonomy entry.
+    expect(activeNavHref("/autonomy")).toBe("/autonomy");
+    expect(activeNavHref("/autonomy/decisions")).toBe("/autonomy");
+    expect(activeNavHref("/autonomy/attempts")).toBe("/autonomy");
+    expect(activeNavHref("/autonomy/blocked")).toBe("/autonomy/blocked");
+    expect(activeNavHref("/autonomy/blocked/abc")).toBe("/autonomy/blocked");
+    expect(activeNavHref("/learning/proposals")).toBe("/learning");
   });
 });

@@ -12,7 +12,7 @@
     "refs": "Planner refs are c0.. over the source's unreviewed proposed plans in engine order. Critic refs are c0.. over the CHOSEN plans in chosen order (re-numbered).",
     "model.kind": "recorded: MockModelProvider replays the raw answers (a raw answer that fails the schema is replayed as a ModelSchemaViolationError, exactly as complete_structured raises one); none: no provider; unavailable: the provider raises ModelUnavailableError; timeout: the provider never answers within critic.timeout_seconds.",
     "expect.critic": "The in-state review of each chosen plan, in critic-ref order: verdict and fallback reason (null = the model answered). reasons, when given, are the recorded review row's reasons.",
-    "partition": "Every candidate of the run is in exactly one of handed_off (awaiting_approval, row handed_off=true), recorded_not_handed_off (row handed_off=false, still proposed) and unreviewed (no row; still proposed, or expired by a hook).",
+    "partition": "Every candidate of the run is in exactly one of handed_off (policy_checked, row handed_off=true, verdict accept only), recorded_not_handed_off (verdict reject or uncertain: row handed_off=false, still proposed) and unreviewed (no row; still proposed, or expired by a hook).",
     "groups": "All cases of a group run on ONE fresh ingest -> analyse -> recommend, in file order. A page a case mutates (setup or hook) must not be in another case's footprint (source + targets) of the same group; an edit without re-analysis must precede every analyse of its group.",
     "setup": "Applied after recommend, before the case's first run: protect (an active manual protection), edit (re-ingest the source with one exact find/replace in its body), analyse (run_analysis).",
     "hooks": "Applied mid-run through a wrapper over the real DatabaseAgentBackend: discover = when discover lists the plans (after triage); hand_off = just before the policy-gate transaction."
@@ -127,7 +127,7 @@
           }
         }
       ],
-      "rationale": "The critic accepts both plans: both are handed off (proposed -> critiqued -> policy_checked -> awaiting_approval) and the run recommends (>= 1 accepted plan handed off). Both accepted at raw confidence >= 0.5: risk low."
+      "rationale": "The critic accepts both plans: both are handed off (proposed -> critiqued -> policy_checked) and the run recommends (>= 1 accepted plan handed off). Both accepted at raw confidence >= 0.5: risk low."
     },
     {
       "id": "destination-selection/planner-subset-and-order",
@@ -274,8 +274,8 @@
           },
           "expect": {
             "triage": "optimize",
-            "outcome": "needs_human_review",
-            "status": "awaiting_approval",
+            "outcome": "no_action",
+            "status": "completed",
             "error_code": null,
             "risk_level": "medium",
             "planner_fallback": null,
@@ -298,18 +298,18 @@
                 ]
               }
             ],
-            "handed_off": [
+            "handed_off": [],
+            "recorded_not_handed_off": [
               "/industry-reports/southeast-asia-battery-materials-market",
               "/insights/battery-swapping-electric-two-wheelers-india"
             ],
-            "recorded_not_handed_off": [],
             "unreviewed": [
               "/industry-reports/thailand-electric-vehicle-market"
             ]
           }
         }
       ],
-      "rationale": "max_plans_per_run = 2: the planner's valid three-ref selection is truncated to its first two (c1, c2). Only uncertain plans are handed off, so the outcome is needs_human_review with status awaiting_approval."
+      "rationale": "max_plans_per_run = 2: the planner's valid three-ref selection is truncated to its first two (c1, c2). Only uncertain plans are handed off, so the outcome is needs_human_review with status awaiting_approval. ADR-0019: an uncertain review, and any review that a model problem degraded, is the critic's NO_ACTION: recorded (handed_off=false), the plan stays proposed."
     },
     {
       "id": "critic/accept-and-reject",
@@ -543,8 +543,8 @@
           },
           "expect": {
             "triage": "optimize",
-            "outcome": "needs_human_review",
-            "status": "awaiting_approval",
+            "outcome": "no_action",
+            "status": "completed",
             "error_code": null,
             "risk_level": "medium",
             "planner_fallback": "model_disabled",
@@ -567,16 +567,16 @@
                 ]
               }
             ],
-            "handed_off": [
+            "handed_off": [],
+            "recorded_not_handed_off": [
               "/industry-reports/qatar-logistics-market",
               "/industry-reports/bangladesh-pharmaceutical-market"
             ],
-            "recorded_not_handed_off": [],
             "unreviewed": []
           }
         }
       ],
-      "rationale": "Only uncertain plans handed off: outcome needs_human_review, status awaiting_approval."
+      "rationale": "Only uncertain plans handed off: outcome needs_human_review, status awaiting_approval. ADR-0019: an uncertain review, and any review that a model problem degraded, is the critic's NO_ACTION: recorded (handed_off=false), the plan stays proposed."
     },
     {
       "id": "no-action/ineligible-source-protected",
@@ -763,8 +763,8 @@
           },
           "expect": {
             "triage": "optimize",
-            "outcome": "recommend",
-            "status": "awaiting_approval",
+            "outcome": "no_action",
+            "status": "completed",
             "error_code": null,
             "risk_level": "medium",
             "planner_fallback": "model_disabled",
@@ -780,16 +780,17 @@
               },
               {
                 "target": "/insights/battery-swapping-electric-two-wheelers-india",
-                "verdict": "accept",
+                "verdict": "uncertain",
                 "fallback": "schema_violation",
-                "reasons": []
+                "reasons": [
+                  "low_confidence"
+                ]
               }
             ],
-            "handed_off": [
-              "/insights/battery-swapping-electric-two-wheelers-india"
-            ],
+            "handed_off": [],
             "recorded_not_handed_off": [
-              "/industry-reports/india-lithium-ion-battery-manufacturing-market"
+              "/industry-reports/india-lithium-ion-battery-manufacturing-market",
+              "/insights/battery-swapping-electric-two-wheelers-india"
             ],
             "unreviewed": [],
             "unknown_refs": [
@@ -801,7 +802,7 @@
           }
         }
       ],
-      "rationale": "Schema-valid but wrong refs: c5 was never offered and is dropped (recorded in the step output); c1 is omitted and gets the deterministic rule (0.528 >= 0.5 -> accept) with fallback schema_violation. The model's reject of c0 stands: c0 stays proposed."
+      "rationale": "Schema-valid but wrong refs: c5 was never offered and is dropped (recorded in the step output); c1 is omitted and gets the deterministic rule (0.528 >= 0.5 -> accept) with fallback schema_violation. The model's reject of c0 stands: c0 stays proposed. ADR-0019: an uncertain review, and any review that a model problem degraded, is the critic's NO_ACTION: recorded (handed_off=false), the plan stays proposed."
     },
     {
       "id": "malformed-output/only-unknown-refs",
@@ -840,29 +841,35 @@
           },
           "expect": {
             "triage": "optimize",
-            "outcome": "recommend",
-            "status": "awaiting_approval",
+            "outcome": "no_action",
+            "status": "completed",
             "error_code": null,
-            "risk_level": "low",
+            "risk_level": "medium",
             "planner_fallback": "model_disabled",
             "critique_fallback": "schema_violation",
             "critic": [
               {
                 "target": "/industry-reports/india-battery-energy-storage-market",
-                "verdict": "accept",
-                "fallback": "schema_violation"
+                "verdict": "uncertain",
+                "fallback": "schema_violation",
+                "reasons": [
+                  "low_confidence"
+                ]
               },
               {
                 "target": "/industry-reports/india-electric-two-wheeler-market",
-                "verdict": "accept",
-                "fallback": "schema_violation"
+                "verdict": "uncertain",
+                "fallback": "schema_violation",
+                "reasons": [
+                  "low_confidence"
+                ]
               }
             ],
-            "handed_off": [
+            "handed_off": [],
+            "recorded_not_handed_off": [
               "/industry-reports/india-battery-energy-storage-market",
               "/industry-reports/india-electric-two-wheeler-market"
             ],
-            "recorded_not_handed_off": [],
             "unreviewed": [],
             "unknown_refs": [
               "c2",
@@ -875,7 +882,7 @@
           }
         }
       ],
-      "rationale": "The answer covers none of the offered refs: it is treated as no answer and the rule decides every plan (both >= 0.5 -> accept). A reject aimed at a ref that was never offered never applies to any plan."
+      "rationale": "The answer covers none of the offered refs: it is treated as no answer and the rule decides every plan (both >= 0.5 -> accept). A reject aimed at a ref that was never offered never applies to any plan. ADR-0019: an uncertain review, and any review that a model problem degraded, is the critic's NO_ACTION: recorded (handed_off=false), the plan stays proposed."
     },
     {
       "id": "malformed-output/duplicate-refs",
@@ -903,8 +910,8 @@
           },
           "expect": {
             "triage": "optimize",
-            "outcome": "recommend",
-            "status": "awaiting_approval",
+            "outcome": "no_action",
+            "status": "completed",
             "error_code": null,
             "risk_level": "medium",
             "planner_fallback": "model_disabled",
@@ -912,8 +919,11 @@
             "critic": [
               {
                 "target": "/industry-reports/singapore-cloud-computing-market",
-                "verdict": "accept",
-                "fallback": "schema_violation"
+                "verdict": "uncertain",
+                "fallback": "schema_violation",
+                "reasons": [
+                  "low_confidence"
+                ]
               },
               {
                 "target": "/insights/gcc-data-center-power-demand",
@@ -921,16 +931,16 @@
                 "fallback": "schema_violation"
               }
             ],
-            "handed_off": [
+            "handed_off": [],
+            "recorded_not_handed_off": [
               "/industry-reports/singapore-cloud-computing-market",
               "/insights/gcc-data-center-power-demand"
             ],
-            "recorded_not_handed_off": [],
             "unreviewed": []
           }
         }
       ],
-      "rationale": "Two critiques for c0 fail CriticAssessment validation (at most one per ref): schema violation -> the rule for every plan (0.615 accept, 0.448 uncertain)."
+      "rationale": "Two critiques for c0 fail CriticAssessment validation (at most one per ref): schema violation -> the rule for every plan (0.615 accept, 0.448 uncertain). ADR-0019: an uncertain review, and any review that a model problem degraded, is the critic's NO_ACTION: recorded (handed_off=false), the plan stays proposed."
     },
     {
       "id": "malformed-output/not-json",
@@ -958,8 +968,8 @@
           },
           "expect": {
             "triage": "optimize",
-            "outcome": "recommend",
-            "status": "awaiting_approval",
+            "outcome": "no_action",
+            "status": "completed",
             "error_code": null,
             "risk_level": "medium",
             "planner_fallback": "model_disabled",
@@ -967,8 +977,11 @@
             "critic": [
               {
                 "target": "/industry-reports/qatar-logistics-market",
-                "verdict": "accept",
-                "fallback": "schema_violation"
+                "verdict": "uncertain",
+                "fallback": "schema_violation",
+                "reasons": [
+                  "low_confidence"
+                ]
               },
               {
                 "target": "/industry-reports/philippines-fintech-market",
@@ -976,16 +989,16 @@
                 "fallback": "schema_violation"
               }
             ],
-            "handed_off": [
+            "handed_off": [],
+            "recorded_not_handed_off": [
               "/industry-reports/qatar-logistics-market",
               "/industry-reports/philippines-fintech-market"
             ],
-            "recorded_not_handed_off": [],
             "unreviewed": []
           }
         }
       ],
-      "rationale": "Prose instead of JSON: schema violation -> the rule (0.530 accept, 0.457 uncertain). A model problem never fails the run."
+      "rationale": "Prose instead of JSON: schema violation -> the rule (0.530 accept, 0.457 uncertain). A model problem never fails the run. ADR-0019: an uncertain review, and any review that a model problem degraded, is the critic's NO_ACTION: recorded (handed_off=false), the plan stays proposed."
     },
     {
       "id": "malformed-output/hostile-verdict-approved",
@@ -1024,34 +1037,40 @@
           },
           "expect": {
             "triage": "optimize",
-            "outcome": "recommend",
-            "status": "awaiting_approval",
+            "outcome": "no_action",
+            "status": "completed",
             "error_code": null,
-            "risk_level": "low",
+            "risk_level": "medium",
             "planner_fallback": "model_disabled",
             "critique_fallback": "schema_violation",
             "critic": [
               {
                 "target": "/insights/charging-infrastructure-gaps-southeast-asia",
-                "verdict": "accept",
-                "fallback": "schema_violation"
+                "verdict": "uncertain",
+                "fallback": "schema_violation",
+                "reasons": [
+                  "low_confidence"
+                ]
               },
               {
                 "target": "/industries/automotive",
-                "verdict": "accept",
-                "fallback": "schema_violation"
+                "verdict": "uncertain",
+                "fallback": "schema_violation",
+                "reasons": [
+                  "low_confidence"
+                ]
               }
             ],
-            "handed_off": [
+            "handed_off": [],
+            "recorded_not_handed_off": [
               "/insights/charging-infrastructure-gaps-southeast-asia",
               "/industries/automotive"
             ],
-            "recorded_not_handed_off": [],
             "unreviewed": []
           }
         }
       ],
-      "rationale": "A model trying to approve: 'approved' is not a CriticVerdict, so the output is a schema violation and the rule decides. The plans reach awaiting_approval only: the gate has no edge to approved."
+      "rationale": "A model trying to approve: 'approved' is not a CriticVerdict, so the output is a schema violation and the rule decides. The plans reach awaiting_approval only: the gate has no edge to approved. ADR-0019: an uncertain review, and any review that a model problem degraded, is the critic's NO_ACTION: recorded (handed_off=false), the plan stays proposed."
     },
     {
       "id": "malformed-output/planner-duplicate-refs",
@@ -1246,34 +1265,40 @@
           },
           "expect": {
             "triage": "optimize",
-            "outcome": "recommend",
-            "status": "awaiting_approval",
+            "outcome": "no_action",
+            "status": "completed",
             "error_code": null,
-            "risk_level": "low",
+            "risk_level": "medium",
             "planner_fallback": "model_disabled",
             "critique_fallback": "schema_violation",
             "critic": [
               {
                 "target": "/industry-reports/india-health-insurance-market",
-                "verdict": "accept",
-                "fallback": "schema_violation"
+                "verdict": "uncertain",
+                "fallback": "schema_violation",
+                "reasons": [
+                  "low_confidence"
+                ]
               },
               {
                 "target": "/industry-reports/india-digital-lending-market",
-                "verdict": "accept",
-                "fallback": "schema_violation"
+                "verdict": "uncertain",
+                "fallback": "schema_violation",
+                "reasons": [
+                  "low_confidence"
+                ]
               }
             ],
-            "handed_off": [
+            "handed_off": [],
+            "recorded_not_handed_off": [
               "/industry-reports/india-health-insurance-market",
               "/industry-reports/india-digital-lending-market"
             ],
-            "recorded_not_handed_off": [],
             "unreviewed": []
           }
         }
       ],
-      "rationale": "An explanation over 300 characters fails validation, so the WHOLE answer is discarded (including its reject) and the rule decides both (>= 0.5 -> accept). An invalid answer is not a critic verdict."
+      "rationale": "An explanation over 300 characters fails validation, so the WHOLE answer is discarded (including its reject) and the rule decides both (>= 0.5 -> accept). An invalid answer is not a critic verdict. ADR-0019: an uncertain review, and any review that a model problem degraded, is the critic's NO_ACTION: recorded (handed_off=false), the plan stays proposed."
     },
     {
       "id": "malformed-output/model-unavailable",
@@ -1299,34 +1324,40 @@
           },
           "expect": {
             "triage": "optimize",
-            "outcome": "recommend",
-            "status": "awaiting_approval",
+            "outcome": "no_action",
+            "status": "completed",
             "error_code": null,
-            "risk_level": "low",
+            "risk_level": "medium",
             "planner_fallback": "model_disabled",
             "critique_fallback": "model_unavailable",
             "critic": [
               {
                 "target": "/industry-reports/india-cold-chain-market",
-                "verdict": "accept",
-                "fallback": "model_unavailable"
+                "verdict": "uncertain",
+                "fallback": "model_unavailable",
+                "reasons": [
+                  "low_confidence"
+                ]
               },
               {
                 "target": "/industry-reports/bangladesh-pharmaceutical-market",
-                "verdict": "accept",
-                "fallback": "model_unavailable"
+                "verdict": "uncertain",
+                "fallback": "model_unavailable",
+                "reasons": [
+                  "low_confidence"
+                ]
               }
             ],
-            "handed_off": [
+            "handed_off": [],
+            "recorded_not_handed_off": [
               "/industry-reports/india-cold-chain-market",
               "/industry-reports/bangladesh-pharmaceutical-market"
             ],
-            "recorded_not_handed_off": [],
             "unreviewed": []
           }
         }
       ],
-      "rationale": "The provider raises ModelUnavailableError: the rule decides, fallback model_unavailable, and the run still completes."
+      "rationale": "The provider raises ModelUnavailableError: the rule decides, fallback model_unavailable, and the run still completes. ADR-0019: an uncertain review, and any review that a model problem degraded, is the critic's NO_ACTION: recorded (handed_off=false), the plan stays proposed."
     },
     {
       "id": "malformed-output/model-timeout",
@@ -1355,34 +1386,40 @@
           },
           "expect": {
             "triage": "optimize",
-            "outcome": "recommend",
-            "status": "awaiting_approval",
+            "outcome": "no_action",
+            "status": "completed",
             "error_code": null,
-            "risk_level": "low",
+            "risk_level": "medium",
             "planner_fallback": "model_disabled",
             "critique_fallback": "model_timeout",
             "critic": [
               {
                 "target": "/industry-reports/saudi-arabia-data-center-market",
-                "verdict": "accept",
-                "fallback": "model_timeout"
+                "verdict": "uncertain",
+                "fallback": "model_timeout",
+                "reasons": [
+                  "low_confidence"
+                ]
               },
               {
                 "target": "/industry-reports/saudi-arabia-solar-power-market",
-                "verdict": "accept",
-                "fallback": "model_timeout"
+                "verdict": "uncertain",
+                "fallback": "model_timeout",
+                "reasons": [
+                  "low_confidence"
+                ]
               }
             ],
-            "handed_off": [
+            "handed_off": [],
+            "recorded_not_handed_off": [
               "/industry-reports/saudi-arabia-data-center-market",
               "/industry-reports/saudi-arabia-solar-power-market"
             ],
-            "recorded_not_handed_off": [],
             "unreviewed": []
           }
         }
       ],
-      "rationale": "The model call exceeds critic.timeout_seconds (0.2 s here): fallback model_timeout, the rule decides."
+      "rationale": "The model call exceeds critic.timeout_seconds (0.2 s here): fallback model_timeout, the rule decides. ADR-0019: an uncertain review, and any review that a model problem degraded, is the critic's NO_ACTION: recorded (handed_off=false), the plan stays proposed."
     },
     {
       "id": "malformed-output/no-provider",
@@ -1403,28 +1440,31 @@
           },
           "expect": {
             "triage": "optimize",
-            "outcome": "recommend",
-            "status": "awaiting_approval",
+            "outcome": "no_action",
+            "status": "completed",
             "error_code": null,
-            "risk_level": "low",
+            "risk_level": "medium",
             "planner_fallback": "model_disabled",
             "critique_fallback": "model_unavailable",
             "critic": [
               {
                 "target": "/industry-reports/india-electric-vehicle-market",
-                "verdict": "accept",
-                "fallback": "model_unavailable"
+                "verdict": "uncertain",
+                "fallback": "model_unavailable",
+                "reasons": [
+                  "low_confidence"
+                ]
               }
             ],
-            "handed_off": [
+            "handed_off": [],
+            "recorded_not_handed_off": [
               "/industry-reports/india-electric-vehicle-market"
             ],
-            "recorded_not_handed_off": [],
             "unreviewed": []
           }
         }
       ],
-      "rationale": "No model provider configured while the policy wants the critic: fallback model_unavailable, rule accept (0.634)."
+      "rationale": "No model provider configured while the policy wants the critic: fallback model_unavailable, rule accept (0.634). ADR-0019: an uncertain review, and any review that a model problem degraded, is the critic's NO_ACTION: recorded (handed_off=false), the plan stays proposed."
     },
     {
       "id": "malformed-output/hostile-reject-with-instructions",
@@ -1516,8 +1556,8 @@
           },
           "expect": {
             "triage": "optimize",
-            "outcome": "needs_human_review",
-            "status": "awaiting_approval",
+            "outcome": "no_action",
+            "status": "completed",
             "error_code": null,
             "risk_level": "medium",
             "planner_fallback": "model_disabled",
@@ -1529,15 +1569,15 @@
                 "fallback": "model_disabled"
               }
             ],
-            "handed_off": [
+            "handed_off": [],
+            "recorded_not_handed_off": [
               "/industry-reports/indonesia-electric-two-wheeler-market"
             ],
-            "recorded_not_handed_off": [],
             "unreviewed": []
           }
         }
       ],
-      "rationale": "critic.use_model = false: the rule decides without calling the model (a reject is recorded but must not be used): 0.495 < 0.5 -> uncertain, handed off for a close human look."
+      "rationale": "critic.use_model = false: the rule decides without calling the model (a reject is recorded but must not be used): 0.495 < 0.5 -> uncertain, handed off for a close human look. ADR-0019: an uncertain review, and any review that a model problem degraded, is the critic's NO_ACTION: recorded (handed_off=false), the plan stays proposed."
     },
     {
       "id": "critic/model-disabled-accept",
@@ -1862,28 +1902,31 @@
           },
           "expect": {
             "triage": "optimize",
-            "outcome": "recommend",
-            "status": "awaiting_approval",
+            "outcome": "no_action",
+            "status": "completed",
             "error_code": null,
-            "risk_level": "low",
+            "risk_level": "medium",
             "planner_fallback": "model_disabled",
             "critique_fallback": "schema_violation",
             "critic": [
               {
                 "target": "/industry-reports/singapore-cloud-computing-market",
-                "verdict": "accept",
-                "fallback": "schema_violation"
+                "verdict": "uncertain",
+                "fallback": "schema_violation",
+                "reasons": [
+                  "low_confidence"
+                ]
               }
             ],
-            "handed_off": [
+            "handed_off": [],
+            "recorded_not_handed_off": [
               "/industry-reports/singapore-cloud-computing-market"
             ],
-            "recorded_not_handed_off": [],
             "unreviewed": []
           }
         }
       ],
-      "rationale": "Missing 'critiques' and an undeclared key: schema violation -> rule accept (0.522)."
+      "rationale": "Missing 'critiques' and an undeclared key: schema violation -> rule accept (0.522). ADR-0019: an uncertain review, and any review that a model problem degraded, is the critic's NO_ACTION: recorded (handed_off=false), the plan stays proposed."
     },
     {
       "id": "malformed-output/ref-is-a-url",
@@ -1913,28 +1956,31 @@
           },
           "expect": {
             "triage": "optimize",
-            "outcome": "recommend",
-            "status": "awaiting_approval",
+            "outcome": "no_action",
+            "status": "completed",
             "error_code": null,
-            "risk_level": "low",
+            "risk_level": "medium",
             "planner_fallback": "model_disabled",
             "critique_fallback": "schema_violation",
             "critic": [
               {
                 "target": "/industry-reports/india-rooftop-solar-market",
-                "verdict": "accept",
-                "fallback": "schema_violation"
+                "verdict": "uncertain",
+                "fallback": "schema_violation",
+                "reasons": [
+                  "low_confidence"
+                ]
               }
             ],
-            "handed_off": [
+            "handed_off": [],
+            "recorded_not_handed_off": [
               "/industry-reports/india-rooftop-solar-market"
             ],
-            "recorded_not_handed_off": [],
             "unreviewed": []
           }
         }
       ],
-      "rationale": "A model may refer to plans only by opaque refs: a URL fails the ref pattern -> schema violation -> rule accept (0.539)."
+      "rationale": "A model may refer to plans only by opaque refs: a URL fails the ref pattern -> schema violation -> rule accept (0.539). ADR-0019: an uncertain review, and any review that a model problem degraded, is the critic's NO_ACTION: recorded (handed_off=false), the plan stays proposed."
     },
     {
       "id": "malformed-output/hostile-extra-status-field",
@@ -1965,28 +2011,31 @@
           },
           "expect": {
             "triage": "optimize",
-            "outcome": "recommend",
-            "status": "awaiting_approval",
+            "outcome": "no_action",
+            "status": "completed",
             "error_code": null,
-            "risk_level": "low",
+            "risk_level": "medium",
             "planner_fallback": "model_disabled",
             "critique_fallback": "schema_violation",
             "critic": [
               {
                 "target": "/industry-reports/qatar-logistics-market",
-                "verdict": "accept",
-                "fallback": "schema_violation"
+                "verdict": "uncertain",
+                "fallback": "schema_violation",
+                "reasons": [
+                  "low_confidence"
+                ]
               }
             ],
-            "handed_off": [
+            "handed_off": [],
+            "recorded_not_handed_off": [
               "/industry-reports/qatar-logistics-market"
             ],
-            "recorded_not_handed_off": [],
             "unreviewed": []
           }
         }
       ],
-      "rationale": "A model trying to set a plan status: undeclared fields are forbidden -> schema violation -> rule accept; the plan reaches awaiting_approval only."
+      "rationale": "A model trying to set a plan status: undeclared fields are forbidden -> schema violation -> rule accept; the plan reaches awaiting_approval only. ADR-0019: an uncertain review, and any review that a model problem degraded, is the critic's NO_ACTION: recorded (handed_off=false), the plan stays proposed."
     },
     {
       "id": "critic/uncertain-single",
@@ -2019,8 +2068,8 @@
           },
           "expect": {
             "triage": "optimize",
-            "outcome": "needs_human_review",
-            "status": "awaiting_approval",
+            "outcome": "no_action",
+            "status": "completed",
             "error_code": null,
             "risk_level": "medium",
             "planner_fallback": "model_disabled",
@@ -2035,15 +2084,15 @@
                 ]
               }
             ],
-            "handed_off": [
+            "handed_off": [],
+            "recorded_not_handed_off": [
               "/industry-reports/gcc-energy-storage-market"
             ],
-            "recorded_not_handed_off": [],
             "unreviewed": []
           }
         }
       ],
-      "rationale": "One uncertain plan: handed off with the note, needs_human_review."
+      "rationale": "One uncertain plan: handed off with the note, needs_human_review. ADR-0019: an uncertain review, and any review that a model problem degraded, is the critic's NO_ACTION: recorded (handed_off=false), the plan stays proposed."
     },
     {
       "id": "critic/reject-single",
@@ -2257,17 +2306,17 @@
               }
             ],
             "handed_off": [
-              "/industry-reports/thailand-electric-vehicle-market",
-              "/insights/battery-swapping-electric-two-wheelers-india"
+              "/industry-reports/thailand-electric-vehicle-market"
             ],
             "recorded_not_handed_off": [
-              "/industry-reports/southeast-asia-battery-materials-market"
+              "/industry-reports/southeast-asia-battery-materials-market",
+              "/insights/battery-swapping-electric-two-wheelers-india"
             ],
             "unreviewed": []
           }
         }
       ],
-      "rationale": "accept + reject + uncertain over three plans (planner off, engine order, cap 3): accept and uncertain are handed off; the reject stays proposed."
+      "rationale": "accept + reject + uncertain over three plans (planner off, engine order, cap 3): accept and uncertain are handed off; the reject stays proposed. ADR-0019: an uncertain review, and any review that a model problem degraded, is the critic's NO_ACTION: recorded (handed_off=false), the plan stays proposed."
     },
     {
       "id": "destination-selection/cap-then-remainder",

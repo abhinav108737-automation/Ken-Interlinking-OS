@@ -97,6 +97,9 @@ const JOB_KIND_LABEL: Readonly<Record<JobKind, string>> = {
   evaluation: "Evaluation",
   reflection: "Reflection",
   autonomy_shadow: "Autonomy shadow",
+  autonomy: "Autonomy",
+  graph_metrics: "Graph metrics",
+  vector_index: "Vector index",
 };
 
 const NODE_KIND_LABEL: Readonly<Record<TaxonomyNodeView["kind"], string>> = {

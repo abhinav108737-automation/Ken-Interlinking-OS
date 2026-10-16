@@ -26,8 +26,8 @@ export NEXT_TELEMETRY_DISABLED := 1
         sessions-prune deployments-reconcile jobs-reap cms-sim-seed cms-sim-serve \
         analytics-import analytics-aggregate analytics-demo-seed analytics-sim-serve \
         reflect eval shadow policy-promote experiment-create experiment-assign \
-        qdrant-up qdrant-down qdrant-index qdrant-rebuild qdrant-verify \
-        autonomy autonomy-shadow
+        qdrant-up qdrant-down qdrant-index qdrant-rebuild qdrant-verify graph-metrics \
+        autonomy autonomy-shadow autonomy-run autonomy-dry-run
 
 help: ## List targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "} {printf "  %-18s %s\n", $$1, $$2}'
@@ -77,14 +77,21 @@ qdrant-up: ## Start the Qdrant container on 127.0.0.1:6333/6334 and wait for hea
 qdrant-down: ## Stop the Qdrant container (keeps its storage volume)
 	$(COMPOSE) stop qdrant
 
+# KEN_VECTOR_STORE defaults to `memory` (so the test suite needs no container). These
+# targets exist to maintain the REAL index, so they pin `qdrant`: a process-local store
+# would be filled and discarded in the same breath.
 qdrant-index: ## Idempotent incremental indexing from PostgreSQL (ARGS="--force")
-	$(VENV)/python -m ken_services.vectors.cli index $(ARGS)
+	KEN_VECTOR_STORE=qdrant $(VENV)/python -m ken_services.vectors.cli index $(ARGS)
 
 qdrant-rebuild: ## Drop the collection and refill it from PostgreSQL
-	$(VENV)/python -m ken_services.vectors.cli rebuild $(ARGS)
+	KEN_VECTOR_STORE=qdrant $(VENV)/python -m ken_services.vectors.cli rebuild $(ARGS)
 
 qdrant-verify: ## Drift report in both directions; non-zero exit on drift
-	$(VENV)/python -m ken_services.vectors.cli verify $(ARGS)
+	KEN_VECTOR_STORE=qdrant $(VENV)/python -m ken_services.vectors.cli verify $(ARGS)
+
+# ----------------------------------------------- link-graph metrics (directive s5)
+graph-metrics: ## Compute internal link-graph metrics into page_graph_metrics (deterministic)
+	$(VENV)/python -m ken_services.graph.cli compute $(ARGS)
 
 # ---------------------------------------------------------------- run
 dev: db-up qdrant-up migrate ## Start Postgres + Qdrant + migrate, then run dev-api and dev-web
@@ -229,9 +236,12 @@ compose-full-down: ## Stop Mode B app containers; Postgres keeps running for Mod
 # stage change. These targets resolve `ken_services.learning.cli`, which the Phase 8
 # workstreams land; until then they fail with a module-not-found, like the staged readers.
 #
-# There is deliberately NO experiment-start / experiment-end target: `policy_ab` ships as
-# plumbing only, with `draft` status and no activation path (ADR-0016 16.6), and `holdout` is
-# cut entirely (16.4) so no command can withhold links from a page.
+# There is deliberately NO experiment-start / experiment-end target. `policy_ab` and `holdout`
+# are both built (ADR-0016 17.2), but a holdout withholds inbound links from live pages, so
+# activating one is gated three ways (a 0.20 DB cap, Settings.experiments_allow_holdout =
+# false by default, and a transaction-local activation setting). Activation and ending are
+# reachable only as `python -m ken_services.learning.cli experiment-activate|experiment-end
+# --key K --as-user NAME`, never as a convenience target.
 reflect: ## Corpus-level reflection -> learning proposals: make reflect [START= END= ARGS=--no-model]
 	$(VENV)/python -m ken_services.learning.cli reflect $(if $(START),--start "$(START)") $(if $(END),--end "$(END)") $(ARGS)
 
@@ -247,9 +257,9 @@ policy-promote: ## Write the promoted policy file(s). Refuses unless a human `pr
 	@test -n "$(PROPOSAL)" || (echo 'usage: make policy-promote PROPOSAL=<uuid> [ARGS=--apply]' >&2; exit 2)
 	$(VENV)/python -m ken_services.learning.cli policy-promote --proposal "$(PROPOSAL)" $(ARGS)
 
-experiment-create: ## Create a draft policy_ab experiment: make experiment-create KEY=<key> CANDIDATE=<uuid> FRACTION=0.5
-	@test -n "$(KEY)" -a -n "$(CANDIDATE)" || (echo 'usage: make experiment-create KEY=<key> CANDIDATE=<uuid> [FRACTION=0.5]' >&2; exit 2)
-	$(VENV)/python -m ken_services.learning.cli experiment-create --key "$(KEY)" --candidate "$(CANDIDATE)" $(if $(FRACTION),--fraction "$(FRACTION)") $(ARGS)
+experiment-create: ## Create a DRAFT experiment: make experiment-create KEY=<key> CANDIDATE=<uuid> AS_USER=<name> [KIND=policy_ab|holdout FRACTION=0.5]
+	@test -n "$(KEY)" -a -n "$(AS_USER)" || (echo 'usage: make experiment-create KEY=<key> AS_USER=<operator> [CANDIDATE=<uuid>] [KIND=policy_ab|holdout] [FRACTION=0.5]' >&2; exit 2)
+	$(VENV)/python -m ken_services.learning.cli experiment-create --key "$(KEY)" --as-user "$(AS_USER)" $(if $(KIND),--kind "$(KIND)") $(if $(CANDIDATE),--candidate "$(CANDIDATE)") $(if $(FRACTION),--fraction "$(FRACTION)") $(ARGS)
 
 experiment-assign: ## Materialise the deterministic arm per source page (draft experiments only)
 	@test -n "$(KEY)" || (echo 'usage: make experiment-assign KEY=<key>' >&2; exit 2)
@@ -257,17 +267,30 @@ experiment-assign: ## Materialise the deterministic arm per source page (draft e
 
 # ---------------------------------------------------------------- autonomy (Phase 9)
 # CLI-ONLY (ADR-0018 section 5): no UI button starts an evaluation pass or a publish sweep.
-# The API has GET routes plus ONE operator-override write route. Both targets resolve
-# `ken_services.autonomy.cli`, which the autonomy workstream lands; until then they fail with
-# a module-not-found, like the staged readers.
+# The API has GET routes plus ONE operator-override write route.
 #
 # What actually happens depends on KEN_AUTONOMY_MODE, whose default is `shadow`: `make
-# autonomy` in shadow mode records decisions and publishes nothing.
+# autonomy` in shadow mode records decisions and publishes nothing. Every pass is one
+# `autonomy` / `autonomy_shadow` job run, so `make jobs-reap` applies to a killed pass.
+#
+# A PUBLISHING pass needs AS_USER=<username> (the same spelling `make experiment-create`
+# uses; never USER, which every login shell already exports): `deployments.actor` carries a
+# `^user:` CHECK and `user_id` is a NOT NULL foreign key to `users`, so a CMS write must be
+# attributable to a real operator account with the `deploy` permission (`make user-create`).
+# That is the audit identity for the run, NOT an approval: nobody is asked about any
+# individual link.
 autonomy: ## Evaluate eligible plans under KEN_AUTONOMY_MODE (ARGS="--source PAGE_ID ...")
 	$(VENV)/python -m ken_services.autonomy.cli evaluate $(ARGS)
 
 autonomy-shadow: ## Force a shadow pass: record what WOULD happen, publish nothing
 	$(VENV)/python -m ken_services.autonomy.cli evaluate --mode shadow $(ARGS)
+
+autonomy-run: ## Publish+verify eligible plans as an operator: make autonomy-run AS_USER=…
+	@test -n "$(AS_USER)" || (echo 'usage: make autonomy-run AS_USER=<username> [ARGS="--source PAGE_ID ..."]' >&2; exit 2)
+	$(VENV)/python -m ken_services.autonomy.cli evaluate --as-user "$(AS_USER)" $(ARGS)
+
+autonomy-dry-run: ## Evaluate and print; record nothing (no decisions, transitions, attempts)
+	$(VENV)/python -m ken_services.autonomy.cli evaluate --dry-run $(ARGS)
 
 # ---------------------------------------------------------------- doctor / gate
 doctor: ## Print the environment matrix; non-zero exit only on hard failures

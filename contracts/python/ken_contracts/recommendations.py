@@ -215,9 +215,7 @@ ALLOWED_TRANSITIONS: Final[Mapping[LinkPlanStatus, frozenset[LinkPlanStatus]]] =
     _S.AWAITING_APPROVAL: frozenset(
         {_S.APPROVED, _S.BLOCKED, _S.REJECTED, _S.SUPERSEDED, _S.EXPIRED}
     ),
-    _S.APPROVED: frozenset(
-        {_S.VALIDATED, _S.BLOCKED, _S.REJECTED, _S.SUPERSEDED, _S.EXPIRED}
-    ),
+    _S.APPROVED: frozenset({_S.VALIDATED, _S.BLOCKED, _S.REJECTED, _S.SUPERSEDED, _S.EXPIRED}),
     _S.VALIDATED: frozenset({_S.DEPLOYED, _S.FAILED, _S.EXPIRED}),
     _S.DEPLOYED: frozenset({_S.VERIFIED, _S.FAILED, _S.ROLLED_BACK}),
     _S.VERIFIED: frozenset({_S.MEASURED, _S.ROLLED_BACK}),

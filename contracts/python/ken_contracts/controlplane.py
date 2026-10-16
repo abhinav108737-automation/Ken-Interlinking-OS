@@ -64,7 +64,9 @@ class EventRecord(FrozenModel):
     )
 
 
-PolicyKind = Literal["taxonomy", "recommendation", "ranking", "agents", "analytics", "learning"]
+PolicyKind = Literal[
+    "taxonomy", "recommendation", "ranking", "agents", "analytics", "learning", "autonomy"
+]
 """The active policy documents ``GET /settings/policies`` serves. ``learning`` is Phase 8's
 additive member (ADR-0016 section 10, the three-place edit ADR-0015 section 12.9.10 records).
 

@@ -64,7 +64,7 @@ async def test_first_run_analyses_embeds_and_relates(sessionmaker: SM) -> None:
     embedded = await rows(
         sessionmaker,
         "SELECT model, provider, dimensions, recipe_version, recipe_fingerprint, "
-        "vector_dims(embedding) FROM page_embeddings",
+        "array_length(embedding, 1) FROM page_embeddings",
     )
     assert set(embedded) == {(EMBED_MODEL, "fake-embedder", 4, 1, FINGERPRINT, 4)}
 

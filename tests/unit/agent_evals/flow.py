@@ -77,12 +77,11 @@ TRUNCATE_ALL: Final = (
     "pages, ingestion_issues, ingestion_runs, events RESTART IDENTITY CASCADE"
 )
 """TRUNCATE (not DELETE): the append-only / immutability triggers are row triggers."""
-AFTER_HAND_OFF: Final = frozenset({"proposed", "awaiting_approval", "expired"})
+AFTER_HAND_OFF: Final = frozenset({"proposed", "policy_checked", "expired"})
 """The only plan statuses an agent eval may leave behind (expired only through a hook)."""
 GATE_TRANSITIONS: Final = {
     "critiqued": ("proposed", CRITIC_ACTOR),
     "policy_checked": ("critiqued", POLICY_GATE_ACTOR),
-    "awaiting_approval": ("policy_checked", POLICY_GATE_ACTOR),
 }
 """to_status -> (from_status, actor): the ONLY transitions an agent run may write."""
 EVAL_ACTOR: Final = "system:recommendation-engine"
@@ -508,7 +507,7 @@ async def gate_violations(
     statuses = await rows(sm, "SELECT id, status FROM link_plans")
     for row in statuses:
         if row["status"] not in AFTER_HAND_OFF:
-            out.append(f"G1 plan {row['id']} reached {row['status']} (agents stop at awaiting)")
+            out.append(f"G1 plan {row['id']} reached {row['status']} (agents stop at gate)")
         if row["status"] == "expired" and row["id"] not in expired_by_hook:
             out.append(f"G1 plan {row['id']} expired outside a hook")
     reviews = await rows(
@@ -521,12 +520,14 @@ async def gate_violations(
     by_plan: dict[Any, list[Any]] = {}
     for r in reviews:
         by_plan.setdefault(r["plan_id"], []).append(r)
-        if r["handed_off"] != (r["status"] == "awaiting_approval"):
+        if r["handed_off"] != (r["status"] == "policy_checked"):
             out.append(f"G2 plan {r['plan_id']} handed_off={r['handed_off']} but {r['status']}")
-        if r["handed_off"] and r["verdict"] not in ("accept", "uncertain"):
+        if r["handed_off"] and r["verdict"] != "accept":
             out.append(f"G2 plan {r['plan_id']} handed off with verdict {r['verdict']}")
-        if r["verdict"] == "reject" and (r["handed_off"] or r["status"] != "proposed"):
-            out.append(f"G3 rejected plan {r['plan_id']} is {r['status']}")
+        if r["verdict"] in ("reject", "uncertain") and (
+            r["handed_off"] or r["status"] != "proposed"
+        ):
+            out.append(f"G3 {r['verdict']} plan {r['plan_id']} is {r['status']}")
         if (r["model"] is None) == (r["fallback_reason"] is None):
             out.append(f"G7 plan {r['plan_id']} model/fallback inconsistent")
         if r["fallback_used"] != (r["fallback_reason"] is not None):
@@ -536,8 +537,8 @@ async def gate_violations(
         if r["source_page_id"] != r["run_source"]:
             out.append(f"G2 plan {r['plan_id']} reviewed by another source's run")
     for row in statuses:
-        if row["status"] == "awaiting_approval" and len(by_plan.get(row["id"], ())) != 1:
-            out.append(f"G2 awaiting plan {row['id']} has {len(by_plan.get(row['id'], ()))} rows")
+        if row["status"] == "policy_checked" and len(by_plan.get(row["id"], ())) != 1:
+            out.append(f"G2 handed-on plan {row['id']} has {len(by_plan.get(row['id'], ()))} rows")
     runs = await rows(sm, "SELECT id, status, outcome, trace_id, correlation_id FROM agent_runs")
     for run in runs:
         if run["trace_id"] != uuid.UUID(str(run["correlation_id"])).hex:
@@ -577,11 +578,10 @@ async def gate_violations(
                 f"G6 plan {t['plan_id']}: {t['from_status']} -> {t['to_status']} by {t['actor']}"
             )
     for row in statuses:
-        if row["status"] == "awaiting_approval" and chains.get(row["id"]) != [
+        if row["status"] == "policy_checked" and chains.get(row["id"]) != [
             "proposed",
             "critiqued",
             "policy_checked",
-            "awaiting_approval",
         ]:
             out.append(f"G6 plan {row['id']} chain {chains.get(row['id'])}")
     for result in results:
@@ -591,9 +591,9 @@ async def gate_violations(
             continue
         if state.approval_required is not True:
             out.append(f"G9 run {result.run_id} approval_required is not True")
-        rejected = {r.plan_id for r in state.critic_result if r.verdict.value == "reject"}
-        if rejected & set(state.link_plans):
-            out.append(f"G3 run {result.run_id} handed off a plan its critic rejected")
+        declined = {r.plan_id for r in state.critic_result if r.verdict.value != "accept"}
+        if declined & set(state.link_plans):
+            out.append(f"G3 run {result.run_id} handed on a plan its critic did not accept")
         for plan_id in state.link_plans:
             check = await tools.check_plan(plan_id=plan_id)
             if set(check.problems) - {"not_proposed"}:

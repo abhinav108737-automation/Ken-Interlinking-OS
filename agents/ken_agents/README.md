@@ -14,7 +14,7 @@ load_page → triage → understand → discover → plan → critique → check
 
 The deterministic engine (`make recommend`) is the **only** producer of `proposed` plans.
 An agent run reviews ONE source page's unreviewed proposed plans and hands the worthwhile ones
-to the human queue (`proposed → critiqued → policy_checked → awaiting_approval`) in one service
+on to the autonomy engine (`proposed → critiqued → policy_checked`, accepted plans only; ADR-0019) in one service
 call. Agents never insert, edit, reject, approve or expire a plan; a plan the critic rejects
 stays `proposed` with its review recorded. There is no path to `approved` (AUTO_APPROVE is
 unreachable).

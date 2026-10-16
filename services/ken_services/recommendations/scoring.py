@@ -18,6 +18,18 @@ historical     0 until Phase 8 provides calibrated outcome evidence
 :func:`score_pair` returns the RELEVANCE breakdown (``factors = {}``, ``total = relevance``);
 :func:`with_placement` multiplies in the placement quality once an anchor is found.
 
+**Signals are reported separately, never collapsed** (directive sections 6 and 10).
+:attr:`ScoredPair.signals` lists every measured signal under its own name --
+``semantic_similarity``, ``lexical_similarity``, ``topic_relevance``, ``geography``,
+``destination_priority``, the ``graph_*`` position, ``orphan_recovery_value``,
+``gsc_opportunity`` and ``ga4_engagement`` -- exactly as the generators measured them. The eight
+weighted components above are the FROZEN ranking contract (``RANKING_COMPONENTS``); a signal
+that is not one of them is RECORDED, not weighted, until a new ranking policy version adds a
+component. In particular the analytics signals never enter ``relevance``: first-party counts are
+spoofable, so analytics may surface and may block but never justify (ADR-0016 s16.7).
+:func:`explain_ranking` packages the final score, the full breakdown, the policy versions, the
+(raw) confidence and the per-channel attribution into one record.
+
 Reason codes are derived from the components (never free text), deduplicated and listed in
 :class:`~ken_contracts.recommendations.ReasonCode` declaration order:
 
@@ -42,12 +54,14 @@ from __future__ import annotations
 
 import math
 from collections.abc import Iterable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Final, Literal
 
 from ken_contracts.intelligence import PageAnalysis, RelationshipType, TaxonomyPolicy
 from ken_contracts.recommendations import (
     RANKING_COMPONENTS,
+    CandidateAttribution,
+    GraphSignals,
     RankingPolicy,
     ReasonCode,
     RecommendationPolicy,
@@ -64,10 +78,12 @@ __all__ = [
     "MARKET_STRUCTURE_TYPES",
     "PLACEMENT_FACTOR",
     "PairFeatures",
+    "RankingExplanation",
     "ScoredPair",
     "anchor_reason_code",
     "channel_reason_codes",
     "channel_scores_for",
+    "explain_ranking",
     "geography_match",
     "merge_reason_codes",
     "score_pair",
@@ -137,6 +153,14 @@ class PairFeatures:
     """Current internal links from the source to pages in the target's market."""
     target_inbound_links: int
     """Current internal links into the target from any current page."""
+    lexical_similarity: float | None = None
+    """``ts_rank_cd`` the lexical generator measured; recorded, not weighted."""
+    graph: GraphSignals | None = None
+    """The target's link-graph position (``page_graph_metrics``); recorded, not weighted."""
+    orphan_recovery_value: float | None = None
+    gsc_opportunity: float | None = None
+    ga4_engagement: float | None = None
+    """Analytics signals: surfaced and recorded; they never enter ``relevance``."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -147,6 +171,8 @@ class ScoredPair:
     relationship_type: RelationshipType | None
     component_values: Mapping[str, float]
     """Component name -> value, in ``RANKING_COMPONENTS`` order."""
+    signals: Mapping[str, float] = field(default_factory=dict)
+    """Every measured signal under its own name (module docstring); never summed."""
 
 
 def _clamp(value: float) -> float:
@@ -232,6 +258,36 @@ def channel_scores_for(scores: Mapping[RetrievalChannel, float]) -> dict[str, fl
     }
 
 
+def _signals(
+    features: PairFeatures, *, values: Mapping[str, float], topic_relevance: float
+) -> dict[str, float]:
+    """The separate signals of one pair, each under its own name (only those measured)."""
+    out: dict[str, float] = {}
+    if features.cosine is not None and not math.isnan(features.cosine):
+        out["semantic_similarity"] = max(-1.0, min(1.0, features.cosine))
+    if features.lexical_similarity is not None and math.isfinite(features.lexical_similarity):
+        out["lexical_similarity"] = features.lexical_similarity
+    out["topic_relevance"] = topic_relevance
+    out["geography"] = values["geography"]
+    out["destination_priority"] = values["commercial"]
+    out["underlinked"] = values["underlinked"]
+    if features.graph is not None:
+        out["graph_in_degree"] = float(features.graph.in_degree)
+        out["graph_out_degree"] = float(features.graph.out_degree)
+        out["graph_pagerank"] = features.graph.internal_pagerank
+        out["graph_hub_score"] = features.graph.hub_score
+        out["graph_authority_score"] = features.graph.authority_score
+        if features.graph.crawl_depth is not None:
+            out["graph_crawl_depth"] = float(features.graph.crawl_depth)
+        out["graph_is_orphan"] = 1.0 if features.graph.is_orphan else 0.0
+        out["graph_is_bridge"] = 1.0 if features.graph.is_bridge else 0.0
+    for name in ("orphan_recovery_value", "gsc_opportunity", "ga4_engagement"):
+        value = getattr(features, name)
+        if value is not None and math.isfinite(value):
+            out[name] = float(value)
+    return out
+
+
 def score_pair(
     features: PairFeatures,
     *,
@@ -315,6 +371,7 @@ def score_pair(
         reason_codes=merge_reason_codes(codes),
         relationship_type=relationship_type,
         component_values=dict(values),
+        signals=_signals(features, values=values, topic_relevance=_clamp(taxonomy_value)),
     )
 
 
@@ -332,4 +389,52 @@ def with_placement(breakdown: ScoreBreakdown, placement_quality: float) -> Score
         semantic_floor=breakdown.semantic_floor,
         policy_name=breakdown.policy_name,
         policy_version=breakdown.policy_version,
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class RankingExplanation:
+    """Everything a reviewer, an eval or the learning pipeline needs to see about one rank
+    (directive section 10): the final score, the full weighted breakdown, the SEPARATE signals,
+    both policy versions, the confidence and which generators nominated the candidate."""
+
+    final_score: float
+    confidence: float
+    calibration_version: str | None
+    """``None`` = the confidence is RAW; no threshold may treat it as calibrated."""
+    components: tuple[ScoreComponent, ...]
+    factors: Mapping[str, float]
+    signals: Mapping[str, float]
+    ranking_policy_name: str
+    ranking_policy_version: int
+    recommendation_policy_version: int
+    sources: tuple[RetrievalChannel, ...]
+    attribution: tuple[CandidateAttribution, ...]
+
+
+def explain_ranking(
+    final: ScoreBreakdown,
+    scored: ScoredPair,
+    *,
+    channels: Iterable[RetrievalChannel],
+    attribution: Iterable[CandidateAttribution],
+    recommendation_policy_version: int,
+) -> RankingExplanation:
+    """Package a FINAL breakdown (``with_placement``) with its signals and attribution.
+
+    The confidence is the raw final score until a calibration exists; callers that calibrate
+    replace it and set ``calibration_version`` (see ``ken_services.autonomy.calibration``).
+    """
+    return RankingExplanation(
+        final_score=final.total,
+        confidence=final.total,
+        calibration_version=None,
+        components=final.components,
+        factors=dict(final.factors),
+        signals=dict(scored.signals),
+        ranking_policy_name=final.policy_name,
+        ranking_policy_version=final.policy_version,
+        recommendation_policy_version=recommendation_policy_version,
+        sources=tuple(channels),
+        attribution=tuple(attribution),
     )

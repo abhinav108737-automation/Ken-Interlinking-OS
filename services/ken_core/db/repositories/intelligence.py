@@ -14,12 +14,12 @@ recipes are never compared.
 
 **No similarity SQL lives here any more (ADR-0017).** The extension is removed, not
 bypassed: no distance operator, no distance helper, no extension import. A static test
-(``tests/unit/test_vector_extension_removed.py``) asserts it, so the competing path
-cannot come back by
-accident. Cosine is computed by the ONE pure function every implementation shares,
-``ken_contracts.vectors.cosine_similarity``, over the ``real[]`` values PostgreSQL owns. :func:`nearest_candidates` keeps its signature and
-its exact semantics (exact KNN, deterministic ties) so the relationship builder above it did
-not change; the vector workstream replaces its body with ``VectorStore.search``.
+(``tests/unit/test_vector_extension_removed.py``) asserts it, so the competing path cannot
+come back by accident. Cosine is computed by the ONE pure function every implementation
+shares, ``ken_contracts.vectors.cosine_similarity``, over the ``real[]`` values PostgreSQL
+owns. :func:`nearest_candidates` keeps its signature and its exact semantics (exact KNN,
+deterministic ties) so the relationship builder above it did not change; the vector
+workstream replaces its body with ``VectorStore.search``.
 """
 
 from __future__ import annotations
@@ -530,6 +530,108 @@ async def nearest_candidates(
         scored.append((page_id, page_version, score))
     scored.sort(key=lambda row: (-row[2], str(row[0])))
     return scored if limit is None else scored[:limit]
+
+
+@dataclass(frozen=True, slots=True)
+class CurrentEmbedding:
+    """A page's CURRENT-version embedding of one identity, as PostgreSQL stores it.
+
+    ``vector`` is empty when the read asked for ``with_vectors=False`` (drift checks only
+    compare hashes, so they do not pay to move the values).
+    """
+
+    page_id: uuid.UUID
+    page_version: int
+    model: str
+    recipe_version: int
+    recipe_fingerprint: str
+    dimensions: int
+    input_hash: str
+    vector: tuple[float, ...]
+    page_type: str | None
+    language: str | None
+
+
+async def current_embeddings(
+    session: AsyncSession,
+    *,
+    model: str,
+    recipe_version: int,
+    recipe_fingerprint: str,
+    page_ids: Sequence[uuid.UUID] | None = None,
+    with_vectors: bool = True,
+) -> list[CurrentEmbedding]:
+    """Current-version embeddings of one identity for pages that are NOT gone, in page-id order.
+
+    This is the single read the vector index is built from: ``page_embeddings`` stays the
+    source of truth (ADR-0017 s1) and the index is whatever this returns.
+    """
+    columns: list[Any] = [
+        PageEmbedding.page_id,
+        PageEmbedding.page_version,
+        PageEmbedding.model,
+        PageEmbedding.recipe_version,
+        PageEmbedding.recipe_fingerprint,
+        PageEmbedding.dimensions,
+        PageEmbedding.input_hash,
+        Page.page_type,
+        Page.language,
+    ]
+    if with_vectors:
+        columns.append(PageEmbedding.embedding)
+    statement = (
+        select(*columns)
+        .join(Page, current_embedding_join(model, recipe_version, recipe_fingerprint))
+        .where(Page.gone_at.is_(None))
+        .order_by(PageEmbedding.page_id)
+    )
+    if page_ids is not None:
+        statement = statement.where(PageEmbedding.page_id.in_(list(page_ids)))
+    rows = (await session.execute(statement)).all()
+    return [
+        CurrentEmbedding(
+            page_id=r[0],
+            page_version=r[1],
+            model=r[2],
+            recipe_version=r[3],
+            recipe_fingerprint=r[4],
+            dimensions=r[5],
+            input_hash=r[6],
+            vector=tuple(float(x) for x in r[9]) if with_vectors else (),
+            page_type=r[7],
+            language=r[8],
+        )
+        for r in rows
+    ]
+
+
+async def dominant_embedding_identity(
+    session: AsyncSession, *, recipe_fingerprint: str
+) -> tuple[str, int, str] | None:
+    """(model, recipe_version, fingerprint) with the most CURRENT-version rows for the
+    fingerprint, ties broken by model name -- or ``None`` when no page is embedded.
+
+    Used when no model provider is reachable: the identity is read from the data PostgreSQL
+    already holds instead of being guessed from a setting string (ADR-0010 section 2).
+    """
+    count = func.count()
+    row = (
+        await session.execute(
+            select(PageEmbedding.model, PageEmbedding.recipe_version, count)
+            .join(
+                Page,
+                and_(
+                    PageEmbedding.page_id == Page.id,
+                    PageEmbedding.page_version == Page.current_version,
+                ),
+            )
+            .where(PageEmbedding.recipe_fingerprint == recipe_fingerprint, Page.gone_at.is_(None))
+            .group_by(PageEmbedding.model, PageEmbedding.recipe_version)
+            .order_by(count.desc(), PageEmbedding.model)
+            .limit(1)
+        )
+    ).first()
+    return None if row is None else (row[0], int(row[1]), recipe_fingerprint)
 
 
 # --------------------------------------------------------------------------- #

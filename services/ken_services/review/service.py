@@ -121,8 +121,9 @@ from ken_services.intelligence.text import fold
 from ken_services.inventory.hashing import sha256_hex
 from ken_services.inventory.normalize import ContentBlock, extract_blocks
 from ken_services.jobs.runner import utc_now
+from ken_services.learning.experiments import SqlExperimentGuard
 from ken_services.recommendations.channels import EmbeddingKey, cosine_to
-from ken_services.recommendations.filters import NoExperiments, PairState, pair_rejection
+from ken_services.recommendations.filters import PairState, pair_rejection
 from ken_services.recommendations.freshness import check_plan_freshness
 from ken_services.recommendations.pipeline import MAX_TARGET_TITLE_CHARS
 from ken_services.recommendations.placement import (
@@ -313,7 +314,7 @@ class DatabaseReviewService:
         self._policy = policy
         self._ranking = ranking
         self._taxonomy = taxonomy
-        self._guard: ExperimentGuard = experiment_guard or NoExperiments()
+        self._guard: ExperimentGuard = experiment_guard or SqlExperimentGuard(sessionmaker)
         self._clock = clock
 
     # ------------------------------------------------------------- policies

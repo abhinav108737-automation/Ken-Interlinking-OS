@@ -10,6 +10,7 @@ Versioned **policy data**. TRD.md §12 requires ranking weights to live here, no
 | `agents/agents.v1.yaml` | baseline | `load_configured_agent_policy` (cross-checks `max_plans_per_run <= recommendation.selection.max_plans_per_source`) |
 | `analytics/analytics.v1.yaml` | baseline | `load_analytics_policy` |
 | `learning/learning.v1.yaml` | baseline | `load_learning_policy` |
+| `autonomy/autonomy.v1.yaml` | baseline (ADR-0018) | `load_autonomy_policy` — confidence floors, retry budget, risk thresholds; may only be MORE conservative than the hard floors in `ken_contracts.autonomy`; its version is recorded on every `autonomy_decisions` row |
 
 All of them are served, validated and digested, by `GET /settings/policies` (`read_settings`,
 `operator_admin` only).

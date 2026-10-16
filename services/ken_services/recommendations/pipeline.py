@@ -6,7 +6,7 @@ One run, through the generic job runner (advisory lock, counters, ``job.complete
     live facts of every page (+ eligibility, inbound link counts)
     for every source in scope, in canonical-URL order, in ONE transaction per source
     holding the per-source plan-writer lock (``validity.lock_source_plans``; review edits
-    take the same lock):
+    and the autonomy engine's own recording take the same lock):
         every open plan of the source (except VALIDATED ones, owned by the deployment
             service) whose source or target is now DURABLY ineligible
             (protected, gone, unpublished, noindex, alias, thin, excluded type), or whose
@@ -28,6 +28,19 @@ One run, through the generic job runner (advisory lock, counters, ``job.complete
             INSERT every candidate (kept ones carry plan_id)
     replace opportunities (orphan / underlinked / link_capacity), one transaction
     -> succeeded | completed_with_errors
+
+**ADR-0018 (autonomy-first publishing) changes nothing here, deliberately.** The engine still
+proposes plans in ``proposed``; what reads them afterwards is now ``make autonomy-run``
+instead of a human queue. Two consequences are worth stating because they are easy to get
+wrong later:
+
+* ``autonomy_decided`` IS in ``OPEN_STATUSES``, so such a plan occupies its pair and its
+  anchor span here and is RE-VALIDATED by ``_expire_invalid`` like any other open plan. A
+  decision taken minutes ago must not survive its destination being protected, and this is
+  one of the two places that catches it (the publisher re-evaluates as well).
+* ``blocked`` is deliberately NOT open: a doomed pair must not hold its target's diversity
+  budget for ever. What stops the engine re-proposing it in a loop is the per-(source, target)
+  retry budget and cool-down in ``publish_attempts``, not an occupied pair.
 
 **Idempotent.** An OPEN plan, or a plan whose link is physically on the page (ADR-0014 s8:
 deployed / verified / measured / learning_captured, and failed after an APPLIED deployment,
@@ -357,8 +370,9 @@ class _Recommend:
     def _invalidity(
         self, world: _World, source: repo.PageFacts, target_id: uuid.UUID, linked: set[uuid.UUID]
     ) -> str | None:
-        """Why an OPEN plan may no longer stand, whatever its freshness (fail closed: a
-        plan must never wait in the review queue for a protected, gone or unlinkable page).
+        """Why an OPEN plan may no longer stand, whatever its freshness (fail closed: a plan
+        must never be published -- or, on the exception path, wait for a human -- for a
+        protected, gone or unlinkable page).
 
         Only DURABLE reasons expire a plan (``DURABLE_INELIGIBILITY``). Expiry is terminal,
         so lag (``stale_analysis`` / ``not_analyzed`` after a recrawl or a taxonomy bump,

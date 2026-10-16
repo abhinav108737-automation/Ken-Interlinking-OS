@@ -39,6 +39,16 @@ CONTROL_DECISIONS: dict[EvalSuite, frozenset[str]] = {
     EvalSuite.POLICY_REGRESSION: frozenset({"select:india-ev-report"}),
     EvalSuite.REFLECTION_GROUNDING: frozenset({"rederives"}),
     EvalSuite.PROPOSAL_SAFETY: frozenset({"accepted", "payload_accepted", "proposer_accepted"}),
+    EvalSuite.ROLLBACK_CORRECTNESS: frozenset(
+        {"verify_passed:kept", "rolled_back:original", "allowed"}
+    ),
+    EvalSuite.AUTONOMY_CLASSIFICATION: frozenset(
+        {
+            "[] shadow:block(would=auto_publish)/none,guarded:auto_publish/autonomy_decided,"
+            "autonomous:auto_publish/autonomy_decided",
+            "tier:low",
+        }
+    ),
 }
 """Per suite, the decisions that mean 'the system DID the thing'. A suite whose cases all
 expect a refusal is passed by code that refuses everything, which is the only way a
@@ -145,3 +155,44 @@ def test_manifest_shas_are_keyed_by_suite_and_dataset_version(
     shas = ds.manifest_shas(loaded)
     assert shas["proposal-safety:core.v1"] == loaded[EvalSuite.PROPOSAL_SAFETY].manifest_sha256
     assert len(shas) == len(loaded)
+
+
+def test_every_block_code_has_a_single_block_case(
+    loaded: dict[EvalSuite, ds.SuiteDataset],
+) -> None:
+    """The directive's closed set of hard blocks: for each of the 15 BlockCode values there is
+    a case whose ONLY fired code is that one and which expects BLOCK in every mode. If a code
+    is added to the enum, this fails until a case exists for it."""
+    from ken_contracts.autonomy import BlockCode
+
+    covered: set[str] = set()
+    for case in loaded[EvalSuite.AUTONOMY_CLASSIFICATION].cases:
+        decision = case.expected.decision
+        if (
+            case.case_id.endswith("-blocks-in-every-mode")
+            and decision.startswith("[")
+            and "," not in decision.split("]", 1)[0]
+        ):
+            covered.add(decision[1:].split("]", 1)[0])
+            assert (
+                decision.split("] ", 1)[1]
+                == "shadow:block(would=block),guarded:block,autonomous:block"
+            )
+    assert covered == {code.value for code in BlockCode}
+
+
+def test_the_autonomy_cases_cover_all_three_modes(
+    loaded: dict[EvalSuite, ds.SuiteDataset],
+) -> None:
+    text = " ".join(
+        case.expected.decision for case in loaded[EvalSuite.AUTONOMY_CLASSIFICATION].cases
+    )
+    for mode in ("shadow:", "guarded:", "autonomous:"):
+        assert mode in text, mode
+
+
+def test_the_new_hard_fail_suites_are_unwaivable_and_gated_at_one() -> None:
+    from ken_contracts.learning import HARD_FAIL_SUITES
+
+    for suite in (EvalSuite.ROLLBACK_CORRECTNESS, EvalSuite.AUTONOMY_CLASSIFICATION):
+        assert suite in HARD_FAIL_SUITES

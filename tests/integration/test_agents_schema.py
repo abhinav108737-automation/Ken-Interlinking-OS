@@ -27,14 +27,13 @@ from ken_contracts.agents import MAX_STEP_OUTPUT_BYTES
 from ken_core.db.base import Base
 from ken_core.db.models.agents import AGENT_RUN_MUTABLE_COLUMNS, APPEND_ONLY_AGENT_TABLES
 from tests.integration.conftest import (
-    AUTONOMY_FUNCTIONS,
-    AUTONOMY_TABLES,
-    AUTONOMY_TRIGGERS,
-    HEAD_REVISION,
     ANALYTICS_TABLES,
     ANALYTICS_TRIGGERS,
+    AUTONOMY_TABLES,
+    AUTONOMY_TRIGGERS,
     DEPLOYMENT_TABLES,
     DEPLOYMENT_TRIGGERS,
+    HEAD_REVISION,
     LEARNING_TABLES,
     LEARNING_TRIGGERS,
     SyncDb,
@@ -717,7 +716,8 @@ def test_downgrade_to_0004_restores_exactly_the_recommendations_schema(
             - set(REVIEW_TABLES)
             - DEPLOYMENT_TABLES
             - ANALYTICS_TABLES
-            - LEARNING_TABLES - AUTONOMY_TABLES
+            - LEARNING_TABLES
+            - AUTONOMY_TABLES
         )
         assert state["functions"] == {"ken_reject_mutation", "ken_link_plan_content_guard"}
         assert state["triggers"] == (
@@ -725,7 +725,8 @@ def test_downgrade_to_0004_restores_exactly_the_recommendations_schema(
             - REVIEW_TRIGGERS
             - DEPLOYMENT_TRIGGERS
             - ANALYTICS_TRIGGERS
-            - LEARNING_TRIGGERS - AUTONOMY_TRIGGERS
+            - LEARNING_TRIGGERS
+            - AUTONOMY_TRIGGERS
             - {
                 "agent_runs_guard",
                 "agent_runs_no_delete",

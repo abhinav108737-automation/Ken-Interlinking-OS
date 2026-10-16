@@ -293,3 +293,140 @@ def test_public_settings_expose_crawl_host_only() -> None:
     assert public["crawl_host"] == "example.com"
     assert "secret-path" not in repr(public)
     assert "token" not in repr(public)
+
+
+# --------------------------------------------------------------------------- #
+# Phase 9: the autonomy gates (docs/adr/ADR-0018-autonomy-first-publishing.md s2)
+#
+# There is no normal human approval step any more, so these validators ARE the safety.
+# Each one makes the process refuse to BOOT rather than publish by surprise -- a
+# misconfiguration that would write to a live site must not be discoverable only by
+# looking at the site afterwards.
+# --------------------------------------------------------------------------- #
+def test_the_default_mode_publishes_nothing() -> None:
+    assert _settings().autonomy_mode == "shadow"
+
+
+@pytest.mark.parametrize("mode", ["shadow", "guarded"])
+def test_shadow_and_guarded_need_no_acknowledgement(mode: str) -> None:
+    assert _settings(autonomy_mode=mode).autonomy_mode == mode
+
+
+def test_autonomous_is_refused_unless_separately_acknowledged() -> None:
+    with pytest.raises(ValidationError) as exc_info:
+        _settings(autonomy_mode="autonomous")
+    message = str(exc_info.value)
+    assert "KEN_AUTONOMY_AUTONOMOUS_ACKNOWLEDGED" in message
+    # Acknowledging it is enough on its own only while the CMS cannot write to a real site.
+    settings = _settings(autonomy_mode="autonomous", autonomy_autonomous_acknowledged=True)
+    assert settings.autonomy_mode == "autonomous"
+
+
+def test_acknowledging_without_selecting_autonomous_changes_nothing() -> None:
+    settings = _settings(autonomy_autonomous_acknowledged=True)
+    assert settings.autonomy_mode == "shadow"
+
+
+@pytest.mark.parametrize("mode", ["guarded", "autonomous"])
+def test_a_publishing_mode_is_refused_against_a_write_enabled_http_cms(mode: str) -> None:
+    overrides: dict[str, object] = {
+        "autonomy_mode": mode,
+        "autonomy_autonomous_acknowledged": True,
+        "cms_provider": "http",
+        "cms_writes_enabled": True,
+        "cms_base_url": "http://127.0.0.1:9111",
+    }
+    with pytest.raises(ValidationError) as exc_info:
+        _settings(**overrides)
+    assert "KEN_AUTONOMY_ALLOW_PRODUCTION" in str(exc_info.value)
+    # Explicitly allowing production is what makes it bootable, and nothing else.
+    allowed = _settings(**overrides, autonomy_allow_production=True)
+    assert allowed.autonomy_mode == mode
+
+
+def test_a_publishing_mode_is_allowed_against_a_read_only_http_cms() -> None:
+    """Writes disabled means the adapter refuses every mutation, so there is nothing to
+    gate: the gate is on the combination that can actually change a live page."""
+    settings = _settings(
+        autonomy_mode="guarded",
+        cms_provider="http",
+        cms_writes_enabled=False,
+        cms_base_url="http://127.0.0.1:9111",
+    )
+    assert settings.autonomy_mode == "guarded"
+
+
+def test_shadow_is_allowed_even_against_a_write_enabled_production_cms() -> None:
+    settings = _settings(
+        autonomy_mode="shadow",
+        cms_provider="http",
+        cms_writes_enabled=True,
+        cms_base_url="http://127.0.0.1:9111",
+    )
+    assert settings.autonomy_mode == "shadow"
+
+
+def test_the_retired_auto_approve_flag_still_refuses_true() -> None:
+    """ADR-0018 RETIRES the flag rather than reusing it, so the TRD section 20 guard stays."""
+    with pytest.raises(ValidationError) as exc_info:
+        _settings(auto_approve_enabled=True)
+    assert "KEN_AUTO_APPROVE_ENABLED" in str(exc_info.value)
+    assert _settings(autonomy_mode="guarded").auto_approve_enabled is False
+
+
+def test_the_autonomy_settings_are_published_but_no_secret_is() -> None:
+    public = _settings(qdrant_api_key=SECRET).public_settings()
+    assert public["autonomy_mode"] == "shadow"
+    assert public["autonomy_allow_production"] is False
+    assert public["vector_store"] == "memory"
+    assert public["qdrant_collection"] == "ken_pages"
+    # The API key and the URL are deliberately absent from /meta (CONTRACTS rule 9).
+    assert "qdrant_api_key" not in public
+    assert "qdrant_url" not in public
+    assert SECRET not in json.dumps(public)
+
+
+# --------------------------------------------------------------------------- #
+# Phase 9: the vector store (ADR-0017)
+# --------------------------------------------------------------------------- #
+def test_the_default_vector_store_needs_no_container() -> None:
+    settings = _settings()
+    assert settings.vector_store == "memory"
+    assert settings.require_qdrant is True
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "ftp://127.0.0.1:6333",
+        "http://user:pass@127.0.0.1:6333",
+        "http://127.0.0.1:6333/collections",
+        "http://127.0.0.1:6333?x=1",
+        "not-a-url",
+    ],
+    ids=["scheme", "credentials", "path", "query", "garbage"],
+)
+def test_a_malformed_or_credential_bearing_qdrant_url_is_refused(url: str) -> None:
+    with pytest.raises(ValidationError):
+        _settings(qdrant_url=url)
+
+
+def test_a_remote_qdrant_url_is_refused_locally() -> None:
+    """Compose binds Qdrant on 127.0.0.1 only; a remote host would send embeddings off this
+    machine. The compose SERVICE NAME is allowed, because that is how a container reaches it."""
+    with pytest.raises(ValidationError):
+        _settings(environment="local", qdrant_url="http://vectors.example.com:6333")
+    assert _settings(environment="local", qdrant_url="http://qdrant:6333").qdrant_url
+    # Outside local/ci the host is the deployment's business (and that environment needs
+    # real database credentials, which is a separate guard).
+    assert _settings(
+        environment="production",
+        qdrant_url="https://vectors.internal",
+        database_url="postgresql+asyncpg://real:cred@db.internal/ken",
+    ).qdrant_url
+
+
+def test_the_qdrant_collection_name_is_constrained() -> None:
+    with pytest.raises(ValidationError):
+        _settings(qdrant_collection="Ken Pages")
+    assert _settings(qdrant_collection="ken_pages_v2").qdrant_collection == "ken_pages_v2"

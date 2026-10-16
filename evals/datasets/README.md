@@ -1,6 +1,6 @@
 # Eval datasets — Phase 8
 
-> **Status: implemented.** Ten suites, versioned JSONL, hashed manifests, a runner and a gate.
+> **Status: implemented.** Twelve suites, versioned JSONL, hashed manifests, a runner and a gate.
 > `editorial-agreement` is deliberately absent — see below.
 
 Layout, frozen by [ADR-0016](../../docs/adr/ADR-0016-learning.md) §7 and
@@ -60,6 +60,8 @@ structurally impossible.
 | [policy-regression](../suites/policy-regression/README.md) | 12 | ≥ 0.90 | candidate ranking policies vs recorded preferences |
 | [reflection-grounding](../suites/reflection-grounding/README.md) | 13 | **hard fail** | re-derivation of claimed evidence from a data snapshot |
 | [proposal-safety](../suites/proposal-safety/README.md) | 31 | **hard fail** | `PolicyChange` / `PolicyProposalBody`, `code_only_violations` |
+| [rollback-correctness](../suites/rollback-correctness/README.md) | 21 | **hard fail** | `ChangeEngine`/`HtmlMutator`, the mock CMS rollback, `HtmlLinkVerifier`, the retry-budget gate |
+| [autonomy-classification](../suites/autonomy-classification/README.md) | 36 | **hard fail** | `evaluate_blocks`, `DatabaseAutonomyEngine._assemble`, `target_status_for` |
 
 A hard-fail suite cannot be waived by any policy value, and a `must_not` hit anywhere fails the
 gate at zero tolerance.

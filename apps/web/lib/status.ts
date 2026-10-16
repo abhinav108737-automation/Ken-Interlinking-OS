@@ -218,23 +218,54 @@ export function summarizeCheck(check: Pick<DependencyCheck, "error" | "detail">)
 }
 
 /**
- * AUTO_APPROVE must be disabled globally in v1 (TRD.md section 20). If the API
- * ever reports it enabled, the console flags it as critical rather than neutral.
+ * The legacy `AUTO_APPROVE` flag. ADR-0018 §2 RETIRED it rather than reusing
+ * it: it meant "approve plans without a human" in the old approval model, and
+ * autonomy is now expressed only by `AUTONOMY_MODE`, so the two must never be
+ * read as the same switch. The startup validator still refuses `true`, so the
+ * console flags an enabled flag as critical.
  */
 export function describeAutoApprove(enabled: boolean): StatusPresentation {
   return enabled
     ? {
         label: "Enabled",
-        description: "AUTO_APPROVE is enabled. It must be disabled in v1 (TRD section 20).",
+        description:
+          "The retired AUTO_APPROVE flag is enabled. It must be false; autonomy is governed by AUTONOMY_MODE, not by this flag.",
         tone: "critical",
         known: true,
       }
     : {
         label: "Disabled",
-        description: "Every production change requires human approval.",
+        description:
+          "Correct: the flag is retired. Whether anything is published is governed by the autonomy mode and its policy, not by this flag.",
         tone: "positive",
         known: true,
       };
+}
+
+/**
+ * The dependency kinds an operator asks about by name: the vector store
+ * (Qdrant), the model server (Ollama) and the CMS. They are pulled out of the
+ * full check list so a failure in one of them is not buried among the others.
+ */
+export const KEY_CHECK_KINDS: readonly CheckKind[] = ["vector_store", "model_server", "cms"];
+
+export interface CheckGroup {
+  readonly kind: CheckKind;
+  readonly label: string;
+  readonly checks: readonly DependencyCheck[];
+}
+
+/**
+ * The key checks, grouped by kind in `KEY_CHECK_KINDS` order. A kind with no
+ * check is still returned, with an empty list, so the screen can say "not
+ * reported" rather than silently omitting a service the operator looked for.
+ */
+export function keyCheckGroups(checks: readonly DependencyCheck[]): CheckGroup[] {
+  return KEY_CHECK_KINDS.map((kind) => ({
+    kind,
+    label: describeCheckKind(kind),
+    checks: checks.filter((check) => check.kind === kind),
+  }));
 }
 
 export type ApiErrorKind =

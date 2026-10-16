@@ -52,7 +52,8 @@ MODEL_KINDS: Final = ("recorded", "none", "unavailable", "timeout")
 SETUP_ACTIONS: Final = ("protect", "edit", "analyse")
 HOOK_POINTS: Final = ("discover", "hand_off")
 HOOK_ACTIONS: Final = ("protect", "expire")
-HANDED_VERDICTS: Final = frozenset({CriticVerdict.ACCEPT, CriticVerdict.UNCERTAIN})
+HANDED_VERDICTS: Final = frozenset({CriticVerdict.ACCEPT})
+"""ADR-0019: only an accept is handed on; reject and uncertain are recorded (NO_ACTION)."""
 
 
 def url(path: str) -> str:
@@ -332,9 +333,17 @@ def dataset() -> Dataset:
 # --------------------------------------------------------------------------- #
 # Oracle (ADR-0012 section 2 rules, re-derived from the per-plan expectations)
 # --------------------------------------------------------------------------- #
-def rule_verdict(confidence: float, threshold: float) -> CriticVerdict:
-    """The deterministic critic: accept at or above the RAW threshold, else uncertain."""
-    return CriticVerdict.ACCEPT if confidence >= threshold else CriticVerdict.UNCERTAIN
+def rule_verdict(
+    confidence: float,
+    threshold: float,
+    reason: FallbackReason | None = FallbackReason.MODEL_DISABLED,
+) -> CriticVerdict:
+    """The deterministic critic. ``model_disabled`` (policy): accept at or above the RAW
+    threshold, else uncertain. ANY model problem: uncertain, always (ADR-0019: a model that
+    cannot be heard never produces an accept)."""
+    if reason is FallbackReason.MODEL_DISABLED and confidence >= threshold:
+        return CriticVerdict.ACCEPT
+    return CriticVerdict.UNCERTAIN
 
 
 def rule_reasons(verdict: CriticVerdict) -> tuple[CriticReason, ...]:
@@ -360,8 +369,6 @@ def expected_outcome(
     handed = set(expect.handed_off)
     if any(verdicts.get(t) is CriticVerdict.ACCEPT for t in handed):
         return AgentOutcome.RECOMMEND, AgentRunStatus.AWAITING_APPROVAL, None
-    if handed:
-        return AgentOutcome.NEEDS_HUMAN_REVIEW, AgentRunStatus.AWAITING_APPROVAL, None
     if expect.invariant_problems or expect.conflicts:
         code = AgentErrorCode.HANDOFF_CONFLICT if expect.conflicts else None
         return AgentOutcome.NEEDS_HUMAN_REVIEW, AgentRunStatus.COMPLETED, code
@@ -469,7 +476,7 @@ def oracle_problems(case: Case, ds: Dataset) -> list[str]:
         for review in e.critic:
             plan = case.plan(review.target)
             if review.fallback is not None:
-                if review.verdict is not rule_verdict(plan.confidence, threshold):
+                if review.verdict is not rule_verdict(plan.confidence, threshold, review.fallback):
                     out.append(f"{tag}: {review.target} fallback must use the rule")
             elif not case.policy.critic or run.model.kind != "recorded":
                 out.append(f"{tag}: {review.target} cannot have a model verdict")
@@ -483,7 +490,7 @@ def oracle_problems(case: Case, ds: Dataset) -> list[str]:
             out.append(f"{tag}: a plan that fails check_invariants never reaches the gate")
         verdict = {r.target: r.verdict for r in e.critic}
         handed = {t for t in chosen if verdict[t] in HANDED_VERDICTS and t not in blocked}
-        recorded = {t for t in chosen if verdict[t] is CriticVerdict.REJECT and t not in blocked}
+        recorded = {t for t in chosen if verdict[t] not in HANDED_VERDICTS and t not in blocked}
         if set(e.handed_off) != handed:
             out.append(f"{tag}: handed_off must be {sorted(handed)}")
         if set(e.recorded_not_handed_off) != recorded:

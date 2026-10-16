@@ -1,0 +1,67 @@
+# Autonomy policy v1 -- Phase 9 (docs/adr/ADR-0018-autonomy-first-publishing.md).
+#
+# DATA, NOT CODE: every threshold that decides whether the system may publish a link without a
+# human. Validated on load by ken_contracts.autonomy.AutonomyPolicy. Changing anything means
+# autonomy.v2.yaml, never an in-place edit once released: the version is recorded on every
+# autonomy_decisions row, so a past decision must stay reproducible from the file that governed
+# it.
+#
+# THE RULE: this file may make the system MORE conservative than the contract's hard floor and
+# never less. A value beyond a floor is a ValidationError at load -- the process refuses to
+# start rather than quietly publish more. The floors are ken_contracts.autonomy
+# GUARDED_CONFIDENCE_FLOOR_MIN, AUTONOMOUS_CONFIDENCE_FLOOR_MIN, POSITIVE_OUTCOME_RATE_FLOOR_MIN,
+# PUBLISH_ATTEMPTS_CEILING, COOLDOWN_FLOOR_S, HUB_INBOUND_LINKS_CEILING,
+# SENSITIVE_ANCHOR_CHARS_CEILING, FAILED_ATTEMPTS_FOR_HIGH_CEILING, REDIRECT_HOPS_CEILING and
+# REQUIRED_COMMERCIAL_PAGE_TYPES.
+#
+# HOW THESE NUMBERS WERE CHOSEN: from what each threshold MEANS, not from any corpus. A synthetic
+# demo corpus scores its best pairs around 0.65, so on it `guarded` (0.85) publishes nothing and
+# `autonomous` (0.50) publishes most plans with the strict verification profile. That is the
+# honest outcome of conservative thresholds on a corpus with no calibration history, and it is
+# NOT a reason to lower them. Learning cannot change this file (autonomy is a frozen policy
+# path); a human promotes a v2 or nothing changes.
+policy: autonomy
+version: 1
+status: baseline
+source: docs/adr/ADR-0018-autonomy-first-publishing.md sections 2 and 4
+
+confidence:
+  # `guarded` publishes only plans whose CALIBRATED confidence is at least this. Calibration may
+  # only lower a confidence, so a plan's raw score must already clear it; and a plan whose
+  # decision class has no calibration is never published by `guarded` at all, whatever it scores.
+  guarded_min_confidence: 0.85
+  # `autonomous` publishes every policy-eligible plan, but still refuses one the engine itself
+  # believes less than a coin flip.
+  autonomous_min_confidence: 0.50
+  # A decision class whose measured positive-outcome rate is below this has its confidence
+  # capped at that rate. Behavioural, so it can only LOWER a confidence (first-party counts are
+  # spoofable: ADR-0015 section 12).
+  min_positive_outcome_rate: 0.50
+
+retry:
+  # Per (source, target) pair, EVER: the budget belongs to the pair, so a superseded plan and a
+  # fresh proposal draw on the same one. KEN_AUTONOMY_PUBLISH_MAX_ATTEMPTS and
+  # KEN_AUTONOMY_PUBLISH_COOLDOWN_S may tighten these further; the stricter of the two wins.
+  max_attempts: 3
+  cooldown_s: 3600
+
+risk:
+  # A destination this many pages already link to is a hub; a wrong anchor on it is visible.
+  hub_inbound_links: 20
+  # An unusually long anchor spans more of the sentence than a phrase should.
+  sensitive_anchor_chars: 60
+  # One earlier FAILED publish of the pair is enough to stop treating it as routine.
+  failed_attempts_for_high: 1
+  # Page types whose purpose is a transaction: never low risk. May add; may not remove.
+  commercial_page_types:
+    - product
+    - pricing
+    - service
+    - offer
+    - checkout
+    - contact
+    - lead_form
+
+blocks:
+  # A destination behind more redirect hops than this is UNSUPPORTED_REDIRECT.
+  max_redirect_hops: 1

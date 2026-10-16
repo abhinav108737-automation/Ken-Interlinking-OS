@@ -1231,6 +1231,19 @@
             "title": "Plan Id",
             "type": "string"
           },
+          "reason": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Why the plan is blocked, in words, as recorded when it was blocked: either the deterministic codes that fired, or -- for a DEFERRAL, whose block list is empty -- 'deferred' with the risk tier, confidence and calibration facts that declined it.",
+            "title": "Reason"
+          },
           "risk_tier": {
             "$ref": "#/components/schemas/RiskTier"
           },
@@ -1264,7 +1277,8 @@
           "risk_tier",
           "mode",
           "decided_at",
-          "overridden"
+          "overridden",
+          "reason"
         ],
         "title": "BlockedActionView",
         "type": "object"
@@ -3083,6 +3097,8 @@
           "policy-regression",
           "reflection-grounding",
           "proposal-safety",
+          "rollback-correctness",
+          "autonomy-classification",
           "editorial-agreement"
         ],
         "title": "EvalSuite",
@@ -8705,7 +8721,8 @@
               "ranking",
               "agents",
               "analytics",
-              "learning"
+              "learning",
+              "autonomy"
             ],
             "title": "Kind",
             "type": "string"

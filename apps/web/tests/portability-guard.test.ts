@@ -14,6 +14,11 @@ const REUSABLE_SAMPLES = [
   // lib/** is guarded by default: a brand-new file is covered without editing the config.
   "lib/newthing.ts",
   "lib/nested/deep/new-server-helper.ts",
+  // The operations control plane's own trees (ADR-0018).
+  "lib/autonomy.ts",
+  "lib/learning.ts",
+  "components/autonomy/NewPanel.tsx",
+  "components/learning/NewPanel.tsx",
 ] as const;
 
 const FORBIDDEN: ReadonlyArray<readonly [string, string, string]> = [

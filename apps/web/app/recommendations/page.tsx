@@ -8,10 +8,13 @@ import { RecommendationSummaryPanel, totalPlans } from "@/components/recommendat
 import { RecommendationTable } from "@/components/recommendations/RecommendationTable";
 import { DEPLOY_SELECT_FORM_ID, DeployFlow } from "@/components/deployments/DeployFlow";
 import { BULK_FORM_ID, BulkReviewForm } from "@/components/review/BulkReviewForm";
-import { getRecommendationSummary, listLinkPlans, requireSessionUser } from "@/lib/api";
+import { getAutonomyMode, getRecommendationSummary, listLinkPlans, requireSessionUser } from "@/lib/api";
 import { can, permissionsOf } from "@/lib/auth";
 import { DEFAULT_PAGE_SIZE, type SearchParams, parseLimit, parseOffset } from "@/lib/inventory";
 import { BULK_STATUS } from "@/lib/review";
+import { AUTONOMY_PATH, BLOCKED_PATH } from "@/lib/autonomy";
+import { AutonomyModeBanner } from "@/components/autonomy/AutonomyModeBanner";
+import { LifecycleStatePanel } from "@/components/autonomy/LifecycleStatePanel";
 
 import { deployAction, dryRunAction } from "../deployments/actions";
 import { bulkReviewAction } from "./actions";
@@ -36,7 +39,7 @@ import {
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Recommendation inbox",
+  title: "Recommendations",
 };
 
 const STATUS_OPTIONS = [
@@ -60,7 +63,7 @@ export default async function RecommendationsPage({ searchParams }: { readonly s
     target.kind === "invalid" ? "Target page id must be a page UUID." : null,
   ].filter((message): message is string => message !== null);
 
-  const [result, summaryResult, me] = await Promise.all([
+  const [result, summaryResult, modeResult, me] = await Promise.all([
     listLinkPlans({
       status: status === ALL_STATUSES ? null : status,
       min_score: paramValue(minScore) ?? null,
@@ -70,6 +73,7 @@ export default async function RecommendationsPage({ searchParams }: { readonly s
       offset,
     }),
     getRecommendationSummary(),
+    getAutonomyMode(),
     requireSessionUser(),
   ]);
   const permissions = permissionsOf(me.ok ? me.data : null);
@@ -94,22 +98,34 @@ export default async function RecommendationsPage({ searchParams }: { readonly s
 
   return (
     <div className="space-y-8">
-      <header className="space-y-2">
-        <h1 className="text-2xl font-semibold">Recommendation inbox</h1>
+      <header className="space-y-3">
+        <h1 className="text-2xl font-semibold">Recommendations</h1>
+        <AutonomyModeBanner health={modeResult.ok ? modeResult.data : null} compact />
         <p className="max-w-prose text-slate-800">
-          Proposed contextual links from the deterministic recommendation engine, highest score first. The inbox opens on
-          the plans awaiting a human decision. Approving records a decision only: nothing is deployed and the site is
-          unchanged. Runs start from the command line (<code>make recommend</code>) and are listed under{" "}
+          Every contextual link the deterministic engine has proposed, highest score first — a monitoring list, not an
+          approval queue. Publishing is governed by policy and taken autonomously: see{" "}
+          <Link href={AUTONOMY_PATH} className="text-blue-800 underline underline-offset-4">
+            autonomy
+          </Link>{" "}
+          for the decisions and{" "}
+          <Link href={BLOCKED_PATH} className="text-blue-800 underline underline-offset-4">
+            blocked actions
+          </Link>{" "}
+          for what a safety rule refused. Runs start from the command line (<code>make recommend</code>) and are listed
+          under{" "}
           <Link href="/jobs" className="text-blue-800 underline underline-offset-4">
             Jobs
           </Link>
           .
         </p>
-        {!canReview && (
-          <p className="max-w-prose rounded border border-slate-300 bg-slate-50 p-2 text-sm text-slate-800">
-            Your role can read recommendations but not review them.
-          </p>
-        )}
+        <p className="max-w-prose rounded border border-slate-300 bg-slate-50 p-3 text-sm text-slate-800">
+          <span className="font-medium">Approve, reject and edit are operator exception actions.</span> They are not
+          part of the normal workflow and they are offered only for a plan a guarded-mode deferral or an operator
+          opened as an exception.
+          {canReview
+            ? " Your role may record them."
+            : " Recording them needs the review permission, which your role does not have."}
+        </p>
         <p className="flex flex-wrap gap-4">
           <Link href={OPPORTUNITIES_PATH} className="text-blue-800 underline underline-offset-4">
             Linking opportunities
@@ -125,7 +141,10 @@ export default async function RecommendationsPage({ searchParams }: { readonly s
           Overview
         </h2>
         {summaryResult.ok ? (
-          <RecommendationSummaryPanel summary={summaryResult.data} />
+          <>
+            <LifecycleStatePanel counts={summaryResult.data.plans_by_status} />
+            <RecommendationSummaryPanel summary={summaryResult.data} />
+          </>
         ) : (
           <ApiErrorNotice error={summaryResult.error} what="Recommendation summary" />
         )}
@@ -183,13 +202,7 @@ export default async function RecommendationsPage({ searchParams }: { readonly s
                 No recommendations yet — run <code>make recommend</code> after <code>make analyze</code>.
               </p>
             ) : (
-              <p>
-                No recommendations match these filters
-                {status === DEFAULT_STATUS_FILTER
-                  ? ` (only plans ${describeLinkPlanStatus(DEFAULT_STATUS_FILTER).label.toLowerCase()} are shown by default)`
-                  : ""}
-                .
-              </p>
+              <p>No recommendations match these filters.</p>
             )}
           </div>
         ) : (
@@ -208,7 +221,7 @@ export default async function RecommendationsPage({ searchParams }: { readonly s
                 {...(deployable ? { selectFormId: DEPLOY_SELECT_FORM_ID, selectStatus: "approved", selectPurpose: "deployment" } : {})}
                 caption={
                   status === ALL_STATUSES
-                    ? "Recommendations (any status)"
+                    ? "Recommendations (every status)"
                     : `Recommendations: ${describeLinkPlanStatus(status).label.toLowerCase()}`
                 }
               />

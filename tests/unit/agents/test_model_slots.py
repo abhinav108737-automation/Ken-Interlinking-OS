@@ -185,12 +185,15 @@ async def test_critic_model_problems_fall_back_and_never_fail_the_run(
     assert step.fallback_used and step.fallback_reason is reason
     assert step.model_role is ModelRole.REASONING
     assert step.model is None
-    assert result.status is AgentRunStatus.AWAITING_APPROVAL
-    assert result.outcome is AgentOutcome.RECOMMEND
+    # A model problem NEVER yields an accept, however confident the engine was (ADR-0019):
+    # every plan is recorded `uncertain` (= NO_ACTION), none is handed on, the run completes.
+    assert result.status is AgentRunStatus.COMPLETED
+    assert result.outcome is AgentOutcome.NO_ACTION
+    assert result.plans_handed_off == 0
     sent = {r.plan_id: r for r in backend.handoffs[0][1]}
-    assert sent[plans[0].id].verdict is CriticVerdict.ACCEPT
-    assert sent[plans[1].id].verdict is CriticVerdict.UNCERTAIN
+    assert all(r.verdict is CriticVerdict.UNCERTAIN for r in sent.values())
     assert all(r.fallback_reason is reason and r.model is None for r in sent.values())
+    assert all(backend.status[p.id] == "proposed" for p in plans)
     assert result.fallbacks == 1
 
 
@@ -223,10 +226,10 @@ async def test_critic_omitted_ref_gets_rule_and_unknown_ref_is_dropped() -> None
     assert sent[plans[0].id].verdict is CriticVerdict.REJECT
     assert sent[plans[0].id].model == "mock-reasoning"
     assert sent[plans[0].id].fallback_reason is None
-    assert sent[plans[1].id].verdict is CriticVerdict.UNCERTAIN, "rule: 0.3 < 0.5"
+    assert sent[plans[1].id].verdict is CriticVerdict.UNCERTAIN, "omitted: never an accept"
     assert sent[plans[1].id].model is None
     assert sent[plans[1].id].fallback_reason is FallbackReason.SCHEMA_VIOLATION
-    assert result.outcome is AgentOutcome.NEEDS_HUMAN_REVIEW, "only the uncertain one handed"
+    assert result.outcome is AgentOutcome.NO_ACTION, "reject + uncertain: nothing handed on"
 
 
 async def test_critic_covering_no_offered_ref_is_a_full_fallback() -> None:
@@ -237,7 +240,7 @@ async def test_critic_covering_no_offered_ref_is_a_full_fallback() -> None:
     result = await run_source(backend, FakeStore(), provider, make_policy())
     step = _step(result, AgentNode.CRITIQUE)
     assert step.fallback_reason is FallbackReason.SCHEMA_VIOLATION
-    assert backend.handoffs[0][1][0].verdict is CriticVerdict.ACCEPT
+    assert backend.handoffs[0][1][0].verdict is CriticVerdict.UNCERTAIN, "even at 0.9"
     assert backend.handoffs[0][1][0].model is None
 
 

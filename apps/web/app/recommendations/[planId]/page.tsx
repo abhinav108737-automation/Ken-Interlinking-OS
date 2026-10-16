@@ -6,12 +6,14 @@ import type { ReactNode } from "react";
 import { ApiErrorNotice } from "@/components/ApiErrorNotice";
 import { StatusBadge } from "@/components/StatusBadge";
 import { AgentPlanReviewPanel } from "@/components/agents/AgentPlanReviewPanel";
+import { AutonomyModeBanner } from "@/components/autonomy/AutonomyModeBanner";
 import { PlanPerformancePanel } from "@/components/analytics/PlanPerformancePanel";
 import { DeployFlow } from "@/components/deployments/DeployFlow";
 import { DeploymentTable } from "@/components/deployments/DeploymentTable";
 import { ExternalUrl } from "@/components/inventory/ExternalUrl";
 import { pageHref } from "@/components/inventory/PageInventoryTable";
 import { PlacementPreviewPanel, SourceBlockText } from "@/components/recommendations/PlacementPreview";
+import { GraphSignalsPanel } from "@/components/recommendations/GraphSignalsPanel";
 import { PlanScore } from "@/components/recommendations/PlanScore";
 import { ScoreBreakdownTable } from "@/components/recommendations/ScoreBreakdownTable";
 import { TransitionHistory } from "@/components/recommendations/TransitionHistory";
@@ -19,6 +21,7 @@ import { ReviewActionTable } from "@/components/review/ReviewActionTable";
 import { ReviewPanel } from "@/components/review/ReviewPanel";
 import {
   type LinkPlanDetail,
+  getAutonomyMode,
   getLinkPerformance,
   getLinkPlan,
   isMissingResourceError,
@@ -43,6 +46,7 @@ import {
   planHref,
 } from "@/lib/recommendations";
 import { availableActions } from "@/lib/review";
+import { blockedPlanHref, planAttemptsHref, planDecisionsHref } from "@/lib/autonomy";
 
 import { deployAction, dryRunAction } from "../../deployments/actions";
 import { approveAction, editAnchorAction, rejectAction, replaceTargetAction } from "../actions";
@@ -130,11 +134,12 @@ export default async function RecommendationDetailPage({
   const { planId } = await params;
   const query = (await searchParams) ?? {};
   // Agent reviews and review history are fetched alongside; their failure never hides the plan.
-  const [result, reviewsResult, historyResult, deploymentsResult, me] = await Promise.all([
+  const [result, reviewsResult, historyResult, deploymentsResult, modeResult, me] = await Promise.all([
     getLinkPlan(planId),
     listAgentPlanReviews(planId),
     listPlanReviewActions(planId),
     listPlanDeployments(planId),
+    getAutonomyMode(),
     requireSessionUser(),
   ]);
 
@@ -180,6 +185,18 @@ export default async function RecommendationDetailPage({
         <h1 className="break-words text-2xl font-semibold">
           Recommendation: link “{plan.anchor_text}”
         </h1>
+        <AutonomyModeBanner health={modeResult.ok ? modeResult.data : null} compact />
+        <p className="flex flex-wrap gap-4 text-sm">
+          <Link href={planDecisionsHref(plan.id)} className={LINK}>
+            Autonomy decisions for this plan
+          </Link>
+          <Link href={planAttemptsHref(plan.id)} className={LINK}>
+            Publish attempts
+          </Link>
+          <Link href={blockedPlanHref(plan.id)} className={LINK}>
+            Why it did not publish
+          </Link>
+        </p>
         <div className="flex flex-wrap items-center gap-4">
           <StatusBadge presentation={status} />
           <span className="text-sm text-slate-700">{status.description}</span>
@@ -219,7 +236,12 @@ export default async function RecommendationDetailPage({
         <AgentPlanReviewPanel result={reviewsResult} />
       </Section>
 
-      <Section id="review" title="Your review">
+      <Section id="review" title="Operator exception actions">
+        <p className="max-w-prose rounded border border-slate-300 bg-slate-50 p-3 text-sm text-slate-800">
+          <span className="font-medium">Approving, rejecting and editing are exception actions.</span> Normal link
+          publishing is policy-governed and autonomous, and needs no approval. These controls exist for a plan a
+          guarded-mode deferral or an operator opened as an exception.
+        </p>
         {canReview ? (
           <ReviewPanel
             planId={plan.id}
@@ -321,7 +343,19 @@ export default async function RecommendationDetailPage({
       </Section>
 
       <Section id="score" title="Score">
+        <p className="max-w-prose text-sm text-slate-700">
+          Every signal that produced this score, with its value, weight and contribution — never collapsed into one
+          opaque number. The identities are recomputed here from the record alone.
+        </p>
         <ScoreBreakdownTable score={plan.score} />
+      </Section>
+
+      <Section id="graph" title="Destination in the link graph">
+        <p className="max-w-prose text-sm text-slate-700">
+          The destination&apos;s graph position, read at request time: the plan&apos;s content is immutable, but the
+          graph moves under it.
+        </p>
+        <GraphSignalsPanel signals={plan.target_graph_signals} />
       </Section>
 
       <Section id="reasons" title="Why this link">

@@ -1,11 +1,25 @@
 """The controlled deployment service (ADR-0014 s1 and s8): :class:`DatabaseDeploymentService`.
 
-Implements :class:`ken_contracts.deployment.DeploymentService`. Deterministic: no LLM, no
-agent and no job calls it; only an operator request does (AUTO_APPROVE stays disabled).
+Implements :class:`ken_contracts.deployment.DeploymentService`. Deterministic: no LLM and no
+agent calls it.
+
+**ADR-0018 amends one sentence of this docstring and nothing else.** Phase 6 said "only an
+operator request" reaches this service; the autonomy job (``make autonomy-run``,
+:mod:`ken_services.autonomy.publish`) now reaches it too, and the ONLY two things it does
+differently are ``expected_status=autonomy_decided`` instead of ``approved`` and the
+verification ``profile`` the decision demands. Every check below -- the per-source lock, the
+two-transaction durable intent, the deploy-time validation, the idempotency fingerprint, the
+splice-only mutation, the verification and the rollback -- runs identically on both paths.
+An LLM still cannot reach any of it, and no agent is an acceptable actor anywhere in it.
 
 **Principal-based.** ``actor`` (``user:<username>``) and ``user_id`` are derived from the
 session principal; ``Permission.DEPLOY`` is re-asserted (defence in depth). Plans move ONLY
 through the Phase 3 transition service as :data:`DEPLOYMENT_ACTOR`, with the user in the note.
+On the autonomous path the principal is the operator account the run was started as
+(``make autonomy-run AS_USER=...``): ``deployments.actor`` carries a ``^user:`` CHECK and
+``user_id`` is a NOT NULL foreign key to ``users``, so a CMS write stays attributable to a
+real, enabled account with ``deploy``. That identity is chosen ONCE per run and never per
+link, so it is an audit trail and not an approval step.
 
 **Per-source deployment lock.** A session-level ``pg_try_advisory_lock`` on
 ``sha256("ken.deploy.source:" + id)`` on a DEDICATED connection is held across transaction 1,
@@ -16,7 +30,8 @@ transaction also takes the ADR-0013 per-source plan-writer xact lock
 
 **Deploy = two transactions around the CMS call (durable intent).**
 
-1. tx1: plan rows locked; validation (:meth:`_validate`); plans ``approved -> validated``;
+1. tx1: plan rows locked; validation (:meth:`_validate`); plans
+   ``approved | autonomy_decided -> validated``;
    the ``deployments`` row ``applying`` with the EXACT serialised ``LinkChangeRequest`` and
    the request fingerprint; ``requested`` items. A refusal writes nothing, except that STALE
    plans are expired (``approved -> expired``).
@@ -74,6 +89,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from ken_contracts.auth import Permission, Principal, has_permission
+from ken_contracts.autonomy import VerificationProfile
 from ken_contracts.cms import (
     CMSNotFoundError,
     CMSPage,
@@ -141,6 +157,7 @@ from ken_services.deployment.http_probe import FetchOutcome, HttpProbe
 from ken_services.deployment.mutation import change_snippets
 from ken_services.deployment.protocol import LinkInsertion, LinkVerifier, Mutator
 from ken_services.deployment.reader import detail_of
+from ken_services.deployment.strict import strict_verifier
 from ken_services.intelligence.taxonomy import load_taxonomy
 from ken_services.inventory import urls
 from ken_services.inventory.hashing import sha256_hex
@@ -177,6 +194,7 @@ LINK_ON_PAGE: Final = frozenset(
     {_S.DEPLOYED, _S.VERIFIED, _S.FAILED, _S.MEASURED, _S.LEARNING_CAPTURED}
 )
 """Plan statuses of a deployment's plans whose link may be on the page (rollback targets)."""
+STRICT: Final = VerificationProfile.STRICT
 VERIFIABLE: Final = frozenset({_D.APPLIED, _D.VERIFIED, _D.VERIFICATION_FAILED})
 ROLLBACKABLE: Final = VERIFIABLE
 _OPERATION_UNIQUE: Final = "uq_deployments_operation_id"
@@ -395,11 +413,21 @@ class DatabaseDeploymentService:
                 await connection.close()
 
     # -------------------------------------------------------------- dry run
-    async def dry_run(self, *, request: DryRunRequest, principal: Principal) -> DryRunResult:
+    async def dry_run(
+        self,
+        *,
+        request: DryRunRequest,
+        principal: Principal,
+        expected_status: LinkPlanStatus = _S.APPROVED,
+    ) -> DryRunResult:
         actor = self._actor(principal)
         async with self._sessionmaker() as session:
             checked = await self._validate(
-                session, request.plan_ids, actor=actor, operation_id=request.operation_id
+                session,
+                request.plan_ids,
+                actor=actor,
+                operation_id=request.operation_id,
+                expected_status=expected_status,
             )
             await session.rollback()  # writes nothing
         return DryRunResult(
@@ -421,9 +449,17 @@ class DatabaseDeploymentService:
         operation_id: uuid.UUID,
         lock: bool = False,
         validate_with_cms: bool = True,
+        expected_status: LinkPlanStatus = _S.APPROVED,
     ) -> _Checked:
         """Every deterministic deploy-time check (ADR-0014 s1.3, s3, s8). Issues, not raises
-        (except 404 for an unknown plan and 503 for an unreachable CMS)."""
+        (except 404 for an unknown plan and 503 for an unreachable CMS).
+
+        ``expected_status`` is the status a plan must be in to be deployed: ``approved`` on
+        the operator path (ADR-0014) and ``autonomy_decided`` on the autonomous one
+        (ADR-0018 s3). It is the ONLY difference between the two at this layer -- every check
+        below runs identically, which is what keeps "autonomy changes the approval default,
+        not the safety rules" true rather than claimed.
+        """
         checked = _Checked()
         rows: dict[uuid.UUID, LinkPlanRow] = {}
         for plan_id in sorted(plan_ids):  # a fixed lock order
@@ -443,7 +479,7 @@ class DatabaseDeploymentService:
         source_id = next(iter(sources))
         checked.source_page_id = source_id
         for plan in plans:
-            if plan.status is not _S.APPROVED:
+            if plan.status is not expected_status:
                 checked.issues.append(_issue(_C.PLAN_NOT_APPROVED, plan.id))
 
         policy = self._recommendation_policy()
@@ -735,30 +771,53 @@ class DatabaseDeploymentService:
         return out
 
     # --------------------------------------------------------------- deploy
-    async def deploy(self, *, request: DeployRequest, principal: Principal) -> DeploymentDetail:
+    async def deploy(
+        self,
+        *,
+        request: DeployRequest,
+        principal: Principal,
+        expected_status: LinkPlanStatus = _S.APPROVED,
+        profile: VerificationProfile | None = None,
+    ) -> DeploymentDetail:
+        """Deploy one source page's plans (module docstring).
+
+        ``expected_status`` / ``profile`` are the autonomous path's only two knobs
+        (ADR-0018): which pre-deploy status the plans must be in, and which verification
+        profile runs afterwards. Both default to the Phase 6 operator behaviour, so the
+        contract signature is unchanged for every existing caller.
+        """
         actor = self._actor(principal)
         fingerprint = deploy_fingerprint(request=request, user_id=principal.user_id)
         stored = await self._stored(request.operation_id)
         if stored is not None:
-            return await self._replay(stored, fingerprint)
+            return await self._replay(stored, fingerprint, profile=profile)
         await self._refuse_foreign_operation(request.operation_id)
         source_id = await self._source_of(request.plan_ids)
         async with self._source_lock(source_id):
             stored = await self._stored(request.operation_id)  # a concurrent duplicate won
             if stored is not None:
-                return await self._replay_locked(stored, fingerprint)
+                return await self._replay_locked(stored, fingerprint, profile=profile)
             deployment_id = await self._intent(
-                request, principal=principal, actor=actor, fingerprint=fingerprint
+                request,
+                principal=principal,
+                actor=actor,
+                fingerprint=fingerprint,
+                expected_status=expected_status,
             )
             outcome = await self._send(deployment_id)
-            return await self._finish(deployment_id, outcome, replay=False)
+            return await self._finish(deployment_id, outcome, replay=False, profile=profile)
 
     async def _finish(
-        self, deployment_id: uuid.UUID, outcome: _Outcome, *, replay: bool
+        self,
+        deployment_id: uuid.UUID,
+        outcome: _Outcome,
+        *,
+        replay: bool,
+        profile: VerificationProfile | None = None,
     ) -> DeploymentDetail:
         """The caller-facing result of an outcome (the lock is held)."""
         if outcome is _Outcome.APPLIED:
-            await self._verify_with_retry(deployment_id)
+            await self._verify_with_retry(deployment_id, profile=profile)
             return await self._detail(deployment_id, replay=replay)
         if outcome is _Outcome.UNKNOWN:
             raise CMSUnavailableDeploymentError([_issue(_C.CMS_UNAVAILABLE)])
@@ -808,15 +867,27 @@ class DatabaseDeploymentService:
             raise DeploymentRefusedError([_issue(_C.MIXED_SOURCES)])
         return next(iter(sources))
 
-    async def _replay(self, stored: Deployment, fingerprint: str) -> DeploymentDetail:
+    async def _replay(
+        self,
+        stored: Deployment,
+        fingerprint: str,
+        *,
+        profile: VerificationProfile | None = None,
+    ) -> DeploymentDetail:
         if stored.request_fingerprint != fingerprint:
             raise OperationReusedDeploymentError([])
         if DeploymentStatus(stored.status) is _D.APPLYING:
             async with self._source_lock(stored.source_page_id):
-                return await self._replay_locked(stored, fingerprint)
+                return await self._replay_locked(stored, fingerprint, profile=profile)
         return await self._detail(stored.id, replay=True)
 
-    async def _replay_locked(self, stored: Deployment, fingerprint: str) -> DeploymentDetail:
+    async def _replay_locked(
+        self,
+        stored: Deployment,
+        fingerprint: str,
+        *,
+        profile: VerificationProfile | None = None,
+    ) -> DeploymentDetail:
         if stored.request_fingerprint != fingerprint:
             raise OperationReusedDeploymentError([])
         row = await self._row(stored.id)
@@ -824,11 +895,17 @@ class DatabaseDeploymentService:
             # The outcome is still unknown: resend the STORED request (a client retry is a
             # reconciliation). Every provider replays an operation it already applied.
             outcome = await self._send(row.id)
-            return await self._finish(row.id, outcome, replay=True)
+            return await self._finish(row.id, outcome, replay=True, profile=profile)
         return await self._detail(row.id, replay=True)
 
     async def _intent(
-        self, request: DeployRequest, *, principal: Principal, actor: str, fingerprint: str
+        self,
+        request: DeployRequest,
+        *,
+        principal: Principal,
+        actor: str,
+        fingerprint: str,
+        expected_status: LinkPlanStatus = _S.APPROVED,
     ) -> uuid.UUID:
         """tx1 (module docstring). Raises the refusal after committing stale-plan expiry."""
         refusal: DeploymentRefusedError | None = None
@@ -847,10 +924,13 @@ class DatabaseDeploymentService:
                     actor=actor,
                     operation_id=request.operation_id,
                     lock=True,
+                    expected_status=expected_status,
                 )
                 if checked.issues:
                     refusal = DeploymentRefusedError(_dedupe(checked.issues))
-                    await self._expire_stale(session, checked, actor=actor)
+                    await self._expire_stale(
+                        session, checked, actor=actor, expected_status=expected_status
+                    )
                 else:
                     await self._record_intent(
                         session,
@@ -860,6 +940,7 @@ class DatabaseDeploymentService:
                         principal=principal,
                         actor=actor,
                         fingerprint=fingerprint,
+                        expected_status=expected_status,
                     )
         except IntegrityError as exc:
             if _OPERATION_UNIQUE in str(exc.orig):
@@ -871,10 +952,17 @@ class DatabaseDeploymentService:
             raise refusal
         return deployment_id
 
-    async def _expire_stale(self, session: AsyncSession, checked: _Checked, *, actor: str) -> None:
+    async def _expire_stale(
+        self,
+        session: AsyncSession,
+        checked: _Checked,
+        *,
+        actor: str,
+        expected_status: LinkPlanStatus = _S.APPROVED,
+    ) -> None:
         for plan in checked.plans:
             reasons = checked.stale.get(plan.id)
-            if reasons is None or plan.status is not _S.APPROVED:
+            if reasons is None or plan.status is not expected_status:
                 continue
             await transition(
                 session,
@@ -882,7 +970,7 @@ class DatabaseDeploymentService:
                 to_status=_S.EXPIRED,
                 actor=DEPLOYMENT_ACTOR,
                 note=f"stale at deploy ({', '.join(reasons)}); requested by {actor}"[:500],
-                expected_from=_S.APPROVED,
+                expected_from=expected_status,
                 clock=self._clock,
             )
 
@@ -896,6 +984,7 @@ class DatabaseDeploymentService:
         principal: Principal,
         actor: str,
         fingerprint: str,
+        expected_status: LinkPlanStatus = _S.APPROVED,
     ) -> None:
         now = self._now()
         for plan in checked.plans:
@@ -905,7 +994,7 @@ class DatabaseDeploymentService:
                 to_status=_S.VALIDATED,
                 actor=DEPLOYMENT_ACTOR,
                 note=self._note("deploy", request.operation_id, actor),
-                expected_from=_S.APPROVED,
+                expected_from=expected_status,
                 clock=self._clock,
             )
         cms_request = self._request(
@@ -1224,7 +1313,13 @@ class DatabaseDeploymentService:
         )
 
     # --------------------------------------------------------- verification
-    async def verify(self, *, deployment_id: uuid.UUID, principal: Principal) -> DeploymentDetail:
+    async def verify(
+        self,
+        *,
+        deployment_id: uuid.UUID,
+        principal: Principal,
+        profile: VerificationProfile | None = None,
+    ) -> DeploymentDetail:
         self._actor(principal)
         row = await self._row(deployment_id)
         status = DeploymentStatus(row.status)
@@ -1233,17 +1328,63 @@ class DatabaseDeploymentService:
         if status not in VERIFIABLE:
             raise DeploymentStateError([])
         async with self._source_lock(row.source_page_id):
-            await self._verify_once(deployment_id)
+            if profile is None:
+                # Phase 6 behaviour, unchanged: an operator re-verify is ONE pass. The retry
+                # loop belongs to a publish, where an inconclusive read means "try again in a
+                # moment"; here the operator asked a question and gets the answer.
+                await self._verify_once(deployment_id)
+            else:
+                await self._verify_with_retry(deployment_id, profile=profile)
         return await self._detail(deployment_id)
 
-    async def _verify_with_retry(self, deployment_id: uuid.UUID) -> None:
-        attempts = self._settings.deploy_verify_attempts
-        for attempt in range(attempts):
-            verified = await self._verify_once(deployment_id)
-            if verified is None or not verified.inconclusive:
-                return
-            if attempt + 1 < attempts:
-                await self._sleep(self._settings.deploy_verify_retry_delay_s)
+    def _profile(self, profile: VerificationProfile | None) -> VerificationProfile:
+        # The service's own default is the Phase 6 behaviour; the STRICT profile is only ever
+        # chosen by an AUTO_PUBLISH_WITH_EXTRA_VERIFICATION decision, which passes it in.
+        return VerificationProfile.STANDARD if profile is None else profile
+
+    def _passes(self, profile: VerificationProfile) -> tuple[int, float]:
+        """(passes, delay) for a profile.
+
+        STRICT is the ADR-0018 s4 extra-verification profile: an HTTP/CMS RE-FETCH plus a
+        SECOND pass after a delay, and the stricter mutation-isolation check in
+        :mod:`ken_services.deployment.strict`. It differs from STANDARD in those three things
+        and in NOTHING else -- not in which plans may be deployed, not in any safety rule,
+        not in what a failure does.
+        """
+        if profile is VerificationProfile.STRICT:
+            return (
+                self._settings.autonomy_strict_verify_attempts,
+                self._settings.autonomy_strict_verify_delay_s,
+            )
+        return self._settings.deploy_verify_attempts, self._settings.deploy_verify_retry_delay_s
+
+    async def _verify_with_retry(
+        self, deployment_id: uuid.UUID, *, profile: VerificationProfile | None = None
+    ) -> _Verified | None:
+        """Run the profile's verification passes and return the LAST conclusive run.
+
+        STANDARD retries only while a run is inconclusive. STRICT always runs its second pass
+        after the delay even when the first one passed, because a CMS that publishes
+        asynchronously can serve the new HTML to the API and the old HTML to the world for a
+        while, and one agreeing read is not evidence.
+        """
+        resolved = self._profile(profile)
+        passes, delay = self._passes(resolved)
+        verified: _Verified | None = None
+        for attempt in range(passes):
+            last = attempt + 1 >= passes
+            verified = await self._verify_once(deployment_id, profile=resolved, last=last)
+            if verified is None:
+                return None
+            if not verified.passed and not verified.inconclusive:
+                return verified  # a deterministic failure: further passes cannot clear it
+            if last:
+                return verified
+            if verified.inconclusive or resolved is VerificationProfile.STRICT:
+                await self._sleep(delay)
+                continue
+            return verified
+        return verified
 
     async def _targets(
         self, session: AsyncSession, deployment_id: uuid.UUID
@@ -1281,11 +1422,17 @@ class DatabaseDeploymentService:
         return out
 
     async def _checks(
-        self, row: Deployment, targets: Sequence[tuple[LinkPlan, LinkInsertion]]
+        self,
+        row: Deployment,
+        targets: Sequence[tuple[LinkPlan, LinkInsertion]],
+        *,
+        profile: VerificationProfile = VerificationProfile.STANDARD,
+        last: bool = True,
     ) -> list[VerificationCheck]:
         """CMS-side checks; with HTTP verification, the published page and targets too.
         Deterministic CMS/HTML failure -> failed; transient or publish lag -> inconclusive."""
         insertions = [ins for _plan, ins in targets]
+        verifier = strict_verifier(self._verifier) if profile is STRICT else self._verifier
         try:
             page = await self._cms.get_page(page_id=row.cms_page_id)
         except CMSUnavailableError:
@@ -1327,13 +1474,26 @@ class DatabaseDeploymentService:
             published = await self._probe.fetch(self._probe.published_url(source_url))
         # The verifier is synchronous CPU work: off the event loop (identical result).
         checks = await asyncio.to_thread(
-            self._verifier.verify_links, page.body_html, insertions, target_reachable=reach
+            verifier.verify_links, page.body_html, insertions, target_reachable=reach
         )
+        # "The source page and version are expected" (directive s15): the page was fetched by
+        # the stored ``cms_page_id``, and its version is compared with the version WE wrote.
+        # CMS versions are opaque tokens, so this is an equality check. A move means somebody
+        # else edited the page since; that never SOFTENS a failure (an editor who removed our
+        # link must still fail the plan), but while further passes remain it makes an
+        # otherwise-passing run inconclusive, so the next pass re-reads a settled page.
+        version_moved = bool(row.new_version) and page.version != row.new_version
+        if version_moved:
+            logger.info(
+                "deploy_verify_source_version_moved",
+                deployment_id=str(row.id),
+                profile=VerificationProfile(profile).value,
+            )
         merged: list[VerificationCheck] = []
         public: dict[tuple[uuid.UUID, str], VerificationOutcome] = {}
         if published is not None and published.outcome is FetchOutcome.OK and published.body:
             for c in await asyncio.to_thread(
-                self._verifier.verify_links, published.body, insertions, target_reachable=reach
+                verifier.verify_links, published.body, insertions, target_reachable=reach
             ):
                 public[(c.plan_id, VerificationCheckName(c.check).value)] = VerificationOutcome(
                     c.outcome
@@ -1353,6 +1513,13 @@ class DatabaseDeploymentService:
                         )
                 elif public.get((check.plan_id, name.value)) is VerificationOutcome.FAILED:
                     outcome, detail = VerificationOutcome.INCONCLUSIVE, "publish_lag"
+            if (
+                version_moved
+                and not last
+                and outcome is VerificationOutcome.PASSED
+                and name is VerificationCheckName.LINK_PRESENT_ONCE
+            ):
+                outcome, detail = VerificationOutcome.INCONCLUSIVE, "source_version_changed"
             merged.append(
                 VerificationCheck(plan_id=check.plan_id, check=name, outcome=outcome, detail=detail)
             )
@@ -1362,7 +1529,13 @@ class DatabaseDeploymentService:
         async with self._sessionmaker() as session:
             return await repo.source_url_of(session, page_id=page_id)
 
-    async def _verify_once(self, deployment_id: uuid.UUID) -> _Verified | None:
+    async def _verify_once(
+        self,
+        deployment_id: uuid.UUID,
+        *,
+        profile: VerificationProfile = VerificationProfile.STANDARD,
+        last: bool = True,
+    ) -> _Verified | None:
         """One verification run, recorded with its plan and deployment transitions."""
         async with self._sessionmaker() as session:
             row = await repo.get_deployment(session, deployment_id=deployment_id)
@@ -1371,7 +1544,7 @@ class DatabaseDeploymentService:
             targets = await self._targets(session, deployment_id)
         if not targets:
             return None
-        checks = await self._checks(row, targets)
+        checks = await self._checks(row, targets, profile=profile, last=last)
         by_plan: dict[uuid.UUID, list[VerificationCheck]] = {}
         for check in checks:
             by_plan.setdefault(check.plan_id, []).append(check)
@@ -1868,7 +2041,7 @@ class DatabaseDeploymentService:
                         outcome = await self._send(row.id)
                         if outcome is _Outcome.APPLIED:
                             summary.applied += 1
-                            await self._verify_once(row.id)
+                            await self._verify_once(row.id)  # STANDARD: a sweep, not a publish
                         elif outcome is _Outcome.FAILED:
                             summary.failed += 1
                         elif outcome is _Outcome.CONFLICT:

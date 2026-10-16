@@ -175,10 +175,22 @@ def _eval(arguments: Sequence[str]) -> int:
     return eval_main(list(arguments))
 
 
+def _lifecycle_commands() -> frozenset[str]:
+    """Shadow, policy-promote and experiment subcommands (workstream D); their parser and
+    behaviour live in :mod:`ken_services.learning.lifecycle_cli`."""
+    from ken_services.learning.lifecycle_cli import COMMANDS
+
+    return COMMANDS
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     arguments = list(sys.argv[1:] if argv is None else argv)
     if arguments and arguments[0] == "eval":
         return _eval(arguments[1:])
+    if arguments and arguments[0] in _lifecycle_commands():
+        from ken_services.learning.lifecycle_cli import main as lifecycle_main
+
+        return lifecycle_main(arguments)
     try:
         args = _parser().parse_args(argv)
     except SystemExit as exc:  # argparse has already printed its usage message

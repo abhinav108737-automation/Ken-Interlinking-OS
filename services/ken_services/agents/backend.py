@@ -30,13 +30,14 @@ READ methods
     for each review, under its own SAVEPOINT:
 
     1. the plan is locked ``FOR UPDATE``; not ``proposed`` -> conflict ``not_proposed``;
-    2. ``accept`` / ``uncertain``: :meth:`check_plan`'s invariants are RE-CHECKED inside the
-       transaction (defence in depth against a change since the tool call); a problem ->
-       conflict with that problem's code; else ``proposed -> critiqued`` (``CRITIC_ACTOR``)
-       ``-> policy_checked -> awaiting_approval`` (``POLICY_GATE_ACTOR``) through the Phase 3
-       transition service with ``expected_from``;
+    2. ``accept``: :meth:`check_plan`'s invariants are RE-CHECKED inside the transaction
+       (defence in depth against a change since the tool call); a problem -> conflict with
+       that problem's code; else ``proposed -> critiqued`` (``CRITIC_ACTOR``) ``->
+       policy_checked`` (``POLICY_GATE_ACTOR``) through the Phase 3 transition service with
+       ``expected_from``. The ladder ENDS at ``policy_checked`` (ADR-0019, ADR-0018 s3): the
+       autonomy engine decides from there, and ``awaiting_approval`` is exceptional;
     3. the append-only ``agent_run_plans`` row (``handed_off`` true for 2, false for
-       ``reject``, which is never transitioned).
+       ``reject`` and ``uncertain`` (= NO_ACTION), which are never transitioned).
 
     A conflicted plan's savepoint is rolled back: it gets no row and no transition (a later
     run may review it again). ``already_reviewed`` is reported if another run recorded the
@@ -122,7 +123,9 @@ ALREADY_REVIEWED: Final = "already_reviewed"
 """Hand-off conflict: another run recorded a review of this plan first."""
 MAX_LIST_PLANS: Final = 100
 MAX_REVIEW_REASONS: Final = 4
-_HANDED_OFF: Final = frozenset({CriticVerdict.ACCEPT, CriticVerdict.UNCERTAIN})
+_HANDED_OFF: Final = frozenset({CriticVerdict.ACCEPT})
+"""Only ``accept`` is handed on (ADR-0019). ``uncertain`` is recorded but NOT handed on: it is
+the critic's NO_ACTION, and a doubt is never a licence."""
 _PROPOSED: Final = LinkPlanStatus.PROPOSED
 
 
@@ -406,11 +409,6 @@ class DatabaseAgentBackend:
             steps = (
                 (LinkPlanStatus.CRITIQUED, CRITIC_ACTOR, _PROPOSED),
                 (LinkPlanStatus.POLICY_CHECKED, POLICY_GATE_ACTOR, LinkPlanStatus.CRITIQUED),
-                (
-                    LinkPlanStatus.AWAITING_APPROVAL,
-                    POLICY_GATE_ACTOR,
-                    LinkPlanStatus.POLICY_CHECKED,
-                ),
             )
             for to_status, actor, expected in steps:
                 await transition(

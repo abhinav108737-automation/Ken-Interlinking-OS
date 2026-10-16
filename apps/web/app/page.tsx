@@ -3,7 +3,8 @@ import Link from "next/link";
 
 import { ApiErrorNotice } from "@/components/ApiErrorNotice";
 import { DashboardView } from "@/components/dashboard/DashboardView";
-import { getDashboard, requireSessionUser } from "@/lib/api";
+import { getAutonomyMode, getAutonomySummary, getDashboard, requireSessionUser } from "@/lib/api";
+import { BLOCKED_PATH } from "@/lib/autonomy";
 import { can, permissionsOf } from "@/lib/auth";
 
 // Live counts: never prerender or cache this page.
@@ -14,27 +15,41 @@ export const metadata: Metadata = {
 };
 
 export default async function DashboardPage() {
-  const [result, me] = await Promise.all([getDashboard(), requireSessionUser()]);
+  // Each call returns a result and never throws, so one failure cannot blank
+  // the page: the dashboard renders with whatever came back.
+  const [result, autonomy, mode, me] = await Promise.all([
+    getDashboard(),
+    getAutonomySummary(),
+    getAutonomyMode(),
+    requireSessionUser(),
+  ]);
   const canReview = can(permissionsOf(me.ok ? me.data : null), "review");
   return (
     <div className="space-y-8">
       <header className="space-y-2">
         <h1 className="text-2xl font-semibold">Dashboard</h1>
         <p className="max-w-prose text-slate-800">
-          The state of the content inventory, the recommendation queue and recent reviews. Approved recommendations are
-          deployed by an operator admin, one source page at a time, and listed under{" "}
-          <Link href="/deployments" className="text-blue-800 underline underline-offset-4">
-            deployments
+          Link publishing is governed by policy and taken autonomously: there is no approval step in the normal
+          workflow. This console is for monitoring it and handling the exceptions —{" "}
+          <Link href={BLOCKED_PATH} className="text-blue-800 underline underline-offset-4">
+            blocked actions
           </Link>
-          ; nothing deploys automatically. See{" "}
+          , failed verifications and rollbacks. See{" "}
           <Link href="/system" className="text-blue-800 underline underline-offset-4">
             system status
           </Link>{" "}
-          for the API, database and model server.
+          for the API, database, vector store, model server and CMS.
         </p>
       </header>
+      {!autonomy.ok && <ApiErrorNotice error={autonomy.error} what="Autonomy summary" />}
+      {!mode.ok && <ApiErrorNotice error={mode.error} what="Autonomy mode" />}
       {result.ok ? (
-        <DashboardView summary={result.data} canReview={canReview} />
+        <DashboardView
+          summary={result.data}
+          autonomy={autonomy.ok ? autonomy.data : null}
+          health={mode.ok ? mode.data : null}
+          canReview={canReview}
+        />
       ) : (
         <ApiErrorNotice error={result.error} what="Dashboard" />
       )}

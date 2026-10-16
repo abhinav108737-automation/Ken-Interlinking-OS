@@ -887,3 +887,212 @@ async def test_reflection_refuses_a_skill_request(migrated: None, sessionmaker: 
             now=NOW,
         )
     assert await _rows(sessionmaker, "SELECT id FROM job_runs") == []
+
+
+# --------------------------------------------------------------------------- #
+# Autonomy outcomes (ADR-0018): OBSERVATIONS, never an input to a decision
+# --------------------------------------------------------------------------- #
+async def _autonomy_row(
+    sessionmaker: SM,
+    *,
+    plan_id: uuid.UUID,
+    decision: str,
+    mode: str,
+    would_have: str | None = None,
+    move_to: LinkPlanStatus | None = None,
+) -> None:
+    """One ``autonomy_decisions`` row, with the same-transaction plan move the guard demands."""
+    from ken_services.recommendations.transitions import transition
+
+    async with sessionmaker() as session, session.begin():
+        if move_to is not None:
+            await transition(
+                session, plan_id=plan_id, to_status=move_to, actor="system:test", clock=lambda: AT
+            )
+        await session.execute(
+            text(
+                "INSERT INTO autonomy_decisions (plan_id, decision, mode, risk_tier, confidence, "
+                "critic_outcome, policy_version, blocks, rollback_available, "
+                "verification_profile, would_have_decision, engine_version, actor, evaluated_at) "
+                "VALUES (:plan, :decision, :mode, 'low', 0.9, 'accept', 1, CAST(:blocks AS jsonb), "
+                "true, 'standard', :would, 'engine-1', 'system:autonomy', :at)"
+            ),
+            {
+                "plan": plan_id,
+                "decision": decision,
+                "mode": mode,
+                "would": would_have,
+                "blocks": json.dumps(["protected_page"] if decision == "block" else []),
+                "at": AT,
+            },
+        )
+
+
+async def _attempt(
+    sessionmaker: SM,
+    *,
+    plan_id: uuid.UUID,
+    source: uuid.UUID,
+    target: uuid.UUID,
+    attempt: int,
+    succeeded: bool,
+    rolled_back: bool = False,
+) -> None:
+    async with sessionmaker() as session, session.begin():
+        await session.execute(
+            text(
+                "INSERT INTO publish_attempts (source_page_id, target_page_id, plan_id, attempt, "
+                "max_attempts, decision, mode, verification_profile, succeeded, rolled_back, "
+                "failure_code, actor, occurred_at) VALUES (:s, :t, :plan, :attempt, 5, "
+                "'auto_publish', 'autonomous', 'standard', :ok, :rb, :code, 'system:autonomy', :at)"
+            ),
+            {
+                "s": source,
+                "t": target,
+                "plan": plan_id,
+                "attempt": attempt,
+                "ok": succeeded,
+                "rb": rolled_back,
+                "code": None if succeeded else "verification_failed",
+                "at": AT,
+            },
+        )
+
+
+async def _target_of(sessionmaker: SM, plan_id: uuid.UUID) -> uuid.UUID:
+    rows = await _rows(
+        sessionmaker, "SELECT target_page_id FROM link_plans WHERE id = :p", p=plan_id
+    )
+    return uuid.UUID(str(rows[0][0]))
+
+
+async def test_autonomy_outcomes_are_counted_per_class_and_kept_out_of_the_evidence(
+    migrated: None, sessionmaker: SM
+) -> None:
+    """Blocked / deferred / auto-published / rolled-back per decision class, hand-counted.
+
+    They are OBSERVATIONS: they ride on the report for a human, and the frozen
+    ``DecisionClassObservation`` (and so the stored evidence and the prompt) does not carry
+    them -- a behavioural or autonomy-outcome figure may only ever BLOCK a gate through
+    ``BlockOnly`` and can never help one pass."""
+    pages = await seed_pages(sessionmaker, "/s", *(f"/t{n}" for n in range(6)))
+    source = pages["/s"]
+    targets = iter(pages[f"/t{n}"] for n in range(6))
+
+    async def plan(klass: DecisionClass, marker: str, status: LinkPlanStatus) -> uuid.UUID:
+        return await _plan(
+            sessionmaker,
+            source=source,
+            target=next(targets),
+            decision_class=klass,
+            status=status,
+            marker=marker,
+        )
+
+    blocked = await plan(SAME_MARKET, "a", LinkPlanStatus.PROPOSED)
+    published = await plan(SAME_MARKET, "b", LinkPlanStatus.POLICY_CHECKED)
+    deferred = await plan(SAME_MARKET, "c", LinkPlanStatus.POLICY_CHECKED)
+    rolled = await plan(SAME_MARKET, "d", LinkPlanStatus.POLICY_CHECKED)
+    shadow_publish = await plan(SUBMARKET, "e", LinkPlanStatus.PROPOSED)
+    shadow_block = await plan(SUBMARKET, "f", LinkPlanStatus.PROPOSED)
+
+    await _autonomy_row(
+        sessionmaker,
+        plan_id=blocked,
+        decision="block",
+        mode="guarded",
+        move_to=LinkPlanStatus.BLOCKED,
+    )
+    for plan_id in (published, deferred, rolled):
+        await _autonomy_row(
+            sessionmaker,
+            plan_id=plan_id,
+            decision="auto_publish",
+            mode="guarded",
+            move_to=LinkPlanStatus.AUTONOMY_DECIDED,
+        )
+    await _attempt(
+        sessionmaker,
+        plan_id=published,
+        source=source,
+        target=await _target_of(sessionmaker, published),
+        attempt=1,
+        succeeded=True,
+    )
+    await _attempt(
+        sessionmaker,
+        plan_id=rolled,
+        source=source,
+        target=await _target_of(sessionmaker, rolled),
+        attempt=1,
+        succeeded=False,
+        rolled_back=True,
+    )
+    await _autonomy_row(
+        sessionmaker,
+        plan_id=shadow_publish,
+        decision="block",
+        mode="shadow",
+        would_have="auto_publish",
+    )
+    await _autonomy_row(
+        sessionmaker, plan_id=shadow_block, decision="block", mode="shadow", would_have="block"
+    )
+
+    report = await _report(sessionmaker)
+    by_class = {row.decision_class.canonical: row for row in report.autonomy}
+    same = by_class[SAME_MARKET.canonical]
+    assert (same.decided, same.blocked, same.deferred) == (4, 1, 1)
+    assert (same.auto_published, same.rolled_back) == (2, 1)
+    assert same.blocked_rate == pytest.approx(0.25)
+    assert same.rolled_back_rate == pytest.approx(0.25)
+    sub = by_class[SUBMARKET.canonical]
+    # A shadow row's effective decision is always `block`, but it is NOT a real block.
+    assert (sub.decided, sub.blocked, sub.shadow_would_publish, sub.shadow_would_block) == (
+        2,
+        0,
+        1,
+        1,
+    )
+    assert (sub.deferred, sub.auto_published, sub.rolled_back) == (0, 0, 0)
+
+    # Not in the evidence: autonomy-only plans create no editorial sample, and the frozen
+    # observation model has no field for any of these figures.
+    assert report.rows == ()
+    assert report.sample_count_total == 0
+    from ken_contracts.learning import DecisionClassObservation
+
+    assert not any("autonomy" in name for name in DecisionClassObservation.model_fields)
+
+
+async def test_autonomy_outcomes_never_reach_the_prompt_or_an_option(
+    migrated: None, sessionmaker: SM
+) -> None:
+    """A sufficient editorial class plus heavy autonomy activity: the model's messages must
+    carry none of it."""
+    await _sufficient_corpus(sessionmaker)
+    pages = await _rows(sessionmaker, "SELECT id FROM pages ORDER BY canonical_url LIMIT 1")
+    plan_ids = [row[0] for row in await _rows(sessionmaker, "SELECT id FROM link_plans LIMIT 3")]
+    del pages
+    for plan_id in plan_ids:
+        await _autonomy_row(
+            sessionmaker, plan_id=plan_id, decision="block", mode="shadow", would_have="block"
+        )
+    provider = _provider()
+    await run_reflection(
+        sessionmaker=sessionmaker,
+        settings=SETTINGS,
+        policy=LEARNING_POLICY,
+        request=ReflectionRequest(window=WINDOW, target_kinds=(TargetKind.RANKING,)),
+        model_provider=provider,
+        now=NOW,
+    )
+    sent = " ".join(
+        m.content
+        for call in provider.calls
+        if call.method == "complete_structured"
+        for m in call.messages
+    )
+    assert sent
+    for word in ("autonomy", "shadow", "blocked", "deferred", "auto_publish", "rolled_back_rate"):
+        assert word not in sent, word

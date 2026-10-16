@@ -50,10 +50,11 @@ import re
 import uuid
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
-from typing import Any, Final
+from datetime import UTC, datetime, timedelta
+from typing import Any, Final, cast
 
 from pydantic import ValidationError
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from ken_agents import nodes as agent_nodes
 from ken_agents.llm import RoleModel
@@ -64,7 +65,9 @@ from ken_contracts.agents import (
     AgentPolicy,
     AgentTrigger,
     CriticAssessment,
+    CriticVerdict,
 )
+from ken_contracts.autonomy import AutonomyMode, CriticOutcome, RiskTier
 from ken_contracts.cms import (
     CMSNotFoundError,
     CMSPage,
@@ -75,6 +78,7 @@ from ken_contracts.cms import (
     LinkLocator,
     LinkOperation,
 )
+from ken_contracts.deployment import VerificationOutcome
 from ken_contracts.intelligence import (
     LinkEligibility,
     PageAnalysis,
@@ -107,8 +111,31 @@ from ken_services.agents.protocol import (
     PlanCheck,
     PlanReviewInput,
 )
+from ken_services.autonomy.blocks import DeterministicBlocks, evaluate_blocks
+from ken_services.autonomy.budget import DatabaseRetryBudgetGate
+from ken_services.autonomy.calibration import EvaluationCalibrationReader
+from ken_services.autonomy.engine import (
+    DatabaseAutonomyEngine,
+    _Inputs,
+    critic_outcome_of,
+)
+from ken_services.autonomy.facts import PlanIdentity
+from ken_services.autonomy.protocol import (
+    CalibratedConfidence,
+    PlanFacts,
+    budget_from_attempts,
+    target_status_for,
+)
+from ken_services.autonomy.risk import (
+    DeterministicRiskClassifier,
+    RiskSignals,
+    raise_to,
+    tier_from_signals,
+)
+from ken_services.deployment.changes import ChangeEngine, Located, insertion_for, locate
 from ken_services.deployment.mutation import HtmlMutator
 from ken_services.deployment.protocol import LinkInsertion
+from ken_services.deployment.verification import HtmlLinkVerifier
 from ken_services.intelligence.relationships import taxonomy_relationships
 from ken_services.learning.fixtures import (
     FixtureError,
@@ -189,6 +216,9 @@ class ScoringContext:
     provider_name: str
     seed: int
     cosines: dict[tuple[str, str], float] = field(default_factory=dict)
+    cache: dict[str, Any] = field(default_factory=dict)
+    """Per-run objects that are expensive or stateful to build (the unconnected
+    sessionmaker, the autonomy engine). Never carried between runs."""
 
     async def cosine(self, source: PageFixture, target: PageFixture) -> float:
         """Cosine of the two pages' embeddings, through the configured EMBEDDING role.
@@ -1141,6 +1171,502 @@ def _verdict(
     )
 
 
+# --------------------------------------------------------------------------- #
+# rollback-correctness (hard fail): ADR-0014 section 8 + ADR-0018 section 4
+# --------------------------------------------------------------------------- #
+_UNRELATED_PARAGRAPH: Final = "<p>An unrelated paragraph an editor added after the deployment.</p>"
+_EDITOR_ANCHOR: Final = "EV market"
+
+
+def _append_unrelated(html: str) -> str:
+    head, sep, tail = html.rpartition("</div>")
+    return f"{head}{_UNRELATED_PARAGRAPH}{sep}{tail}" if sep else html + _UNRELATED_PARAGRAPH
+
+
+def _after_apply_edit(kind: str, html: str, *, href: str, anchor: str, link_id: str) -> str:
+    """What a human editor (or a CMS post-processor) does to the page AFTER our deployment.
+
+    Each edit is deterministic string surgery on the exact markup the production mutator
+    emits, and a no-op edit is a fixture error: a case that claims an editor changed the link
+    when nothing changed would pass for the wrong reason.
+    """
+    if kind == "unrelated_edit":
+        return _append_unrelated(html)
+    if kind == "editor_removed_link":
+        pattern = rf'<a[^>]*data-ken-link-id="{re.escape(link_id)}"[^>]*>(.*?)</a>'
+        return re.sub(pattern, r"\1", html, count=1)
+    if kind == "editor_changed_href":
+        return html.replace(f'href="{href}"', f'href="{href}-moved"', 1)
+    if kind == "editor_changed_anchor":
+        return html.replace(f">{anchor}</a>", f">{_EDITOR_ANCHOR}</a>", 1)
+    if kind == "hidden_attribute":
+        return html.replace(f'<a href="{href}"', f'<a hidden href="{href}"', 1)
+    raise FixtureError(f"rollback-correctness: unknown after_apply {kind!r}")
+
+
+def _offline_sessionmaker(ctx: ScoringContext) -> async_sessionmaker[AsyncSession]:
+    """A sessionmaker over an engine that is NEVER connected.
+
+    The autonomy classes want one in their constructors, and the decision logic exercised
+    here is pure: no scorer opens a session. Creating an async engine does not connect, and
+    the address is the discard port on loopback, so even a bug that tried to use it would fail
+    rather than reach a real database.
+    """
+    cached = ctx.cache.get("offline_sessionmaker")
+    if cached is None:
+        engine = create_async_engine("postgresql+asyncpg://eval:eval@127.0.0.1:9/eval-offline")
+        cached = async_sessionmaker(engine, expire_on_commit=False)
+        ctx.cache["offline_sessionmaker"] = cached
+    return cast("async_sessionmaker[AsyncSession]", cached)
+
+
+async def _score_rollback_correctness(case: EvalCase, ctx: ScoringContext) -> CaseOutcome:
+    check = str(_extra(case).get("check", "deployment"))
+    if check == "deployment":
+        return await _score_rollback_deployment(case, ctx)
+    if check == "budget":
+        return _score_retry_budget(case, ctx)
+    raise FixtureError(f"rollback-correctness: unknown check {check!r}")
+
+
+async def _score_rollback_deployment(case: EvalCase, ctx: ScoringContext) -> CaseOutcome:
+    """Apply a link through the real engine and mock CMS, optionally verify and edit the page,
+    roll back, and report WHAT STATE THE PAGE IS LEFT IN.
+
+    The decision is ``[verify_failed>]<rollback statuses>:<page state>``. The page state is
+    compared byte for byte against the pre-deployment HTML (``original``), against that HTML
+    with the same later edit applied (``original_with_later_edit``), or against the page as it
+    stood just before the rollback (``page_untouched``, which is what a refused rollback must
+    leave).
+
+    DB-bound parts NOT covered here (they are exercised by ``tests/integration``): the
+    deployment SERVICE's own mapping of a CMS error onto ``rollback_conflict`` /
+    ``nothing_to_roll_back`` (``deployment/service.py:1862-1871``) is mirrored by the two
+    ``except`` clauses below, and its "no live plans" refusal (``service.py:1699``) is not
+    reproducible without plan rows.
+    """
+    extra = _extra(case)
+    pages = page_fixtures(extra, taxonomy=ctx.taxonomy)
+    source = pages[str(require(extra, "source"))]
+    target = pages[str(require(extra, "target"))]
+    original = source.body_html
+    anchor = str(extra.get("anchor_text", "electric vehicle"))
+    block_id = str(extra.get("block_id", "b1"))
+    block = next((b for b in blocks_of(original) if b.block_id == block_id), None)
+    if block is None:
+        raise FixtureError(f"the source has no block {block_id!r}")
+    change = LinkChange(
+        change_id=eval_uuid("change", case.case_id),
+        operation=LinkOperation.INSERT,
+        target_page_id=str(target.page_id),
+        href=target.canonical_url,
+        anchor_text=anchor,
+        locator=LinkLocator(
+            block_selector=block_id,
+            occurrence_index=int(extra.get("occurrence_index", 0)),
+            context_hash=context_hash(block.text),
+        ),
+    )
+    operation_id = eval_uuid("operation", case.case_id)
+    source_id = str(source.page_id)
+    provider = MockCMSProvider(
+        [
+            CMSPage(
+                page_id=source_id,
+                url=source.canonical_url,
+                canonical_url=source.canonical_url,
+                title=source.title or source.key,
+                body_html=original,
+                version="v1",
+            ),
+            CMSPage(
+                page_id=str(target.page_id),
+                url=target.canonical_url,
+                canonical_url=target.canonical_url,
+                title=target.title or target.key,
+                body_html=target.body_html or "<div><p>Target page.</p></div>",
+                version="v1",
+            ),
+        ],
+        clock=lambda: _EPOCH,
+        html_engine=ChangeEngine(
+            HtmlMutator(), excluded_ancestors=ctx.recommendation.placement.excluded_ancestors
+        ),
+    )
+
+    async def apply(operation: uuid.UUID, change_id: uuid.UUID) -> Any:
+        page = await provider.get_page(page_id=source_id)
+        try:
+            return await provider.apply_link_changes(
+                request=LinkChangeRequest(
+                    operation_id=operation,
+                    source_page_id=source_id,
+                    expected_version=page.version,
+                    changes=[change.model_copy(update={"change_id": change_id})],
+                    actor="system:eval",
+                )
+            )
+        except (CMSValidationError, CMSVersionConflictError) as exc:
+            raise FixtureError("the fixture's own deployment was refused") from exc
+
+    try:
+        if bool(extra.get("already_deployed_first", False)):
+            await apply(eval_uuid("operation", f"{case.case_id}:first"), change.change_id)
+        deployment = await apply(operation_id, change.change_id)
+        after_apply = (await provider.get_page(page_id=source_id)).body_html
+        kind = str(extra.get("after_apply", "none"))
+
+        def edit(html: str) -> str:
+            if kind == "none":
+                return html
+            return _after_apply_edit(
+                kind,
+                html,
+                href=target.canonical_url,
+                anchor=anchor,
+                link_id=str(change.change_id),
+            )
+
+        if kind != "none":
+            edited = edit(after_apply)
+            if edited == after_apply:
+                raise FixtureError("the after_apply edit changed nothing; the case is vacuous")
+            provider.edit_page(page_id=source_id, body_html=edited)
+        live = (await provider.get_page(page_id=source_id)).body_html
+
+        prefix = ""
+        if str(extra.get("rollback_on", "always")) == "verification_failure":
+            insertion = insertion_for(change, _located(original, change))
+            checks = HtmlLinkVerifier().verify_links(
+                live,
+                [insertion],
+                target_reachable={change.change_id: bool(extra.get("target_reachable", True))},
+            )
+            failed = [c.check.value for c in checks if c.outcome is VerificationOutcome.FAILED]
+            if not failed:
+                return _verdict(
+                    case,
+                    decision="verify_passed:kept",
+                    detail="verification passed, so nothing is rolled back",
+                )
+            prefix = "verify_failed>"
+
+        deployment_id = (
+            str(deployment.deployment_id)
+            if bool(extra.get("deployment_known", True))
+            else "dep-that-was-never-created"
+        )
+        statuses: list[str] = []
+        for _ in range(max(1, int(extra.get("rollback_times", 1)))):
+            try:
+                result = await provider.rollback(
+                    deployment_id=deployment_id, operation_id=operation_id, actor="system:eval"
+                )
+            except CMSValidationError:
+                statuses.append("rollback_conflict")
+                break
+            except CMSNotFoundError:
+                statuses.append("nothing_to_roll_back")
+                break
+            statuses.append(str(result.status))
+        final = (await provider.get_page(page_id=source_id)).body_html
+    finally:
+        await provider.aclose()
+
+    if final == original:
+        state = "original"
+    elif kind == "unrelated_edit" and final == edit(original):
+        state = "original_with_later_edit"
+    elif final == live:
+        state = "page_untouched"
+    else:
+        state = "other"
+    decision = f"{prefix}{'>'.join(statuses)}:{state}"
+    return _verdict(
+        case,
+        decision=decision,
+        detail=f"link_still_present={'data-ken-link-id' in final}",
+        selected={decision, *statuses, state},
+    )
+
+
+def _located(html: str, change: LinkChange) -> Located:
+    found = locate(html, change)
+    if isinstance(found, Located):
+        return found
+    raise FixtureError("the fixture's change cannot be located in the original page")
+
+
+def _score_retry_budget(case: EvalCase, ctx: ScoringContext) -> CaseOutcome:
+    """The REAL ``DatabaseRetryBudgetGate.verdict`` over budget states built by the REAL
+    ``budget_from_attempts``. Each step is one (source, target) pair's recorded counts.
+
+    NOT covered here: the SQL that COUNTS ``publish_attempts`` per pair
+    (``repo.budget_counts``) and the append in the deployment-intent transaction -- those are
+    database behaviour and belong to ``tests/integration``. What this measures is the rule
+    applied to those counts, which is the part that must be identical everywhere.
+    """
+    extra = _extra(case)
+    max_attempts = int(extra.get("max_attempts", 3))
+    settings = ctx.settings.model_copy(update={"autonomy_publish_max_attempts": max_attempts})
+    gate = DatabaseRetryBudgetGate(
+        sessionmaker=_offline_sessionmaker(ctx), settings=settings, clock=lambda: _EPOCH
+    )
+    outcomes: list[str] = []
+    for raw in sequence_of(require(extra, "steps"), "steps"):
+        step = mapping_of(raw, "steps[]")
+        remaining = step.get("cooldown_seconds_remaining")
+        state = budget_from_attempts(
+            source_page_id=eval_uuid("page", str(require(step, "source"))),
+            target_page_id=eval_uuid("page", str(require(step, "target"))),
+            attempts=int(step.get("attempts", 0)),
+            failures=int(step.get("failures", 0)),
+            max_attempts=max_attempts,
+            cooldown_until=(
+                None if remaining is None else _EPOCH + timedelta(seconds=float(remaining))
+            ),
+            last_attempt_at=None,
+        )
+        verdict = gate.verdict(state)
+        outcomes.append("allowed" if verdict.allowed else "refused:" + "+".join(verdict.reasons))
+    decision = ",".join(outcomes)
+    return _verdict(case, decision=decision, selected={decision, *outcomes})
+
+
+# --------------------------------------------------------------------------- #
+# autonomy-classification (hard fail): ADR-0018 sections 1-3
+# --------------------------------------------------------------------------- #
+_CLEAN_FACTS: Final[Mapping[str, Any]] = {
+    "source_page_version": 3,
+    "source_current_version": 3,
+    "target_page_version": 2,
+    "target_current_version": 2,
+    "source_protected": False,
+    "target_protected": False,
+    "target_published": True,
+    "target_gone": False,
+    "target_http_status": 200,
+    "target_canonical_ok": True,
+    "target_redirect_supported": True,
+    "target_noindex": False,
+    "target_thin": False,
+    "source_page_type": "insight",
+    "target_page_type": "report",
+    "page_types_compatible": True,
+    "destination_internal": True,
+    "destination_allowed_by_policy": True,
+    "already_linked": False,
+    "duplicate_allowed": False,
+    "anchor_valid": True,
+    "rollback_metadata_present": True,
+    "vector_fresh": True,
+    "policy_version": 1,
+    "confidence": 0.8,
+    "calibration_version": "eval-cal-1",
+}
+"""A plan on which NO block code fires. Every autonomy case starts here and overrides only
+what it is about, so a case can be read as a diff from 'nothing is wrong'."""
+
+_RISK_SIGNAL_FIELDS: Final = (
+    "commercial_page",
+    "hub_destination",
+    "protection_nearby",
+    "sensitive_anchor",
+    "prior_failure",
+    "measured_rollback",
+    "stale_target_version",
+)
+
+
+def _autonomy_engine(ctx: ScoringContext, *, default_profile: str) -> DatabaseAutonomyEngine:
+    """The REAL engine over an unconnected sessionmaker (see :func:`_offline_sessionmaker`).
+
+    Only its pure methods are called (``_assemble``, ``_decide``, ``_target_status``): they
+    take already-gathered inputs and open no session, which is why the case supplies the
+    facts the SQL snapshot (``load_plan_facts``) would have produced.
+    """
+    key = f"autonomy_engine:{default_profile}"
+    cached = ctx.cache.get(key)
+    if cached is None:
+        sessionmaker = _offline_sessionmaker(ctx)
+        settings = ctx.settings.model_copy(
+            update={"autonomy_verification_profile": default_profile}
+        )
+        blocks = DeterministicBlocks(
+            sessionmaker=sessionmaker,
+            settings=settings,
+            policy=ctx.recommendation,
+            taxonomy=ctx.taxonomy,
+            clock=lambda: _EPOCH,
+        )
+        cached = DatabaseAutonomyEngine(
+            sessionmaker=sessionmaker,
+            settings=settings,
+            policy=ctx.recommendation,
+            taxonomy=ctx.taxonomy,
+            blocks=blocks,
+            risk=DeterministicRiskClassifier(
+                sessionmaker=sessionmaker, taxonomy=ctx.taxonomy, clock=lambda: _EPOCH
+            ),
+            calibration=EvaluationCalibrationReader(
+                sessionmaker=sessionmaker, policy=None, clock=lambda: _EPOCH
+            ),
+            clock=lambda: _EPOCH,
+        )
+        ctx.cache[key] = cached
+    return cast("DatabaseAutonomyEngine", cached)
+
+
+def _plan_facts(case: EvalCase, overrides: Mapping[str, Any]) -> PlanFacts:
+    values: dict[str, Any] = {**_CLEAN_FACTS, **overrides}
+    source_id = eval_uuid("page", "autonomy-source")
+    same_page = bool(values.pop("same_page", False))
+    return PlanFacts(
+        plan_id=eval_uuid("plan", case.case_id),
+        source_page_id=source_id,
+        target_page_id=source_id if same_page else eval_uuid("page", "autonomy-target"),
+        **values,
+    )
+
+
+def _critic_verdict(case: EvalCase, extra: Mapping[str, Any]) -> CriticVerdict | None:
+    """The critic's verdict: a RECORDED model answer if the case carries one (replayed through
+    the contract's own ``CriticAssessment``, exactly as the agent node would), else declared."""
+    recorded = [
+        item for item in case.inputs.recorded_model_responses if item.role is ModelRole.REASONING
+    ]
+    if recorded:
+        assessment = CriticAssessment.model_validate(recorded[0].response)
+        if not assessment.critiques:
+            raise FixtureError("the recorded critic answer holds no critique")
+        return assessment.critiques[0].verdict
+    declared = extra.get("critic_verdict")
+    return None if declared is None else CriticVerdict(str(declared))
+
+
+def _score_risk_tier(case: EvalCase, extra: Mapping[str, Any]) -> CaseOutcome:
+    """``tier_from_signals`` and ``raise_to`` on their own: the raise-only half of the rule
+    that a BEHAVIOURAL signal can block or defer a publish and can never justify one.
+
+    ``RiskSignals`` has no field a good outcome could set, so the monotone direction is
+    structural; this checks the arithmetic on top of it, including that a floor never LOWERS
+    a tier.
+    """
+    declared = mapping_of(extra.get("risk", {}), "risk")
+    tier = tier_from_signals(
+        RiskSignals(
+            uncalibrated=bool(declared.get("uncalibrated", False)),
+            **{name: bool(declared.get(name, False)) for name in _RISK_SIGNAL_FIELDS},
+        )
+    )
+    floor = extra.get("floor")
+    if floor is not None:
+        tier = raise_to(tier, RiskTier(str(floor)))
+    return _verdict(case, decision=f"tier:{tier.value}")
+
+
+def _score_autonomy_classification(case: EvalCase, ctx: ScoringContext) -> CaseOutcome:
+    """Classify one plan under one or more modes, through the production decision code.
+
+    Real code driven: ``evaluate_blocks`` (the closed block set), ``critic_outcome_of``,
+    ``tier_from_signals`` / ``raise_to``, ``DatabaseAutonomyEngine._assemble`` (which calls
+    ``decision_for``, the confidence/calibration floors, ``profile_for`` and builds the
+    contract-validated ``AutonomyEvaluation``), and ``target_status_for`` / the engine's own
+    ``_target_status``.
+
+    The ``_gather`` glue between them (critic outcome -> tier raise -> ``extra_verification``)
+    is three lines in the engine that need a database session, so it is mirrored below and
+    marked. NOT covered: ``load_plan_facts`` (the SQL snapshot that produces the facts) and
+    the recording of the row -- ``tests/integration`` owns those.
+    """
+    extra = _extra(case)
+    if str(extra.get("check", "plan")) == "risk":
+        return _score_risk_tier(case, extra)
+    facts = _plan_facts(case, mapping_of(extra.get("facts", {}), "facts"))
+    engine = _autonomy_engine(ctx, default_profile=str(extra.get("default_profile", "standard")))
+    blocks = evaluate_blocks(facts)
+
+    verdict = _critic_verdict(case, extra)
+    handed_off = extra.get("handed_off")
+    critic = critic_outcome_of(verdict, handed_off=None if handed_off is None else bool(handed_off))
+    if critic is CriticOutcome.NO_ACTION:
+        # engine._gather raises CriticDeclinedError here: there is nothing to decide.
+        return _verdict(
+            case,
+            decision=f"critic_declined[{','.join(code.value for code in blocks)}]",
+            detail="critic outcome is no_action: an earlier outcome than a decision",
+        )
+
+    version = extra.get("calibration_version", facts.calibration_version)
+    calibrated = CalibratedConfidence(
+        value=float(extra.get("confidence", facts.confidence)),
+        calibration_version=None if version is None else str(version),
+    )
+    signals = {
+        name: bool(mapping_of(extra.get("risk", {}), "risk").get(name, False))
+        for name in _RISK_SIGNAL_FIELDS
+    }
+    tier = tier_from_signals(RiskSignals(uncalibrated=not calibrated.is_calibrated, **signals))
+    # --- mirrors DatabaseAutonomyEngine._gather steps 4-5 (they need a session) -----------
+    if verdict is CriticVerdict.UNCERTAIN:
+        tier = raise_to(tier, RiskTier.MEDIUM)
+    extra_verification = verdict is CriticVerdict.UNCERTAIN or not calibrated.is_calibrated
+    # ---------------------------------------------------------------------------------------
+    inputs = _Inputs(
+        facts=facts,
+        identity=PlanIdentity(
+            plan_id=facts.plan_id,
+            source_page_id=facts.source_page_id,
+            target_page_id=facts.target_page_id,
+            status="proposed",
+            anchor_source="target_topic",
+            relationship_type="same_market",
+            channels=("semantic",),
+            source_url="https://research.example.com/source",
+            target_url="https://research.example.com/target",
+            anchor_text="electric vehicle",
+            reasoning_model=None,
+        ),
+        blocks=blocks,
+        critic=critic,
+        verdict=verdict,
+        calibrated=calibrated,
+        tier=tier,
+        extra_verification=extra_verification,
+    )
+
+    show = str(extra.get("show", "decision"))
+    status_source = str(extra.get("status_source", "frozen_helper"))
+    parts: list[str] = []
+    tokens: set[str] = set()
+    for name in sequence_of(extra.get("modes", ["shadow", "guarded", "autonomous"]), "modes"):
+        mode = AutonomyMode(str(name))
+        evaluation = engine._assemble(inputs, mode=mode).evaluation
+        if status_source == "engine":
+            status = engine._target_status(evaluation)
+        else:
+            status = target_status_for(
+                decision=evaluation.decision, mode=mode, blocks=evaluation.blocks
+            )
+        token = f"{mode.value}:{evaluation.decision.value}"
+        if evaluation.would_have_decision is not None:
+            token += f"(would={evaluation.would_have_decision.value})"
+        if show in ("status", "full"):
+            token += f"/{status.value if status is not None else 'none'}"
+        if show == "full":
+            token += f"/{evaluation.verification_profile.value}"
+        parts.append(token)
+        tokens.update({token, f"{mode.value}:{evaluation.decision.value}"})
+    codes = ",".join(code.value for code in blocks)
+    decision = f"[{codes}] " + ",".join(parts)
+    return _verdict(
+        case,
+        decision=decision,
+        detail=f"tier={tier.value} critic={critic.value} calibrated={calibrated.is_calibrated}",
+        selected={decision, *tokens},
+    )
+
+
 SCORERS: Final[Mapping[EvalSuite, Any]] = {
     EvalSuite.DESTINATION_SELECTION: _score_destination_selection,
     EvalSuite.ANCHOR_SELECTION: _score_anchor_selection,
@@ -1152,6 +1678,8 @@ SCORERS: Final[Mapping[EvalSuite, Any]] = {
     EvalSuite.POLICY_REGRESSION: _score_policy_regression,
     EvalSuite.REFLECTION_GROUNDING: _score_reflection_grounding,
     EvalSuite.PROPOSAL_SAFETY: _score_proposal_safety,
+    EvalSuite.ROLLBACK_CORRECTNESS: _score_rollback_correctness,
+    EvalSuite.AUTONOMY_CLASSIFICATION: _score_autonomy_classification,
 }
 """Suite -> executor. ``editorial-agreement`` is DEFERRED (ADR-0016 15.3): it needs held-out
 human decisions that do not exist, so it has no scorer and no dataset."""
@@ -1187,6 +1715,19 @@ async def score_case(case: EvalCase, ctx: ScoringContext) -> CaseOutcome:
             return awaited
         computed: CaseOutcome = scorer(case, ctx)
         return computed
+    except ValidationError as exc:
+        # The production code produced (or was handed) something its own contract
+        # refuses. That is a FINDING about the code under test, so it fails the case
+        # with a fixed decision rather than aborting the run.
+        return CaseOutcome(
+            case_id=case.case_id,
+            suite=case.suite,
+            decision="contract_violation",
+            passed=False,
+            must_not_hit=False,
+            detail=f"{exc.error_count()} contract validation error(s)",
+            decision_class=case.decision_class.canonical if case.decision_class else None,
+        )
     except (FixtureError, KeyError) as exc:
         return CaseOutcome(
             case_id=case.case_id,

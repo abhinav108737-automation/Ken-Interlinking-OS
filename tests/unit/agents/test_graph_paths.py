@@ -141,7 +141,7 @@ async def test_all_accepted_recommends_and_hands_off() -> None:
     assert result.status is AgentRunStatus.AWAITING_APPROVAL
     assert result.plans_handed_off == 3
     assert result.plans_reviewed == 3
-    assert all(backend.status[p.id] == "awaiting_approval" for p in plans)
+    assert all(backend.status[p.id] == "policy_checked" for p in plans), "ladder end"
     assert len(backend.handoffs) == 1, "ONE hand-off call"
     assert result.state is not None
     assert result.state.risk_level is RiskLevel.LOW
@@ -151,15 +151,18 @@ async def test_all_accepted_recommends_and_hands_off() -> None:
     assert all(r.model == "mock-reasoning" and r.fallback_reason is None for r in reviews)
 
 
-async def test_only_uncertain_needs_human_review() -> None:
+async def test_only_uncertain_is_no_action_and_nothing_is_handed_on() -> None:
+    """ADR-0019: ``uncertain`` is the critic's NO_ACTION. A doubt is never a licence."""
     plans = [make_plan(i) for i in range(2)]
     backend = FakeBackend.ready(plans)
     provider = MockModelProvider(dimensions=8)
     _critic(provider, ("c0", "uncertain"), ("c1", "uncertain"))
     result = await run_source(backend, FakeStore(), provider, make_policy())
-    assert result.outcome is AgentOutcome.NEEDS_HUMAN_REVIEW
-    assert result.status is AgentRunStatus.AWAITING_APPROVAL
-    assert result.plans_handed_off == 2
+    assert result.outcome is AgentOutcome.NO_ACTION
+    assert result.status is AgentRunStatus.COMPLETED
+    assert result.plans_handed_off == 0
+    assert result.plans_reviewed == 2, "recorded, so a re-run never re-spends a model call"
+    assert all(backend.status[p.id] == "proposed" for p in plans)
     assert result.state is not None
     assert result.state.risk_level is RiskLevel.MEDIUM
 

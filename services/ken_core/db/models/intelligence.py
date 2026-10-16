@@ -11,17 +11,20 @@
                        copies the evidence values it relies on.
 ``page_protections``   protection flags (policy / cms / manual); deactivated, never deleted
 
-Migration 0003 also runs ``CREATE EXTENSION vector`` (ADR-0003 deferred it to
-the first vector column, which is ``page_embeddings.embedding``), and extends
-the Phase 1 append-only trigger to ``page_analyses`` and ``page_embeddings``.
+Migration 0003 extends the Phase 1 append-only trigger to ``page_analyses`` and
+``page_embeddings``. It creates no extension: ADR-0017 removed pgvector from the
+system, and migration 0010 converts any column an earlier run left behind.
 
-``page_embeddings.embedding`` is a dimension-less ``vector``: the dimension is
+``page_embeddings.embedding`` is a dimension-less ``real[]``: the dimension is
 the provider's, stored in ``dimensions`` and enforced by a CHECK against
-``vector_dims(embedding)``. Similarity queries always filter on (model,
+``array_length(embedding, 1)``. Similarity work always filters on (model,
 dimensions, recipe version, recipe fingerprint), so vectors from two models or
-two text recipes are never compared. ``recipe_fingerprint`` hashes the settings
-that shape the embedded text (document prefix, max chars) with the recipe
-version (``ken_services.intelligence.embeddings.recipe_fingerprint``).
+two text recipes are never compared. The cosine itself is computed outside
+SQL (``ken_contracts.vectors.cosine_similarity``, and the vector store).
+
+``page_embeddings.recipe_fingerprint`` hashes the settings that shape the
+embedded text (document prefix, max chars) with the recipe version
+(``ken_services.intelligence.embeddings.recipe_fingerprint``).
 """
 
 from __future__ import annotations
@@ -317,9 +320,7 @@ class PageGraphMetrics(Base):
         ),
         UniqueConstraint("page_id", "page_version", "metrics_version"),
         CheckConstraint("in_degree >= 0 AND out_degree >= 0", name="degrees_non_negative"),
-        CheckConstraint(
-            "internal_pagerank >= 0 AND internal_pagerank <= 1", name="pagerank_range"
-        ),
+        CheckConstraint("internal_pagerank >= 0 AND internal_pagerank <= 1", name="pagerank_range"),
         CheckConstraint("hub_score >= 0 AND hub_score <= 1", name="hub_score_range"),
         CheckConstraint(
             "authority_score >= 0 AND authority_score <= 1", name="authority_score_range"

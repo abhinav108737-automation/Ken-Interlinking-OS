@@ -261,6 +261,73 @@ export type GetLinkPerformanceQuery = NonNullable<operations["getLinkPerformance
 export type GetPageImpactQuery = NonNullable<operations["getPageImpact"]["parameters"]["query"]>;
 export type ListAnalyticsImportsQuery = NonNullable<operations["listAnalyticsImports"]["parameters"]["query"]>;
 
+// Autonomy-first operations control plane (ADR-0018). Reads need `read`; the
+// operator override needs `deploy`. There is no "approve" among the decisions.
+export type AutonomyMode = Schemas["AutonomyMode"];
+export type AutonomyDecision = Schemas["AutonomyDecision"];
+export type AutonomyHealth = Schemas["AutonomyHealth"];
+export type AutonomySummary = Schemas["AutonomySummary"];
+export type AutonomyDecisionView = Schemas["AutonomyDecisionView"];
+export type BlockCode = Schemas["BlockCode"];
+export type BlockedActionView = Schemas["BlockedActionView"];
+export type PublishAttemptView = Schemas["PublishAttemptView"];
+export type CriticOutcome = Schemas["CriticOutcome"];
+export type RiskTier = Schemas["RiskTier"];
+export type VerificationProfile = Schemas["VerificationProfile"];
+export type OverrideAction = Schemas["OverrideAction"];
+export type OperatorOverrideRequest = Schemas["OperatorOverrideRequest"];
+export type OperatorOverrideResponse = Schemas["OperatorOverrideResponse"];
+export type GraphSignals = Schemas["GraphSignals"];
+export type CandidateAttribution = Schemas["CandidateAttribution"];
+
+export type AutonomyDecisionList = Schemas["ListResponse_AutonomyDecisionView_"];
+export type BlockedActionList = Schemas["ListResponse_BlockedActionView_"];
+export type PublishAttemptList = Schemas["ListResponse_PublishAttemptView_"];
+
+export type ListAutonomyDecisionsQuery = NonNullable<operations["listAutonomyDecisions"]["parameters"]["query"]>;
+export type ListBlockedActionsQuery = NonNullable<operations["listBlockedActions"]["parameters"]["query"]>;
+export type ListPublishAttemptsQuery = NonNullable<operations["listPublishAttempts"]["parameters"]["query"]>;
+
+// Learning control plane (ADR-0016). Reads need `read` (the policy candidate
+// needs `read_settings`); advancing a proposal needs `promote`. Promotion is a
+// governed human action and `demonstration_mode` refuses it outright.
+export type CorpusBanner = Schemas["CorpusBanner"];
+export type LearningOverview = Schemas["LearningOverview"];
+export type ProposalKind = Schemas["ProposalKind"];
+export type ProposalStatus = Schemas["ProposalStatus"];
+export type ProposalSummary = Schemas["ProposalSummary"];
+export type ProposalDetail = Schemas["ProposalDetail"];
+export type ProposalTransitionView = Schemas["ProposalTransitionView"];
+export type ProposalRejectionReason = Schemas["ProposalRejectionReason"];
+export type ProposalEvidence = Schemas["ProposalEvidence"];
+export type PolicyChange = Schemas["PolicyChange"];
+export type PromotionPreview = Schemas["PromotionPreview"];
+export type PromotionRefusal = Schemas["PromotionRefusal"];
+export type TargetKind = Schemas["TargetKind"];
+export type SkillStatus = Schemas["SkillStatus"];
+export type SkillSource = Schemas["SkillSource"];
+export type SkillSummary = Schemas["SkillSummary"];
+export type SkillDetail = Schemas["SkillDetail"];
+export type GateResult = Schemas["GateResult"];
+export type GateReason = Schemas["GateReason"];
+export type GateReasonCode = Schemas["GateReasonCode"];
+export type EvalSuite = Schemas["EvalSuite"];
+export type EvaluationMode = Schemas["EvaluationMode"];
+export type EvaluationSummary = Schemas["EvaluationSummary"];
+export type EvaluationDetail = Schemas["EvaluationDetail"];
+export type AdvanceProposalRequest = Schemas["AdvanceProposalRequest"];
+export type AdvanceProposalResponse = Schemas["AdvanceProposalResponse"];
+
+export type ProposalList = Schemas["ListResponse_ProposalSummary_"];
+export type SkillList = Schemas["ListResponse_SkillSummary_"];
+export type EvaluationList = Schemas["ListResponse_EvaluationSummary_"];
+
+export type ListLearningProposalsQuery = NonNullable<operations["listLearningProposals"]["parameters"]["query"]>;
+export type ListSkillsQuery = NonNullable<operations["listSkills"]["parameters"]["query"]>;
+export type ListLearningEvaluationsQuery = NonNullable<
+  operations["listLearningEvaluations"]["parameters"]["query"]
+>;
+
 export type ApiPath = keyof paths;
 
 /**
@@ -610,6 +677,69 @@ export interface ApiClient {
     query?: ListAnalyticsImportsQuery,
     options?: RequestOptions,
   ): Promise<ApiResult<AnalyticsImportList>>;
+
+  // --- Autonomy-first operations (ADR-0018 §5): reads need `read` ------------
+  // The ONE mutation here is the operator override, which needs `deploy`.
+
+  /** `GET /autonomy` (`read`): decision, mode and block counts. Contract: 200, 401, 403, 422. */
+  getAutonomySummary(options?: RequestOptions): Promise<ApiResult<AutonomySummary>>;
+  /** `GET /autonomy/mode` (`read`): the mode in force and whether anything can really be published. Contract: 200, 401, 403, 422. */
+  getAutonomyMode(options?: RequestOptions): Promise<ApiResult<AutonomyHealth>>;
+  /** `GET /autonomy/decisions` (`read`): recorded decisions, newest first. Contract: 200, 401, 403, 422. */
+  listAutonomyDecisions(
+    query?: ListAutonomyDecisionsQuery,
+    options?: RequestOptions,
+  ): Promise<ApiResult<AutonomyDecisionList>>;
+  /** `GET /autonomy/blocked` (`read`): blocked plans and the codes that fired. Contract: 200, 401, 403, 422. */
+  listBlockedActions(
+    query?: ListBlockedActionsQuery,
+    options?: RequestOptions,
+  ): Promise<ApiResult<BlockedActionList>>;
+  /** `GET /autonomy/attempts` (`read`): the append-only publish-attempt ledger. Contract: 200, 401, 403, 422. */
+  listPublishAttempts(
+    query?: ListPublishAttemptsQuery,
+    options?: RequestOptions,
+  ): Promise<ApiResult<PublishAttemptList>>;
+  /**
+   * `POST /autonomy/plans/{plan_id}/override` (`deploy`): publish or block one
+   * plan with a recorded reason. Contract: 200, 401, 403, 404, 409, 422, 503.
+   * A 200 may still REFUSE (`applied: false` with `blocks`): a deterministic
+   * block is never overridable.
+   */
+  overrideAutonomyDecision(
+    planId: string,
+    body: OperatorOverrideRequest,
+    options?: RequestOptions,
+  ): Promise<ApiResult<OperatorOverrideResponse>>;
+
+  // --- Learning control plane (ADR-0016): reads `read`, advance `promote` ----
+
+  /** `GET /learning` (`read`): the corpus banner and the list counts. Contract: 200, 401, 403, 422. */
+  getLearningOverview(options?: RequestOptions): Promise<ApiResult<LearningOverview>>;
+  /** `GET /learning/proposals` (`read`): policy and skill proposals, newest first. Contract: 200, 401, 403, 422. */
+  listLearningProposals(
+    query?: ListLearningProposalsQuery,
+    options?: RequestOptions,
+  ): Promise<ApiResult<ProposalList>>;
+  /** `GET /learning/proposals/{proposal_id}` (`read`): evidence, changes, gates and promotion preview. Contract: 200, 401, 403, 404, 422. */
+  getLearningProposal(proposalId: string, options?: RequestOptions): Promise<ApiResult<ProposalDetail>>;
+  /** `POST /learning/proposals/{proposal_id}/advance` (`promote`). Contract: 200, 401, 403, 404, 409, 422. */
+  advanceLearningProposal(
+    proposalId: string,
+    body: AdvanceProposalRequest,
+    options?: RequestOptions,
+  ): Promise<ApiResult<AdvanceProposalResponse>>;
+  /** `GET /learning/skills` (`read`): skill versions, newest first. Contract: 200, 401, 403, 422. */
+  listSkills(query?: ListSkillsQuery, options?: RequestOptions): Promise<ApiResult<SkillList>>;
+  /** `GET /learning/skills/{name}` (`read`): one skill with its version history. Contract: 200, 401, 403, 404, 422. */
+  getSkill(name: string, options?: RequestOptions): Promise<ApiResult<SkillDetail>>;
+  /** `GET /learning/evaluations` (`read`): evaluation runs, newest first. Contract: 200, 401, 403, 422. */
+  listLearningEvaluations(
+    query?: ListLearningEvaluationsQuery,
+    options?: RequestOptions,
+  ): Promise<ApiResult<EvaluationList>>;
+  /** `GET /learning/evaluations/{evaluation_id}` (`read`): metrics and gate reasons. Contract: 200, 401, 403, 404, 422. */
+  getLearningEvaluation(evaluationId: string, options?: RequestOptions): Promise<ApiResult<EvaluationDetail>>;
 }
 
 // ---------------------------------------------------------------------------
@@ -1945,6 +2075,325 @@ export const isLinkPerformanceList = (value: unknown): value is LinkPerformanceL
 export const isAnalyticsImportList = (value: unknown): value is AnalyticsImportList =>
   isListResponse(value, isAnalyticsImportView);
 
+// --- Autonomy guards (ADR-0018) -------------------------------------------
+// Shallow by intent, as above: the fields the operations screens read, with
+// enum membership left to lib/autonomy.ts so a newer backend's additional
+// decision, mode or block code renders as "Unknown (…)" rather than blanking
+// the whole screen. `blocks` must be an array of strings, because the blocked
+// and investigation screens iterate it.
+
+export function isGraphSignals(value: unknown): value is GraphSignals {
+  return (
+    isObject(value) &&
+    typeof value["page_id"] === "string" &&
+    isNumber(value["page_version"]) &&
+    isNumber(value["in_degree"]) &&
+    isNumber(value["out_degree"]) &&
+    isNumber(value["internal_pagerank"]) &&
+    isNumber(value["authority_score"]) &&
+    isNumber(value["hub_score"]) &&
+    isNullableNumber(value["cluster_id"]) &&
+    isNullableNumber(value["component_id"]) &&
+    isNullableNumber(value["crawl_depth"]) &&
+    typeof value["is_orphan"] === "boolean" &&
+    typeof value["is_nearly_orphan"] === "boolean" &&
+    typeof value["is_bridge"] === "boolean" &&
+    typeof value["metrics_version"] === "string" &&
+    typeof value["computed_at"] === "string"
+  );
+}
+
+export function isAutonomyHealth(value: unknown): value is AutonomyHealth {
+  return (
+    isObject(value) &&
+    typeof value["mode"] === "string" &&
+    typeof value["publishing_enabled"] === "boolean" &&
+    typeof value["autonomous_acknowledged"] === "boolean" &&
+    typeof value["allow_production"] === "boolean" &&
+    typeof value["cms_provider"] === "string" &&
+    typeof value["cms_writes_enabled"] === "boolean" &&
+    isNullableString(value["calibration_version"]) &&
+    isNumber(value["policy_version"]) &&
+    typeof value["verification_profile_default"] === "string"
+  );
+}
+
+export function isAutonomySummary(value: unknown): value is AutonomySummary {
+  return (
+    isObject(value) &&
+    typeof value["mode"] === "string" &&
+    isNumber(value["auto_published"]) &&
+    isNumber(value["blocked_plans"]) &&
+    isNumber(value["rolled_back"]) &&
+    isNumberRecord(value["blocks_by_code"]) &&
+    isNumberRecord(value["decisions_by_decision"]) &&
+    isNumberRecord(value["decisions_by_mode"])
+  );
+}
+
+export function isAutonomyDecisionView(value: unknown): value is AutonomyDecisionView {
+  return (
+    isObject(value) &&
+    isNumber(value["id"]) &&
+    typeof value["plan_id"] === "string" &&
+    typeof value["plan_status"] === "string" &&
+    typeof value["decision"] === "string" &&
+    typeof value["mode"] === "string" &&
+    typeof value["risk_tier"] === "string" &&
+    typeof value["critic_outcome"] === "string" &&
+    isNullableString(value["critic_verdict"]) &&
+    isNumber(value["confidence"]) &&
+    isNullableString(value["calibration_version"]) &&
+    isNumber(value["policy_version"]) &&
+    typeof value["engine_version"] === "string" &&
+    typeof value["rollback_available"] === "boolean" &&
+    typeof value["verification_profile"] === "string" &&
+    isNullableString(value["would_have_decision"]) &&
+    isStringArray(value["blocks"]) &&
+    typeof value["source_url"] === "string" &&
+    typeof value["target_url"] === "string" &&
+    typeof value["evaluated_at"] === "string"
+  );
+}
+
+export function isBlockedActionView(value: unknown): value is BlockedActionView {
+  return (
+    isObject(value) &&
+    typeof value["plan_id"] === "string" &&
+    typeof value["source_page_id"] === "string" &&
+    typeof value["target_page_id"] === "string" &&
+    typeof value["source_url"] === "string" &&
+    typeof value["target_url"] === "string" &&
+    typeof value["anchor_text"] === "string" &&
+    typeof value["mode"] === "string" &&
+    typeof value["risk_tier"] === "string" &&
+    typeof value["overridden"] === "boolean" &&
+    isStringArray(value["blocks"]) &&
+    typeof value["decided_at"] === "string"
+  );
+}
+
+export function isPublishAttemptView(value: unknown): value is PublishAttemptView {
+  return (
+    isObject(value) &&
+    isNumber(value["id"]) &&
+    typeof value["plan_id"] === "string" &&
+    typeof value["source_page_id"] === "string" &&
+    typeof value["target_page_id"] === "string" &&
+    isNumber(value["attempt"]) &&
+    typeof value["decision"] === "string" &&
+    typeof value["mode"] === "string" &&
+    typeof value["verification_profile"] === "string" &&
+    typeof value["succeeded"] === "boolean" &&
+    typeof value["rolled_back"] === "boolean" &&
+    isNullableString(value["failure_code"]) &&
+    isNullableString(value["cooldown_until"]) &&
+    typeof value["occurred_at"] === "string"
+  );
+}
+
+export function isOperatorOverrideResponse(value: unknown): value is OperatorOverrideResponse {
+  return (
+    isObject(value) &&
+    typeof value["plan_id"] === "string" &&
+    typeof value["action"] === "string" &&
+    typeof value["applied"] === "boolean" &&
+    typeof value["plan_status"] === "string" &&
+    typeof value["actor"] === "string" &&
+    isNullableString(value["refusal"]) &&
+    isStringArray(value["blocks"]) &&
+    typeof value["occurred_at"] === "string"
+  );
+}
+
+export const isAutonomyDecisionList = (value: unknown): value is AutonomyDecisionList =>
+  isListResponse(value, isAutonomyDecisionView);
+export const isBlockedActionList = (value: unknown): value is BlockedActionList =>
+  isListResponse(value, isBlockedActionView);
+export const isPublishAttemptList = (value: unknown): value is PublishAttemptList =>
+  isListResponse(value, isPublishAttemptView);
+
+// --- Learning guards (ADR-0016) -------------------------------------------
+
+export function isCorpusBanner(value: unknown): value is CorpusBanner {
+  return (
+    isObject(value) &&
+    typeof value["demonstration_mode"] === "boolean" &&
+    typeof value["note"] === "string" &&
+    isNumber(value["pages_total"]) &&
+    isNumber(value["plans_total"]) &&
+    isNumber(value["review_actions_total"]) &&
+    isNumber(value["min_sample_count"])
+  );
+}
+
+export function isLearningOverview(value: unknown): value is LearningOverview {
+  return (
+    isObject(value) &&
+    isCorpusBanner(value["banner"]) &&
+    isNumber(value["policy_version"]) &&
+    isNumberRecord(value["proposals_by_status"]) &&
+    isNumberRecord(value["skills_by_status"]) &&
+    isNumberRecord(value["evaluations_by_gate_result"]) &&
+    isNumberRecord(value["experiments_by_status"]) &&
+    isNullableString(value["latest_reflection_run_id"]) &&
+    isNullableString(value["latest_evaluation_run_id"])
+  );
+}
+
+function hasProposalSummaryFields(value: JsonObject): boolean {
+  return (
+    typeof value["id"] === "string" &&
+    typeof value["kind"] === "string" &&
+    typeof value["status"] === "string" &&
+    typeof value["title"] === "string" &&
+    isNullableString(value["target_kind"]) &&
+    typeof value["base_version"] === "string" &&
+    typeof value["fingerprint"] === "string" &&
+    typeof value["proposed_by"] === "string" &&
+    isNullableString(value["model"]) &&
+    typeof value["fallback_used"] === "boolean" &&
+    typeof value["job_run_id"] === "string" &&
+    isNullableString(value["supersedes"]) &&
+    typeof value["created_at"] === "string" &&
+    typeof value["updated_at"] === "string"
+  );
+}
+
+export function isProposalSummary(value: unknown): value is ProposalSummary {
+  return isObject(value) && hasProposalSummaryFields(value);
+}
+
+export function isProposalTransitionView(value: unknown): value is ProposalTransitionView {
+  return isObject(value) && typeof value["to_status"] === "string" && typeof value["occurred_at"] === "string";
+}
+
+export function isPromotionPreview(value: unknown): value is PromotionPreview {
+  return (
+    isObject(value) &&
+    typeof value["blocked"] === "boolean" &&
+    isStringArray(value["blocked_by"]) &&
+    typeof value["next_version"] === "string" &&
+    isNullableString(value["rollback_to_version"]) &&
+    typeof value["requires_operator_restart"] === "boolean" &&
+    isStringArray(value["target_paths"])
+  );
+}
+
+export function isProposalDetail(value: unknown): value is ProposalDetail {
+  return (
+    isObject(value) &&
+    hasProposalSummaryFields(value) &&
+    typeof value["rationale"] === "string" &&
+    typeof value["frozen_fields_untouched"] === "boolean" &&
+    isObject(value["evidence"]) &&
+    Array.isArray(value["changes"]) &&
+    Array.isArray(value["evaluations"]) &&
+    isStringArray(value["required_stages"]) &&
+    isStringArray(value["stages_completed"]) &&
+    everyItem(value["transitions"], isProposalTransitionView) &&
+    (value["promotion"] === null || isPromotionPreview(value["promotion"]))
+  );
+}
+
+export function isAdvanceProposalResponse(value: unknown): value is AdvanceProposalResponse {
+  return (
+    isObject(value) &&
+    isProposalDetail(value["proposal"]) &&
+    typeof value["replayed"] === "boolean" &&
+    isProposalTransitionView(value["transition"])
+  );
+}
+
+function hasSkillSummaryFields(value: JsonObject): boolean {
+  return (
+    typeof value["id"] === "string" &&
+    typeof value["name"] === "string" &&
+    isNumber(value["version"]) &&
+    typeof value["status"] === "string" &&
+    typeof value["source"] === "string" &&
+    typeof value["description"] === "string" &&
+    isNullableString(value["proposal_id"]) &&
+    isNullableString(value["evaluation_run_id"]) &&
+    isNullableNumber(value["evaluation_score"]) &&
+    isNullableString(value["promoted_by"]) &&
+    isNullableString(value["promoted_at"]) &&
+    typeof value["created_at"] === "string"
+  );
+}
+
+export function isSkillSummary(value: unknown): value is SkillSummary {
+  return isObject(value) && hasSkillSummaryFields(value);
+}
+
+export function isSkillDetail(value: unknown): value is SkillDetail {
+  return (
+    isObject(value) &&
+    hasSkillSummaryFields(value) &&
+    typeof value["instructions"] === "string" &&
+    typeof value["model_role"] === "string" &&
+    isObject(value["input_schema"]) &&
+    isObject(value["output_schema"]) &&
+    isStringArray(value["suites"]) &&
+    everyItem(value["versions"], isSkillSummary)
+  );
+}
+
+function hasEvaluationSummaryFields(value: JsonObject): boolean {
+  return (
+    typeof value["id"] === "string" &&
+    typeof value["mode"] === "string" &&
+    typeof value["gate_result"] === "string" &&
+    isStringArray(value["suites"]) &&
+    isNullableString(value["proposal_id"]) &&
+    isNullableString(value["candidate_id"]) &&
+    isNullableString(value["skill_id"]) &&
+    isNullableString(value["baseline_evaluation_id"]) &&
+    isNullableString(value["proposal_fingerprint"]) &&
+    typeof value["runner_version"] === "string" &&
+    typeof value["model_provider"] === "string" &&
+    isNullableString(value["git_sha"]) &&
+    typeof value["job_run_id"] === "string" &&
+    typeof value["started_at"] === "string" &&
+    isNullableString(value["finished_at"])
+  );
+}
+
+export function isEvaluationSummary(value: unknown): value is EvaluationSummary {
+  return isObject(value) && hasEvaluationSummaryFields(value);
+}
+
+export function isGateReason(value: unknown): value is GateReason {
+  return (
+    isObject(value) &&
+    typeof value["code"] === "string" &&
+    typeof value["detail"] === "string" &&
+    isNullableString(value["suite"]) &&
+    isNullableString(value["decision_class"])
+  );
+}
+
+export function isEvaluationDetail(value: unknown): value is EvaluationDetail {
+  return (
+    isObject(value) &&
+    hasEvaluationSummaryFields(value) &&
+    isObject(value["metrics"]) &&
+    isNumber((value["metrics"] as JsonObject)["cases_total"]) &&
+    isNumber((value["metrics"] as JsonObject)["cases_passed"]) &&
+    everyItem(value["gate_reasons"], isGateReason) &&
+    isObject(value["dataset_manifests"]) &&
+    isObject(value["policy_shas"]) &&
+    isObject(value["model_role_models"]) &&
+    isNullableNumber(value["seed"])
+  );
+}
+
+export const isProposalList = (value: unknown): value is ProposalList =>
+  isListResponse(value, isProposalSummary);
+export const isSkillList = (value: unknown): value is SkillList => isListResponse(value, isSkillSummary);
+export const isEvaluationList = (value: unknown): value is EvaluationList =>
+  isListResponse(value, isEvaluationSummary);
+
 /** The contract's only error body. `details` may be absent from older servers. */
 export function isErrorResponse(value: unknown): value is ErrorResponse {
   return (
@@ -2038,6 +2487,18 @@ const NODE_ID = /^[a-z0-9][a-z0-9_.-]{0,99}$/;
 
 export function isSafeNodeId(value: unknown): value is string {
   return typeof value === "string" && NODE_ID.test(value);
+}
+
+/**
+ * A skill name used as a path segment (`GET /learning/skills/{name}`). Same
+ * reasoning as `isSafeNodeId`: a leading alphanumeric means `.` and `..` can
+ * never be a whole segment, and `/`, `%`, `?` and `#` are rejected outright, so
+ * a hand-typed URL can never traverse out of the collection.
+ */
+const SKILL_NAME = /^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}$/;
+
+export function isSafeSkillName(value: unknown): value is string {
+  return typeof value === "string" && SKILL_NAME.test(value);
 }
 
 /** A concrete request: the contract path template (reported in errors) plus the real URL path. */
@@ -2627,5 +3088,83 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
 
     listAnalyticsImports: (query, callOptions = {}) =>
       inventory("/analytics/imports", "/analytics/imports", isAnalyticsImportList, query, callOptions, [422]),
+
+    getAutonomySummary: (callOptions = {}) =>
+      inventory("/autonomy", "/autonomy", isAutonomySummary, undefined, callOptions, [422]),
+
+    getAutonomyMode: (callOptions = {}) =>
+      inventory("/autonomy/mode", "/autonomy/mode", isAutonomyHealth, undefined, callOptions, [422]),
+
+    listAutonomyDecisions: (query, callOptions = {}) =>
+      inventory("/autonomy/decisions", "/autonomy/decisions", isAutonomyDecisionList, query, callOptions, [422]),
+
+    listBlockedActions: (query, callOptions = {}) =>
+      inventory("/autonomy/blocked", "/autonomy/blocked", isBlockedActionList, query, callOptions, [422]),
+
+    listPublishAttempts: (query, callOptions = {}) =>
+      inventory("/autonomy/attempts", "/autonomy/attempts", isPublishAttemptList, query, callOptions, [422]),
+
+    overrideAutonomyDecision: (planId, body, callOptions = {}) => {
+      const path = "/autonomy/plans/{plan_id}/override";
+      if (!isSafePathId(planId)) return invalidArgument(path, "recommendation id");
+      return post(
+        path,
+        `/autonomy/plans/${id(planId)}/override`,
+        body,
+        // The contract declares 200/401/403/404/409/422 — no 503. A 503 that
+        // arrives anyway is an `http_status` error, which the override action
+        // treats as "outcome unknown" rather than "nothing changed".
+        { ok: [200], declaredErrors: REVIEW_ERRORS, guard: isOperatorOverrideResponse },
+        callOptions,
+      );
+    },
+
+    getLearningOverview: (callOptions = {}) =>
+      inventory("/learning", "/learning", isLearningOverview, undefined, callOptions, [422]),
+
+    listLearningProposals: (query, callOptions = {}) =>
+      inventory("/learning/proposals", "/learning/proposals", isProposalList, query, callOptions, [422]),
+
+    getLearningProposal: (proposalId, callOptions = {}) => {
+      const path = "/learning/proposals/{proposal_id}";
+      if (!isSafePathId(proposalId)) return invalidArgument(path, "proposal id");
+      return inventory(path, `/learning/proposals/${id(proposalId)}`, isProposalDetail, undefined, callOptions);
+    },
+
+    advanceLearningProposal: (proposalId, body, callOptions = {}) => {
+      const path = "/learning/proposals/{proposal_id}/advance";
+      if (!isSafePathId(proposalId)) return invalidArgument(path, "proposal id");
+      return post(
+        path,
+        `/learning/proposals/${id(proposalId)}/advance`,
+        body,
+        { ok: [200], declaredErrors: REVIEW_ERRORS, guard: isAdvanceProposalResponse },
+        callOptions,
+      );
+    },
+
+    listSkills: (query, callOptions = {}) =>
+      inventory("/learning/skills", "/learning/skills", isSkillList, query, callOptions, [422]),
+
+    getSkill: (name, callOptions = {}) => {
+      const path = "/learning/skills/{name}";
+      if (!isSafeSkillName(name)) return invalidArgument(path, "skill name");
+      return inventory(path, `/learning/skills/${id(name)}`, isSkillDetail, undefined, callOptions);
+    },
+
+    listLearningEvaluations: (query, callOptions = {}) =>
+      inventory("/learning/evaluations", "/learning/evaluations", isEvaluationList, query, callOptions, [422]),
+
+    getLearningEvaluation: (evaluationId, callOptions = {}) => {
+      const path = "/learning/evaluations/{evaluation_id}";
+      if (!isSafePathId(evaluationId)) return invalidArgument(path, "evaluation id");
+      return inventory(
+        path,
+        `/learning/evaluations/${id(evaluationId)}`,
+        isEvaluationDetail,
+        undefined,
+        callOptions,
+      );
+    },
   };
 }

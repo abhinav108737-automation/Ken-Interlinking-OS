@@ -60,6 +60,7 @@ from ken_contracts.autonomy import (
     RiskTier,
     VerificationProfile,
 )
+from ken_contracts.recommendations import LinkPlanStatus
 
 __all__ = [
     "AUTONOMY_ACTOR",
@@ -76,6 +77,7 @@ __all__ = [
     "budget_from_attempts",
     "decision_for",
     "profile_for",
+    "target_status_for",
 ]
 
 ENGINE_VERSION: Final = "autonomy-engine-1"
@@ -156,6 +158,38 @@ def decision_for(
     if extra_verification or risk_tier is RiskTier.HIGH:
         return AutonomyDecision.AUTO_PUBLISH_WITH_EXTRA_VERIFICATION
     return AutonomyDecision.AUTO_PUBLISH
+
+
+def target_status_for(
+    *, decision: AutonomyDecision, mode: AutonomyMode, blocks: Sequence[BlockCode]
+) -> LinkPlanStatus | None:
+    """Where the plan GOES, given the decision. ``None`` means "do not move it".
+
+    ``decision_for`` returns ``BLOCK`` both for a fired hard block and for a ``guarded``-mode
+    plan that is merely too risky, uncalibrated or under-confident to publish unattended; the
+    ADR's vocabulary has three decisions and no DEFER. Both land on ``blocked``:
+
+    * a fired block           -> ``blocked`` (terminal unless an operator overrides);
+    * ``shadow``              -> ``None``: a shadow pass records and moves nothing;
+    * any other ``BLOCK``     -> ``blocked`` too. That is a DEFERRAL
+      (:attr:`~ken_contracts.autonomy.AutonomyEvaluation.deferred`): ``blocked`` with an empty
+      ``blocks`` tuple, and its reason is spelled out on the transition note and on the
+      blocked-actions screen. There is no separate "deferred" state in the operational
+      vocabulary (proposed, blocked, auto-published, verification-pending, verified,
+      rolled-back, failed), migration 0010's ``ken_autonomy_decision_guard()`` maps every
+      ``block`` decision to ``blocked``, and an operator can still publish-override it;
+    * a publish decision      -> ``autonomy_decided``, the normal autonomous path.
+
+    (This function used to send a deferral to ``awaiting_approval``. That was irreconcilable
+    with the database guard, so the orchestrator decided the guard's answer wins.)
+    """
+    if blocks:
+        return LinkPlanStatus.BLOCKED
+    if mode is AutonomyMode.SHADOW:
+        return None
+    if decision is AutonomyDecision.BLOCK:
+        return LinkPlanStatus.BLOCKED
+    return LinkPlanStatus.AUTONOMY_DECIDED
 
 
 def profile_for(decision: AutonomyDecision, *, default: VerificationProfile) -> VerificationProfile:
