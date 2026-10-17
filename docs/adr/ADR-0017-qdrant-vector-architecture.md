@@ -157,3 +157,26 @@ latest published version (Apache-2.0). Nothing binds 8765.
    was checked; libraries bundled inside binary wheels were not independently audited. `numpy` is now
    present transitively but is not used for any statistics (ADR-0016 still makes no significance claims).
 
+## Corrections after integration (2026-10-17)
+
+1. **The image is pinned by tag; the digest is recorded in a comment.** Item 4 above says "pinned to
+   digest". `docker-compose.yml` pins `qdrant/qdrant:v1.19.1` and records
+   `sha256:12364fe851b9f17356fc88189fc06d1b521262e04659ec7345975b00c9246a10` in a comment next to it.
+   A tag can be re-pushed; pinning the digest in the `image:` line itself is a hardening for any
+   shared environment.
+2. **`KEN_VECTOR_STORE` defaults to `memory`, not `qdrant`.** The default is chosen so that the test
+   suite and CI need no container. The consequence is that **a default installation does not use
+   Qdrant**: it builds an exact in-process index per run, which is correct but not the production path.
+   The Qdrant make targets (`qdrant-index`, `qdrant-rebuild`, `qdrant-verify`) pin
+   `KEN_VECTOR_STORE=qdrant` themselves and the CLI warns on stderr when run against memory. An
+   operator running the real pipeline must set `KEN_VECTOR_STORE=qdrant`; `.env.example` now says so.
+3. **`KEN_REQUIRE_QDRANT` is a plain default-true flag.** Section 5 describes the probe as required
+   "when the semantic channel is enabled"; the code does not condition it that way, and the memory
+   store always probes `ok`. A reachable but not-yet-indexed Qdrant also reports `ok`
+   (`collection_present: false`) so a fresh installation is not "not ready".
+4. **The semantic backend is one of six generators.** ADR-0011 section 2 lists four channels using
+   cosine search over page embeddings. The code has six independent generators (semantic, lexical,
+   topic, graph, analytics, orphan recovery); semantic retrieval goes through `VectorStore.search`
+   (this ADR), and the analytics and orphan-recovery generators are inert by default
+   (`analytics_k` and `orphan_recovery_k` default to 0).
+

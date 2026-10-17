@@ -157,3 +157,51 @@ This is what Phase 9 calibration and Phase 8 learning read, and it is append-onl
    refuses the combination; the schema does not. Closing it is one line in 0010, deferred to the final
    integration pass so it does not invalidate the test databases of workstreams already running.
 
+## Corrections after integration (2026-10-17)
+
+Written once the code existed and was read back against this ADR. Where this section and the
+text above disagree, **this section is right.**
+
+1. **A guarded deferral is recorded as `blocked`, not `awaiting_approval`.** Amendment 2 above and
+   section 3 said otherwise. Migration 0010's `ken_autonomy_decision_guard()` maps every `block`
+   decision to `blocked`, and the directive's operational vocabulary has no "deferred" state, so the
+   orchestrator decided the database guard wins. A deferral is `decision = BLOCK` with an **empty
+   block list**, exposed as the explicit property `AutonomyEvaluation.deferred` (BLOCK, no fired
+   code, not shadow, not a critic rejection), with the reason written in words on the plan's
+   `blocked` transition note. `target_status_for` returns `BLOCKED` for it. An operator can still
+   publish-override a deferral; a hard block is never overridable while its code still fires.
+2. **Amendment 7 is closed, and more strictly than proposed.** The database now has
+   `ck_autonomy_decisions_no_action_never_decided` (`critic_outcome <> 'no_action'`), so no decision
+   row exists for `NO_ACTION` at all. The contract validator only forbade it combined with `BLOCK`.
+3. **`guarded` additionally requires a calibrated decision class.** Section 2 says `guarded`
+   publishes `AUTO_PUBLISH` decisions that are low-risk and high-confidence. The engine also requires
+   a calibrated class (a passing, fresh evaluation with a row for that exact class, at least 30
+   samples and a recorded calibrated confidence), matching ADR-0011's rule. The consequence is
+   stated plainly: **without real review history no plan reaches plain `AUTO_PUBLISH`.** Every
+   class is uncalibrated, so every plan ends in `AUTO_PUBLISH_WITH_EXTRA_VERIFICATION` or `BLOCK`,
+   and `guarded` publishes nothing.
+4. **Thresholds live in policy, not code.** `policies/autonomy/autonomy.v1.yaml` (guarded floor
+   0.85, autonomous floor 0.50, retry 3 attempts and a 3600 s cool-down, and the risk thresholds)
+   with contract-level floors the file cannot go below (guarded 0.75, autonomous 0.50, at most 5
+   attempts, cool-down at least 600 s). The values were **not tuned to the demo corpus**: the best
+   pairs there score about 0.65, so the shipped guarded floor publishes nothing on it even for a
+   perfectly calibrated class, and a test asserts that.
+5. **Audit identity of an autonomous publish.** `deployments.actor` must be a `user:` account, so
+   the autonomous run acts as a named operator (`make autonomy-run AS_USER=<name>`). An auditor tells
+   an autonomous publish from a human one by three links: `publish_attempts.deployment_id` joins to an
+   attempt whose actor is `system:autonomy-engine`; the deployment `note` reads
+   `autonomous publish (<decision>) decision#<id>`; and the plan went `autonomy_decided -> validated`
+   where a human deploy goes `approved -> validated`. The attempt row is written after the CMS call,
+   so a crash between the two loses it (links 2 and 3 survive).
+6. **The agent hand-off ends at `policy_checked`, not `awaiting_approval`** (ADR-0019). Otherwise
+   accepted plans never reached the engine. A plan whose verdict is `uncertain` stays `proposed`,
+   recorded `handed_off = false`. The agent *run* status `awaiting_approval` is unchanged and now
+   means "handed on".
+7. **Known inconsistency, to be fixed:** `critic_outcome_of` in the engine still maps a historic,
+   handed-on `uncertain` review to `ACCEPT` with the risk tier raised and extra verification set.
+   That contradicts ADR-0019's rule that an `uncertain` answer never maps to accept. Only rows written
+   before the critic change can take that path, so a fresh installation cannot reach it, but a
+   fail-open mapping on a safety path is not acceptable even for legacy data. It is being changed to
+   `NO_ACTION`.
+8. **`KEN_VECTOR_STORE` defaults to `memory`.** See the amendment to ADR-0017.
+
