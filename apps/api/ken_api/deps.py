@@ -30,6 +30,7 @@ from ken_contracts.controlplane import DashboardSummary, EventRecord, PoliciesVi
 from ken_contracts.deployment import DeploymentReader, DeploymentService
 from ken_contracts.errors import ListResponse
 from ken_contracts.events import EventName
+from ken_contracts.graph import GraphReader
 from ken_contracts.intelligence import IntelligenceReader
 from ken_contracts.inventory import InventoryReader
 from ken_contracts.jobs import JobReader
@@ -59,6 +60,7 @@ LEARNING_READER: Final = "ken_services.learning.reader"
 LEARNING_SERVICE: Final = "ken_services.learning.promote"
 AUTONOMY_READER: Final = "ken_services.autonomy.reader"
 AUTONOMY_SERVICE: Final = "ken_services.autonomy.override"
+GRAPH_READER: Final = "ken_services.graph.reader"
 
 
 class TargetOptionsService(ReviewService, Protocol):
@@ -181,6 +183,15 @@ def get_intelligence_reader(
     reader: IntelligenceReader = module.SqlIntelligenceReader(
         sessionmaker=sessionmaker, model_provider=model_provider, settings=settings
     )
+    return reader
+
+
+def get_graph_reader(
+    sessionmaker: Annotated[async_sessionmaker[AsyncSession], Depends(get_readonly_sessionmaker)],
+) -> GraphReader:
+    """The SQL-backed corpus-wide graph reader over READ ONLY sessions (ADR-0014 s8)."""
+    module: Any = importlib.import_module(GRAPH_READER)
+    reader: GraphReader = module.SqlGraphReader(sessionmaker)
     return reader
 
 
@@ -376,6 +387,7 @@ IdentityDep = Annotated[ServiceIdentity, Depends(get_identity)]
 ProbesDep = Annotated[list[Probe], Depends(get_probes)]
 InventoryReaderDep = Annotated[InventoryReader, Depends(get_inventory_reader)]
 IntelligenceReaderDep = Annotated[IntelligenceReader, Depends(get_intelligence_reader)]
+GraphReaderDep = Annotated[GraphReader, Depends(get_graph_reader)]
 JobReaderDep = Annotated[JobReader, Depends(get_job_reader)]
 RecommendationReaderDep = Annotated[RecommendationReader, Depends(get_recommendation_reader)]
 AgentReaderDep = Annotated[AgentReader, Depends(get_agent_reader)]

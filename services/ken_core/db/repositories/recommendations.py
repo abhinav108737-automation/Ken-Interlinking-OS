@@ -35,8 +35,10 @@ from ken_contracts.inventory import LinkType, UrlOutcome
 from ken_contracts.recommendations import (
     LIVE_STATUSES,
     OPEN_STATUSES,
+    CandidateAttribution,
     CandidateRejection,
     CandidateView,
+    GraphSignals,
     LinkPlan,
     LinkPlanStatus,
     OpportunityKind,
@@ -136,6 +138,10 @@ def candidate_from_row(row: LinkCandidate, target_url: str) -> CandidateView:
         total_score=row.total_score,
         rejection=None if row.rejection is None else CandidateRejection(row.rejection),
         plan_id=row.plan_id,
+        attribution=tuple(CandidateAttribution.model_validate(a) for a in row.attribution),
+        graph_signals=(
+            GraphSignals.model_validate(row.graph_signals) if row.graph_signals else None
+        ),
     )
 
 
@@ -419,6 +425,10 @@ class NewCandidate:
     total_score: float | None
     rejection: CandidateRejection | None
     plan_id: uuid.UUID | None
+    attribution: Sequence[Mapping[str, Any]] = ()
+    """Per-channel audit trail (ADR-0018 / directive s6): one JSON object per nominating channel."""
+    graph_signals: Mapping[str, Any] | None = None
+    """The TARGET's link-graph position when it was retrieved (``GraphSignals`` as JSON)."""
 
 
 async def insert_candidates(
@@ -441,6 +451,8 @@ async def insert_candidates(
                 total_score=item.total_score,
                 rejection=None if item.rejection is None else item.rejection.value,
                 plan_id=item.plan_id,
+                attribution=[dict(entry) for entry in item.attribution],
+                graph_signals=dict(item.graph_signals) if item.graph_signals else {},
                 created_at=created_at,
             )
         )

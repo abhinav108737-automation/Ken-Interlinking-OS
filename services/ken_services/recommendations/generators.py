@@ -79,6 +79,7 @@ __all__ = [
     "OrphanRecoveryCandidateGenerator",
     "SemanticCandidateGenerator",
     "TopicCandidateGenerator",
+    "build_exact_index",
     "default_generators",
     "destination_priorities",
     "graph_channel",
@@ -92,7 +93,9 @@ __all__ = [
 MAX_LEXICAL_KEYWORDS: Final = 25
 """Bound on the OR-query size (the analysis keeps far fewer)."""
 ANALYTICS_WINDOW_DAYS: Final = 28
-"""Matches ``policies/analytics/analytics.v1.yaml`` ``windows.comparison_days``."""
+"""FALLBACK lookback only. The pipeline passes the versioned analytics policy's
+``windows.comparison_days`` (``policies/analytics/analytics.v1.yaml``, also 28), so changing
+the policy changes the window without touching code."""
 _SEMANTIC: Final = RelationshipType.SEMANTIC_SIMILAR.value
 _COMMERCIAL_MAX: Final = 3
 _ORPHAN_FETCH_CAP: Final = 5000
@@ -130,7 +133,8 @@ class GenerationContext:
     vector_store: VectorStore | None = None
     """Shared index (built once per run by the caller). ``None`` falls back to an exact
     in-process index built from PostgreSQL for this call -- correct, but O(pages) per source."""
-    analytics_window_days: int = ANALYTICS_WINDOW_DAYS
+    analytics_window_days: int | None = None
+    """From the versioned analytics policy; ``None`` = the ``ANALYTICS_WINDOW_DAYS`` fallback."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -183,11 +187,12 @@ async def source_embedding(
     return None if row is None else (list(row[0]), int(row[1]))
 
 
-async def _memory_index(session: AsyncSession, identity: VectorIdentity) -> MemoryVectorStore:
+async def build_exact_index(session: AsyncSession, identity: VectorIdentity) -> MemoryVectorStore:
     """An exact in-process index of the CURRENT embeddings, built from PostgreSQL.
 
-    The fallback when the caller supplies no shared store. It is derived data exactly like the
-    real index (ADR-0017 s1) and is discarded after the call.
+    The fallback when the caller supplies no shared store, and what a shadow pass builds ONCE
+    for all its sources (it holds a session, not a sessionmaker, so it cannot run the
+    indexer). It is derived data exactly like the real index (ADR-0017 s1).
     """
     store = MemoryVectorStore(collection="ken_fallback")
     rows = await intelligence_repo.current_embeddings(
@@ -214,7 +219,7 @@ async def semantic_candidates(
     if source is None:
         return []
     identity = key.identity()
-    local = store if store is not None else await _memory_index(session, identity)
+    local = store if store is not None else await build_exact_index(session, identity)
     try:
         hits = await local.search(
             query=VectorQuery(
@@ -681,7 +686,8 @@ class AnalyticsCandidateGenerator:
         ).scalar_one_or_none()
         if end is None:
             return []
-        start = end - timedelta(days=max(1, ctx.analytics_window_days) - 1)
+        window = ctx.analytics_window_days or ANALYTICS_WINDOW_DAYS
+        start = end - timedelta(days=max(1, window) - 1)
         rows = (
             await session.execute(
                 select(
@@ -728,7 +734,7 @@ class AnalyticsCandidateGenerator:
                     evidence={
                         "impressions": impressions,
                         "clicks": clicks,
-                        "window_days": ctx.analytics_window_days,
+                        "window_days": window,
                         "window_end": end.isoformat(),
                         "synthetic": synthetic,
                     },

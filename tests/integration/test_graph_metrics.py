@@ -3,20 +3,22 @@ persisted to ``page_graph_metrics``, replaced (never duplicated) on re-run."""
 
 from __future__ import annotations
 
+import uuid
 from typing import Any
 
 import pytest
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from ken_contracts.intelligence import IntelligenceNotFoundError
 from ken_contracts.inventory import RunStatus
 from ken_contracts.jobs import JobKind
 from ken_services.graph.compute import run_graph_metrics
 from ken_services.graph.policy import load_graph_policy
 from ken_services.graph.reader import SqlGraphReader
-from tests.integration.graph_support import build
+from tests.integration.graph_support import build, leave_clean  # noqa: F401
 
-pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("migrated")]
+pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("migrated", "leave_clean")]
 
 SM = async_sessionmaker[AsyncSession]
 
@@ -157,25 +159,66 @@ async def test_the_reader_serves_signals_overview_and_clusters(sessionmaker: SM)
     assert signal is not None
     assert (signal.in_degree, signal.out_degree, signal.is_bridge) == (2, 1, True)
     assert signal.metrics_version == "graph-alg1-pol1" and signal.crawl_depth == 1
-    overview = await reader.overview()
-    assert (overview.pages, overview.orphans, overview.bridges) == (6, 3, 2)
-    assert overview.components == 2 and overview.clusters == 2
-    clusters = await reader.clusters()
-    by_id = {c.cluster_id: c for c in clusters}
-    assert by_id[0].pages == 4 and by_id[0].orphans == 1  # d is the ev cluster's orphan
-    assert by_id[1].pages == 1 and by_id[None].pages == 1
+    assert await reader.signals(page_ids=[]) == {}
+
+    overview = await reader.get_overview()
+    assert overview.metrics_version == "graph-alg1-pol1" and overview.computed_at is not None
+    # Three orphans (/, d, e) -- but "/" is the crawl ENTRY, so only d and e are TRUE orphans.
+    assert (overview.pages, overview.entry_pages) == (6, 1)
+    assert (overview.orphans, overview.true_orphans) == (3, 2)
+    assert (overview.nearly_orphans, overview.bridges) == (4, 2)
+    assert (overview.components, overview.clusters) == (2, 2)
+
+    by_id = {c.cluster_id: c for c in await reader.list_clusters()}
+    assert by_id[0].pages == 4 and by_id[0].orphans == 1 and by_id[0].true_orphans == 1
+    assert by_id[1].pages == 1 and by_id[1].true_orphans == 1
+    # The topic-less group is the home page: an orphan, but not a TRUE orphan.
+    assert by_id[None].pages == 1 and by_id[None].orphans == 1 and by_id[None].true_orphans == 0
     rows = await _rows(sessionmaker)
     ev = ("/reports/a", "/reports/b", "/reports/c", "/reports/d")
     best = max(ev, key=lambda path: (float(rows[path]["internal_pagerank"]), path))
     assert by_id[0].top_page_id == ids[best]  # highest PageRank in the cluster
-    assert await reader.signals(page_ids=[]) == {}
+    assert by_id[0].top_page_url == f"https://site.test{best}"
+    order = [c.cluster_id for c in await reader.list_clusters()]
+    assert order == [0, 1, None]  # largest first, the topic-less group last
+
+
+async def test_the_entry_page_is_an_orphan_but_is_flagged_as_the_entry(sessionmaker: SM) -> None:
+    ids = await build(sessionmaker)
+    await run_graph_metrics(sessionmaker=sessionmaker, triggered_by="test")
+    reader = SqlGraphReader(sessionmaker)
+    home = await reader.get_page(page_id=ids["/"])
+    lonely = await reader.get_page(page_id=ids["/reports/d"])
+    # Faithful to the schema CHECK: both have no inbound link ...
+    assert home.signals.is_orphan and lonely.signals.is_orphan
+    # ... and crawl_depth tells the entry from a true orphan.
+    assert (home.signals.crawl_depth, home.is_entry_page) == (0, True)
+    assert (lonely.signals.crawl_depth, lonely.is_entry_page) == (None, False)
+
+
+async def test_an_unknown_page_and_an_uncomputed_graph_are_a_404_not_a_guess(
+    sessionmaker: SM,
+) -> None:
+    reader = SqlGraphReader(sessionmaker)
+    # Nothing computed yet: empty, honest views.
+    overview = await reader.get_overview()
+    assert overview.metrics_version is None and overview.pages == 0
+    assert await reader.list_clusters() == []
+    empty = await reader.list_pages(limit=10, offset=0)
+    assert empty.items == [] and empty.page.total == 0
+    ids = await build(sessionmaker)
+    with pytest.raises(IntelligenceNotFoundError):
+        await reader.get_page(page_id=ids["/"])  # a real page, but metrics not computed yet
+    await run_graph_metrics(sessionmaker=sessionmaker, triggered_by="test")
+    with pytest.raises(IntelligenceNotFoundError):
+        await reader.get_page(page_id=uuid.uuid4())
 
 
 async def test_an_empty_corpus_is_a_clean_empty_run(sessionmaker: SM) -> None:
     detail, result = await run_graph_metrics(sessionmaker=sessionmaker, triggered_by="test")
     assert detail.status is RunStatus.SUCCEEDED and result is not None
     assert detail.counters["pages"] == 0 and detail.counters["rows_written"] == 0
-    assert await SqlGraphReader(sessionmaker).overview() is not None
+    assert (await SqlGraphReader(sessionmaker).get_overview()).pages == 0
 
 
 async def test_list_pages_filters_orders_and_paginates(sessionmaker: SM) -> None:
@@ -183,26 +226,35 @@ async def test_list_pages_filters_orders_and_paginates(sessionmaker: SM) -> None
     await run_graph_metrics(sessionmaker=sessionmaker, triggered_by="test")
     reader = SqlGraphReader(sessionmaker)
 
-    everything, total = await reader.list_pages(limit=50, offset=0)
-    assert total == 6 and len(everything) == 6
-    ranks = [row.signals.internal_pagerank for row in everything]
+    everything = await reader.list_pages(limit=50, offset=0)
+    assert everything.page.total == 6 and len(everything.items) == 6
+    ranks = [row.signals.internal_pagerank for row in everything.items]
     assert ranks == sorted(ranks, reverse=True)  # most authoritative first
 
-    orphans, orphan_total = await reader.list_pages(limit=50, offset=0, orphans_only=True)
-    assert orphan_total == 3
-    assert {row.canonical_url.removeprefix("https://site.test") for row in orphans} == {
+    orphans = await reader.list_pages(limit=50, offset=0, orphans_only=True)
+    assert orphans.page.total == 3
+    assert {row.canonical_url.removeprefix("https://site.test") for row in orphans.items} == {
         "/",
         "/reports/d",
         "/reports/e",
     }
-    bridges, _ = await reader.list_pages(limit=50, offset=0, bridges_only=True)
-    assert {row.signals.page_id for row in bridges} == {ids["/reports/a"], ids["/reports/b"]}
-    cluster, cluster_total = await reader.list_pages(limit=50, offset=0, cluster_id=0)
-    assert cluster_total == 4 and all(row.signals.cluster_id == 0 for row in cluster)
+    assert {
+        row.canonical_url.removeprefix("https://site.test")
+        for row in orphans.items
+        if row.is_entry_page
+    } == {"/"}
+    bridges = await reader.list_pages(limit=50, offset=0, bridges_only=True)
+    assert {row.signals.page_id for row in bridges.items} == {ids["/reports/a"], ids["/reports/b"]}
+    cluster = await reader.list_pages(limit=50, offset=0, cluster_id=0)
+    assert cluster.page.total == 4 and all(r.signals.cluster_id == 0 for r in cluster.items)
+    component = await reader.list_pages(limit=50, offset=0, component_id=1)
+    assert [r.signals.page_id for r in component.items] == [ids["/reports/e"]]
 
-    first, _ = await reader.list_pages(limit=2, offset=0)
-    second, _ = await reader.list_pages(limit=2, offset=2)
-    assert [r.signals.page_id for r in first + second] == [
-        r.signals.page_id for r in everything[:4]
+    first = await reader.list_pages(limit=2, offset=0)
+    second = await reader.list_pages(limit=2, offset=2)
+    assert [r.signals.page_id for r in first.items + second.items] == [
+        r.signals.page_id for r in everything.items[:4]
     ]  # pages tile the list without gaps or repeats
-    assert await reader.list_pages(limit=5, offset=0, cluster_id=99) == ([], 0)
+    assert second.page.total == 6 and second.page.offset == 2
+    nothing = await reader.list_pages(limit=5, offset=0, cluster_id=99)
+    assert nothing.items == [] and nothing.page.total == 0

@@ -50,7 +50,6 @@ from ken_contracts.learning import (
 from ken_services.learning.experiments import (
     ExperimentLifecycleService,
     SqlExperimentGuard,
-    assignment_arm,
     attribute,
     compare_arms,
 )
@@ -268,7 +267,9 @@ async def test_assignment_is_deterministic_materialised_and_idempotent(sessionma
 
     assert set(arms) == set(pages.values())
     for page_id, arm in arms.items():
-        assert arm is experiment_arm(key="ab-two", page_id=page_id, treatment_fraction=0.5)
+        assert arm is experiment_arm(
+            kind=ExperimentKind.POLICY_AB, key="ab-two", page_id=page_id, fraction=0.5
+        )
     assert sum(counts.values()) == len(PATHS)
     assert counts[ExperimentArm.CONTROL] > 0 < counts[ExperimentArm.TREATMENT]
     again = await service.assign(key="ab-two", actor=SYSTEM)
@@ -338,16 +339,12 @@ def test_a_holdout_withholds_about_its_fraction_of_pages_never_most_of_them() ->
     would have locked 90 % of pages at fraction 0.10."""
     pages = [uuid.UUID(int=n * 7919 + 13) for n in range(5000)]
     held = Counter(
-        assignment_arm(
-            kind=ExperimentKind.HOLDOUT, key="hold-out-one", page_id=p, treatment_fraction=0.10
-        )
+        experiment_arm(kind=ExperimentKind.HOLDOUT, key="hold-out-one", page_id=p, fraction=0.10)
         for p in pages
     )
     assert 0.08 <= held[ExperimentArm.CONTROL] / len(pages) <= 0.12
     ab = Counter(
-        assignment_arm(
-            kind=ExperimentKind.POLICY_AB, key="ab-x", page_id=p, treatment_fraction=0.10
-        )
+        experiment_arm(kind=ExperimentKind.POLICY_AB, key="ab-x", page_id=p, fraction=0.10)
         for p in pages
     )
     assert 0.08 <= ab[ExperimentArm.TREATMENT] / len(pages) <= 0.12
@@ -453,26 +450,39 @@ async def test_the_real_guard_blocks_a_pair_in_the_recommendation_pipeline(
 ) -> None:
     await seed_corpus(sessionmaker, tmp_path)
     admin = await operator(sessionmaker)
-    chosen = None
-    for attempt in range(40):
-        key = f"hold-out-{attempt:02d}"
-        service = _service(sessionmaker, allow_holdout=True)
-        await service.create(
-            principal=admin,
-            key=key,
-            description="x",
-            kind=ExperimentKind.HOLDOUT,
-            treatment_fraction=0.2,
-        )
-        await service.assign(key=key, actor=SYSTEM)
-        arms = await _arms(sessionmaker, key)
-        if ExperimentArm.CONTROL in arms.values():
-            chosen = (service, key, arms)
-            break
-        await service.activate(principal=admin, key=key)  # an all-treatment draft; free the pages
-        await service.end(principal=admin, key=key)
-    assert chosen is not None, "no key produced a control page in 40 tries"
-    service, key, arms = chosen
+    # Choose the key BEFORE creating anything: a holdout withholds only ``fraction`` of the pages,
+    # so many keys yield no control page on a small corpus, and a holdout with no control page
+    # cannot be activated. Computing it up front leaves no unlucky draft holding pages.
+    async with sessionmaker() as session:
+        corpus = [row[0] for row in (await session.execute(text("SELECT id FROM pages"))).all()]
+    key = next(
+        (
+            f"hold-out-{attempt:02d}"
+            for attempt in range(200)
+            if any(
+                experiment_arm(
+                    kind=ExperimentKind.HOLDOUT,
+                    key=f"hold-out-{attempt:02d}",
+                    page_id=page_id,
+                    fraction=0.2,
+                )
+                is ExperimentArm.CONTROL
+                for page_id in corpus
+            )
+        ),
+        None,
+    )
+    assert key is not None, "no key produced a control page in 200 tries"
+    service = _service(sessionmaker, allow_holdout=True)
+    await service.create(
+        principal=admin,
+        key=key,
+        description="x",
+        kind=ExperimentKind.HOLDOUT,
+        treatment_fraction=0.2,
+    )
+    await service.assign(key=key, actor=SYSTEM)
+    arms = await _arms(sessionmaker, key)
     await service.activate(principal=admin, key=key)
     controls = {page for page, arm in arms.items() if arm is ExperimentArm.CONTROL}
 

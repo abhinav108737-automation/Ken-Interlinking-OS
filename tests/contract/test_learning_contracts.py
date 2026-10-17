@@ -821,11 +821,15 @@ def test_activation_has_a_typed_refusal_for_an_unenabled_holdout() -> None:
 def test_the_arm_is_deterministic_and_depends_on_the_assigned_page() -> None:
     from ken_services.learning.protocol import experiment_arm
 
+    experiment_kind = learning.ExperimentKind
+
     page = uuid.UUID("66666666-6666-4666-8666-666666666666")
-    first = experiment_arm(key="ab-1", page_id=page, treatment_fraction=0.5)
-    assert first is experiment_arm(key="ab-1", page_id=page, treatment_fraction=0.5)
+    first = experiment_arm(kind=experiment_kind.POLICY_AB, key="ab-1", page_id=page, fraction=0.5)
+    assert first is experiment_arm(
+        kind=experiment_kind.POLICY_AB, key="ab-1", page_id=page, fraction=0.5
+    )
     assert (
-        experiment_arm(key="ab-1", page_id=page, treatment_fraction=1.0)
+        experiment_arm(kind=experiment_kind.POLICY_AB, key="ab-1", page_id=page, fraction=1.0)
         is learning.ExperimentArm.TREATMENT
     )
 
@@ -946,3 +950,37 @@ def test_the_contract_and_the_migration_agree_on_the_promoter_setting() -> None:
     spec.loader.exec_module(module)
     assert module.PROMOTER_SETTING == learning.LEARNING_PROMOTER_SETTING == "ken.learning_promoter"
     assert re.fullmatch(r"ken\.[a-z_]+", learning.LEARNING_PROMOTER_SETTING)
+
+
+def test_a_holdout_fraction_is_the_withheld_share_never_the_complement() -> None:
+    """The cap on a holdout bounds the pages links are WITHHELD from. ``experiment_arm`` once
+    read ``fraction`` as a TREATMENT share for every kind, which made a "10 %" holdout withhold
+    links from about 90 % of the site and the 20 % cap meaningless. The kind is now a required
+    argument and this pins both orientations, over enough pages to notice the 90 % mistake."""
+    import uuid
+    from collections import Counter
+
+    from ken_services.learning.protocol import experiment_arm
+
+    kind = learning.ExperimentKind
+    arm = learning.ExperimentArm
+    pages = [uuid.UUID(int=n * 7919 + 13) for n in range(5000)]
+
+    holdout = Counter(
+        experiment_arm(kind=kind.HOLDOUT, key="cap-check", page_id=p, fraction=0.10) for p in pages
+    )
+    withheld = holdout[arm.CONTROL] / len(pages)
+    assert 0.08 <= withheld <= 0.12, withheld
+    assert withheld <= 0.20, "the withheld share must respect the hard cap"
+
+    policy_ab = Counter(
+        experiment_arm(kind=kind.POLICY_AB, key="cap-check", page_id=p, fraction=0.10)
+        for p in pages
+    )
+    assert 0.08 <= policy_ab[arm.TREATMENT] / len(pages) <= 0.12
+
+    # The same key and fraction really are opposite orientations for the two kinds.
+    page = pages[0]
+    assert experiment_arm(kind=kind.HOLDOUT, key="x", page_id=page, fraction=1.0) is arm.CONTROL
+    assert experiment_arm(kind=kind.POLICY_AB, key="x", page_id=page, fraction=1.0) is arm.TREATMENT
+    assert experiment_arm(kind=kind.HOLDOUT, key="x", page_id=page, fraction=0.0) is arm.TREATMENT

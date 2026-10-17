@@ -239,6 +239,9 @@ async def test_dashboard_events_and_policies(sessionmaker: SM, plans: Any) -> No
         # Phase 8 (ADR-0016 s10): the learning gate policy is a policy DOCUMENT like the rest,
         # so it is served here too (read_settings, operator_admin only).
         "learning",
+        # Phase 9 (ADR-0018): the autonomy thresholds are versioned policy DATA too, served
+        # read-only. Added deliberately: this list encoded "six documents".
+        "autonomy",
     ]
     for document in policies.policies:
         assert not document.path.startswith("/")

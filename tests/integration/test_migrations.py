@@ -14,7 +14,7 @@ from sqlalchemy.dialects.postgresql import base as postgresql_base
 import ken_core.db.models  # noqa: F401 -- registers every model
 from ken_core.db.base import Base
 from ken_core.db.types import Xid8
-from tests.integration.conftest import SyncDb
+from tests.integration.conftest import TRUNCATE_ALL, SyncDb
 
 pytestmark = pytest.mark.integration
 
@@ -83,6 +83,13 @@ def test_upgrade_downgrade_upgrade_round_trip(alembic_config: Config, sync_db: S
     command.upgrade(alembic_config, "head")
     assert _tables(sync_db) >= APP_TABLES
     assert _revision(sync_db) == head
+
+    # The database is shared with every earlier test, and the downgrade below restores the OLD
+    # ``job_runs.kind`` CHECK, which does not list the kinds added since (reflection, autonomy,
+    # graph_metrics, vector_index). A downgrade refuses to run over rows it could not keep, which
+    # is deliberate -- the alternative is deleting audit rows -- so start from an empty database,
+    # exactly as the ``migrated`` fixture does between tests.
+    sync_db.run(lambda connection: connection.execute(text(TRUNCATE_ALL)))
 
     command.downgrade(alembic_config, "base")
     assert not APP_TABLES & _tables(sync_db)

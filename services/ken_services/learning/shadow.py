@@ -59,6 +59,7 @@ from ken_contracts.learning import (
     TargetKind,
 )
 from ken_contracts.recommendations import CandidateRejection, RankingPolicy, RecommendationPolicy
+from ken_contracts.vectors import VectorStore
 from ken_core.config import REPO_ROOT, Settings
 from ken_core.db.models.recommendations import LinkCandidate, LinkPlan
 from ken_core.db.repositories import learning as learning_repo
@@ -67,8 +68,14 @@ from ken_core.logging import get_logger
 from ken_services.intelligence.taxonomy import load_taxonomy
 from ken_services.inventory.hashing import sha256_hex
 from ken_services.inventory.normalize import extract_blocks
-from ken_services.recommendations.channels import EmbeddingKey, cosine_to, retrieve
+from ken_services.recommendations.channels import (
+    EmbeddingKey,
+    analytics_window_for,
+    cosine_to,
+    retrieve,
+)
 from ken_services.recommendations.filters import PairState, pair_rejection
+from ken_services.recommendations.generators import build_exact_index
 from ken_services.recommendations.placement import anchor_phrases, find_placement, market_phrases
 from ken_services.recommendations.policy import load_recommendation_policy, resolve_ranking_policy
 from ken_services.recommendations.scoring import PairFeatures, score_pair, with_placement
@@ -305,6 +312,7 @@ async def _candidate_selection(
     exclude_run_id: uuid.UUID,
     locked_targets: frozenset[uuid.UUID],
     now: datetime,
+    vector_store: VectorStore | None = None,
 ) -> tuple[Selected, int]:
     av = analysis_version(taxonomy.version)
     facts = await repo.page_facts(session, analysis_version=av)
@@ -359,6 +367,9 @@ async def _candidate_selection(
             keywords=source_analysis.keywords,
             industry_id=source_analysis.industry_id,
             analysis_version=av,
+            vector_store=vector_store,
+            semantic_floor=settings.similarity_min_score,
+            analytics_window_days=analytics_window_for(settings, policy.retrieval),
         )
         open_plans = [
             plan
@@ -577,18 +588,28 @@ async def shadow_pass(
 
     production = await _production_selection(session, recommendation_run_id)
     locked = await learning_repo.live_holdout_control_targets(session)
-    chosen, sources_compared = await _candidate_selection(
-        session,
-        settings=settings,
-        policy=policy_under_test,
-        ranking=ranking_under_test,
-        taxonomy=taxonomy,
-        embedding=embedding,
-        source_page_ids=source_ids,
-        exclude_run_id=recommendation_run_id,
-        locked_targets=locked,
-        now=started,
+    # ONE exact index for the whole pass, not one per source (ADR-0017): derived from
+    # PostgreSQL, so it answers exactly as the production run's index does.
+    shadow_store = (
+        None if embedding is None else await build_exact_index(session, embedding.identity())
     )
+    try:
+        chosen, sources_compared = await _candidate_selection(
+            session,
+            settings=settings,
+            policy=policy_under_test,
+            ranking=ranking_under_test,
+            taxonomy=taxonomy,
+            embedding=embedding,
+            source_page_ids=source_ids,
+            exclude_run_id=recommendation_run_id,
+            locked_targets=locked,
+            now=started,
+            vector_store=shadow_store,
+        )
+    finally:
+        if shadow_store is not None:
+            await shadow_store.aclose()
     diff = compute_diff(
         production=production,
         candidate=chosen,

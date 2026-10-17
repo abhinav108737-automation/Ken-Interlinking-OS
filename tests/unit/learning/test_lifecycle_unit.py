@@ -16,7 +16,7 @@ from typing import Final
 import pytest
 import yaml
 
-from ken_contracts.learning import ExperimentArm, ProposalStatus, TargetKind
+from ken_contracts.learning import ExperimentArm, ExperimentKind, ProposalStatus, TargetKind
 from ken_contracts.recommendations import RankingPolicy, RecommendationPolicy
 from ken_services.learning.lifecycle import (
     missing_stages,
@@ -216,13 +216,15 @@ def test_a_candidate_that_no_longer_validates_is_never_planned() -> None:
 # --------------------------------------------------------------------------- #
 def test_the_arm_is_a_pure_function_of_key_and_page() -> None:
     page = _id(42)
-    first = experiment_arm(key="ab-one", page_id=page, treatment_fraction=0.5)
+    first = experiment_arm(kind=ExperimentKind.POLICY_AB, key="ab-one", page_id=page, fraction=0.5)
     assert all(
-        experiment_arm(key="ab-one", page_id=page, treatment_fraction=0.5) is first
+        experiment_arm(kind=ExperimentKind.POLICY_AB, key="ab-one", page_id=page, fraction=0.5)
+        is first
         for _ in range(5)
     )
     assert {
-        experiment_arm(key=f"k-{n}", page_id=page, treatment_fraction=0.5) for n in range(40)
+        experiment_arm(kind=ExperimentKind.POLICY_AB, key=f"k-{n}", page_id=page, fraction=0.5)
+        for n in range(40)
     } == set(ExperimentArm)
 
 

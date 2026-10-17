@@ -48,10 +48,12 @@ from ken_contracts.recommendations import (
     RetrievalPolicy,
 )
 from ken_contracts.vectors import VectorStore, cosine_similarity
+from ken_core.config import Settings
 from ken_core.db.models.intelligence import PageEmbedding
 from ken_core.db.models.inventory import Page
 from ken_core.db.repositories import graph as graph_repo
 from ken_core.db.repositories.intelligence import current_embedding_join
+from ken_services.analytics.policy import load_configured_analytics_policy
 from ken_services.recommendations.generators import (
     MAX_LEXICAL_KEYWORDS,
     AnalyticsSupportGate,
@@ -73,6 +75,7 @@ __all__ = [
     "MAX_LEXICAL_KEYWORDS",
     "EmbeddingKey",
     "RetrievedCandidate",
+    "analytics_window_for",
     "cosine_to",
     "graph_channel",
     "keyword_query",
@@ -187,6 +190,7 @@ async def retrieve(
     analysis_version: str,
     vector_store: VectorStore | None = None,
     semantic_floor: float | None = None,
+    analytics_window_days: int | None = None,
     generators: Sequence[CandidateGenerator] | None = None,
 ) -> list[RetrievedCandidate]:
     """Every enabled channel for one source, unioned and capped (module docstring).
@@ -194,7 +198,9 @@ async def retrieve(
     ``vector_store`` is the shared index (built once per run); ``None`` falls back to an exact
     in-process index built from PostgreSQL per call. ``semantic_floor`` is the cosine an
     analytics-only candidate must reach to count as semantically supported (``None``: only a
-    stored taxonomy relationship can support it).
+    stored taxonomy relationship can support it). ``analytics_window_days`` is the analytics
+    generator's lookback, read by the caller from the versioned analytics policy
+    (``windows.comparison_days``); ``None`` keeps the generator's documented fallback.
     """
     enabled = set(retrieval.channels_enabled)
     ctx = GenerationContext(
@@ -205,6 +211,7 @@ async def retrieve(
         industry_id=industry_id,
         analysis_version=analysis_version,
         vector_store=vector_store,
+        analytics_window_days=analytics_window_days,
     )
     results: dict[RetrievalChannel, list[GeneratedCandidate]] = {}
     for generator in generators if generators is not None else default_generators():
@@ -272,6 +279,19 @@ async def retrieve(
         )
         for c in kept
     ]
+
+
+def analytics_window_for(settings: Settings, retrieval: RetrievalPolicy) -> int | None:
+    """The analytics generator's lookback from the VERSIONED analytics policy
+    (``windows.comparison_days``), or ``None`` when that channel cannot run.
+
+    Read only when ANALYTICS is enabled with ``analytics_k > 0`` (it is inert by default), so a
+    missing analytics policy can never break an ordinary recommendation or shadow run. The
+    pipeline and the shadow pass both call this, so they cannot disagree.
+    """
+    if _ANALYTICS not in retrieval.channels_enabled or retrieval.analytics_k <= 0:
+        return None
+    return load_configured_analytics_policy(settings).windows.comparison_days
 
 
 async def _support(

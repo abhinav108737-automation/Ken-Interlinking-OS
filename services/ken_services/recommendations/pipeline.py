@@ -109,22 +109,26 @@ from ken_contracts.recommendations import (
     RecommendationPolicy,
     ScoreBreakdown,
 )
+from ken_contracts.vectors import VectorStore
 from ken_core.config import REPO_ROOT, Settings
 from ken_core.db.repositories import recommendations as repo
 from ken_core.db.repositories.events import append_event
 from ken_core.logging import get_logger
+from ken_core.providers.vectors.factory import build_vector_store
 from ken_services.intelligence.embeddings import current_recipe_fingerprint, embedding_identity
 from ken_services.intelligence.taxonomy import load_taxonomy
 from ken_services.inventory.hashing import sha256_hex
 from ken_services.inventory.normalize import ContentBlock, extract_blocks
 from ken_services.jobs.runner import JobContext, JobTransaction, run_job, utc_now
+from ken_services.learning.experiments import SqlExperimentGuard
 from ken_services.recommendations.channels import (
     EmbeddingKey,
     RetrievedCandidate,
+    analytics_window_for,
     cosine_to,
     retrieve,
 )
-from ken_services.recommendations.filters import NoExperiments, PairState, pair_rejection
+from ken_services.recommendations.filters import PairState, pair_rejection
 from ken_services.recommendations.freshness import check_plan_freshness
 from ken_services.recommendations.placement import (
     PlacementCandidate,
@@ -153,6 +157,7 @@ from ken_services.recommendations.validity import (
     page_eligibility,
     plan_invalidity,
 )
+from ken_services.vectors.index import PostgresVectorIndexer
 
 __all__ = [
     "DURABLE_INELIGIBILITY",
@@ -254,6 +259,8 @@ class _Recommend:
         guard: ExperimentGuard,
         toolkit: RecommendationToolkit,
         source_page_ids: Sequence[uuid.UUID] | None,
+        vector_store: VectorStore | None = None,
+        analytics_window_days: int | None = None,
     ) -> None:
         self.job = job
         self.settings = settings
@@ -265,6 +272,8 @@ class _Recommend:
         self.guard = guard
         self.tools = toolkit
         self.source_page_ids = source_page_ids
+        self.vector_store = vector_store
+        self.analytics_window_days = analytics_window_days
         self.av = analysis_version(taxonomy.version)
         self.per_target: Counter[uuid.UUID] = Counter()
         """OPEN plans per target -- seeded from the database at the start of the run, then
@@ -314,6 +323,15 @@ class _Recommend:
                 (pid for pid in set(self.source_page_ids) if pid in world.facts), key=by_url
             )
         job.increment("sources_considered", len(scope))
+        if self.embedding is not None and self.vector_store is not None:
+            # ONE idempotent, incremental index pass per run (ADR-0017): the SEMANTIC channel
+            # searches this shared store instead of rebuilding an index for every source.
+            await PostgresVectorIndexer(
+                sessionmaker=job.sessionmaker,
+                store=self.vector_store,
+                settings=self.settings,
+                identity=self.embedding.identity(),
+            ).index()
         for source_id in scope:
             try:
                 await self._source(world, world.facts[source_id])
@@ -458,6 +476,9 @@ class _Recommend:
             keywords=() if source_analysis is None else source_analysis.keywords,
             industry_id=None if source_analysis is None else source_analysis.industry_id,
             analysis_version=self.av,
+            vector_store=self.vector_store,
+            semantic_floor=self.settings.similarity_min_score,
+            analytics_window_days=self.analytics_window_days,
         )
 
         # Occupancy: open plans (after expiry) and plans whose link is on the page.
@@ -510,6 +531,12 @@ class _Recommend:
                     total_score=None if total is None else min(1.0, max(0.0, total)),
                     rejection=rejection,
                     plan_id=plan_id,
+                    attribution=tuple(a.model_dump(mode="json") for a in candidate.attribution),
+                    graph_signals=(
+                        None
+                        if candidate.graph_signals is None
+                        else candidate.graph_signals.model_dump(mode="json")
+                    ),
                 )
             )
 
@@ -572,6 +599,11 @@ class _Recommend:
                 target=target_analysis,
                 source_links_into_target_market=0 if market is None else source_markets[market],
                 target_inbound_links=world.inbound.get(target.id, 0),
+                lexical_similarity=candidate.channel_scores.get("lexical"),
+                graph=candidate.graph_signals,
+                orphan_recovery_value=candidate.signals.get("orphan_recovery_value"),
+                gsc_opportunity=candidate.signals.get("gsc_opportunity"),
+                ga4_engagement=candidate.signals.get("ga4_engagement"),
             )
             scored = self.tools.score_pair(
                 features,
@@ -850,6 +882,7 @@ def _snapshot(
     taxonomy: TaxonomyPolicy,
     embedding: EmbeddingKey | None,
     source_page_ids: Sequence[uuid.UUID] | None,
+    vector_store: str | None = None,
 ) -> dict[str, Any]:
     """Secret-free: versions, switches and numeric settings only (no URLs, no paths)."""
     return {
@@ -864,6 +897,7 @@ def _snapshot(
         "retrieval": policy.retrieval.model_dump(mode="json"),
         "selection": policy.selection.model_dump(mode="json"),
         "semantic_floor": settings.similarity_min_score,
+        "vector_store": vector_store,
         "embedding": None
         if embedding is None
         else {"model": embedding.model, "recipe_fingerprint": embedding.recipe_fingerprint},
@@ -883,6 +917,7 @@ async def run_recommendations(
     taxonomy: TaxonomyPolicy | None = None,
     model_provider: ModelProvider | None = None,
     toolkit: RecommendationToolkit | None = None,
+    vector_store: VectorStore | None = None,
 ) -> JobRunDetail:
     """Run one recommendation job and return the finished run (module docstring).
 
@@ -902,9 +937,15 @@ async def run_recommendations(
         resolved_ranking = ranking or resolve_ranking_policy(policy, root=REPO_ROOT)
     tax = taxonomy if taxonomy is not None else load_taxonomy(settings.taxonomy_path)
     tools = toolkit if toolkit is not None else default_toolkit()
-    guard: ExperimentGuard = experiment_guard if experiment_guard is not None else NoExperiments()
+    guard: ExperimentGuard = (
+        experiment_guard if experiment_guard is not None else SqlExperimentGuard(sessionmaker)
+    )
     ids = None if source_page_ids is None else list(dict.fromkeys(source_page_ids))
     embedding = await _embedding_key(model_provider, settings)
+    analytics_window = analytics_window_for(settings, policy.retrieval)
+    # The derived semantic index (ADR-0017). A caller-supplied store is the caller's to close.
+    owned_store = vector_store is None
+    store: VectorStore = vector_store if vector_store is not None else build_vector_store(settings)
 
     async def body(job: JobContext) -> RunStatus:
         return await _Recommend(
@@ -917,21 +958,28 @@ async def run_recommendations(
             guard=guard,
             toolkit=tools,
             source_page_ids=ids,
+            vector_store=store,
+            analytics_window_days=analytics_window,
         ).run()
 
-    return await run_job(
-        kind=JobKind.RECOMMENDATION,
-        sessionmaker=sessionmaker,
-        triggered_by=triggered_by,
-        body=body,
-        config_snapshot=_snapshot(
-            settings=settings,
-            policy=policy,
-            ranking=resolved_ranking,
-            taxonomy=tax,
-            embedding=embedding,
-            source_page_ids=ids,
-        ),
-        counter_names=RECOMMENDATION_COUNTERS,
-        clock=clock,
-    )
+    try:
+        return await run_job(
+            kind=JobKind.RECOMMENDATION,
+            sessionmaker=sessionmaker,
+            triggered_by=triggered_by,
+            body=body,
+            config_snapshot=_snapshot(
+                settings=settings,
+                policy=policy,
+                ranking=resolved_ranking,
+                taxonomy=tax,
+                embedding=embedding,
+                source_page_ids=ids,
+                vector_store=store.name,
+            ),
+            counter_names=RECOMMENDATION_COUNTERS,
+            clock=clock,
+        )
+    finally:
+        if owned_store:
+            await store.aclose()

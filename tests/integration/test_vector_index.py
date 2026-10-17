@@ -34,6 +34,7 @@ from ken_services.vectors.index import (
 from ken_services.vectors.retrieval import PostgresSemanticRetriever
 from ken_services.vectors.verify import PostgresVectorVerifier
 from tests.conftest import make_settings
+from tests.integration.graph_support import leave_clean  # noqa: F401
 from tests.integration.intelligence_support import (
     EMBED_MODEL,
     analyse,
@@ -43,7 +44,7 @@ from tests.integration.intelligence_support import (
 )
 from tests.unit.vectors.test_store_contract import QDRANT_REACHABLE, QDRANT_URL
 
-pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("migrated")]
+pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("migrated", "leave_clean")]
 
 SM = async_sessionmaker[AsyncSession]
 SETTINGS = make_settings(similarity_top_k=3, similarity_min_score=0.5, embedding_batch_size=2)

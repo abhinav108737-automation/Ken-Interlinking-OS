@@ -78,6 +78,7 @@ from ken_contracts.learning import (
     EvaluationMode,
     EvidenceWindow,
     ExperimentArm,
+    ExperimentKind,
     GateReason,
     GateReasonCode,
     GateResult,
@@ -182,12 +183,27 @@ def _walk(value: Any, path: str, depth: int) -> list[str]:
     return [f"{path}: {type(value).__name__} is not allowed in a prompt"]
 
 
-def experiment_arm(*, key: str, page_id: UUID, treatment_fraction: float) -> ExperimentArm:
+def experiment_arm(
+    *, kind: ExperimentKind, key: str, page_id: UUID, fraction: float
+) -> ExperimentArm:
     """The arm ``make experiment-assign`` MATERIALISES for one page.
 
     Deterministic AND stored: the first 8 bytes of ``sha256(key + ':' + str(page_id))`` as a
-    big-endian integer, compared with ``treatment_fraction`` of the 64-bit space. Writing the
-    row keeps the arm auditable and stable even if this function ever changes.
+    big-endian integer, as a position in ``[0, 1)``. Writing the row keeps the arm auditable and
+    stable even if this function ever changes.
+
+    **``fraction`` means the share of pages in the arm that is CAPPED, and that is not the same
+    arm for both kinds -- which is why ``kind`` is a required argument of this one function:**
+
+    * ``policy_ab``: the share in the TREATMENT arm (the candidate ranking policy). Both arms
+      still receive links; only the ranking differs.
+    * ``holdout``: the share in the CONTROL arm, i.e. the pages WITHHELD from new inbound
+      links. The database caps it at 0.20 precisely because it is the withheld share, and
+      :class:`SqlExperimentGuard` locks the control arm. Reading it
+      as a *treatment* share would put ``1 - fraction`` of the site in the withheld arm -- a
+      "10 %" holdout would withhold links from about 90 % of pages and make the cap
+      meaningless. (The column is still named ``treatment_fraction``; the name predates this
+      correction and is kept so the schema need not change.)
 
     ``page_id`` is the SOURCE page for a ``policy_ab`` and the TARGET page for a ``holdout``
     (:class:`~ken_contracts.learning.ExperimentUnit`), which is the whole fix for the review's
@@ -195,7 +211,9 @@ def experiment_arm(*, key: str, page_id: UUID, treatment_fraction: float) -> Exp
     """
     digest = hashlib.sha256(f"{key}:{page_id}".encode("ascii")).digest()[:8]
     position = int.from_bytes(digest, "big") / 2**64
-    return ExperimentArm.TREATMENT if position < treatment_fraction else ExperimentArm.CONTROL
+    if kind is ExperimentKind.HOLDOUT:
+        return ExperimentArm.CONTROL if position < fraction else ExperimentArm.TREATMENT
+    return ExperimentArm.TREATMENT if position < fraction else ExperimentArm.CONTROL
 
 
 # --------------------------------------------------------------------------- #

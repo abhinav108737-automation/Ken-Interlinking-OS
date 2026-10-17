@@ -82,6 +82,7 @@ export function blockedAction(overrides: Partial<BlockedActionView> = {}): Block
     mode: "shadow",
     risk_tier: "medium",
     overridden: false,
+    reason: null,
     decided_at: "2026-10-16T08:00:00Z",
     ...overrides,
   };

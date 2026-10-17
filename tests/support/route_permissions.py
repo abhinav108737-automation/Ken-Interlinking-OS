@@ -74,7 +74,14 @@ _EXACT: Final[dict[tuple[str, str], str]] = {
     ("GET", "/autonomy/attempts"): "read",
     ("POST", "/autonomy/plans/{plan_id}/override"): "deploy",
 }
-_READ_PREFIXES: Final = ("/inventory", "/intelligence", "/jobs", "/recommendations", "/agents")
+_READ_PREFIXES: Final = (
+    "/inventory",
+    "/intelligence",
+    "/jobs",
+    "/recommendations",
+    "/agents",
+    "/graph",
+)
 
 
 def expected_permission(method: str, path: str) -> str | None:

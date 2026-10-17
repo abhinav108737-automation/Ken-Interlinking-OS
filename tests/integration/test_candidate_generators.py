@@ -32,10 +32,10 @@ from ken_services.vectors.index import PostgresVectorIndexer
 from tests.conftest import make_settings
 from tests.integration.analytics_support import page_csv, request_for, run_csv_import
 from tests.integration.conftest import SITE
-from tests.integration.graph_support import build, pages
+from tests.integration.graph_support import build, leave_clean, pages  # noqa: F401
 from tests.integration.intelligence_support import AV, EMBED_MODEL, analyse, page, seed
 
-pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("migrated")]
+pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("migrated", "leave_clean")]
 
 SM = async_sessionmaker[AsyncSession]
 SETTINGS = make_settings(similarity_top_k=3, similarity_min_score=0.5, embedding_batch_size=2)
@@ -333,3 +333,22 @@ async def test_the_crawl_entry_page_is_never_an_orphan_recovery_target(sessionma
             session, ctx(ids["/reports/a"], orphan_recovery_k=10)
         )
     assert [c.target_page_id for c in found] == [ids["/reports/d"]]
+
+
+async def test_the_analytics_lookback_is_the_one_the_caller_passes(
+    sessionmaker: SM, tmp_path: Path
+) -> None:
+    """The versioned analytics policy's window reaches the generator and is recorded."""
+    import dataclasses
+
+    ids = await build(sessionmaker)
+    await import_search_console(sessionmaker, tmp_path)
+    base = ctx(ids["/reports/a"], analytics_k=10)
+    async with sessionmaker() as session:
+        default = await AnalyticsCandidateGenerator().generate(session, base)
+        narrow = await AnalyticsCandidateGenerator().generate(
+            session, dataclasses.replace(base, analytics_window_days=7)
+        )
+    assert {c.evidence["window_days"] for c in default} == {28}  # the documented fallback
+    assert {c.evidence["window_days"] for c in narrow} == {7}
+    assert [c.target_page_id for c in narrow] == [c.target_page_id for c in default]

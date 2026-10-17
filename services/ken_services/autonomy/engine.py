@@ -503,7 +503,10 @@ class DatabaseAutonomyEngine:
                 plan_id=evaluation.plan_id,
                 to_status=_S.POLICY_CHECKED,
                 actor=AUTONOMY_ACTOR,
-                note=f"policy checked by the autonomy engine (autonomy policy v{evaluation.policy_version})",
+                note=(
+                    "policy checked by the autonomy engine "
+                    f"(autonomy policy v{evaluation.policy_version})"
+                ),
                 expected_from=status,
                 clock=self._clock,
             )

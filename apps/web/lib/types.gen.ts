@@ -413,6 +413,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/graph/clusters": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One summary per topical cluster, largest first (the topic-less group last). */
+        get: operations["listGraphClusters"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/graph/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Corpus-wide link-graph counts: orphans, bridges, components, clusters. */
+        get: operations["getGraphOverview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/graph/pages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Pages with their link-graph position, most authoritative first. */
+        get: operations["listGraphPages"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/graph/pages/{page_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The link-graph position of one page. */
+        get: operations["getGraphPage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -3065,6 +3133,106 @@ export interface components {
             score: number;
         };
         /**
+         * GraphClusterSummary
+         * @description One topical cluster. ``cluster_id`` is an ORDINAL (0 = largest), stable within one
+         *     ``metrics_version`` only; ``None`` collects the pages that have no topic.
+         */
+        GraphClusterSummary: {
+            /** Bridges */
+            bridges: number;
+            /** Cluster Id */
+            cluster_id: number | null;
+            /** Mean In Degree */
+            mean_in_degree: number;
+            /** Nearly Orphans */
+            nearly_orphans: number;
+            /** Orphans */
+            orphans: number;
+            /** Pages */
+            pages: number;
+            /**
+             * Top Page Id
+             * @description Highest internal PageRank in the cluster.
+             */
+            top_page_id: string | null;
+            /** Top Page Url */
+            top_page_url: string | null;
+            /** True Orphans */
+            true_orphans: number;
+        };
+        /**
+         * GraphOverview
+         * @description Corpus-level counts for one ``metrics_version`` (the newest computed).
+         */
+        GraphOverview: {
+            /**
+             * Bridges
+             * @description Cut vertices: removing one would split a component.
+             */
+            bridges: number;
+            /**
+             * Clusters
+             * @description Topical clusters (pages with no topic are none).
+             */
+            clusters: number;
+            /**
+             * Components
+             * @description Weakly connected components.
+             */
+            components: number;
+            /**
+             * Computed At
+             * @description When the newest rows were computed; None = never computed.
+             */
+            computed_at: string | null;
+            /**
+             * Entry Pages
+             * @description Pages with crawl_depth 0: the crawl entry, not orphans to recover.
+             */
+            entry_pages: number;
+            /**
+             * Metrics Version
+             * @description Algorithm/recipe version of these numbers; None = never computed.
+             */
+            metrics_version: string | null;
+            /**
+             * Nearly Orphans
+             * @description At most the policy threshold of inbound pages.
+             */
+            nearly_orphans: number;
+            /**
+             * Orphans
+             * @description is_orphan pages. INCLUDES the entry page when nothing links to it.
+             */
+            orphans: number;
+            /**
+             * Pages
+             * @description Live pages with metrics for their current version.
+             */
+            pages: number;
+            /**
+             * True Orphans
+             * @description Orphans that are not the crawl entry (is_orphan and crawl_depth != 0).
+             */
+            true_orphans: number;
+        };
+        /**
+         * GraphPageRow
+         * @description A page's link-graph position with enough identity to render a row.
+         */
+        GraphPageRow: {
+            /** Canonical Url */
+            canonical_url: string;
+            /**
+             * Is Entry Page
+             * @description crawl_depth == 0. An entry page can be is_orphan WITHOUT being a true orphan (module docstring).
+             */
+            is_entry_page: boolean;
+            signals: components["schemas"]["GraphSignals"];
+            /** Title */
+            title: string | null;
+        };
+        /**
          * GraphSignals
          * @description The internal link-graph position of ONE page version (``page_graph_metrics``).
          *
@@ -3972,6 +4140,12 @@ export interface components {
         ListResponse_ExperimentView_: {
             /** Items */
             items: components["schemas"]["ExperimentView"][];
+            page: components["schemas"]["PageInfo"];
+        };
+        /** ListResponse[GraphPageRow] */
+        ListResponse_GraphPageRow_: {
+            /** Items */
+            items: components["schemas"]["GraphPageRow"][];
             page: components["schemas"]["PageInfo"];
         };
         /** ListResponse[IngestionIssueView] */
@@ -7566,6 +7740,194 @@ export interface operations {
             };
             /** @description The role lacks the permission. */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A parameter is invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    listGraphClusters: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GraphClusterSummary"][];
+                };
+            };
+            /** @description Not authenticated. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The role lacks the permission. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    getGraphOverview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GraphOverview"];
+                };
+            };
+            /** @description Not authenticated. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The role lacks the permission. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    listGraphPages: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+                cluster_id?: number | null;
+                component_id?: number | null;
+                orphans_only?: boolean;
+                bridges_only?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListResponse_GraphPageRow_"];
+                };
+            };
+            /** @description Not authenticated. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The role lacks the permission. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A parameter is invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    getGraphPage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                page_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GraphPageRow"];
+                };
+            };
+            /** @description Not authenticated. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The role lacks the permission. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No such page, or graph metrics have not been computed for it yet. */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

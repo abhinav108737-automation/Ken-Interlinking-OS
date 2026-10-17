@@ -75,7 +75,6 @@ __all__ = [
     "ArmObservation",
     "ExperimentLifecycleService",
     "SqlExperimentGuard",
-    "assignment_arm",
     "attribute",
     "compare_arms",
 ]
@@ -133,26 +132,6 @@ class SqlExperimentGuard:
 # --------------------------------------------------------------------------- #
 # Arm assignment
 # --------------------------------------------------------------------------- #
-def assignment_arm(
-    *, kind: ExperimentKind, key: str, page_id: uuid.UUID, treatment_fraction: float
-) -> ExperimentArm:
-    """The arm to MATERIALISE for one page: the frozen ``experiment_arm`` hash, oriented so the
-    capped quantity is the one that is actually withheld.
-
-    For a ``policy_ab`` the fraction is the share in the TREATMENT arm (the candidate ranking),
-    exactly as ``experiment_arm`` documents. For a ``holdout`` the contract says the fraction
-    is capped at 0.20 BECAUSE it is "the share of pages a holdout may withhold links from"
-    (``ExperimentKind`` / ``ExperimentPolicy``), while ``SqlExperimentGuard`` withholds the
-    CONTROL arm. Taken literally, ``experiment_arm(treatment_fraction=0.10)`` would put 90 % of
-    pages in control -- and the guard would lock 90 % of the site against the 20 % cap. So a
-    holdout hashes against ``1 - fraction``: the CONTROL (withheld) arm is ``fraction`` of the
-    pages and the cap bounds what it was written to bound. The hash itself is still
-    ``experiment_arm``'s; the stored arm is what is audited.
-    """
-    effective = 1.0 - treatment_fraction if kind is ExperimentKind.HOLDOUT else treatment_fraction
-    return experiment_arm(key=key, page_id=page_id, treatment_fraction=effective)
-
-
 # --------------------------------------------------------------------------- #
 # The lifecycle
 # --------------------------------------------------------------------------- #
@@ -245,11 +224,11 @@ class ExperimentLifecycleService:
             fresh = [
                 repo.AssignmentRow(
                     page_id=page_id,
-                    arm=assignment_arm(
+                    arm=experiment_arm(
                         kind=ExperimentKind(experiment.kind),
                         key=experiment.key,
                         page_id=page_id,
-                        treatment_fraction=experiment.treatment_fraction,
+                        fraction=experiment.treatment_fraction,
                     ),
                     assigned_by=actor,
                     assigned_at=now,

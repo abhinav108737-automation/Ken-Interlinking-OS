@@ -4227,6 +4227,221 @@
         "title": "GeographyMention",
         "type": "object"
       },
+      "GraphClusterSummary": {
+        "additionalProperties": false,
+        "description": "One topical cluster. ``cluster_id`` is an ORDINAL (0 = largest), stable within one\n``metrics_version`` only; ``None`` collects the pages that have no topic.",
+        "properties": {
+          "bridges": {
+            "minimum": 0.0,
+            "title": "Bridges",
+            "type": "integer"
+          },
+          "cluster_id": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cluster Id"
+          },
+          "mean_in_degree": {
+            "minimum": 0.0,
+            "title": "Mean In Degree",
+            "type": "number"
+          },
+          "nearly_orphans": {
+            "minimum": 0.0,
+            "title": "Nearly Orphans",
+            "type": "integer"
+          },
+          "orphans": {
+            "minimum": 0.0,
+            "title": "Orphans",
+            "type": "integer"
+          },
+          "pages": {
+            "minimum": 1.0,
+            "title": "Pages",
+            "type": "integer"
+          },
+          "top_page_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Highest internal PageRank in the cluster.",
+            "title": "Top Page Id"
+          },
+          "top_page_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Top Page Url"
+          },
+          "true_orphans": {
+            "minimum": 0.0,
+            "title": "True Orphans",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "cluster_id",
+          "pages",
+          "orphans",
+          "true_orphans",
+          "nearly_orphans",
+          "bridges",
+          "mean_in_degree",
+          "top_page_id",
+          "top_page_url"
+        ],
+        "title": "GraphClusterSummary",
+        "type": "object"
+      },
+      "GraphOverview": {
+        "additionalProperties": false,
+        "description": "Corpus-level counts for one ``metrics_version`` (the newest computed).",
+        "properties": {
+          "bridges": {
+            "description": "Cut vertices: removing one would split a component.",
+            "minimum": 0.0,
+            "title": "Bridges",
+            "type": "integer"
+          },
+          "clusters": {
+            "description": "Topical clusters (pages with no topic are none).",
+            "minimum": 0.0,
+            "title": "Clusters",
+            "type": "integer"
+          },
+          "components": {
+            "description": "Weakly connected components.",
+            "minimum": 0.0,
+            "title": "Components",
+            "type": "integer"
+          },
+          "computed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When the newest rows were computed; None = never computed.",
+            "title": "Computed At"
+          },
+          "entry_pages": {
+            "description": "Pages with crawl_depth 0: the crawl entry, not orphans to recover.",
+            "minimum": 0.0,
+            "title": "Entry Pages",
+            "type": "integer"
+          },
+          "metrics_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Algorithm/recipe version of these numbers; None = never computed.",
+            "title": "Metrics Version"
+          },
+          "nearly_orphans": {
+            "description": "At most the policy threshold of inbound pages.",
+            "minimum": 0.0,
+            "title": "Nearly Orphans",
+            "type": "integer"
+          },
+          "orphans": {
+            "description": "is_orphan pages. INCLUDES the entry page when nothing links to it.",
+            "minimum": 0.0,
+            "title": "Orphans",
+            "type": "integer"
+          },
+          "pages": {
+            "description": "Live pages with metrics for their current version.",
+            "minimum": 0.0,
+            "title": "Pages",
+            "type": "integer"
+          },
+          "true_orphans": {
+            "description": "Orphans that are not the crawl entry (is_orphan and crawl_depth != 0).",
+            "minimum": 0.0,
+            "title": "True Orphans",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "metrics_version",
+          "computed_at",
+          "pages",
+          "entry_pages",
+          "orphans",
+          "true_orphans",
+          "nearly_orphans",
+          "bridges",
+          "components",
+          "clusters"
+        ],
+        "title": "GraphOverview",
+        "type": "object"
+      },
+      "GraphPageRow": {
+        "additionalProperties": false,
+        "description": "A page's link-graph position with enough identity to render a row.",
+        "properties": {
+          "canonical_url": {
+            "title": "Canonical Url",
+            "type": "string"
+          },
+          "is_entry_page": {
+            "description": "crawl_depth == 0. An entry page can be is_orphan WITHOUT being a true orphan (module docstring).",
+            "title": "Is Entry Page",
+            "type": "boolean"
+          },
+          "signals": {
+            "$ref": "#/components/schemas/GraphSignals"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "required": [
+          "signals",
+          "canonical_url",
+          "title",
+          "is_entry_page"
+        ],
+        "title": "GraphPageRow",
+        "type": "object"
+      },
       "GraphSignals": {
         "additionalProperties": false,
         "description": "The internal link-graph position of ONE page version (``page_graph_metrics``).\n\nEvery signal is reported SEPARATELY and deliberately: there is no single opaque \"graph\nscore\". A reviewer, an eval and the learning pipeline must all be able to see WHICH\nproperty moved a candidate, and a composite number destroys exactly that. The ranking\npolicy is free to combine them into its ``graph`` component; the record keeps the parts.",
@@ -6416,6 +6631,27 @@
           "page"
         ],
         "title": "ListResponse[ExperimentView]",
+        "type": "object"
+      },
+      "ListResponse_GraphPageRow_": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/GraphPageRow"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          }
+        },
+        "required": [
+          "items",
+          "page"
+        ],
+        "title": "ListResponse[GraphPageRow]",
         "type": "object"
       },
       "ListResponse_IngestionIssueView_": {
@@ -13697,6 +13933,298 @@
         "summary": "The append-only event log, newest first (audit).",
         "tags": [
           "control-plane"
+        ]
+      }
+    },
+    "/graph/clusters": {
+      "get": {
+        "operationId": "listGraphClusters",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/GraphClusterSummary"
+                  },
+                  "title": "Response Listgraphclusters",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not authenticated."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The role lacks the permission."
+          }
+        },
+        "summary": "One summary per topical cluster, largest first (the topic-less group last).",
+        "tags": [
+          "graph"
+        ]
+      }
+    },
+    "/graph/overview": {
+      "get": {
+        "operationId": "getGraphOverview",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GraphOverview"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not authenticated."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The role lacks the permission."
+          }
+        },
+        "summary": "Corpus-wide link-graph counts: orphans, bridges, components, clusters.",
+        "tags": [
+          "graph"
+        ]
+      }
+    },
+    "/graph/pages": {
+      "get": {
+        "operationId": "listGraphPages",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "maximum": 10000000,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cluster_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 1000000,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cluster Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "component_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 1000000,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Component Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "orphans_only",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Orphans Only",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "bridges_only",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Bridges Only",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListResponse_GraphPageRow_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not authenticated."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The role lacks the permission."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A parameter is invalid."
+          }
+        },
+        "summary": "Pages with their link-graph position, most authoritative first.",
+        "tags": [
+          "graph"
+        ]
+      }
+    },
+    "/graph/pages/{page_id}": {
+      "get": {
+        "operationId": "getGraphPage",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "page_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Page Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GraphPageRow"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not authenticated."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The role lacks the permission."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such page, or graph metrics have not been computed for it yet."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A parameter is invalid."
+          }
+        },
+        "summary": "The link-graph position of one page.",
+        "tags": [
+          "graph"
         ]
       }
     },

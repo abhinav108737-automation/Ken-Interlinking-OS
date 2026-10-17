@@ -225,3 +225,21 @@ def test_the_explanation_carries_score_signals_policy_confidence_and_sources() -
     assert why.factors == {"placement_quality": 0.8}
     assert why.signals["gsc_opportunity"] == 0.6
     assert sum(c.contribution for c in why.components) == pytest.approx(scored.breakdown.relevance)
+
+
+def test_the_analytics_window_comes_from_the_versioned_policy_and_only_when_enabled() -> None:
+    from ken_contracts.recommendations import RetrievalPolicy
+    from ken_services.analytics.policy import load_configured_analytics_policy
+    from ken_services.recommendations.channels import analytics_window_for
+    from tests.conftest import make_settings
+
+    settings = make_settings()
+    # Default policy: the channel is off, so the analytics policy is not even read.
+    assert analytics_window_for(settings, RetrievalPolicy()) is None
+    # Enabled but analytics_k == 0 stays inert.
+    assert analytics_window_for(settings, RetrievalPolicy(channels_enabled=(AN,))) is None
+    enabled = RetrievalPolicy(channels_enabled=(AN,), analytics_k=5)
+    assert (
+        analytics_window_for(settings, enabled)
+        == load_configured_analytics_policy(settings).windows.comparison_days
+    )

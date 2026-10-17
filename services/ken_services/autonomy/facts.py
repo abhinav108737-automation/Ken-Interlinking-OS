@@ -397,7 +397,9 @@ async def load_plan_facts(
         anchor_valid=anchor_valid,
         rollback_metadata_present=rollback_ready,
         vector_fresh=bool(vector_fresh),
-        policy_version=policy.version,  # the RECOMMENDATION policy; the engine records the autonomy one
+        # The RECOMMENDATION policy version. The engine records the AUTONOMY policy's on the
+        # decision row; this field only describes the plan's own provenance.
+        policy_version=policy.version,
         confidence=row.confidence,
         calibration_version=row.calibration_version,
     )
