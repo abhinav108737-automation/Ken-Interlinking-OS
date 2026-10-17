@@ -199,15 +199,21 @@ describe("dashboard", () => {
       "/autonomy/blocked",
     );
     expect(screen.queryByRole("link", { name: "Review the inbox" })).toBeNull();
-    // Approval survives only under "Operator exceptions".
+    // Guarded deferrals are recorded as BLOCKED, so exception handling points at blocked actions,
+    // not at the approval queue, and the section says so.
     const exceptions = screen.getByRole("heading", { level: 2, name: "Operator exceptions" }).closest("section")!;
     expect(exceptions).toHaveTextContent("Approval is not part of the normal workflow");
-    expect(within(exceptions).getByRole("link", { name: "Handle exceptions" })).toHaveAttribute(
+    expect(exceptions).toHaveTextContent("recorded as blocked");
+    expect(within(exceptions).getByRole("link", { name: "Handle blocked and deferred plans" })).toHaveAttribute(
+      "href",
+      "/autonomy/blocked",
+    );
+    expect(within(exceptions).getByText("plans are blocked or deferred.").previousElementSibling).toHaveTextContent("3");
+    // The approval queue survives only as a secondary line for plans an operator opened as an exception.
+    expect(exceptions).toHaveTextContent("7 plans were opened as an operator exception");
+    expect(within(exceptions).getByRole("link", { name: "view them" })).toHaveAttribute(
       "href",
       "/recommendations?status=awaiting_approval",
-    );
-    expect(within(exceptions).getByText("plans are deferred to an operator.").previousElementSibling).toHaveTextContent(
-      "7",
     );
     // Autonomy counts, and the content counts, still render.
     expect(screen.getByRole("link", { name: "4" })).toHaveAttribute("href", "/autonomy/attempts");

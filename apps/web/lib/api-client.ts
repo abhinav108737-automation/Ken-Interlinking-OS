@@ -328,6 +328,16 @@ export type ListLearningEvaluationsQuery = NonNullable<
   operations["listLearningEvaluations"]["parameters"]["query"]
 >;
 
+// Link-graph diagnostics (read-only, `read`). `orphans` INCLUDES the crawl entry
+// page; `true_orphans` excludes it. Screens headline the true figure.
+export type GraphOverview = Schemas["GraphOverview"];
+export type GraphClusterSummary = Schemas["GraphClusterSummary"];
+export type GraphPageRow = Schemas["GraphPageRow"];
+export type GraphPageList = Schemas["ListResponse_GraphPageRow_"];
+/** `GET /graph/clusters` returns a bare array. */
+export type GraphClusterList = operations["listGraphClusters"]["responses"][200]["content"]["application/json"];
+export type ListGraphPagesQuery = NonNullable<operations["listGraphPages"]["parameters"]["query"]>;
+
 export type ApiPath = keyof paths;
 
 /**
@@ -713,6 +723,15 @@ export interface ApiClient {
   ): Promise<ApiResult<OperatorOverrideResponse>>;
 
   // --- Learning control plane (ADR-0016): reads `read`, advance `promote` ----
+
+  /** `GET /graph/overview` (`read`): counts, true orphans vs entry pages, metrics version. Contract: 200, 401, 403. */
+  getGraphOverview(options?: RequestOptions): Promise<ApiResult<GraphOverview>>;
+  /** `GET /graph/clusters` (`read`): one summary per topical cluster. Contract: 200, 401, 403. */
+  listGraphClusters(options?: RequestOptions): Promise<ApiResult<GraphClusterList>>;
+  /** `GET /graph/pages` (`read`): per-page graph position, filterable. Contract: 200, 401, 403, 422. */
+  listGraphPages(query?: ListGraphPagesQuery, options?: RequestOptions): Promise<ApiResult<GraphPageList>>;
+  /** `GET /graph/pages/{page_id}` (`read`): one page's graph position. Contract: 200, 401, 403, 404, 422. */
+  getGraphPage(pageId: string, options?: RequestOptions): Promise<ApiResult<GraphPageRow>>;
 
   /** `GET /learning` (`read`): the corpus banner and the list counts. Contract: 200, 401, 403, 422. */
   getLearningOverview(options?: RequestOptions): Promise<ApiResult<LearningOverview>>;
@@ -2206,6 +2225,43 @@ export function isOperatorOverrideResponse(value: unknown): value is OperatorOve
   );
 }
 
+export function isGraphOverview(value: unknown): value is GraphOverview {
+  return (
+    isObject(value) &&
+    ["pages", "orphans", "true_orphans", "entry_pages", "nearly_orphans", "bridges", "components", "clusters"].every(
+      (key) => isNumber(value[key]),
+    ) &&
+    isNullableString(value["metrics_version"]) &&
+    isNullableString(value["computed_at"])
+  );
+}
+
+export function isGraphClusterSummary(value: unknown): value is GraphClusterSummary {
+  return (
+    isObject(value) &&
+    isNullableNumber(value["cluster_id"]) &&
+    ["pages", "orphans", "true_orphans", "nearly_orphans", "bridges", "mean_in_degree"].every((key) =>
+      isNumber(value[key]),
+    ) &&
+    isNullableString(value["top_page_id"]) &&
+    isNullableString(value["top_page_url"])
+  );
+}
+
+export function isGraphPageRow(value: unknown): value is GraphPageRow {
+  return (
+    isObject(value) &&
+    typeof value["canonical_url"] === "string" &&
+    isNullableString(value["title"]) &&
+    typeof value["is_entry_page"] === "boolean" &&
+    isGraphSignals(value["signals"])
+  );
+}
+
+export const isGraphClusterList = (value: unknown): value is GraphClusterList =>
+  everyItem(value, isGraphClusterSummary);
+export const isGraphPageList = (value: unknown): value is GraphPageList => isListResponse(value, isGraphPageRow);
+
 export const isAutonomyDecisionList = (value: unknown): value is AutonomyDecisionList =>
   isListResponse(value, isAutonomyDecisionView);
 export const isBlockedActionList = (value: unknown): value is BlockedActionList =>
@@ -3117,6 +3173,21 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
         { ok: [200], declaredErrors: REVIEW_ERRORS, guard: isOperatorOverrideResponse },
         callOptions,
       );
+    },
+
+    getGraphOverview: (callOptions = {}) =>
+      inventory("/graph/overview", "/graph/overview", isGraphOverview, undefined, callOptions, []),
+
+    listGraphClusters: (callOptions = {}) =>
+      inventory("/graph/clusters", "/graph/clusters", isGraphClusterList, undefined, callOptions, []),
+
+    listGraphPages: (query, callOptions = {}) =>
+      inventory("/graph/pages", "/graph/pages", isGraphPageList, query, callOptions, [422]),
+
+    getGraphPage: (pageId, callOptions = {}) => {
+      const path = "/graph/pages/{page_id}";
+      if (!isSafePathId(pageId)) return invalidArgument(path, "page id");
+      return inventory(path, `/graph/pages/${id(pageId)}`, isGraphPageRow, undefined, callOptions);
     },
 
     getLearningOverview: (callOptions = {}) =>

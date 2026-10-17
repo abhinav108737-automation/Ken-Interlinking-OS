@@ -21,12 +21,15 @@ import {
   getLinkPlan,
   isMissingResourceError,
   listAutonomyDecisions,
+  listBlockedActions,
   listPublishAttempts,
   requireSessionUser,
 } from "@/lib/api";
 import { can, describeRole, permissionsOf } from "@/lib/auth";
 import {
   BLOCKED_PATH,
+  blockKindOf,
+  blockReasonText,
   describeAutonomyDecision,
   describeCriticOutcome,
   describeDecisionConfidence,
@@ -72,6 +75,8 @@ function Section({ id, title, children }: { readonly id: string; readonly title:
 }
 
 const ATTEMPT_LIMIT = 20;
+/** `/autonomy/blocked` has no per-plan route, so the reason is looked up in its newest page. */
+const BLOCKED_LOOKUP = 100;
 
 /**
  * The investigation view for one blocked (or otherwise decided) plan: what the
@@ -91,10 +96,11 @@ export default async function BlockedActionDetailPage({
   const { planId } = await params;
   if (!isUuid(planId)) notFound();
 
-  const [planResult, decisionsResult, attemptsResult, health, me] = await Promise.all([
+  const [planResult, decisionsResult, attemptsResult, blockedResult, health, me] = await Promise.all([
     getLinkPlan(planId),
     listAutonomyDecisions({ plan_id: planId, limit: 5 }),
     listPublishAttempts({ plan_id: planId, limit: ATTEMPT_LIMIT }),
+    listBlockedActions({ limit: BLOCKED_LOOKUP }),
     getAutonomyMode(),
     requireSessionUser(),
   ]);
@@ -122,6 +128,10 @@ export default async function BlockedActionDetailPage({
   const latest = decisionsResult.ok ? (decisionsResult.data.items[0] ?? null) : null;
   const shadow = latest === null ? null : describeShadowDecision(latest);
   const blocks = latest?.blocks ?? [];
+  const blockedRow = blockedResult.ok ? blockedResult.data.items.find((item) => item.plan_id === plan.id) : undefined;
+  const reason = blockReasonText(blockedRow?.reason);
+  // A BLOCK decision with no codes is a guarded deferral, not a hard block.
+  const deferral = latest !== null && latest.decision === "block" && blockKindOf(blocks) === "deferral";
   // An operator has acted when a `user:` actor appears in the plan's transitions.
   const operatorActed = plan.transitions.some((item) => item.actor.startsWith("user:"));
 
@@ -220,12 +230,18 @@ export default async function BlockedActionDetailPage({
         )}
       </Section>
 
-      <Section id="blocks" title="Deterministic blocks that fired">
+      <Section id="blocks" title="Why it is blocked">
         <p className="max-w-prose text-sm text-slate-700">
-          Each of these is computed from stored facts by code alone — no model call and no judgement — and none of them
-          can be overridden into a publish.
+          A hard block is computed from stored facts by code alone — no model call and no judgement — and cannot be
+          overridden into a publish. A deferral has no block code: guarded mode held the plan back as too risky,
+          uncalibrated or under-confident, and an operator may still override it.
         </p>
-        <BlockList blocks={blocks} linkToFilter />
+        <BlockList blocks={blocks} reason={reason} linkToFilter />
+        {reason === null && (
+          <p className="text-xs text-slate-700">
+            No recorded reason was found among the {BLOCKED_LOOKUP} newest blocked actions.
+          </p>
+        )}
       </Section>
 
       <Section id="pages" title="Pages">
@@ -322,6 +338,7 @@ export default async function BlockedActionDetailPage({
           planId={plan.id}
           expectedStatus={plan.status}
           blocks={blocks}
+          deferral={deferral}
           action={overrideAction}
           alreadyOverridden={operatorActed}
         />

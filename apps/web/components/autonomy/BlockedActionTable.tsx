@@ -1,7 +1,15 @@
 import Link from "next/link";
 
 import type { BlockedActionView } from "@/lib/api-client";
-import { blockedPlanHref, describeBlockCode, describeRiskTier, isKnownBlockCode } from "@/lib/autonomy";
+import {
+  blockKindOf,
+  blockReasonText,
+  blockedPlanHref,
+  describeBlockCode,
+  describeBlockKind,
+  describeRiskTier,
+  isKnownBlockCode,
+} from "@/lib/autonomy";
 import { formatDateTime } from "@/lib/format";
 import { planHref } from "@/lib/recommendations";
 
@@ -10,7 +18,7 @@ import { ModeCell } from "./ShadowBadge";
 import { ExternalUrl } from "../inventory/ExternalUrl";
 import { CELL, EmptyRow, HeaderRow, ROW, TableFrame } from "../inventory/Table";
 
-const COLUMNS = ["Blocks that fired", "Mode", "Risk", "Anchor", "Source → destination", "Decided", "Investigate"] as const;
+const COLUMNS = ["Why blocked", "Mode", "Risk", "Anchor", "Source → destination", "Decided", "Investigate"] as const;
 
 const OVERRIDDEN: Parameters<typeof StatusBadge>[0]["presentation"] = {
   label: "Operator acted",
@@ -45,11 +53,10 @@ export function BlockedActionTable({
         ) : (
           blocked.map((item) => (
             <tr key={item.plan_id} className={ROW}>
-              <th scope="row" className={`${CELL} font-medium`}>
-                {item.blocks.length === 0 ? (
-                  <span className="text-slate-700">No code recorded</span>
-                ) : (
-                  <ul className="list-none space-y-0.5">
+              <th scope="row" className={`${CELL} max-w-sm font-medium`}>
+                <StatusBadge presentation={describeBlockKind(blockKindOf(item.blocks))} />
+                {item.blocks.length > 0 && (
+                  <ul className="mt-1 list-none space-y-0.5">
                     {item.blocks.map((code) => (
                       <li key={code}>
                         {describeBlockCode(code)}
@@ -60,6 +67,18 @@ export function BlockedActionTable({
                       </li>
                     ))}
                   </ul>
+                )}
+                {blockReasonText(item.reason) !== null ? (
+                  <span className="mt-1 block break-words text-xs font-normal text-slate-800">
+                    {blockReasonText(item.reason)}
+                  </span>
+                ) : (
+                  <span className="mt-1 block text-xs font-normal text-slate-600">No reason was recorded.</span>
+                )}
+                {item.blocks.length === 0 && (
+                  <span className="mt-1 block text-xs font-normal text-slate-800">
+                    A deferral, not a hard block: an operator may still override it.
+                  </span>
                 )}
                 {item.overridden && (
                   <span className="mt-1 block">

@@ -188,21 +188,33 @@ export function DashboardView({ summary, autonomy, health, canReview }: Dashboar
 
       <Section id="exceptions" title="Operator exceptions">
         <p className="max-w-prose text-sm text-slate-700">
-          Approval is not part of the normal workflow. A plan reaches an operator only when guarded mode defers it, or
-          when someone opens it as an exception.
+          Approval is not part of the normal workflow. In guarded mode a plan that is too risky, uncalibrated or
+          under-confident is <strong>deferred</strong>: it is recorded as blocked, and an operator may override it with a
+          recorded reason.
         </p>
         <div className="flex flex-wrap items-center gap-4 rounded border border-slate-400 bg-slate-50 p-4">
-          <p className="text-xl font-semibold tabular-nums">{formatCount(exceptions)}</p>
-          <p className="text-slate-900">
-            {exceptions === 1 ? "plan is" : "plans are"} deferred to an operator.
-          </p>
+          <p className="text-xl font-semibold tabular-nums">{formatCount(blockedCount)}</p>
+          <p className="text-slate-900">{blockedCount === 1 ? "plan is" : "plans are"} blocked or deferred.</p>
           <Link
-            href={buildHref(RECOMMENDATIONS_PATH, { status: "awaiting_approval" })}
+            href={BLOCKED_PATH}
             className="rounded border border-slate-500 bg-white px-3 py-1 text-slate-900 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
           >
-            {canReview ? "Handle exceptions" : "View exceptions"}
+            {canReview ? "Handle blocked and deferred plans" : "View blocked and deferred plans"}
           </Link>
         </div>
+        {exceptions > 0 && (
+          <p className="text-sm text-slate-800">
+            {formatCount(exceptions)} {exceptions === 1 ? "plan was" : "plans were"} opened as an operator exception
+            (awaiting approval):{" "}
+            <Link
+              href={buildHref(RECOMMENDATIONS_PATH, { status: "awaiting_approval" })}
+              className="text-blue-800 underline underline-offset-4"
+            >
+              view them
+            </Link>
+            .
+          </p>
+        )}
         <div className="grid gap-4 lg:grid-cols-2">
           <CountTable
             caption="Review actions (all time)"

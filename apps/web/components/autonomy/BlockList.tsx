@@ -1,7 +1,10 @@
 import Link from "next/link";
 
 import {
+  blockKindOf,
+  blockReasonText,
   blockedCodeHref,
+  describeBlockKind,
   describeBlockCode,
   describeBlockCodeDetail,
   describeBlockInvestigation,
@@ -19,20 +22,38 @@ import {
  */
 export function BlockList({
   blocks,
+  reason = null,
   linkToFilter = false,
 }: {
   readonly blocks: readonly string[];
+  /** The recorded plain-language reason, rendered as text. */
+  readonly reason?: string | null;
   /** Link each code to the blocked list filtered to it. */
   readonly linkToFilter?: boolean;
 }) {
-  if (blocks.length === 0) {
-    return (
-      <p role="note" className="rounded border border-slate-300 bg-slate-50 p-3 text-sm text-slate-800">
-        The API reported this plan as blocked but recorded no block code. Treat it as unexplained and investigate.
+  const text = blockReasonText(reason);
+  const reasonNote =
+    text === null ? null : (
+      <p className="max-w-prose break-words rounded border border-slate-400 bg-white p-3 text-sm text-slate-900">
+        <span className="font-semibold">Recorded reason: </span>
+        {text}
       </p>
+    );
+  if (blocks.length === 0) {
+    const kind = describeBlockKind(blockKindOf(blocks));
+    return (
+      <div className="space-y-2">
+        <p role="note" className="max-w-prose rounded border border-amber-700 bg-amber-50 p-3 text-sm text-amber-950">
+          <span className="font-semibold">{kind.label}. </span>
+          {kind.description} No deterministic block code fired, so this is not a safety refusal.
+        </p>
+        {reasonNote}
+      </div>
     );
   }
   return (
+    <div className="space-y-2">
+      {reasonNote}
     <ul className="space-y-2">
       {blocks.map((code) => {
         const known = isKnownBlockCode(code);
@@ -61,5 +82,6 @@ export function BlockList({
         );
       })}
     </ul>
+    </div>
   );
 }

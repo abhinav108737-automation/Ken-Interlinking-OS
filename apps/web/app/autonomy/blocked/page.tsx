@@ -43,9 +43,11 @@ export default async function BlockedActionsPage({
         <h1 className="text-2xl font-semibold">Blocked actions</h1>
         <AutonomyModeBanner health={health.ok ? health.data : null} compact />
         <p className="max-w-prose text-slate-800">
-          Plans a deterministic safety rule refused. Each one is computed from stored facts by code alone — no model
-          call, no judgement — and <strong>a deterministic block is never overridable into a publish</strong>. Open a
-          row to investigate it: what fired, what to check, and the plan&apos;s own evidence.
+          Plans that were not published. A <strong>hard block</strong> is a deterministic safety rule: no model call, no
+          judgement, and <strong>never overridable into a publish</strong>. A <strong>deferral</strong> has no block
+          code: guarded mode held the plan back as too risky, uncalibrated or under-confident, and it is recorded here
+          as blocked (not as awaiting approval). Open a row to investigate it: the recorded reason, what to check and
+          the plan&apos;s own evidence.
         </p>
         <p className="max-w-prose rounded border border-slate-300 bg-slate-50 p-3 text-sm text-slate-800">
           {canOverride

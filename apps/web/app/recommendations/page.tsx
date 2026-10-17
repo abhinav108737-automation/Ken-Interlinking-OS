@@ -120,8 +120,8 @@ export default async function RecommendationsPage({ searchParams }: { readonly s
         </p>
         <p className="max-w-prose rounded border border-slate-300 bg-slate-50 p-3 text-sm text-slate-800">
           <span className="font-medium">Approve, reject and edit are operator exception actions.</span> They are not
-          part of the normal workflow and they are offered only for a plan a guarded-mode deferral or an operator
-          opened as an exception.
+          part of the normal workflow and they are offered only for a plan an operator opened as an exception.
+          A guarded-mode deferral is recorded as blocked, not here.
           {canReview
             ? " Your role may record them."
             : " Recording them needs the review permission, which your role does not have."}

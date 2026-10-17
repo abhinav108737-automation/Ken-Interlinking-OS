@@ -180,7 +180,7 @@ describe("activeNavHref", () => {
   it("puts the operations entries first and keeps System in the navigation", () => {
     expect(NAV_LINKS.map((link) => link.label)).toEqual([
       "Dashboard", "Autonomy", "Blocked", "Recommendations", "Deployments", "Inventory", "Runs", "Intelligence",
-      "Agents", "Analytics", "Learning", "Jobs", "Audit", "Settings", "System",
+      "Graph", "Agents", "Analytics", "Learning", "Jobs", "Audit", "Settings", "System",
     ]);
     // "Blocked" is a deeper path than "Autonomy", so it must own its own
     // sub-pages rather than lighting up the Autonomy entry.

@@ -207,7 +207,7 @@ describe("/autonomy/blocked/[planId] investigation view", () => {
     expect(decision).toHaveTextContent("raw");
     expect(decision).toHaveTextContent("Yes — an inverse splice is possible");
     // The blocks, each with the investigation hint.
-    const blocks = screen.getByRole("heading", { level: 2, name: /Deterministic blocks that fired/ }).closest("section")!;
+    const blocks = screen.getByRole("heading", { level: 2, name: "Why it is blocked" }).closest("section")!;
     expect(blocks).toHaveTextContent("Protected page");
     expect(blocks).toHaveTextContent("What to check:");
     // The per-signal score breakdown, never one opaque number.
@@ -270,7 +270,8 @@ describe("/autonomy/blocked/[planId] investigation view", () => {
     api.listAutonomyDecisions.mockResolvedValue(ok(list([])));
     await renderDetail();
     expect(screen.getByText(/No autonomy decision has been recorded for this plan/)).toBeInTheDocument();
-    expect(screen.getByText(/recorded no block code/i)).toBeInTheDocument();
+    // With no decision there is no block set either; the empty list is explained, not shown as "all clear".
+    expect(screen.getByText(/not a safety refusal/i)).toBeInTheDocument();
   });
 
   it("warns prominently when a rollback is not possible", async () => {
@@ -279,6 +280,68 @@ describe("/autonomy/blocked/[planId] investigation view", () => {
     );
     await renderDetail();
     expect(screen.getByText(/nothing is published that cannot be undone/i)).toBeInTheDocument();
+  });
+});
+
+describe("block reason and deferral", () => {
+  const HARD = "blocked: deterministic block protected_page (the destination is protected)";
+  const DEFER =
+    "blocked: deferred -- calibration absent (raw confidence); risk tier medium (not low); confidence 0.42 below the guarded floor 0.85";
+
+  it("shows a hard block's reason as text and labels it a hard block", async () => {
+    api.listBlockedActions.mockResolvedValue(ok(list([blockedAction({ reason: HARD })])));
+    await renderPage(BlockedActionsPage({ searchParams: Promise.resolve({}) }));
+    const table = screen.getByRole("table", { name: /Blocked actions/ });
+    expect(table).toHaveTextContent("Hard block");
+    expect(table).toHaveTextContent(HARD);
+    expect(table).not.toHaveTextContent("still override");
+  });
+
+  it("labels a deferral as one, shows its reason and says it can be overridden", async () => {
+    api.listBlockedActions.mockResolvedValue(ok(list([blockedAction({ blocks: [], reason: DEFER })])));
+    const { container } = await renderPage(BlockedActionsPage({ searchParams: Promise.resolve({}) }));
+    const table = screen.getByRole("table", { name: /Blocked actions/ });
+    expect(table).toHaveTextContent("Deferred");
+    expect(table).not.toHaveTextContent("Hard block");
+    expect(table).toHaveTextContent(DEFER);
+    expect(table).toHaveTextContent("A deferral, not a hard block: an operator may still override it.");
+    expect(container.querySelector("ul")).toBeNull();
+  });
+
+  it("renders a reason containing markup as text", async () => {
+    api.listBlockedActions.mockResolvedValue(
+      ok(list([blockedAction({ reason: "<img src=x onerror=alert(1)>blocked" })])),
+    );
+    const { container } = await renderPage(BlockedActionsPage({ searchParams: Promise.resolve({}) }));
+    expect(screen.getByRole("table", { name: /Blocked actions/ })).toHaveTextContent("<img src=x");
+    expect(container.querySelector("img")).toBeNull();
+  });
+
+  it("says plainly when no reason was recorded", async () => {
+    await renderPage(BlockedActionsPage({ searchParams: Promise.resolve({}) }));
+    expect(screen.getByRole("table", { name: /Blocked actions/ })).toHaveTextContent("No reason was recorded.");
+  });
+
+  it("the investigation view shows the reason and, for a deferral, that it is overridable", async () => {
+    api.listAutonomyDecisions.mockResolvedValue(ok(list([autonomyDecision({ blocks: [] })])));
+    api.listBlockedActions.mockResolvedValue(ok(list([blockedAction({ blocks: [], reason: DEFER })])));
+    await renderPage(BlockedActionDetailPage({ params: Promise.resolve({ planId: PLAN_ID }) }));
+    const section = screen.getByRole("heading", { level: 2, name: "Why it is blocked" }).closest("section")!;
+    expect(section).toHaveTextContent(DEFER);
+    expect(section).toHaveTextContent("not a safety refusal");
+    expect(section).not.toHaveTextContent("recorded no block code");
+    const panel = screen.getByRole("heading", { level: 2, name: /Operator override/ }).closest("section")!;
+    expect(panel).toHaveTextContent("This is a deferral, not a hard block.");
+    expect(panel).toHaveTextContent("a “publish” override can succeed");
+  });
+
+  it("the investigation view of a hard block still says it is not overridable", async () => {
+    api.listBlockedActions.mockResolvedValue(ok(list([blockedAction({ reason: HARD })])));
+    await renderPage(BlockedActionDetailPage({ params: Promise.resolve({ planId: PLAN_ID }) }));
+    expect(screen.getByRole("heading", { level: 2, name: "Why it is blocked" }).closest("section")).toHaveTextContent(HARD);
+    const panel = screen.getByRole("heading", { level: 2, name: /Operator override/ }).closest("section")!;
+    expect(panel).not.toHaveTextContent("This is a deferral");
+    expect(panel).toHaveTextContent("never overridable into a publish");
   });
 });
 

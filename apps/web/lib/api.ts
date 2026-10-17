@@ -117,6 +117,11 @@ import {
   type AutonomySummary,
   type BlockedActionList,
   type EvaluationDetail,
+  type GraphClusterList,
+  type GraphOverview,
+  type GraphPageList,
+  type GraphPageRow,
+  type ListGraphPagesQuery,
   type EvaluationList,
   type LearningOverview,
   type ListAutonomyDecisionsQuery,
@@ -306,6 +311,12 @@ export type {
   CandidateAttribution,
   CorpusBanner,
   CriticOutcome,
+  GraphClusterList,
+  GraphClusterSummary,
+  GraphOverview,
+  GraphPageList,
+  GraphPageRow,
+  ListGraphPagesQuery,
   EvalSuite,
   EvaluationDetail,
   EvaluationList,
@@ -1014,4 +1025,28 @@ export function getLearningEvaluation(evaluationId: string): Promise<ApiResult<E
   return withServerClient("/learning/evaluations/{evaluation_id}", (client) =>
     client.getLearningEvaluation(evaluationId),
   );
+}
+
+// ---------------------------------------------------------------------------
+// Link-graph diagnostics. GET-only, `read`; nothing here mutates.
+// ---------------------------------------------------------------------------
+
+/** `GET /graph/overview`. */
+export function getGraphOverview(): Promise<ApiResult<GraphOverview>> {
+  return withServerClient("/graph/overview", (client) => client.getGraphOverview());
+}
+
+/** `GET /graph/clusters`. */
+export function listGraphClusters(): Promise<ApiResult<GraphClusterList>> {
+  return withServerClient("/graph/clusters", (client) => client.listGraphClusters());
+}
+
+/** `GET /graph/pages`. */
+export function listGraphPages(query: ListGraphPagesQuery = {}): Promise<ApiResult<GraphPageList>> {
+  return withServerClient("/graph/pages", (client) => client.listGraphPages(query));
+}
+
+/** `GET /graph/pages/{page_id}`. */
+export function getGraphPage(pageId: string): Promise<ApiResult<GraphPageRow>> {
+  return withServerClient("/graph/pages/{page_id}", (client) => client.getGraphPage(pageId));
 }

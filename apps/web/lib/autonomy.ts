@@ -84,7 +84,7 @@ const AUTONOMY_MODE: Readonly<Record<AutonomyMode, StatusPresentation>> = {
   guarded: {
     label: "Guarded — low-risk publishing only",
     description:
-      "Low-risk, high-confidence auto-publish decisions are published without a human. Everything else is blocked or deferred to an operator as an exception.",
+      "Low-risk, high-confidence auto-publish decisions are published without a human. Everything else is deferred: it is recorded as blocked, and an operator may override it with a recorded reason.",
     tone: "caution",
     known: true,
   },
@@ -526,7 +526,7 @@ const OPERATIONAL_STATE: Readonly<Record<OperationalState, OperationalStatePrese
   exception: {
     label: "Operator exception",
     description:
-      "Deferred to or acted on by an operator. Not the normal path: normal link publishing needs no approval (ADR-0018).",
+      "Opened or acted on by an operator as an exception. Not the normal path: normal link publishing needs no approval (ADR-0018). A guarded-mode deferral is recorded as Blocked, not here.",
     tone: "caution",
     primary: false,
     statuses: ["awaiting_approval", "approved"],
@@ -920,4 +920,43 @@ export function describeBlockSet(blocks: readonly string[]): StatusPresentation 
     tone: "critical",
     known: unknownCodes.length === 0,
   };
+}
+
+// ---------------------------------------------------------------------------
+// 12. Hard block versus deferral. A BLOCK decision with codes is a hard block:
+//     deterministic, never overridable into a publish. A BLOCK decision with an
+//     EMPTY `blocks` list is a guarded-mode DEFERRAL: nothing deterministic
+//     forbids it, it was merely too risky, uncalibrated or under-confident. It
+//     is recorded as `blocked` (not `awaiting_approval`) and an operator may
+//     still override it with a recorded reason.
+// ---------------------------------------------------------------------------
+
+export type BlockKind = "hard_block" | "deferral";
+
+export function blockKindOf(blocks: readonly string[]): BlockKind {
+  return blocks.length === 0 ? "deferral" : "hard_block";
+}
+
+const BLOCK_KIND: Readonly<Record<BlockKind, StatusPresentation>> = {
+  hard_block: {
+    label: "Hard block",
+    description: "A deterministic safety rule fired. It is never overridable into a publish.",
+    tone: "critical",
+    known: true,
+  },
+  deferral: {
+    label: "Deferred",
+    description:
+      "Guarded mode held this plan back because it is too risky, uncalibrated or under-confident. No deterministic rule forbids it, so an operator may still override it, with a recorded reason.",
+    tone: "caution",
+    known: true,
+  },
+};
+
+export const describeBlockKind = (kind: BlockKind): StatusPresentation => BLOCK_KIND[kind];
+
+/** The recorded plain-language reason, trimmed; null when none was recorded. Rendered as text only. */
+export function blockReasonText(reason: string | null | undefined): string | null {
+  const text = reason?.trim() ?? "";
+  return text === "" ? null : text;
 }

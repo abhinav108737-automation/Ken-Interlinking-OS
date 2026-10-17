@@ -86,7 +86,7 @@ const LINK_PLAN_STATUS: Readonly<Record<LinkPlanStatus, StatusPresentation>> = {
   awaiting_approval: {
     label: "Awaiting approval (exception)",
     description:
-      "Deferred to an operator in guarded mode, or opened as an exception. Not the normal path: normal publishing needs no approval. Nothing has been changed on the site.",
+      "Opened as an operator exception. Not the normal path: normal publishing needs no approval, and a guarded-mode deferral is recorded as Blocked rather than here. Nothing has been changed on the site.",
     tone: "caution",
     known: true,
   },

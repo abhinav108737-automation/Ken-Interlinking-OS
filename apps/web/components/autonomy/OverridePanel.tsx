@@ -23,6 +23,8 @@ export interface OverridePanelProps {
   readonly expectedStatus: string;
   /** The blocks firing right now, so the form can say which are not overridable. */
   readonly blocks: readonly string[];
+  /** True for a guarded deferral (a BLOCK with no codes): overridable, unlike a hard block. */
+  readonly deferral?: boolean;
   readonly action: OverrideServerAction;
   /** True when the operator has already acted on this plan. */
   readonly alreadyOverridden: boolean;
@@ -53,6 +55,7 @@ export function OverridePanel({
   planId,
   expectedStatus,
   blocks,
+  deferral = false,
   action,
   alreadyOverridden,
 }: OverridePanelProps) {
@@ -75,6 +78,12 @@ export function OverridePanel({
       {alreadyOverridden && (
         <p role="note" className="max-w-prose rounded border border-slate-400 bg-white p-2 text-sm text-slate-900">
           An operator has already acted on this plan. Acting again is a new, separately recorded operation.
+        </p>
+      )}
+      {deferral && blocks.length === 0 && (
+        <p className="max-w-prose rounded border border-amber-700 bg-white p-2 text-sm text-amber-950">
+          <span className="font-semibold">This is a deferral, not a hard block.</span> No deterministic rule forbids
+          publishing it, so a “publish” override can succeed. It is recorded with your account and your reason.
         </p>
       )}
       {blocks.length > 0 && (

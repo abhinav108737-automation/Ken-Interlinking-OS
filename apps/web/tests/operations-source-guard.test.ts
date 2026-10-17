@@ -25,20 +25,25 @@ const OPERATIONS_SOURCES = [
   ...sourceFiles("app/learning"),
   ...sourceFiles("components/autonomy"),
   ...sourceFiles("components/learning"),
+  ...sourceFiles("app/graph"),
+  ...sourceFiles("components/graph"),
   "components/recommendations/GraphSignalsPanel.tsx",
   "lib/autonomy.ts",
   "lib/learning.ts",
+  "lib/graph.ts",
 ];
 
 const REUSABLE = [
   ...sourceFiles("components/autonomy"),
   ...sourceFiles("components/learning"),
+  ...sourceFiles("components/graph"),
   "components/recommendations/GraphSignalsPanel.tsx",
   "lib/autonomy.ts",
   "lib/learning.ts",
+  "lib/graph.ts",
 ];
 
-const SCREENS = [...sourceFiles("app/autonomy"), ...sourceFiles("app/learning")];
+const SCREENS = [...sourceFiles("app/autonomy"), ...sourceFiles("app/learning"), ...sourceFiles("app/graph")];
 
 describe("operations sources", () => {
   it("scans the real files", () => {

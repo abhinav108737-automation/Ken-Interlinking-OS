@@ -240,7 +240,7 @@ export default async function RecommendationDetailPage({
         <p className="max-w-prose rounded border border-slate-300 bg-slate-50 p-3 text-sm text-slate-800">
           <span className="font-medium">Approving, rejecting and editing are exception actions.</span> Normal link
           publishing is policy-governed and autonomous, and needs no approval. These controls exist for a plan a
-          guarded-mode deferral or an operator opened as an exception.
+          operator opened as an exception. A guarded-mode deferral is recorded as blocked, not here.
         </p>
         {canReview ? (
           <ReviewPanel
