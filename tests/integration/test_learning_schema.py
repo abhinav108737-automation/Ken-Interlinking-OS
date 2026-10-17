@@ -1179,3 +1179,16 @@ def test_downgrade_to_0008_restores_exactly_the_analytics_schema(
     state = sync_db.run(_state)
     assert state == head
     assert state["revision"] == HEAD_REVISION
+
+
+@pytest.mark.parametrize("status", ["active", "ended"])
+def test_an_experiment_cannot_be_inserted_past_draft(db: SyncDb, status: str) -> None:
+    """Migration 0009's guard fires on UPDATE only, so a raw INSERT of a holdout directly as
+    ``active`` once skipped the activator setting. 0010 closes it: every experiment is created
+    as a draft and only the UPDATE guard, which checks the activator, may move it on."""
+    # A BEFORE INSERT trigger fires before foreign keys are checked, so nothing needs seeding.
+    error = _fails(db, lambda c: _holdout(c, status=status))
+    assert "created as a draft" in str(error.orig)
+    assert _sqlstate(error) == "55000"
+    error = _fails(db, lambda c: _experiment(c, status=status))
+    assert "created as a draft" in str(error.orig)

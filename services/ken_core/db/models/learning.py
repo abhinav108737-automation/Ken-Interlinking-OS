@@ -505,7 +505,11 @@ class Experiment(Base):
             f"length(description) BETWEEN 1 AND {MAX_DESCRIPTION_CHARS}",
             name="description_bounded",
         ),
-        CheckConstraint("unit = 'source_page'", name="unit_is_source_page"),
+        # The unit is a function of the kind: a policy_ab assigns SOURCE pages, a holdout assigns
+        # TARGET pages (the control arm is the page links are withheld from). Matches 0010's
+        # ``ck_experiments_unit_matches_kind``; this line once said ``unit = 'source_page'``,
+        # which no longer matched the schema.
+        CheckConstraint("(kind = 'holdout') = (unit = 'target_page')", name="unit_matches_kind"),
         CheckConstraint(_one_of("kind", ExperimentKind), name="kind_valid"),
         CheckConstraint(_one_of("status", ExperimentStatus), name="status_valid"),
         CheckConstraint(

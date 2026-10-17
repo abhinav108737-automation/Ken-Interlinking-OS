@@ -596,7 +596,9 @@ def upgrade() -> None:
             "authority_score >= 0 AND authority_score <= 1",
             "ck_page_graph_metrics_authority_score_range",
         ),
-        _check("crawl_depth IS NULL OR crawl_depth >= 0", "ck_page_graph_metrics_crawl_depth_valid"),
+        _check(
+            "crawl_depth IS NULL OR crawl_depth >= 0", "ck_page_graph_metrics_crawl_depth_valid"
+        ),
         _check(
             "component_id IS NULL OR component_id >= 0",
             "ck_page_graph_metrics_component_id_valid",
@@ -674,8 +676,7 @@ def upgrade() -> None:
             "ck_autonomy_decisions_verification_profile_valid",
         ),
         _check(
-            "would_have_decision IS NULL OR "
-            + _one_of("would_have_decision", AUTONOMY_DECISIONS),
+            "would_have_decision IS NULL OR " + _one_of("would_have_decision", AUTONOMY_DECISIONS),
             "ck_autonomy_decisions_would_have_decision_valid",
         ),
         _check("confidence >= 0 AND confidence <= 1", "ck_autonomy_decisions_confidence_range"),
@@ -686,6 +687,11 @@ def upgrade() -> None:
             "jsonb_array_length(blocks) = 0 OR decision = 'block'",
             "ck_autonomy_decisions_blocks_force_block",
         ),
+        # NO_ACTION is an EARLIER outcome (ADR-0018 1): there is nothing to block and it never
+        # becomes a publish, so no decision row is ever recorded for it. The contract validator
+        # only forbids no_action with BLOCK; the engine raises CriticDeclinedError before any
+        # row is written. This closes the same rule in the database.
+        _check("critic_outcome <> 'no_action'", "ck_autonomy_decisions_no_action_never_decided"),
         # Nothing is published that cannot be undone.
         _check(
             "rollback_available OR decision = 'block'",
@@ -730,8 +736,7 @@ def upgrade() -> None:
     # xid8 has no SQLAlchemy type, so it is declared in raw DDL exactly as 0007 does for
     # link_plan_transitions.txid. The table is empty here, so no rewrite concern arises.
     op.execute(
-        "ALTER TABLE autonomy_decisions "
-        "ADD COLUMN txid xid8 NOT NULL DEFAULT pg_current_xact_id()"
+        "ALTER TABLE autonomy_decisions ADD COLUMN txid xid8 NOT NULL DEFAULT pg_current_xact_id()"
     )
     op.create_index(
         op.f("ix_autonomy_decisions_plan_id_id"), "autonomy_decisions", ["plan_id", "id"]
@@ -763,9 +768,7 @@ def upgrade() -> None:
         sa.Column("mode", sa.Text(), nullable=False),
         sa.Column("verification_profile", sa.Text(), nullable=False),
         sa.Column("succeeded", sa.Boolean(), nullable=False),
-        sa.Column(
-            "rolled_back", sa.Boolean(), server_default=sa.text("false"), nullable=False
-        ),
+        sa.Column("rolled_back", sa.Boolean(), server_default=sa.text("false"), nullable=False),
         sa.Column("failure_code", sa.Text(), nullable=True),
         _ts("cooldown_until", nullable=True),
         sa.Column("actor", sa.Text(), nullable=False),
@@ -810,8 +813,7 @@ def upgrade() -> None:
         _check("decision <> 'block'", "ck_publish_attempts_a_block_is_never_attempted"),
         _check("succeeded OR failure_code IS NOT NULL", "ck_publish_attempts_failure_has_a_code"),
         _check(
-            "failure_code IS NULL OR length(failure_code) BETWEEN 1 AND "
-            f"{MAX_FAILURE_CODE_CHARS}",
+            f"failure_code IS NULL OR length(failure_code) BETWEEN 1 AND {MAX_FAILURE_CODE_CHARS}",
             "ck_publish_attempts_failure_code_bounded",
         ),
         _check(
@@ -828,9 +830,7 @@ def upgrade() -> None:
         ["source_page_id", "target_page_id", "attempt"],
         unique=True,
     )
-    op.create_index(
-        op.f("ix_publish_attempts_plan_id_id"), "publish_attempts", ["plan_id", "id"]
-    )
+    op.create_index(op.f("ix_publish_attempts_plan_id_id"), "publish_attempts", ["plan_id", "id"])
     op.create_index(
         op.f("ix_publish_attempts_cooldown"),
         "publish_attempts",
@@ -895,13 +895,37 @@ def upgrade() -> None:
             "FOR EACH ROW EXECUTE FUNCTION ken_reject_mutation()"
         )
 
+    # Migration 0009's experiments guard fires on UPDATE only, so a raw INSERT of a holdout
+    # directly as 'active' skipped the activator setting. Harmless in effect (no assignments
+    # could follow), but "a holdout cannot be activated without the lifecycle service" should
+    # not have a back door. Every experiment is created as a draft; only the UPDATE guard
+    # (which checks the activator setting) may move it on.
+    op.execute(
+        """
+        CREATE FUNCTION ken_experiment_insert_guard() RETURNS trigger
+        LANGUAGE plpgsql AS $$
+        BEGIN
+            IF NEW.status <> 'draft' THEN
+                RAISE EXCEPTION 'an experiment is created as a draft, not as %', NEW.status
+                    USING ERRCODE = '55000';
+            END IF;
+            RETURN NEW;
+        END;
+        $$
+        """
+    )
+    op.execute(
+        "CREATE TRIGGER experiments_insert_guard BEFORE INSERT ON experiments "
+        "FOR EACH ROW EXECUTE FUNCTION ken_experiment_insert_guard()"
+    )
+
 
 def downgrade() -> None:
+    op.execute("DROP TRIGGER IF EXISTS experiments_insert_guard ON experiments")
+    op.execute("DROP FUNCTION IF EXISTS ken_experiment_insert_guard()")
     for table in APPEND_ONLY_TABLES:
         op.execute(f"DROP TRIGGER IF EXISTS {table}_immutable ON {table}")
-    op.execute(
-        "DROP TRIGGER IF EXISTS autonomy_decisions_plan_integrity ON autonomy_decisions"
-    )
+    op.execute("DROP TRIGGER IF EXISTS autonomy_decisions_plan_integrity ON autonomy_decisions")
     op.execute("DROP FUNCTION IF EXISTS ken_autonomy_decision_guard()")
     # Dropping a table drops its indexes and constraints with it.
     op.drop_table("publish_attempts")

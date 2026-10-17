@@ -147,6 +147,8 @@ class AutonomyDecisionRow(Base):
         CheckConstraint(
             "jsonb_array_length(blocks) = 0 OR decision = 'block'", name="blocks_force_block"
         ),
+        # NO_ACTION is an earlier outcome and is never recorded as a decision (ADR-0018 1).
+        CheckConstraint("critic_outcome <> 'no_action'", name="no_action_never_decided"),
         # Nothing is published that cannot be undone.
         CheckConstraint(
             "rollback_available OR decision = 'block'", name="no_publish_without_rollback"

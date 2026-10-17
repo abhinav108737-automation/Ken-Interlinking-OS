@@ -566,6 +566,17 @@ def test_a_shadow_decision_must_not_move_the_plan(db: SyncDb) -> None:
             {"decision": "auto_publish", "blocks": '["self_link"]'},
             "ck_autonomy_decisions_blocks_force_block",
         ),
+        # NO_ACTION is an earlier outcome and is never recorded: neither as a publish ...
+        (
+            {"decision": "auto_publish", "critic": "no_action"},
+            "ck_autonomy_decisions_no_action_never_decided",
+        ),
+        # ... nor as a block (the contract validator forbids the second; the database now
+        # forbids both, because nothing legitimately records a no_action decision).
+        (
+            {"decision": "block", "critic": "no_action"},
+            "ck_autonomy_decisions_no_action_never_decided",
+        ),
         # A publish without rollback availability.
         (
             {"decision": "auto_publish", "rollback_available": False},
@@ -602,6 +613,8 @@ def test_a_shadow_decision_must_not_move_the_plan(db: SyncDb) -> None:
     ],
     ids=[
         "block-with-publish",
+        "no-action-published",
+        "no-action-blocked",
         "publish-without-rollback",
         "extra-verification-not-strict",
         "shadow-publishes",

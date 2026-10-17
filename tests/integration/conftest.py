@@ -479,12 +479,13 @@ AUTONOMY_TABLES = frozenset(
         "publish_attempts",
     }
 )
-AUTONOMY_FUNCTIONS = frozenset({"ken_autonomy_decision_guard"})
+AUTONOMY_FUNCTIONS = frozenset({"ken_autonomy_decision_guard", "ken_experiment_insert_guard"})
 AUTONOMY_TRIGGERS = frozenset(
     {
         "autonomy_decisions_plan_integrity",
         "autonomy_decisions_immutable",
         "publish_attempts_immutable",
+        "experiments_insert_guard",
     }
 )
 
