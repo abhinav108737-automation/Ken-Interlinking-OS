@@ -850,8 +850,10 @@ def test_downgrade_to_0003_restores_exactly_the_intelligence_schema(
         "ken_skill_guard",
         "ken_experiment_guard",
         "ken_experiment_assignment_guard",
-        # Phase 9 (migration 0010): the autonomy decision guard.
+        # Phase 9 (migration 0010): the autonomy decision guard, and the experiments INSERT guard
+        # that stops a holdout being created directly as 'active'.
         "ken_autonomy_decision_guard",
+        "ken_experiment_insert_guard",
     }
     assert {
         "link_plans_content_immutable",

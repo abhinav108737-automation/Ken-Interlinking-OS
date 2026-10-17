@@ -6,7 +6,8 @@ FROZEN SIGNATURE: ``build_vector_store(settings) -> VectorStore``, mirroring
 * ``memory`` (default) -- :class:`~ken_core.providers.vectors.memory.MemoryVectorStore`,
   exact cosine in process, so tests and CI need no container;
 * ``qdrant`` -- ``QdrantVectorStore`` over the local Qdrant HTTP API, resolved LAZILY BY NAME
-  because the ``qdrant`` module is a separate workstream. Until it lands, selecting it raises
+  so that importing this module does not import the client library. If the module cannot be
+  loaded, selecting it raises
   :class:`~ken_contracts.vectors.VectorStoreNotConfiguredError` with a message that says so
   -- it never silently degrades to the in-memory store, because a silent fallback would make
   a production deployment think it had a shared index when it had a per-process one.

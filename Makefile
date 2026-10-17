@@ -149,7 +149,7 @@ analyze: ## Phase 2: analyse, embed and relate stale pages (ARGS="--force" | "--
 recommend: ## Phase 3: propose contextual links for eligible sources (ARGS="--source PAGE_ID ...")
 	$(VENV)/python -m ken_services.recommendations.cli recommend $(ARGS)
 
-agents: ## Phase 4: agents review proposed plans, hand off to the human queue (ARGS="--source PAGE_ID ...")
+agents: ## Phase 4: agents review proposed plans and hand accepted ones on to the autonomy engine (ARGS="--source PAGE_ID ...")
 	$(VENV)/python -m ken_agents.cli agents $(ARGS)
 
 # ---------------------------------------------------------------- users (Phase 5)
