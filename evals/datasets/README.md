@@ -53,7 +53,7 @@ structurally impossible.
 | [destination-selection](../suites/destination-selection/README.md) | 17 | ≥ 0.80 | `pair_rejection` → `score_pair` under the committed policies |
 | [anchor-selection](../suites/anchor-selection/README.md) | 14 | ≥ 0.80 | `anchor_phrases` + `find_placement` over parsed HTML |
 | [relationship-detection](../suites/relationship-detection/README.md) | 13 | ≥ 0.75 | `taxonomy_relationships` |
-| [critic](../suites/critic/README.md) | 12 | ≥ 0.75 | the real `ken_agents.nodes.critique` node |
+| [critic](../suites/critic/README.md) | 17 | ≥ 0.75 | the real `ken_agents.nodes.critique` node |
 | [no-action](../suites/no-action/README.md) | 11 | ≥ 0.90 | the real `triage` node, plus the selection floors |
 | [protected-content](../suites/protected-content/README.md) | 14 | **hard fail** | the pair chain, `plan_invalidity`, the CMS adapter |
 | [stale-page-version](../suites/stale-page-version/README.md) | 16 | **hard fail** | `check_plan_freshness`, `HtmlMutator`, the optimistic lock |
@@ -61,7 +61,7 @@ structurally impossible.
 | [reflection-grounding](../suites/reflection-grounding/README.md) | 13 | **hard fail** | re-derivation of claimed evidence from a data snapshot |
 | [proposal-safety](../suites/proposal-safety/README.md) | 31 | **hard fail** | `PolicyChange` / `PolicyProposalBody`, `code_only_violations` |
 | [rollback-correctness](../suites/rollback-correctness/README.md) | 21 | **hard fail** | `ChangeEngine`/`HtmlMutator`, the mock CMS rollback, `HtmlLinkVerifier`, the retry-budget gate |
-| [autonomy-classification](../suites/autonomy-classification/README.md) | 36 | **hard fail** | `evaluate_blocks`, `DatabaseAutonomyEngine._assemble`, `target_status_for` |
+| [autonomy-classification](../suites/autonomy-classification/README.md) | 45 | **hard fail** | `evaluate_blocks`, `DatabaseAutonomyEngine._assemble`, `target_status_for`, `deferred`, `blend_confidence` |
 
 A hard-fail suite cannot be waived by any policy value, and a `must_not` hit anywhere fails the
 gate at zero tolerance.
@@ -89,6 +89,10 @@ Stated plainly, because an eval suite's honest limits matter more than its pass 
   `reject_rate`, `rollback_rate` and `positive_outcome_rate` stay `null` in an eval run: those
   come from the editorial and behavioural streams via `aggregate.py`. Filling them with eval
   pass rates would be the exact category error this phase exists to prevent.
+- **Calibration LOOKUP is not covered.** Whether a class counts as calibrated (a passing, fresh
+  evaluation, at least 30 samples, a recorded calibrated confidence) is SQL and is pinned by
+  `tests/integration/test_autonomy_reachability.py`; `autonomy-classification` supplies the
+  calibration a case needs and measures only the decisions and the arithmetic built on it.
 - **Two `policy-regression` cases PIN a known regression** on purpose (a geography-blind and a
   commercial-only candidate). They assert the regression still happens, so it cannot quietly
   disappear; they are not assertions that the candidates are good.

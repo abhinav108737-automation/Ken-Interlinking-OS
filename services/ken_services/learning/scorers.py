@@ -67,7 +67,13 @@ from ken_contracts.agents import (
     CriticAssessment,
     CriticVerdict,
 )
-from ken_contracts.autonomy import AutonomyMode, CriticOutcome, RiskTier
+from ken_contracts.autonomy import (
+    AutonomyMode,
+    AutonomyPolicy,
+    CriticOutcome,
+    RetryPolicy,
+    RiskTier,
+)
 from ken_contracts.cms import (
     CMSNotFoundError,
     CMSPage,
@@ -88,6 +94,7 @@ from ken_contracts.intelligence import (
 from ken_contracts.learning import (
     PROPOSER_PATTERN,
     DecisionClass,
+    DecisionClassMetrics,
     DecisionClassObservation,
     EvalCase,
     EvalSuite,
@@ -113,13 +120,14 @@ from ken_services.agents.protocol import (
 )
 from ken_services.autonomy.blocks import DeterministicBlocks, evaluate_blocks
 from ken_services.autonomy.budget import DatabaseRetryBudgetGate
-from ken_services.autonomy.calibration import EvaluationCalibrationReader
+from ken_services.autonomy.calibration import EvaluationCalibrationReader, blend_confidence
 from ken_services.autonomy.engine import (
     DatabaseAutonomyEngine,
     _Inputs,
     critic_outcome_of,
 )
 from ken_services.autonomy.facts import PlanIdentity
+from ken_services.autonomy.policy import load_autonomy_policy
 from ken_services.autonomy.protocol import (
     CalibratedConfidence,
     PlanFacts,
@@ -558,7 +566,10 @@ async def _score_critic(case: EvalCase, ctx: ScoringContext) -> CaseOutcome:
                 )
             }
         )
-    if critic_model is None:
+    if critic_model is None and not bool(extra.get("model_unavailable", False)):
+        # No recorded answer and no outage: the policy simply runs without a model
+        # (MODEL_DISABLED). `model_unavailable` keeps the model ENABLED with no provider
+        # behind it, which is the MODEL_UNAVAILABLE degraded path instead.
         policy = policy.model_copy(
             update={"critic": policy.critic.model_copy(update={"use_model": False})}
         )
@@ -578,9 +589,27 @@ async def _score_critic(case: EvalCase, ctx: ScoringContext) -> CaseOutcome:
     reviews = update.critic_result
     if not reviews:
         return _verdict(case, decision="verdict:none", detail="no plan was offered")
+    with_reason = bool(extra.get("with_reason", False))
+
+    def describe(review: Any) -> str:
+        suffix = ""
+        if review.fallback_reason is not None:
+            suffix = f"+fallback({review.fallback_reason.value})" if with_reason else "+fallback"
+        return f"verdict:{review.verdict.value}{suffix}"
+
+    if str(extra.get("report", "first")) == "all":
+        # Several plans in one review: the per-plan verdicts, best-ranked first. The guards
+        # (duplicate destination, same anchor, overlap) only show up in the SECOND plan's verdict.
+        parts = [describe(review) for review in reviews]
+        decision = ",".join(parts)
+        return _verdict(
+            case,
+            decision=decision,
+            detail="reviews=" + str(len(reviews)),
+            selected={decision, *parts, *(f"verdict:{r.verdict.value}" for r in reviews)},
+        )
     review = reviews[0]
-    suffix = "+fallback" if review.fallback_reason is not None else ""
-    decision = f"verdict:{review.verdict.value}{suffix}"
+    decision = describe(review)
     expected_verdict = str(extra.get("human_verdict", "")) or None
     return _verdict(
         case,
@@ -1408,9 +1437,14 @@ def _score_retry_budget(case: EvalCase, ctx: ScoringContext) -> CaseOutcome:
     """
     extra = _extra(case)
     max_attempts = int(extra.get("max_attempts", 3))
-    settings = ctx.settings.model_copy(update={"autonomy_publish_max_attempts": max_attempts})
+    # The EFFECTIVE retry policy is the versioned autonomy policy (tightened, never loosened,
+    # by KEN_AUTONOMY_PUBLISH_*). A case overrides only the attempt ceiling, keeping the
+    # policy's own cool-down, so "the limit is data, not a constant" stays testable.
+    retry = RetryPolicy(
+        max_attempts=max_attempts, cooldown_s=_autonomy_policy(ctx).retry.cooldown_s
+    )
     gate = DatabaseRetryBudgetGate(
-        sessionmaker=_offline_sessionmaker(ctx), settings=settings, clock=lambda: _EPOCH
+        sessionmaker=_offline_sessionmaker(ctx), retry=retry, clock=lambda: _EPOCH
     )
     outcomes: list[str] = []
     for raw in sequence_of(require(extra, "steps"), "steps"):
@@ -1478,17 +1512,28 @@ _RISK_SIGNAL_FIELDS: Final = (
 )
 
 
+def _autonomy_policy(ctx: ScoringContext) -> AutonomyPolicy:
+    """The released ``policies/autonomy/autonomy.v1.yaml``, loaded once per run."""
+    cached = ctx.cache.get("autonomy_policy")
+    if cached is None:
+        cached = load_autonomy_policy()
+        ctx.cache["autonomy_policy"] = cached
+    return cast("AutonomyPolicy", cached)
+
+
 def _autonomy_engine(ctx: ScoringContext, *, default_profile: str) -> DatabaseAutonomyEngine:
     """The REAL engine over an unconnected sessionmaker (see :func:`_offline_sessionmaker`).
 
-    Only its pure methods are called (``_assemble``, ``_decide``, ``_target_status``): they
-    take already-gathered inputs and open no session, which is why the case supplies the
-    facts the SQL snapshot (``load_plan_facts``) would have produced.
+    Only its pure methods are called (``_assemble`` and ``_decide``): they take
+    already-gathered inputs and open no session, which is why the case supplies the facts the
+    SQL snapshot (``load_plan_facts``) would have produced. Thresholds come from the released
+    autonomy policy, so a policy change moves this suite exactly as it moves production.
     """
     key = f"autonomy_engine:{default_profile}"
     cached = ctx.cache.get(key)
     if cached is None:
         sessionmaker = _offline_sessionmaker(ctx)
+        policy = _autonomy_policy(ctx)
         settings = ctx.settings.model_copy(
             update={"autonomy_verification_profile": default_profile}
         )
@@ -1497,6 +1542,7 @@ def _autonomy_engine(ctx: ScoringContext, *, default_profile: str) -> DatabaseAu
             settings=settings,
             policy=ctx.recommendation,
             taxonomy=ctx.taxonomy,
+            autonomy_policy=policy,
             clock=lambda: _EPOCH,
         )
         cached = DatabaseAutonomyEngine(
@@ -1504,12 +1550,19 @@ def _autonomy_engine(ctx: ScoringContext, *, default_profile: str) -> DatabaseAu
             settings=settings,
             policy=ctx.recommendation,
             taxonomy=ctx.taxonomy,
+            autonomy_policy=policy,
             blocks=blocks,
             risk=DeterministicRiskClassifier(
-                sessionmaker=sessionmaker, taxonomy=ctx.taxonomy, clock=lambda: _EPOCH
+                sessionmaker=sessionmaker,
+                taxonomy=ctx.taxonomy,
+                clock=lambda: _EPOCH,
+                policy=policy.risk,
             ),
             calibration=EvaluationCalibrationReader(
-                sessionmaker=sessionmaker, policy=None, clock=lambda: _EPOCH
+                sessionmaker=sessionmaker,
+                policy=None,
+                clock=lambda: _EPOCH,
+                min_positive_outcome_rate=policy.confidence.min_positive_outcome_rate,
             ),
             clock=lambda: _EPOCH,
         )
@@ -1565,23 +1618,46 @@ def _score_risk_tier(case: EvalCase, extra: Mapping[str, Any]) -> CaseOutcome:
     return _verdict(case, decision=f"tier:{tier.value}")
 
 
-def _score_autonomy_classification(case: EvalCase, ctx: ScoringContext) -> CaseOutcome:
-    """Classify one plan under one or more modes, through the production decision code.
+def _merged(base: Mapping[str, Any], variant: Mapping[str, Any]) -> dict[str, Any]:
+    """``base`` with ``variant`` laid over it; ``facts`` and ``risk`` merge key by key."""
+    out: dict[str, Any] = dict(base)
+    for key, value in variant.items():
+        if key in ("facts", "risk"):
+            out[key] = {**mapping_of(base.get(key, {}), key), **mapping_of(value, key)}
+        else:
+            out[key] = value
+    return out
 
-    Real code driven: ``evaluate_blocks`` (the closed block set), ``critic_outcome_of``,
-    ``tier_from_signals`` / ``raise_to``, ``DatabaseAutonomyEngine._assemble`` (which calls
-    ``decision_for``, the confidence/calibration floors, ``profile_for`` and builds the
-    contract-validated ``AutonomyEvaluation``), and ``target_status_for`` / the engine's own
-    ``_target_status``.
 
-    The ``_gather`` glue between them (critic outcome -> tier raise -> ``extra_verification``)
-    is three lines in the engine that need a database session, so it is mirrored below and
-    marked. NOT covered: ``load_plan_facts`` (the SQL snapshot that produces the facts) and
-    the recording of the row -- ``tests/integration`` owns those.
+def _score_calibration(case: EvalCase, extra: Mapping[str, Any]) -> CaseOutcome:
+    """The REAL ``blend_confidence``: what a class's recorded metrics do to a raw confidence.
+
+    NOT covered here: ``EvaluationCalibrationReader.lookup`` -- the SQL rule that a class is
+    calibrated only by a PASSING, fresh evaluation carrying a row for that exact class with at
+    least 30 samples and a recorded calibrated confidence. That is database behaviour and
+    ``tests/integration/test_autonomy_reachability.py`` pins it; this measures the arithmetic
+    applied once such a row exists.
     """
-    extra = _extra(case)
-    if str(extra.get("check", "plan")) == "risk":
-        return _score_risk_tier(case, extra)
+    metrics = DecisionClassMetrics(
+        decision_class=str(extra.get("decision_class", "same_market|target_topic|semantic")),
+        sample_count=int(extra.get("sample_count", 40)),
+        rollback_rate=extra.get("rollback_rate"),
+        positive_outcome_rate=extra.get("positive_outcome_rate"),
+        calibrated_confidence=extra.get("calibrated_confidence"),
+        sufficient=bool(extra.get("sufficient", True)),
+    )
+    value = blend_confidence(
+        raw=float(require(extra, "raw")),
+        metrics=metrics,
+        min_positive_outcome_rate=float(extra.get("min_positive_outcome_rate", 0.5)),
+    )
+    return _verdict(case, decision=f"calibrated:{round(value, 6)}")
+
+
+def _classify_one(
+    case: EvalCase, ctx: ScoringContext, extra: Mapping[str, Any]
+) -> tuple[str, set[str], str]:
+    """One scenario: (decision string, the tokens a ``must_not`` may match, a detail)."""
     facts = _plan_facts(case, mapping_of(extra.get("facts", {}), "facts"))
     engine = _autonomy_engine(ctx, default_profile=str(extra.get("default_profile", "standard")))
     blocks = evaluate_blocks(facts)
@@ -1591,21 +1667,16 @@ def _score_autonomy_classification(case: EvalCase, ctx: ScoringContext) -> CaseO
     critic = critic_outcome_of(verdict, handed_off=None if handed_off is None else bool(handed_off))
     if critic is CriticOutcome.NO_ACTION:
         # engine._gather raises CriticDeclinedError here: there is nothing to decide.
-        return _verdict(
-            case,
-            decision=f"critic_declined[{','.join(code.value for code in blocks)}]",
-            detail="critic outcome is no_action: an earlier outcome than a decision",
-        )
+        declined = f"critic_declined[{','.join(code.value for code in blocks)}]"
+        return declined, {declined}, "critic outcome is no_action: an earlier outcome"
 
     version = extra.get("calibration_version", facts.calibration_version)
     calibrated = CalibratedConfidence(
         value=float(extra.get("confidence", facts.confidence)),
         calibration_version=None if version is None else str(version),
     )
-    signals = {
-        name: bool(mapping_of(extra.get("risk", {}), "risk").get(name, False))
-        for name in _RISK_SIGNAL_FIELDS
-    }
+    declared = mapping_of(extra.get("risk", {}), "risk")
+    signals = {name: bool(declared.get(name, False)) for name in _RISK_SIGNAL_FIELDS}
     tier = tier_from_signals(RiskSignals(uncalibrated=not calibrated.is_calibrated, **signals))
     # --- mirrors DatabaseAutonomyEngine._gather steps 4-5 (they need a session) -----------
     if verdict is CriticVerdict.UNCERTAIN:
@@ -1636,34 +1707,70 @@ def _score_autonomy_classification(case: EvalCase, ctx: ScoringContext) -> CaseO
     )
 
     show = str(extra.get("show", "decision"))
-    status_source = str(extra.get("status_source", "frozen_helper"))
     parts: list[str] = []
     tokens: set[str] = set()
     for name in sequence_of(extra.get("modes", ["shadow", "guarded", "autonomous"]), "modes"):
         mode = AutonomyMode(str(name))
         evaluation = engine._assemble(inputs, mode=mode).evaluation
-        if status_source == "engine":
-            status = engine._target_status(evaluation)
-        else:
-            status = target_status_for(
-                decision=evaluation.decision, mode=mode, blocks=evaluation.blocks
-            )
+        status = target_status_for(
+            decision=evaluation.decision, mode=mode, blocks=evaluation.blocks
+        )
         token = f"{mode.value}:{evaluation.decision.value}"
         if evaluation.would_have_decision is not None:
             token += f"(would={evaluation.would_have_decision.value})"
         if show in ("status", "full"):
             token += f"/{status.value if status is not None else 'none'}"
+            if evaluation.deferred:
+                # The contract's own property: BLOCK, no fired code, outside shadow, and not a
+                # critic rejection. It is the ONLY thing separating a deferral from a hard
+                # block once both are recorded as `blocked`.
+                token += "+deferred"
         if show == "full":
             token += f"/{evaluation.verification_profile.value}"
         parts.append(token)
         tokens.update({token, f"{mode.value}:{evaluation.decision.value}"})
     codes = ",".join(code.value for code in blocks)
-    decision = f"[{codes}] " + ",".join(parts)
+    detail = f"tier={tier.value} critic={critic.value} calibrated={calibrated.is_calibrated}"
+    return f"[{codes}] " + ",".join(parts), tokens, detail
+
+
+def _score_autonomy_classification(case: EvalCase, ctx: ScoringContext) -> CaseOutcome:
+    """Classify one or more plans under one or more modes, through the production code.
+
+    Real code driven: ``evaluate_blocks`` (the closed block set), ``critic_outcome_of``,
+    ``tier_from_signals`` / ``raise_to``, ``DatabaseAutonomyEngine._assemble`` (which calls
+    ``decision_for``, the policy's confidence and calibration floors, ``profile_for`` and
+    builds the contract-validated ``AutonomyEvaluation``), ``target_status_for`` and
+    ``AutonomyEvaluation.deferred``, plus ``blend_confidence`` for the calibration check.
+
+    ``variants`` runs the same case under several overrides and joins the results with
+    `` | ``, which is how one case can put a hard block and a deferral side by side.
+
+    The ``_gather`` glue between them (critic outcome -> tier raise -> ``extra_verification``)
+    is three lines in the engine that need a database session, so it is mirrored in
+    :func:`_classify_one` and marked there. NOT covered: ``load_plan_facts`` (the SQL snapshot
+    that produces the facts), the calibration LOOKUP, and the recording of the row --
+    ``tests/integration`` owns those.
+    """
+    extra = _extra(case)
+    check = str(extra.get("check", "plan"))
+    if check == "risk":
+        return _score_risk_tier(case, extra)
+    if check == "calibration":
+        return _score_calibration(case, extra)
+    decisions: list[str] = []
+    tokens: set[str] = set()
+    details: list[str] = []
+    for raw in sequence_of(extra.get("variants", [{}]), "variants"):
+        decision, found, detail = _classify_one(
+            case, ctx, _merged(extra, mapping_of(raw, "variants[]"))
+        )
+        decisions.append(decision)
+        tokens |= found
+        details.append(detail)
+    decision = " | ".join(decisions)
     return _verdict(
-        case,
-        decision=decision,
-        detail=f"tier={tier.value} critic={critic.value} calibrated={calibrated.is_calibrated}",
-        selected={decision, *tokens},
+        case, decision=decision, detail="; ".join(details), selected={decision, *tokens}
     )
 
 

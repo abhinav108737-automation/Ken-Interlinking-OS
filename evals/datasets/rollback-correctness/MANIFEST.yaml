@@ -7,7 +7,7 @@ dataset: core
 dataset_version: 1
 case_count: 21
 files:
-  core.v1.jsonl: a6d2e9100d62491f76dd30eb62bfaa6deffaed5cb46ecf95848dcf7f12e07bf4
+  core.v1.jsonl: d3b2762ae8863f5408633290349786e7758fd24521f505fff9332b4ec990b3ed
 provenance: Synthetic page bodies; the real ChangeEngine/HtmlMutator and mock CMS rollback and HtmlLinkVerifier for the restore cases, and the real DatabaseRetryBudgetGate.verdict over budget_from_attempts for the retry budget. DB-bound parts (SQL attempt counting, the service's plan-row refusals) are covered by integration tests, not here. No production data.
 contains_production_data: false
 approval_ref: null

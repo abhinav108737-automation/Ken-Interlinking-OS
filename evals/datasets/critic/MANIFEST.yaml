@@ -5,9 +5,9 @@
 suite: critic
 dataset: core
 dataset_version: 1
-case_count: 12
+case_count: 17
 files:
-  core.v1.jsonl: cc06795e66936ad80508cfeb18cfcc48473c31f6c2f36f20182123b60db1134e
+  core.v1.jsonl: 4db013d9d4b28e5a2bee6563eb63e7c4bf9418bf213586b95122e8ad50813ff2
 provenance: Synthetic plans over the synthetic article corpus, with recorded REASONING answers replayed by MockModelProvider (by role, never by model name). No production data.
 contains_production_data: false
 approval_ref: null

@@ -633,3 +633,45 @@ def test_the_risk_tier_is_monotone_and_no_signal_can_lower_it() -> None:
             raised[index] = True
             more = tier_from_signals(RiskSignals(**dict(zip(names, raised, strict=True))))
             assert rank[more] >= rank[base], (names[index], combo)
+
+
+async def test_removing_the_critic_guards_turns_the_critic_suite_red(
+    monkeypatch: pytest.MonkeyPatch, settings: Settings, policy: LearningPolicy
+) -> None:
+    """Disable the PRODUCTION deterministic guards. The generic-anchor, duplicate-destination,
+    same-anchor and injected-page cases must all fail: they are bound to ken_agents.critic."""
+    from ken_agents import nodes
+
+    monkeypatch.setattr(nodes, "guard_for", lambda plan, surviving: None)
+    report = await _only(settings, policy, EvalSuite.CRITIC)
+    failed = {item.case_id for item in report.outcomes if not item.passed}
+    assert {
+        "cr-generic-anchor-is-rejected-despite-a-model-accept",
+        "cr-duplicate-destination-on-two-plans-demotes-the-second",
+        "cr-same-anchor-for-two-pages-demotes-the-second",
+        "cr-an-injected-instruction-in-the-page-body-changes-no-guard",
+    } <= failed
+
+
+async def test_a_model_failure_that_became_an_accept_turns_the_critic_suite_red(
+    monkeypatch: pytest.MonkeyPatch, settings: Settings, policy: LearningPolicy
+) -> None:
+    """Re-introduce the OLD fallback (a confident plan is accepted when the model cannot be
+    heard). The three degraded-model cases must go red."""
+    from ken_agents import nodes
+    from ken_contracts.agents import CriticVerdict
+
+    original = nodes.deterministic_review
+
+    def old_rule(plan_: object, ref: str, threshold: float, reason: object) -> object:
+        review = original(plan_, ref, threshold, reason)  # type: ignore[arg-type]
+        return review.model_copy(update={"verdict": CriticVerdict.ACCEPT, "reasons": ()})
+
+    monkeypatch.setattr(nodes, "deterministic_review", old_rule)
+    report = await _only(settings, policy, EvalSuite.CRITIC)
+    failed = {item.case_id for item in report.outcomes if not item.passed}
+    assert {
+        "cr-malformed-model-output-falls-back-to-the-rule",
+        "cr-unknown-ref-is-not-matched-to-a-plan",
+        "cr-an-unavailable-model-is-uncertain-with-the-reason-recorded",
+    } <= failed

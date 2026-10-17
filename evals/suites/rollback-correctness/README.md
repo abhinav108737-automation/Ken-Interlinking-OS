@@ -13,7 +13,8 @@ original **byte for byte**, and a rollback must never destroy a human's later ed
 `ken_services.deployment.changes.ChangeEngine` over `HtmlMutator` plugged into the mock CMS
 provider's `apply_link_changes` / `rollback`, and `HtmlLinkVerifier` for the verification that
 triggers the rollback. For the retry budget: `budget_from_attempts` and
-`DatabaseRetryBudgetGate.verdict`.
+`DatabaseRetryBudgetGate.verdict` (built from a `RetryPolicy`: the versioned autonomy policy's
+attempt ceiling and cool-down, which `KEN_AUTONOMY_PUBLISH_*` may only tighten).
 
 **A passing case:** the page is left in exactly the state the case names, compared as strings —
 `original` (equal to the pre-deployment HTML), `original_with_later_edit` (equal to that HTML with
