@@ -1678,10 +1678,10 @@ def _classify_one(
     declared = mapping_of(extra.get("risk", {}), "risk")
     signals = {name: bool(declared.get(name, False)) for name in _RISK_SIGNAL_FIELDS}
     tier = tier_from_signals(RiskSignals(uncalibrated=not calibrated.is_calibrated, **signals))
-    # --- mirrors DatabaseAutonomyEngine._gather steps 4-5 (they need a session) -----------
-    if verdict is CriticVerdict.UNCERTAIN:
-        tier = raise_to(tier, RiskTier.MEDIUM)
-    extra_verification = verdict is CriticVerdict.UNCERTAIN or not calibrated.is_calibrated
+    # --- mirrors DatabaseAutonomyEngine._gather step 5 (it needs a session) ----------------
+    # An `uncertain` critic is NO_ACTION above and never reaches here: it raises no tier and
+    # demands no extra verification, because it is declined outright.
+    extra_verification = not calibrated.is_calibrated
     # ---------------------------------------------------------------------------------------
     inputs = _Inputs(
         facts=facts,
@@ -1746,8 +1746,8 @@ def _score_autonomy_classification(case: EvalCase, ctx: ScoringContext) -> CaseO
     ``variants`` runs the same case under several overrides and joins the results with
     `` | ``, which is how one case can put a hard block and a deferral side by side.
 
-    The ``_gather`` glue between them (critic outcome -> tier raise -> ``extra_verification``)
-    is three lines in the engine that need a database session, so it is mirrored in
+    The ``_gather`` glue between them (calibration -> ``extra_verification``) is one line in
+    the engine that needs a database session, so it is mirrored in
     :func:`_classify_one` and marked there. NOT covered: ``load_plan_facts`` (the SQL snapshot
     that produces the facts), the calibration LOOKUP, and the recording of the row --
     ``tests/integration`` owns those.

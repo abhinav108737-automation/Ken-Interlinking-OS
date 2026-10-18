@@ -197,11 +197,16 @@ text above disagree, **this section is right.**
    accepted plans never reached the engine. A plan whose verdict is `uncertain` stays `proposed`,
    recorded `handed_off = false`. The agent *run* status `awaiting_approval` is unchanged and now
    means "handed on".
-7. **Known inconsistency, to be fixed:** `critic_outcome_of` in the engine still maps a historic,
-   handed-on `uncertain` review to `ACCEPT` with the risk tier raised and extra verification set.
-   That contradicts ADR-0019's rule that an `uncertain` answer never maps to accept. Only rows written
-   before the critic change can take that path, so a fresh installation cannot reach it, but a
-   fail-open mapping on a safety path is not acceptable even for legacy data. It is being changed to
-   `NO_ACTION`.
+7. **Fixed: `critic_outcome_of` no longer fails open.** It used to map a historic, handed-on
+   `uncertain` review to `ACCEPT` with the risk tier raised and extra verification set, which
+   contradicted ADR-0019's rule that an `uncertain` answer never maps to accept. Only rows written
+   before the critic change could take that path, so a fresh installation never reached it, but a
+   fail-open mapping on a safety path is not acceptable even for legacy data. It was changed to
+   `NO_ACTION` always (the engine raises `CriticDeclinedError`, writes no decision row, and the
+   tier-raise and extra-verification special cases for `uncertain` were removed), in the
+   workstream B follow-up that implemented ADR-0019's mapping in the engine. The pure reference
+   mapping is `ken_agents.critic.critic_outcome`; the engine's function may only be stricter, and a
+   parametrised test over every verdict and both `handed_off` values pins that, including the legacy
+   row.
 8. **`KEN_VECTOR_STORE` defaults to `memory`.** See the amendment to ADR-0017.
 

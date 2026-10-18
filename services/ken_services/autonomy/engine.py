@@ -30,7 +30,12 @@ outcome" that "never becomes a publish", and the frozen
 ``no_action`` plan is not evaluated at all, so :meth:`evaluate` raises
 :class:`CriticDeclinedError` for one and a sweep counts it as declined. Writing a
 ``no_action`` row would require giving it a publish decision, which is the one thing the ADR
-forbids.
+forbids (the database now forbids it too: ``ck_autonomy_decisions_no_action_never_decided``).
+
+An ``uncertain`` critic review is ``no_action`` as well, ALWAYS (:func:`critic_outcome_of`):
+it never raised a tier or demanded extra verification and then published. That mapping was
+fail-open for the legacy rows that could still carry it and was corrected in the ADR-0019
+follow-up.
 
 **The three decisions.**
 
@@ -42,8 +47,9 @@ forbids.
     everything above passed, with the configured default verification profile.
 ``AUTO_PUBLISH_WITH_EXTRA_VERIFICATION``
     the SAME safety rules and the strict verification profile. Reached for ``high`` risk, an
-    ``uncertain`` critic, or an uncalibrated confidence -- all cases where more checking
-    after the write is worth its cost. It is never a weaker gate: it comes out of the same
+    uncalibrated confidence, or ``strict`` configured -- cases where more checking after the
+    write is worth its cost. (An ``uncertain`` critic is NOT one of them: it is declined, see
+    :func:`critic_outcome_of`.) It is never a weaker gate: it comes out of the same
     :func:`decision_for` call and the same floors.
 
 **Shadow mode** records exactly one thing: an ``autonomy_decisions`` row whose ``decision``
@@ -106,7 +112,7 @@ from ken_services.autonomy.protocol import (
     target_status_for,
 )
 from ken_services.autonomy.reasons import MAX_NOTE_CHARS, block_note
-from ken_services.autonomy.risk import DeterministicRiskClassifier, raise_to
+from ken_services.autonomy.risk import DeterministicRiskClassifier
 from ken_services.jobs.runner import utc_now
 from ken_services.recommendations.transitions import transition
 from ken_services.recommendations.validity import lock_source_plans
@@ -174,23 +180,38 @@ class EvaluatedPlan:
 
 
 def critic_outcome_of(verdict: CriticVerdict | None, *, handed_off: bool | None) -> CriticOutcome:
-    """The autonomy-level view of the critic step.
+    """The autonomy-level view of the critic step, read back from a STORED review.
 
+    **FAIL CLOSED.** An ``uncertain``, failed or unparseable review must NEVER map to accept
+    (ADR-0019 and the critic workstream's non-negotiable rule). This function agrees with the
+    pure reference mapping :func:`ken_agents.critic.critic_outcome` and may only be STRICTER
+    than it, never more permissive; ``tests/unit/agents/test_critic.py`` pins that over every
+    verdict and both ``handed_off`` values.
+
+    * ``accept`` -> :attr:`CriticOutcome.ACCEPT`, unless the run did NOT hand the plan on
+      (``handed_off is False``): the critic found no defect and the run still declined to pass
+      it along, which is "nothing worth doing" -> :attr:`CriticOutcome.NO_ACTION`.
     * ``reject`` -> :attr:`CriticOutcome.REJECT`.
-    * ``accept`` / ``uncertain`` that the agent run did NOT hand on ->
-      :attr:`CriticOutcome.NO_ACTION`: the critic found no defect and the run still declined
-      to pass the plan along, which is exactly "nothing worth doing".
-    * ``uncertain`` -> :attr:`CriticOutcome.ACCEPT` at this level, with the raw verdict kept
-      in ``critic_verdict`` and the risk tier raised. It is NOT silently an accept: the tier
-      is what makes ``guarded`` defer it.
+    * ``uncertain`` -> :attr:`CriticOutcome.NO_ACTION`, ALWAYS, whatever ``handed_off`` says.
+      A doubt is not a licence. Since the critic change an uncertain review is recorded
+      ``handed_off = false`` and the plan stays ``proposed``, so only a row written before that
+      change can carry ``uncertain`` with ``handed_off = true`` -- a LEGACY row. It is declined
+      exactly like a fresh one: the engine raises :class:`CriticDeclinedError`, the sweep
+      counts the plan as declined, and no ``autonomy_decisions`` row is written (the database
+      forbids one: ``ck_autonomy_decisions_no_action_never_decided``). It does NOT raise a risk
+      tier or demand extra verification and publish anyway; that was a fail-open mapping.
+    * any other verdict value -> :attr:`CriticOutcome.NO_ACTION` (an unknown value is never
+      permissive).
     * no critic row at all -> :attr:`CriticOutcome.ACCEPT`. The critic is an optional step of
       the ladder; what makes a plan safe is the deterministic layer, not the critic.
     """
+    if verdict is None:
+        return CriticOutcome.ACCEPT
     if verdict is CriticVerdict.REJECT:
         return CriticOutcome.REJECT
-    if verdict is not None and handed_off is False:
-        return CriticOutcome.NO_ACTION
-    return CriticOutcome.ACCEPT
+    if verdict is CriticVerdict.ACCEPT and handed_off is not False:
+        return CriticOutcome.ACCEPT
+    return CriticOutcome.NO_ACTION
 
 
 @dataclass(frozen=True, slots=True)
@@ -323,8 +344,6 @@ class DatabaseAutonomyEngine:
         # has no calibration" is itself a risk signal and the plan's own stored field cannot
         # answer that (a Phase 3 plan always carries a NULL calibration version).
         tier = await self._risk.classify_with(facts=facts, calibrated=calibrated)
-        if verdict is CriticVerdict.UNCERTAIN:
-            tier = raise_to(tier, RiskTier.MEDIUM)
 
         return _Inputs(
             facts=facts,
@@ -336,7 +355,7 @@ class DatabaseAutonomyEngine:
             tier=tier,
             # More checking AFTER the write, for the cases where it is worth its cost. It
             # changes the verification profile and NOTHING else (ADR-0018 s4).
-            extra_verification=(verdict is CriticVerdict.UNCERTAIN or not calibrated.is_calibrated),
+            extra_verification=not calibrated.is_calibrated,
         )
 
     def _decide(self, inputs: _Inputs, *, mode: AutonomyMode) -> AutonomyDecision:

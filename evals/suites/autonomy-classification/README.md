@@ -42,8 +42,10 @@ deferral side by side.
   publishes it only with the STRICT profile — never plain `auto_publish`.
 - `AUTO_PUBLISH_WITH_EXTRA_VERIFICATION` differs only in the verification profile; a strict
   installation default is never downgraded by a plain publish.
-- A critic REJECT blocks with no code fired; a critic UNCERTAIN raises the tier; a critic
-  `no_action` is an earlier outcome than a decision and never becomes a publish.
+- A critic REJECT blocks with no code fired. A critic UNCERTAIN is `no_action`, ALWAYS --
+  including a legacy row recorded as handed on -- and a `no_action` is an earlier outcome than a
+  decision: it never raises a tier, never demands extra verification and never becomes a
+  publish (`au-a-legacy-uncertain-critic-is-declined-and-never-decided`, dataset v2).
 - **Behavioural signals only raise risk:** a measured rollback makes a plan high-risk, no signal
   yields the lowest tier, and a lower floor never lowers a tier. A unit test checks monotonicity
   over all 256 signal combinations.

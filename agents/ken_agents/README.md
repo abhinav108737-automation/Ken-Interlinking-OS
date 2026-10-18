@@ -35,11 +35,15 @@ unreachable).
 ### Models are optional
 
 `policies/agents/agents.v1.yaml` decides which roles are used: planner (FAST) off, critic
-(REASONING) on by default. Without a model, or when it is unavailable, slow or invalid, the
-deterministic rule applies and is recorded (`fallback_used` + reason): engine order for the
-planner; `accept` at or above `accept_min_confidence` (raw), else `uncertain`, for the critic.
-A model problem never fails a run. A ref the model omits gets the rule; unknown refs are
-dropped and recorded in the step output.
+(REASONING) on by default. Without a model, or when it is unavailable, slow or invalid, a deterministic
+fallback applies and is recorded (`fallback_used` + reason). For the planner that is engine order.
+For the critic the two cases differ: when the policy switches the model OFF (`critic.use_model:
+false`) the rule is `accept` at or above `accept_min_confidence` (raw), else `uncertain`; when the
+model is on but has a PROBLEM (unavailable, slow, invalid output, an omitted ref) the result is
+`uncertain`, never an accept, whatever the confidence (ADR-0019). `uncertain` maps to NO_ACTION:
+it is recorded, not handed on, and never a publish. A model problem never fails a run. A ref the
+model omits is `uncertain` with a schema-violation fallback recorded; unknown refs are dropped
+and recorded in the step output.
 
 ### Running it
 

@@ -17,8 +17,11 @@ planner:
   timeout_seconds: 30
 
 # REASONING role: assesses each chosen plan (accept / reject / uncertain).
-# Deterministic rule when off or on any model failure: accept at or above
-# accept_min_confidence (RAW, uncalibrated until Phase 8), else uncertain.
+# Deterministic rule ONLY when the model is switched off by policy (use_model: false):
+# accept at or above accept_min_confidence (RAW, uncalibrated until Phase 8), else uncertain.
+# Any model PROBLEM (unavailable, slow, invalid output, an omitted or unknown ref) is
+# `uncertain` with the reason recorded, never an accept, however confident the engine was
+# (ADR-0019); `uncertain` maps to NO_ACTION and is never handed on.
 critic:
   use_model: true
   timeout_seconds: 90

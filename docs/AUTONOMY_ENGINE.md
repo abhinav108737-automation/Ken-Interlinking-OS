@@ -21,12 +21,13 @@ Order of evaluation in `engine.py` (`_gather`, `_decide`, `_apply_floors`):
 | Decision | Reached when |
 |---|---|
 | `BLOCK` | any block code; critic reject; mode `shadow`; `guarded` and tier not low; confidence under the mode's floor; `guarded` and not calibrated; no rollback metadata |
-| `AUTO_PUBLISH_WITH_EXTRA_VERIFICATION` | everything above passed and any of: class not calibrated, tier high, critic `uncertain` (historic rows only, see below) |
-| `AUTO_PUBLISH` | everything passed and the class is calibrated, tier is not high, critic did not say `uncertain` |
+| `AUTO_PUBLISH_WITH_EXTRA_VERIFICATION` | everything above passed and any of: class not calibrated, tier high, `strict` configured |
+| `AUTO_PUBLISH` | everything passed and the class is calibrated, tier is not high, `standard` configured |
+| no decision (the plan is declined) | the critic review is `uncertain`, failed or unparseable, or an accept the run did not hand on: `NO_ACTION`, see below |
 
 Plain `AUTO_PUBLISH` needs a calibrated decision class. A class is calibrated only if a `policy_evaluations` run passed its gate, finished within the learning policy's maximum evaluation age, carries a row for that exact class with `sufficient` set and a sample count at or above the learning policy's `min_sample_count`, and records a `calibrated_confidence` (`EvaluationCalibrationReader.lookup`). Without that history every plan has `calibration_version = NULL`, so plain `AUTO_PUBLISH` is unreachable. `tests/integration/test_autonomy_reachability.py` proves this over the demo corpus: with no history only `AUTO_PUBLISH_WITH_EXTRA_VERIFICATION` or `BLOCK` occur. The extra-verification decision differs from plain only in the verification profile, never in the safety rules.
 
-`engine.py` `critic_outcome_of`: `reject` is REJECT; a review with a verdict that the run did not hand on is NO_ACTION; anything else, including a stored `uncertain` that was handed on (historic rows; current agents never hand those on, ADR-0019), is ACCEPT with the tier raised to at least medium and the extra-verification flag set.
+`engine.py` `critic_outcome_of` fails closed and agrees with `ken_agents.critic.critic_outcome`, which it may only be stricter than: `reject` is REJECT; `accept` is ACCEPT unless the run did not hand it on, then NO_ACTION; `uncertain` is NO_ACTION **always**, including a historic row recorded as handed on (current agents never hand those on, ADR-0019); an unknown verdict is NO_ACTION; no critic row at all is ACCEPT, because the deterministic layer and not the critic is what makes a plan safe. NO_ACTION makes the engine raise `CriticDeclinedError`: no decision row is written (the database forbids one, `ck_autonomy_decisions_no_action_never_decided`), no tier is raised, nothing is published, and a sweep counts the plan as `declined`. An uncertain critic therefore does not raise the risk tier or demand extra verification; it is declined. `tests/unit/agents/test_critic.py` pins the agreement over every verdict and both `handed_off` values.
 
 ## Modes and defaults
 

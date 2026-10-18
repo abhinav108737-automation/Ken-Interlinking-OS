@@ -144,15 +144,18 @@ def test_high_risk_gets_extra_verification_not_a_different_rule() -> None:
     assert engine._decide(blocked, mode=AutonomyMode.AUTONOMOUS) is BLOCK
 
 
-def test_an_uncertain_critic_is_not_silently_an_accept() -> None:
-    assert critic_outcome_of(CriticVerdict.UNCERTAIN, handed_off=True) is CriticOutcome.ACCEPT
-    engine = pure_engine()
-    uncertain = inputs(
-        verdict=CriticVerdict.UNCERTAIN, extra_verification=True, tier=RiskTier.MEDIUM
+@pytest.mark.parametrize("handed_off", [True, False, None])
+def test_an_uncertain_critic_is_never_an_accept_whatever_the_stored_row_says(
+    handed_off: bool | None,
+) -> None:
+    """FAIL CLOSED (ADR-0019). ``uncertain`` is NO_ACTION always -- including the LEGACY
+    combination ``handed_off=True``, which only rows written before the critic change can carry.
+    It must not raise a tier or demand extra verification and publish anyway: that was the
+    fail-open mapping this test used to encode (it asserted ACCEPT, a MEDIUM tier and an
+    extra-verification publish). Changed deliberately, not softened."""
+    assert (
+        critic_outcome_of(CriticVerdict.UNCERTAIN, handed_off=handed_off) is CriticOutcome.NO_ACTION
     )
-    # Autonomous: published, with the strict profile. Guarded: deferred, because the tier rose.
-    assert engine._decide(uncertain, mode=AutonomyMode.AUTONOMOUS) is EXTRA
-    assert engine._decide(uncertain, mode=AutonomyMode.GUARDED) is BLOCK
 
 
 def test_no_action_is_an_earlier_outcome_than_a_decision() -> None:
@@ -163,6 +166,7 @@ def test_no_action_is_an_earlier_outcome_than_a_decision() -> None:
     assert critic_outcome_of(CriticVerdict.ACCEPT, handed_off=False) is CriticOutcome.NO_ACTION
     assert critic_outcome_of(CriticVerdict.ACCEPT, handed_off=True) is CriticOutcome.ACCEPT
     assert critic_outcome_of(None, handed_off=None) is CriticOutcome.ACCEPT
+    assert critic_outcome_of(CriticVerdict.REJECT, handed_off=False) is CriticOutcome.REJECT
 
 
 # --------------------------------------------------------------------------- #

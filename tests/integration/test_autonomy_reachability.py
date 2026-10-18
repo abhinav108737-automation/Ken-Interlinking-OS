@@ -13,15 +13,20 @@ block evaluator on the real corpus:
     * the calibrated confidence is at least ``confidence.autonomous_min_confidence``;
     * the risk tier is not ``high`` (no commercial page, protection nearby, earlier failure of
       the pair or measured rollback);
-    * the critic did not say ``uncertain``;
+    * the critic review, if there is one, was an ``accept`` that the run handed on (an
+      ``uncertain`` review is declined outright, see below);
     * the configured default verification profile is ``standard``.
 
 ``AUTO_PUBLISH_WITH_EXTRA_VERIFICATION`` is the same gate with ANY of: no calibration, a high
-risk tier, an uncertain critic, or ``strict`` configured. The safety rules are identical; only
+risk tier, or ``strict`` configured. The safety rules are identical; only
 the verification profile differs.
 
 ``BLOCK``: a deterministic block, a critic rejection, a confidence under the floor, or no
 rollback.
+
+NO DECISION AT ALL: an ``uncertain`` (or failed, or unparseable) critic review is NO_ACTION
+always -- the engine raises ``CriticDeclinedError`` and writes no row. It never reaches any of
+the three decisions, and in particular never an extra-verification publish.
 
 CONSEQUENCE: on a corpus with no evaluation history every class is uncalibrated, so NO plan
 there can reach plain ``AUTO_PUBLISH`` -- only ``AUTO_PUBLISH_WITH_EXTRA_VERIFICATION`` or
@@ -200,3 +205,76 @@ async def test_a_deterministic_block_outranks_a_perfect_calibration(
     assert evaluation.decision is BLOCK
     assert BlockCode.PROTECTED_PAGE in evaluation.blocks
     assert not evaluation.deferred
+
+
+# --------------------------------------------------------------------------- #
+# A legacy `uncertain` review is declined, never decided and never published
+# --------------------------------------------------------------------------- #
+async def _legacy_uncertain_review(sessionmaker: SM, a: Autonomy, plan_id: uuid.UUID) -> None:
+    """The row only data written BEFORE the critic change can carry: ``uncertain`` with
+    ``handed_off = true``. Today a fresh uncertain review is ``handed_off = false`` and the
+    plan stays ``proposed``."""
+    from tests.integration.analytics_support import record_agent_review
+
+    plan = a.world.plans[(EV, CHARGING)]
+    await record_agent_review(
+        sessionmaker,
+        plan_id,
+        source_page_id=plan.source_page_id,
+        source_url=plan.source_url,
+        at=T0,
+        verdict="uncertain",
+    )
+
+
+@pytest.mark.parametrize("mode", ["shadow", "guarded", "autonomous"])
+async def test_a_legacy_uncertain_review_is_declined_in_every_mode(
+    sessionmaker: SM, a: Autonomy, mode: str
+) -> None:
+    from ken_services.autonomy.engine import CriticDeclinedError
+    from tests.integration.autonomy_support import attempts, decisions
+    from tests.integration.deployment_support import count, plan_status
+
+    plan_id = _plan(a)
+    await _legacy_uncertain_review(sessionmaker, a, plan_id)
+    stack = a.with_mode(mode, autonomy_autonomous_acknowledged=True)
+
+    with pytest.raises(CriticDeclinedError):
+        await stack.engine().evaluate(plan_id=plan_id)
+    with pytest.raises(CriticDeclinedError):
+        await stack.engine().evaluate_and_record(plan_id=plan_id)
+
+    assert await decisions(sessionmaker, plan_id) == [], "no decision row, ever"
+    assert await attempts(sessionmaker, plan_id) == []
+    assert await count(sessionmaker, "deployments") == 0
+    assert (await plan_status(sessionmaker, plan_id)).value == "proposed", "the plan did not move"
+
+
+async def test_the_publisher_and_a_sweep_count_a_legacy_uncertain_review_as_declined(
+    sessionmaker: SM, a: Autonomy
+) -> None:
+    from ken_services.autonomy.job import run_autonomy
+    from ken_services.autonomy.publish import PublishOutcome
+    from tests.integration.deployment_support import count
+
+    plan_id = _plan(a)
+    await _legacy_uncertain_review(sessionmaker, a, plan_id)
+    autonomous = _autonomous(a)
+
+    result = await autonomous.publisher().publish_plan(plan_id=plan_id)
+    assert result.outcome is PublishOutcome.DECLINED
+    assert await count(sessionmaker, "deployments") == 0
+
+    detail = await run_autonomy(
+        sessionmaker=sessionmaker,
+        settings=autonomous.settings,
+        triggered_by="test",
+        principal=a.world.operator,
+        cms=a.world.cms,
+        engine=autonomous.engine(),
+        mode=AutonomyMode.AUTONOMOUS,
+        plan_ids=[plan_id],
+    )
+    assert detail.counters["outcome_declined"] == 1
+    assert detail.counters.get("outcome_published", 0) == 0
+    assert a.world.cms.applied == [], "the CMS was never called"

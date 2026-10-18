@@ -101,14 +101,36 @@ def test_only_accept_is_handed_on() -> None:
     assert [o for o in CriticOutcome if is_handed_on(o)] == [CriticOutcome.ACCEPT]
 
 
+@pytest.mark.parametrize("handed_off", [True, False], ids=["handed_on", "not_handed_on"])
 @pytest.mark.parametrize("verdict", list(CriticVerdict))
 def test_the_mapping_agrees_with_the_autonomy_engines_reading_of_a_stored_review(
-    verdict: CriticVerdict,
+    verdict: CriticVerdict, handed_off: bool
 ) -> None:
-    """The engine derives the outcome from ``agent_run_plans`` (verdict + handed_off). The
-    agent hands on exactly the accepts, so the engine must read back what the critic meant."""
-    handed_off = verdict is CriticVerdict.ACCEPT
-    assert critic_outcome_of(verdict, handed_off=handed_off) is critic_outcome(verdict)
+    """The engine derives the outcome from ``agent_run_plans`` (verdict + handed_off). Over
+    EVERY verdict and BOTH ``handed_off`` values -- including the LEGACY row ``uncertain`` +
+    ``handed_off=True`` that only data written before the critic change can carry:
+
+    * the engine is never MORE permissive than the reference mapping;
+    * ``reject`` and ``uncertain`` agree exactly, whatever ``handed_off`` says -- in particular
+      an ``uncertain`` review is NO_ACTION even when a legacy row says it was handed on;
+    * ``accept`` agrees when handed on, and is the stricter NO_ACTION when the run declined to
+      hand it on.
+    """
+    reference = critic_outcome(verdict)
+    engine = critic_outcome_of(verdict, handed_off=handed_off)
+    permissive = {CriticOutcome.ACCEPT: 2, CriticOutcome.NO_ACTION: 1, CriticOutcome.REJECT: 0}
+    assert permissive[engine] <= permissive[reference]
+    if verdict is not CriticVerdict.ACCEPT:
+        assert engine is reference
+    elif handed_off:
+        assert engine is reference is CriticOutcome.ACCEPT
+    else:
+        assert engine is CriticOutcome.NO_ACTION
+
+
+def test_a_legacy_uncertain_review_marked_handed_on_is_never_an_accept() -> None:
+    assert critic_outcome_of(CriticVerdict.UNCERTAIN, handed_off=True) is CriticOutcome.NO_ACTION
+    assert critic_outcome(CriticVerdict.UNCERTAIN) is CriticOutcome.NO_ACTION
 
 
 # --------------------------------------------------------------------------- three outcomes

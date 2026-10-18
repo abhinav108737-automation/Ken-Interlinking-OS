@@ -4,10 +4,10 @@
 # the runner verifies every sha256 below and refuses a dataset that has drifted.
 suite: autonomy-classification
 dataset: core
-dataset_version: 1
+dataset_version: 2
 case_count: 45
 files:
-  core.v1.jsonl: 6940c7487b1cab121b7d850698bc4eb6a35a39dbe9267cb94575a532bfc599b3
+  core.v1.jsonl: a96a956f1563c99d06ce74ce2823c1af3b04c9954e6b9266eee5aeb363344903
 provenance: Synthetic PlanFacts supplied by each case; the real evaluate_blocks, critic_outcome_of, tier_from_signals, DatabaseAutonomyEngine._assemble/_target_status and target_status_for. The SQL snapshot that produces PlanFacts (load_plan_facts) and the recording of the decision row are covered by integration tests, not here. No production data.
 contains_production_data: false
 approval_ref: null

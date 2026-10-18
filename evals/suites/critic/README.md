@@ -59,7 +59,10 @@ asserts, and the cases were re-pointed rather than loosened:
   (fixture version 2), not `accept+fallback`. `uncertain` maps to `NO_ACTION`, which is recorded,
   not handed on, and never a publish. `ken_agents.critic.critic_outcome` is the pure mapping.
   The deterministic accept-at-threshold rule still applies when the policy runs WITHOUT a model
-  (`MODEL_DISABLED`), which is a configuration and not a failure.
+  (`MODEL_DISABLED`), which is a configuration and not a failure. (The case ids
+  `cr-malformed-model-output-falls-back-to-the-rule` and `cr-omitted-ref-gets-the-deterministic-rule`
+  keep their historic names because a test and recorded baselines reference them; what they
+  EXPECT is `uncertain+fallback`.)
 - **Deterministic guards run after the model and can only demote.** Five added cases: a generic
   anchor ("Click here") is rejected even when the recorded model says accept; a second plan to
   the same destination becomes uncertain; the same anchor to two pages makes the second
