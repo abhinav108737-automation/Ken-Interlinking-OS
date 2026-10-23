@@ -27,7 +27,8 @@ export NEXT_TELEMETRY_DISABLED := 1
         analytics-import analytics-aggregate analytics-demo-seed analytics-sim-serve \
         reflect eval shadow policy-promote experiment-create experiment-assign \
         qdrant-up qdrant-down qdrant-index qdrant-rebuild qdrant-verify graph-metrics \
-        autonomy autonomy-shadow autonomy-run autonomy-dry-run
+        autonomy autonomy-shadow autonomy-run autonomy-dry-run \
+        demo demo-clean
 
 help: ## List targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "} {printf "  %-18s %s\n", $$1, $$2}'
@@ -298,3 +299,15 @@ doctor: ## Print the environment matrix; non-zero exit only on hard failures
 
 verify: lint types test-all web-test compose-config migrate doctor ## The Phase gate
 	@echo ""; echo "verify: all gates passed"
+
+# ----------------------------------------------------------------- demo
+# A repeatable, fully local, end-to-end demonstration (docs/DEMO.md). It recreates its OWN
+# databases (ken_demo, ken_cms_sim_demo on :5433) and Qdrant collections (ken_demo_*), uses the
+# deterministic mock model and a simulated CMS, and refuses to run against anything else.
+# Needs `make db-up qdrant-up` (or `make dev`). Takes about a minute.
+# KEN_DEMO_ADMIN_PASSWORD=... make demo   also creates a demo_admin login for browsing the UI.
+demo: ## Run the local end-to-end demo (about a minute; docs/DEMO.md). ARGS=--ollama is opt-in
+	$(VENV)/python infrastructure/scripts/demo.py $(ARGS)
+
+demo-clean: ## Drop the demo databases (ken_demo, ken_cms_sim_demo) and delete ken_demo_* collections
+	$(VENV)/python infrastructure/scripts/demo.py clean

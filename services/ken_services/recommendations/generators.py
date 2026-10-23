@@ -338,7 +338,10 @@ async def lexical_channel(
                 Page.gone_at.is_(None),
                 PageVersion.search_vector.op("@@")(query),
             )
-            .order_by(rank.desc(), Page.id)
+            # Ties on the rank are common (ts_rank_cd is coarse). Page.id is a random UUID per
+            # install, so breaking them on it alone makes the k-th place differ between two
+            # installs of the same corpus; the canonical URL first makes it reproducible.
+            .order_by(rank.desc(), Page.canonical_url, Page.id)
             .limit(k)
         )
     ).all()
