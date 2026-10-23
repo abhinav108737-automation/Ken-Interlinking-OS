@@ -61,6 +61,7 @@ Enforced at startup by `Settings._autonomy_is_deliberate` (`config.py`):
 - `autonomous`: refused unless `KEN_AUTONOMY_AUTONOMOUS_ACKNOWLEDGED=true`.
 - `guarded` or `autonomous` against a write-enabled `http` CMS (`KEN_CMS_PROVIDER=http` with writes enabled): refused unless `KEN_AUTONOMY_ALLOW_PRODUCTION=true`. Against the simulated CMS the gate does not apply.
 - `KEN_AUTO_APPROVE_ENABLED` is retired and still refused when true.
+- **Defence in depth.** The startup validator is the first line and can be bypassed (`Settings.model_construct`, a test, a future code path), so the RUNTIME gate is one shared function, `autonomy/gate.py` `publishing_refusal` / `require_publishing`. `AutonomousPublisher.publish_plan` calls it before it evaluates, records or sends anything, `_apply` calls it again immediately before the deployment service, and `run_autonomy` calls it before a job row exists. A closed gate raises `PublishingNotEnabledError` carrying a stable code (`cms_writes_disabled`, `production_not_allowed`, `autonomous_not_acknowledged`); the CLI maps it to a usage error. The engine's and the API reader's former copies of the rule are deleted. `tests/integration/test_autonomous_publish.py` proves zero CMS calls with a validator-bypassed `autonomous` + write-enabled `http` + no `allow_production`.
 - A publishing pass needs `--as-user <username>` (`make autonomy-run AS_USER=...`): an enabled account with the `deploy` permission, because `deployments.actor` has a `^user:` CHECK.
 
 ## Verification, rollback, retry budget
@@ -75,6 +76,8 @@ Enforced at startup by `Settings._autonomy_is_deliberate` (`config.py`):
 ## Operator override
 
 `autonomy/override.py`, `DatabaseOverrideService`, requires `Permission.DEPLOY` and a reason. `block` stops any not-yet-written plan. `publish` moves a `blocked` plan to `autonomy_decided` and is refused while any block code fires. It waives only the mode floors (confidence, calibration, tier); the next `make autonomy-run` still performs validation, the CMS write and verification, forced to the strict profile. It is idempotent by state and checks `expected_status` under the plan lock.
+
+**The exception, stated plainly.** An operator may publish a plan the critic REJECTED, or one the engine merely DEFERRED (guarded mode: risk tier, confidence or calibration), but never a plan with a fired block code. A critic rejection is a local-model quality judgement, not a safety rule, and the override is an audited human act; the deterministic block codes are the hard stop and are re-evaluated both when the override is requested and again by the publisher immediately before the write. The override row records the REAL stored critic outcome and verdict (a `reject` stays `reject`; it never says the critic accepted), and the publish is forced to the strict profile. An override of a plan whose critic outcome is `no_action` (an `uncertain` review, fresh or legacy) is REFUSED with a typed reason rather than recorded: the database forbids a decision row with that outcome, and recording `accept` instead would falsify the trail. That applies to a `block` override too; reject such a plan through the review path.
 
 ## Telling autonomous from human
 

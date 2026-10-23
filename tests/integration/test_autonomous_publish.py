@@ -609,3 +609,166 @@ async def test_an_auditor_can_tell_an_autonomous_publish_from_a_human_one(
     assert "approved" in await transitions(sessionmaker, human_id)
     assert "autonomy_decided" in await transitions(sessionmaker, plan_id)
     assert "approved" not in await transitions(sessionmaker, plan_id)
+
+
+# --------------------------------------------------------------------------- #
+# Defence in depth on the production gate
+# --------------------------------------------------------------------------- #
+class _CountingCMS:
+    """Counts EVERY call that reaches the CMS (reads included), so 'zero CMS calls' is
+    measured, not inferred from a missing deployment row."""
+
+    def __init__(self, inner: Any) -> None:
+        self._inner = inner
+        self.name = inner.name
+        self.calls: list[str] = []
+
+    def __getattr__(self, item: str) -> Any:
+        attribute = getattr(self._inner, item)
+        if not callable(attribute):
+            return attribute
+
+        async def counted(*args: Any, **kwargs: Any) -> Any:
+            self.calls.append(item)
+            return await attribute(*args, **kwargs)
+
+        return counted
+
+
+def _bypassed(a: Autonomy, **updates: Any) -> Autonomy:
+    """Settings built WITHOUT the validators (``model_copy`` skips them, like ``model_construct``):
+    `autonomous` against a write-enabled http CMS with the production gate closed -- a
+    combination `Settings` itself refuses at boot, so only a bypass can produce it."""
+    base = {
+        "autonomy_mode": "autonomous",
+        "autonomy_autonomous_acknowledged": True,
+        "cms_provider": "http",
+        "cms_writes_enabled": True,
+        "autonomy_allow_production": False,
+    }
+    return Autonomy(
+        world=a.world,
+        settings=a.settings.model_copy(update={**base, **updates}),
+        clock=a.clock,
+        policy=a.policy,
+    )
+
+
+def test_the_boot_time_validator_refuses_the_combination_the_bypass_builds() -> None:
+    """The first line of defence exists; the test below proves the SECOND one."""
+    from tests.conftest import make_settings
+
+    with pytest.raises(ValueError, match="ALLOW_PRODUCTION"):
+        make_settings(
+            autonomy_mode="autonomous",
+            autonomy_autonomous_acknowledged=True,
+            cms_provider="http",
+            cms_writes_enabled=True,
+            autonomy_allow_production=False,
+        )
+
+
+async def test_the_publisher_makes_zero_cms_calls_when_the_settings_validator_was_bypassed(
+    sessionmaker: SM, a: Autonomy
+) -> None:
+    from sqlalchemy import select
+
+    from ken_core.db.models.autonomy import AutonomyDecisionRow
+    from ken_services.autonomy.gate import PublishingNotEnabledError, PublishingRefusal
+    from ken_services.autonomy.publish import AutonomousPublisher
+    from ken_services.deployment.mutation import HtmlMutator
+    from ken_services.deployment.service import DatabaseDeploymentService
+    from ken_services.deployment.verification import HtmlLinkVerifier
+
+    bypassed = _bypassed(a)
+    counter = _CountingCMS(a.world.cms)
+    publisher = AutonomousPublisher(
+        sessionmaker=sessionmaker,
+        settings=bypassed.settings,
+        engine=bypassed.engine(),
+        deployments=DatabaseDeploymentService(
+            sessionmaker=sessionmaker,
+            settings=bypassed.settings,
+            cms=counter,
+            mutator=HtmlMutator(),
+            verifier=HtmlLinkVerifier(),
+            clock=a.clock,
+        ),
+        budget=bypassed.budget(),
+        principal=a.world.operator,
+    )
+    plan_id = _plan(a)
+
+    with pytest.raises(PublishingNotEnabledError) as caught:
+        await publisher.publish_plan(plan_id=plan_id)
+    with pytest.raises(PublishingNotEnabledError):
+        await publisher.publish_plans(plan_ids=[plan_id])
+
+    assert caught.value.refusal is PublishingRefusal.PRODUCTION_NOT_ALLOWED
+    assert counter.calls == [], "ZERO calls of any kind reached the CMS"
+    assert a.world.cms.applied == []
+    assert await count(sessionmaker, "deployments") == 0
+    assert await count(sessionmaker, "publish_attempts") == 0
+    async with sessionmaker() as session:
+        assert (await session.scalars(select(AutonomyDecisionRow))).all() == []
+    assert await plan_status(sessionmaker, plan_id) is S.PROPOSED, "nothing was evaluated or moved"
+
+
+@pytest.mark.parametrize(
+    ("updates", "refusal"),
+    [
+        ({"cms_writes_enabled": False}, "cms_writes_disabled"),
+        (
+            {"autonomy_autonomous_acknowledged": False, "autonomy_allow_production": True},
+            "autonomous_not_acknowledged",
+        ),
+    ],
+    ids=["writes_disabled", "not_acknowledged"],
+)
+async def test_every_closed_gate_is_a_typed_refusal_before_any_cms_call(
+    sessionmaker: SM, a: Autonomy, updates: dict[str, Any], refusal: str
+) -> None:
+    from ken_services.autonomy.gate import PublishingNotEnabledError
+
+    bypassed = _bypassed(a, **updates)
+
+    with pytest.raises(PublishingNotEnabledError) as caught:
+        await bypassed.publisher().publish_plan(plan_id=_plan(a))
+
+    assert caught.value.refusal.value == refusal
+    assert a.world.cms.applied == []
+    assert await count(sessionmaker, "deployments") == 0
+
+
+async def test_a_job_pass_refuses_before_it_records_anything(sessionmaker: SM, a: Autonomy) -> None:
+    from ken_services.autonomy.gate import PublishingNotEnabledError
+    from ken_services.autonomy.job import run_autonomy
+
+    bypassed = _bypassed(a)
+    before = await count(sessionmaker, "job_runs")
+
+    with pytest.raises(PublishingNotEnabledError):
+        await run_autonomy(
+            sessionmaker=sessionmaker,
+            settings=bypassed.settings,
+            triggered_by="test",
+            principal=a.world.operator,
+            cms=a.world.cms,
+            engine=bypassed.engine(),
+            mode=AutonomyMode.AUTONOMOUS,
+        )
+
+    assert await count(sessionmaker, "job_runs") == before, "no job row, no engine, no CMS"
+    assert a.world.cms.applied == []
+
+
+async def test_a_shadow_pass_is_unaffected_by_a_closed_production_gate(
+    sessionmaker: SM, a: Autonomy
+) -> None:
+    """Shadow never calls the CMS, so the gate must not stop it: the gate guards WRITES."""
+    bypassed = _bypassed(a, autonomy_mode="shadow")
+
+    result = await bypassed.publisher().publish_plan(plan_id=_plan(a))
+
+    assert result.outcome is O.DEFERRED and result.reasons == ("shadow_mode",)
+    assert a.world.cms.applied == []

@@ -25,6 +25,7 @@ from ken_contracts.autonomy import (
     VerificationProfile,
 )
 from ken_services.autonomy.engine import critic_outcome_of
+from ken_services.autonomy.gate import publishing_enabled
 from ken_services.autonomy.policy import load_autonomy_policy
 from tests.unit.autonomy._support import clean_facts, inputs, settings
 from tests.unit.autonomy.pure import pure_engine
@@ -226,9 +227,12 @@ def test_a_run_may_never_force_a_laxer_mode(configured: str, requested: Autonomy
 
 
 def test_the_default_installation_publishes_nothing() -> None:
-    engine = pure_engine(settings())
+    """Asked of the ONE shared gate: the engine's own copy of this rule was deleted, because a
+    rule that lives in three places drifts (the reader's copy already disagreed)."""
+    built = settings()
+    engine = pure_engine(built)
     assert engine.configured_mode is AutonomyMode.SHADOW
-    assert engine.publishing_enabled() is False
+    assert publishing_enabled(built) is False
 
 
 # --------------------------------------------------------------------------- #
