@@ -4053,9 +4053,11 @@ export interface components {
          *         proposed -> critiqued -> policy_checked -> autonomy_decided -> validated
          *                  -> deployed -> verified -> measured -> learning_captured
          *
-         *     ``awaiting_approval`` / ``approved`` stay reachable, but only for a ``guarded``-mode
-         *     deferral and for an operator acting on an exception. They are no longer on the
-         *     normal path (ADR-0018 s3).
+         *     ``awaiting_approval`` / ``approved`` stay reachable, but only for an operator acting on an
+         *     exception. They are no longer on the normal path (ADR-0018 s3). A ``guarded``-mode DEFERRAL
+         *     is NOT recorded as ``awaiting_approval``: it is ``blocked`` with an empty block list (the
+         *     database guard maps every ``block`` decision to ``blocked``; ADR-0018 "Corrections after
+         *     integration" item 1), and an operator can still publish-override it.
          * @enum {string}
          */
         LinkPlanStatus: "proposed" | "critiqued" | "policy_checked" | "autonomy_decided" | "blocked" | "awaiting_approval" | "approved" | "rejected" | "superseded" | "validated" | "deployed" | "verified" | "failed" | "rolled_back" | "expired" | "measured" | "learning_captured";

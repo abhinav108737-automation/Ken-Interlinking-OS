@@ -128,9 +128,11 @@ class LinkPlanStatus(StrEnum):
         proposed -> critiqued -> policy_checked -> autonomy_decided -> validated
                  -> deployed -> verified -> measured -> learning_captured
 
-    ``awaiting_approval`` / ``approved`` stay reachable, but only for a ``guarded``-mode
-    deferral and for an operator acting on an exception. They are no longer on the
-    normal path (ADR-0018 s3).
+    ``awaiting_approval`` / ``approved`` stay reachable, but only for an operator acting on an
+    exception. They are no longer on the normal path (ADR-0018 s3). A ``guarded``-mode DEFERRAL
+    is NOT recorded as ``awaiting_approval``: it is ``blocked`` with an empty block list (the
+    database guard maps every ``block`` decision to ``blocked``; ADR-0018 "Corrections after
+    integration" item 1), and an operator can still publish-override it.
     """
 
     PROPOSED = "proposed"
@@ -198,7 +200,9 @@ ALLOWED_TRANSITIONS: Final[Mapping[LinkPlanStatus, frozenset[LinkPlanStatus]]] =
         }
     ),
     # The normal autonomous path: a publish decision hands the plan straight to the
-    # deployment service. A guarded-mode deferral goes to awaiting_approval instead.
+    # deployment service. A guarded-mode deferral does NOT come through here: it is recorded
+    # as BLOCKED (ADR-0018 corrections, item 1). ``awaiting_approval`` is reachable for an
+    # operator acting on an exception.
     _S.AUTONOMY_DECIDED: frozenset(
         {
             _S.VALIDATED,

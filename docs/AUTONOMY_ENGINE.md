@@ -90,6 +90,8 @@ ADR-0019 and `agents/ken_agents/critic.py`: accept is the only route to ACCEPT; 
 
 ## What a first installation does
 
+**In one sentence: `shadow` publishes nothing, `guarded` publishes nothing until a decision class has been calibrated from real review history, and `autonomous` DOES publish uncalibrated plans (with the strict verification profile).** "Plain `AUTO_PUBLISH` is unreachable without history" means exactly that and no more: it must not be read as "nothing publishes". Moving to `autonomous` is the step that starts changing a site, and it takes three deliberate settings (the mode, the acknowledgement, and for a write-enabled HTTP CMS `KEN_AUTONOMY_ALLOW_PRODUCTION`).
+
 The default is `shadow`, the corpus has no evaluation history and every plan's confidence is raw.
 
 - `make autonomy` records decisions and `would_have_decision` and changes no plan and no CMS page. Nothing publishes until an operator changes mode and acknowledgements.

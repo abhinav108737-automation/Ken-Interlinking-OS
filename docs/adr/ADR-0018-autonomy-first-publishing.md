@@ -133,7 +133,7 @@ This is what Phase 9 calibration and Phase 8 learning read, and it is append-onl
    `guarded` and `autonomous` are refused unless `KEN_AUTONOMY_ALLOW_PRODUCTION=true` is also set;
    `autonomous` is refused unacknowledged anywhere; the legacy `KEN_AUTO_APPROVE_ENABLED=true` is
    still refused. A tightening, not a loosening.
-2. **A deferral is not a block.** The three-decision vocabulary has no "defer", yet `guarded` mode
+2. **A deferral is not a block.** *(Superseded in part: the status it names is wrong. See "Corrections after integration" below, item 1: a deferral is recorded as `blocked` with an empty block list, not `awaiting_approval`.)* The three-decision vocabulary has no "defer", yet `guarded` mode
    must keep deferring a merely-too-risky plan (§3 keeps `awaiting_approval` for exactly this).
    `decision_for` returns `BLOCK` both for a fired hard block and for a guarded plan that is too
    risky, so the contract adds `target_status_for` to keep them apart: a deferral records

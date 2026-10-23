@@ -6368,7 +6368,7 @@
         "type": "object"
       },
       "LinkPlanStatus": {
-        "description": "PRD v1.1 Appendix C recommendation lifecycle. Moves only along ``ALLOWED_TRANSITIONS``.\n\nADR-0018 adds ``autonomy_decided`` and ``blocked`` and makes the approval pair\nEXCEPTIONAL. The normal autonomous path is::\n\n    proposed -> critiqued -> policy_checked -> autonomy_decided -> validated\n             -> deployed -> verified -> measured -> learning_captured\n\n``awaiting_approval`` / ``approved`` stay reachable, but only for a ``guarded``-mode\ndeferral and for an operator acting on an exception. They are no longer on the\nnormal path (ADR-0018 s3).",
+        "description": "PRD v1.1 Appendix C recommendation lifecycle. Moves only along ``ALLOWED_TRANSITIONS``.\n\nADR-0018 adds ``autonomy_decided`` and ``blocked`` and makes the approval pair\nEXCEPTIONAL. The normal autonomous path is::\n\n    proposed -> critiqued -> policy_checked -> autonomy_decided -> validated\n             -> deployed -> verified -> measured -> learning_captured\n\n``awaiting_approval`` / ``approved`` stay reachable, but only for an operator acting on an\nexception. They are no longer on the normal path (ADR-0018 s3). A ``guarded``-mode DEFERRAL\nis NOT recorded as ``awaiting_approval``: it is ``blocked`` with an empty block list (the\ndatabase guard maps every ``block`` decision to ``blocked``; ADR-0018 \"Corrections after\nintegration\" item 1), and an operator can still publish-override it.",
         "enum": [
           "proposed",
           "critiqued",
