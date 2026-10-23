@@ -1,18 +1,22 @@
 # Next Steps
 
-**Current state:** Phase 7 (Analytics) is **complete**; Phase 8 (Learning) is **in progress** —
-its contract freeze (W0: `ken_contracts/learning.py`, migration `0009_learning`, the learning
-policy, the frozen service interfaces and the API route signatures) has landed. See
-[PHASE_7_REPORT.md](PHASE_7_REPORT.md). The earlier phases are covered in
-[PHASE_6_REPORT.md](PHASE_6_REPORT.md), [PHASE_5_REPORT.md](PHASE_5_REPORT.md), [PHASE_4_REPORT.md](PHASE_4_REPORT.md), [PHASE_3_REPORT.md](PHASE_3_REPORT.md), [PHASE_2_REPORT.md](PHASE_2_REPORT.md), [PHASE_1_REPORT.md](PHASE_1_REPORT.md) and
-[PHASE_0_REPORT.md](PHASE_0_REPORT.md).
+**Current state: the local product is complete and ready for production integration.** Phases 0-9 are
+built, tested and reviewed; the full gate (ruff, mypy, Python and web tests, compose, migrations,
+`make doctor`) passes on a freshly created database. Nothing has been pushed, deployed, or pointed at
+a real CMS, site or Google service. See [FINAL_PROJECT_REPORT.md](FINAL_PROJECT_REPORT.md), and the
+per-phase reports [PHASE_7_REPORT.md](PHASE_7_REPORT.md), [PHASE_6_REPORT.md](PHASE_6_REPORT.md),
+[PHASE_5_REPORT.md](PHASE_5_REPORT.md), [PHASE_4_REPORT.md](PHASE_4_REPORT.md),
+[PHASE_3_REPORT.md](PHASE_3_REPORT.md), [PHASE_2_REPORT.md](PHASE_2_REPORT.md),
+[PHASE_1_REPORT.md](PHASE_1_REPORT.md) and [PHASE_0_REPORT.md](PHASE_0_REPORT.md).
 
-**Execution mode:** the user has authorised autonomous, sequential execution of Phases 3–9, an
-end-to-end local demo and a final report. Each phase has internal gates and a local commit plus
-tag. Execution stops only for ASK/BLOCK actions.
+**What "ready for production integration" means here, and what it does not.** The system runs end to end
+against a simulated CMS and a synthetic corpus (`make demo`). It has never touched a real CMS, a real
+Ken Research page, a real analytics property, or real review history. Every statement about quality
+on real content is therefore unproven. The default mode is `shadow`, which publishes nothing.
 
-**Next phase:** Phase 8 (learning: eval datasets, offline eval runner, the skill lifecycle and the
-policy lifecycle, with no self-promotion), proceeding under that authorisation.
+**Execution mode:** the user authorised autonomous execution of Phases 2-9, the end-to-end demo and
+the final report. Execution stopped only for ASK/BLOCK actions. Everything below that is marked ASK
+is still waiting on a human decision.
 
 ## Needed from you before real production ingestion
 
@@ -33,7 +37,7 @@ any governing document, so none was guessed.
 | 7 | **Ken's real taxonomy**: markets/industries with aliases, geographies, a company/product gazetteer, page-type URL patterns, and protected-page rules | `policies/taxonomy/taxonomy.v1.yaml` is an illustrative seed. Classification quality on the real site depends on this. | data |
 | 9 | **Self-describing anchors (ADR-0011 §9.1):** should a same-market, cross-country pair (India cold-chain report → UAE cold-chain report) be linkable on the plain market name ("cold chain")? Today: only when the block also names the target's country/region, or on an article → report hop. 45 eval pairs were relabelled ACCEPTABLE accordingly (rule R5). | Editorial policy; one policy switch either way | decision (orchestrator default in place) |
 | 11 | **Create your own accounts.** No user exists after install, and none was created for you: run `make user-create USERNAME=… ROLE=operator_admin`, then reviewers/viewers as needed. | The UI and API require a session from Phase 5 on | action (you) |
-| 10 | **Does a model critic's `reject` filter a plan out of the human queue, or only annotate it?** Today it filters: the plan stays `proposed`, with its reasons visible. The local qwen3 critic kept 23 % of plans out of the queue on the demo, including 1 of 20 GOOD plans (evals/agents/README.md). | Editorial trust in a local model; a one-line policy/graph change either way | decision (orchestrator default: filter) |
+| 10 | ~~Does a model critic's `reject` filter a plan out of the human queue?~~ **Superseded by ADR-0018.** There is no human queue in the normal flow. A critic `reject` blocks the plan (recorded `blocked`), and an operator may still publish-override it with the real critic outcome recorded. A critic `uncertain` or failed answer is `NO_ACTION` and never a publish (ADR-0019). | — | closed |
 | 12 | **Real CMS integration (ASK).** The CMS API base URL; its link-change contract, which must tell a version conflict (409) apart from a reused operation id (ADR-0014 §9); whether its sanitiser keeps `data-*` attributes; and **write credentials** stored outside source control. Then `KEN_CMS_PROVIDER=http`, `KEN_CMS_ALLOW_REMOTE=true` and `KEN_CMS_WRITES_ENABLED=true`, all with your approval. | Phase 6 runs only against the mock and the simulated CMS | **ASK** |
 | 13 | **Browser verification (amends TRD §2 / PRD §7.11).** Playwright was **not** adopted: verification parses the served HTML deterministically (ADR-0014 §6). Confirm the deferral, or ask for a headless-browser check for client-rendered pages. | It avoids a large browser download and process | decision |
 | 14 | **Real-template parity.** Run `make cms-sim-seed --export` on a sample of Ken's real HTML, or give us 10–20 real page bodies, to confirm that block hashes match between the inventory and the CMS body. Where parity breaks, the mutator refuses; it never guesses. | It proves deployment works on real templates | data |
@@ -48,6 +52,39 @@ any governing document, so none was guessed.
 | 21 | **Enabling holdout experiments (Phase 8).** `KEN_EXPERIMENTS_ALLOW_HOLDOUT` defaults `false`. A holdout deliberately WITHHOLDS inbound links from its control **target** pages, a real editorial and SEO cost on the live site. The share is capped at 20 % by a database CHECK (policy default 10 %), and while the setting is off the lifecycle service refuses activation AND withholds the transaction-local `ken.learning_experiment_activator` setting migration 0009's guard requires — so no code path, not even a raw UPDATE, can start one. `policy_ab` (both arms get links) is unaffected. | Withholding links from real content is your decision | decision (**ASK** to enable) |
 | 22 | **The deferred Search Console query import** (`page_query_metrics_daily`, `--queries`), without which search-side learning has no data at all. It is Google egress. | Search signals stay diagnostic-only and currently empty | **ASK** |
 | 23 | **`review_performance` (ADR-0012 §42) is carried to Phase 9**, not implemented in Phase 8. The reviewer-performance view it reserves for "Phases 6–8" needs editorial volume that the synthetic corpus does not have; it is recorded here rather than left silent. | Avoids a silent gap against ADR-0012 | decision (orchestrator default: defer) |
+| 24 | **Turn autonomous publishing on, or not (ASK).** The default is `shadow`, which publishes nothing. `guarded` publishes nothing until a decision class is calibrated from real review history. `autonomous` DOES publish uncalibrated plans, with the strict verification profile. Reaching it takes three deliberate settings: `KEN_AUTONOMY_MODE=autonomous`, `KEN_AUTONOMY_AUTONOMOUS_ACKNOWLEDGED=true`, and, for a write-enabled HTTP CMS, `KEN_AUTONOMY_ALLOW_PRODUCTION=true`. Nobody has set them. | This is the decision that starts changing a live site | **ASK** |
+| 25 | **A named operator account for autonomous writes.** `deployments.actor` must be a `user:` account, so the autonomous run acts as one (`make autonomy-run AS_USER=<name>`). Choose or create it (`make user-create`); it will appear as the actor on autonomous deployments. An auditor tells them apart from human deployments through `publish_attempts` and the deployment note (see `docs/AUTONOMY_ENGINE.md`). | Audit identity | action (you) |
+| 26 | **Real review history before any calibration.** Plain `AUTO_PUBLISH` needs a calibrated decision class: a passing, fresh evaluation with at least 30 samples for that exact class. That cannot exist until reviewers (or operators acting on exceptions) have produced real decisions on real content. Until then every plan gets extra verification or a block. | The system is conservative by construction until it has evidence | informational |
+| 27 | **Run on Qdrant, not the in-memory index.** The code default is `KEN_VECTOR_STORE=memory` so tests need no container; `.env.example` sets `qdrant`. A production installation must run `make qdrant-up`, `make qdrant-index` and keep `KEN_VECTOR_STORE=qdrant`. `make doctor` warns in staging/production if it is not. | A default install otherwise builds a throwaway index per run | action (you) |
+| 28 | **A least-privilege database role.** The application connects as the owner `ken`. The append-only guards defend against application bugs, not against a database-privileged client: the owner can `TRUNCATE` an append-only table (resetting the retry budget, for example), disable a trigger, or set the promotion and activation settings. Production needs a non-owner role with DML only on application tables, migrations run as the owner (ADR-0014 §5). | The guards are tamper-evident, not tamper-proof, without role separation | **ASK** |
+## Phases 8-9 and final-pass known limitations (accepted, documented)
+
+From the final architecture review, the final QA/security review and the workstream reports.
+
+| Item | Why it is accepted / what to do |
+|---|---|
+| **The DB guards are tamper-evident, not tamper-proof.** The promoter and activator settings, the human-only CHECKs and the append-only triggers stop application bugs and clients that do not know the setting names. A role that owns the tables can `TRUNCATE` them, disable triggers or set the settings. | Needs the non-owner role in row 28. The `TRUNCATE` case was reproduced by QA (it resets `publish_attempts`, the retry budget). A `BEFORE TRUNCATE` guard was rejected: it would break the test fixtures that truncate between tests and would not stop an owner anyway. |
+| Autonomous deployments are attributed to a `user:<AS_USER>` account in `deployments.actor`, so someone scanning only that table sees a human. The distinction is in `publish_attempts`, the deployment note and the plan's transitions. | Add an "autonomous" tag to the deployment history, derived from the `publish_attempts` join (contract, API and UI change). |
+| An operator may publish-override a **critic-rejected** or **deferred** plan (the override records the real critic outcome and forces the strict profile), but never a plan with a fired block code, and never an `uncertain` plan. | Deliberate human exception; documented in `docs/AUTONOMY_ENGINE.md`. |
+| A link a CMS post-processor has marked `hidden` cannot be auto-rolled-back: the inverse splice refuses with `rollback_conflict` and escalates. | Pinned by two eval cases. Needs the real CMS's behaviour. |
+| A crash between the CMS write and the `publish_attempts` insert loses one attempt, leaving the budget one short. The cool-down still prevents a hot retry loop. | Documented in `publish.py`. |
+| The crawler resolves no DNS and has no private-range or DNS-rebinding check; its scope is only the operator-configured allowed hosts, and crawling a real domain is ASK. | Add a private-range refusal before the first real crawl. |
+| The crawler now refuses any non-identity `Content-Encoding` (it never asks for compression). A site that sends one anyway is recorded `TOO_LARGE`, and its robots.txt is treated as disallowing the origin. | Fixed after QA; one bomb test pins the memory bound. |
+| `treatment_fraction` on a **holdout** means the WITHHELD share (the control arm), not a treatment share. The column name predates the correction. | Documented in `protocol.py`; renaming needs a migration. |
+| Holdout experiments exist but cannot be activated by default: the setting, the activator GUC, the INSERT guard and a 20% database cap all apply. | Withholding links from real pages stays your decision (row 21). |
+| CANARY and EXPERIMENT stages are defined in the contract and schema; only SHADOW has machinery. | Deferred until production-like traffic gives them something to measure (ADR-0016 §17). |
+| `ExperimentDetail.comparison` is not wired (`compare_arms` exists), `policy_shas` is always empty, and lifecycle `operation_id`s are not persisted (migration 0009 has no column). | Cosmetic for now; no experiment can run without row 21. |
+| `CriticReason` has no members for duplicate intent, cannibalisation, destination fit or editorial awkwardness. | Frozen contract follow-up; the specific finding is in the step output meanwhile. |
+| UI gaps: no experiments screen, no `/learning/evaluations/[id]` detail, `/dashboard` has no autonomy counts, `/autonomy/blocked` has no per-plan route or `plan_id` filter. | The screens that exist compose what the API offers. |
+| `lib/platform` and the typed Electron bridge are documented comments; `apps/desktop` holds only a README. Electron is not installed. | Unchanged since ADR-0008. |
+| The CMS factory resolves `ken_services.deployment.changes` lazily by name and `ken_agents/worker.py` builds a CMS provider (a Phase 0 heartbeat probe). Both are documented exceptions to the dependency direction and are invisible to a static import check. | Documented. |
+| The compose image is `pgvector/pgvector:pg16` (a superset of `postgres:16`) with the extension never created; the Qdrant image is pinned by tag with its digest in a comment. | Pin the digest in the `image:` line for any shared environment. |
+| The libraries bundled inside binary wheels (for example in `numpy`) were not licence-audited; package metadata was. The non-editable wheel build across the five package roots was not verified. | Before any distribution. |
+| Some tests depend on wall-clock time. The 15-minute account-lockout test failed once when the host slept through it, and passes 6/6 uninterrupted. | Run the final gate under `caffeinate`, or inject a clock into that test. |
+| The repository sits in `~/Documents`, which cloud file-sync daemons were observed hammering (system `fileproviderd` and OneDrive's provider at 90-160% CPU), making test runs 3-10x slower than at the start. | Move the repo out of a synced folder, or exclude `.venv`, `node_modules`, `.next` and `__pycache__`. Not changed here. |
+| Commit `9f634a7` is labelled docs-only but contains about 15,000 lines of the Phase 8 contract freeze (`git add -A` ran while a specialist was mid-task). History was not rewritten. | Disclosed in the commit that followed it (`295b94b`). Rewriting history needs your approval. |
+| The 5432 guard does not resolve DNS (`127.1`, decimal IPs). The runtime engine now refuses a native-port URL in every environment (override: `KEN_ALLOW_NATIVE_POSTGRES_PORT`). | Optional. |
+
 ## Licence hazards in the research references (standing warning)
 
 Two of the five interlinking repositories named as research references **cannot be reused as code**,
