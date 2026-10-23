@@ -193,6 +193,62 @@ range. A genuinely empty file still clears a range, which is the deliberate way 
 Imports never run from the UI: that keeps external egress a command-line, operator action. Failed
 runs are visible in job runs, and `make jobs-reap` applies to them like any other job.
 
+## Qdrant, the link graph and recommendations
+
+Qdrant is a derived, rebuildable index; PostgreSQL holds the embedding values and stays the truth
+(ADR-0017, `docs/QDRANT_ARCHITECTURE.md`). **A real installation must set `KEN_VECTOR_STORE=qdrant`**
+(`.env.example` does). The code default is `memory`, so the test suite needs no container, which also
+means a default install silently builds a throwaway index per run.
+
+```bash
+make qdrant-up            # container on 127.0.0.1:6333 (also started by `make dev`)
+make qdrant-index         # incremental, idempotent, from PostgreSQL
+make qdrant-verify        # drift in BOTH directions; non-zero exit on drift
+make qdrant-rebuild       # drop the collection and refill from PostgreSQL
+make graph-metrics        # degree, PageRank, hub/authority, depth, orphans, bridges, clusters
+```
+
+The home page shows `is_orphan = true` only because a database CHECK ties the flag to
+`in_degree = 0`; it is the crawl entry page. Use `true_orphans` and `is_entry_page`, not the raw count.
+
+## Autonomous publishing (ADR-0018, `docs/AUTONOMY_ENGINE.md`)
+
+```bash
+make autonomy-dry-run                    # evaluate and print; record nothing
+make autonomy                            # record decisions (and counterfactuals in shadow)
+make autonomy-run AS_USER=<operator>     # publish + verify, ONLY if the mode and gates allow
+```
+
+**`shadow` (the default) publishes nothing; `guarded` publishes nothing until a decision class is
+calibrated from real review history; `autonomous` publishes uncalibrated plans with the strict
+verification profile.** Reaching `autonomous` takes `KEN_AUTONOMY_MODE=autonomous`,
+`KEN_AUTONOMY_AUTONOMOUS_ACKNOWLEDGED=true`, and, against a write-enabled HTTP CMS,
+`KEN_AUTONOMY_ALLOW_PRODUCTION=true`. Thresholds live in `policies/autonomy/autonomy.v1.yaml` and
+cannot go below the contract floors. `AS_USER` must be an existing account: `deployments.actor` has to
+be a `user:` identity.
+
+## Learning and evaluation (ADR-0016)
+
+```bash
+make eval SUITES=critic,no-action        # offline evaluation (12 suites; `evals/runner.py --suites all`)
+make reflect                             # corpus-level reflection -> proposals (needs >= 30 samples per class)
+make shadow CANDIDATE=<uuid>             # re-run selection beside production, writing no plans
+```
+
+`KEN_LEARNING_DEMONSTRATION_MODE` defaults to `true`, which refuses every promotion. Holdout
+experiments additionally need `KEN_EXPERIMENTS_ALLOW_HOLDOUT=true`. The eval runner prints
+timestamped log lines on stdout beside its report; strip them before diffing two runs.
+
+## The end-to-end demo (`docs/DEMO.md`)
+
+```bash
+make db-up qdrant-up && make demo        # about 22 seconds; exits 0 only if all nine checks pass
+make demo-clean
+```
+
+Everything in it is synthetic (a fictional site, a simulated CMS, a deterministic mock model). Plain
+`AUTO_PUBLISH` appears only after a clearly labelled synthetic calibration fixture.
+
 ## Reviewer control plane (Phase 5)
 
 Every API endpoint except `/health`, `/ready` and `POST /auth/login` needs a session. The web
@@ -301,20 +357,17 @@ All settings use the `KEN_` prefix; see `.env.example` for every variable and it
 | `KEN_CRAWL_ALLOWED_HOSTS` | empty | Extra in-scope hosts, comma-separated (subdomains are not implied) |
 | `KEN_CRAWL_DELAY_S` / `_CONCURRENCY` / `_MAX_PAGES` / `_MAX_DEPTH` | `1.0` / `2` / `500` / `10` | Politeness and limits; robots.txt cannot be disabled. Also `KEN_CRAWL_TIMEOUT_S`, `_MAX_BYTES`, `_MAX_REDIRECTS`, `KEN_INGEST_MAX_FILE_BYTES` — see `.env.example` |
 
-## A PostgreSQL without pgvector
+## Migrations and the database
 
-From Phase 2, pgvector is required: migration 0003 creates the extension and the first vector column
-(ADR-0010). A server without it, such as a plain Homebrew PG 16, can still apply migrations **up to
-0002**:
+pgvector is no longer used (ADR-0017). Migrations create no extension, so any PostgreSQL 16 can run
+them; the project container image happens to be `pgvector/pgvector:pg16`, a superset of
+`postgres:16`, with the extension never created. If you have an older database that still has the
+extension installed, `make doctor` warns that it is unused; once nothing depends on it you can
+`DROP EXTENSION vector` (no `CASCADE`, so PostgreSQL refuses if you are wrong).
 
-```bash
-.venv/bin/alembic upgrade 0002_content_inventory
-```
-
-0003 then fails with pgvector's own error, and the current build reports `/ready` **503**, because
-the migrations are behind head. Always pass Alembic targets as `-x dburl=...`: two shell words, or
-one quoted word. An unknown or empty `-x` key is refused rather than falling back to
-`KEN_DATABASE_URL`.
+Always pass Alembic targets as `-x dburl=...`: two shell words, or one quoted word. An unknown or
+empty `-x` key is refused rather than falling back to `KEN_DATABASE_URL`. Downgrading below 0010 or
+0011 deliberately refuses while rows of the newer kinds exist; it will not delete audit rows.
 
 ## Troubleshooting
 

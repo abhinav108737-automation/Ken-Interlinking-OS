@@ -82,7 +82,7 @@ From the final architecture review, the final QA/security review and the workstr
 | The libraries bundled inside binary wheels (for example in `numpy`) were not licence-audited; package metadata was. The non-editable wheel build across the five package roots was not verified. | Before any distribution. |
 | Some tests depend on wall-clock time. The 15-minute account-lockout test failed once when the host slept through it, and passes 6/6 uninterrupted. | Run the final gate under `caffeinate`, or inject a clock into that test. |
 | The repository sits in `~/Documents`, which cloud file-sync daemons were observed hammering (system `fileproviderd` and OneDrive's provider at 90-160% CPU), making test runs 3-10x slower than at the start. | Move the repo out of a synced folder, or exclude `.venv`, `node_modules`, `.next` and `__pycache__`. Not changed here. |
-| Commit `9f634a7` is labelled docs-only but contains about 15,000 lines of the Phase 8 contract freeze (`git add -A` ran while a specialist was mid-task). History was not rewritten. | Disclosed in the commit that followed it (`295b94b`). Rewriting history needs your approval. |
+| Commit `9f634a7` is labelled docs-only but contains 44 files and 18,759 inserted lines of the Phase 8 contract freeze (`git add -A` ran while a specialist was mid-task). History was not rewritten. | Disclosed in the commit that followed it (`295b94b`). Rewriting history needs your approval. |
 | The 5432 guard does not resolve DNS (`127.1`, decimal IPs). The runtime engine now refuses a native-port URL in every environment (override: `KEN_ALLOW_NATIVE_POSTGRES_PORT`). | Optional. |
 
 ## Licence hazards in the research references (standing warning)

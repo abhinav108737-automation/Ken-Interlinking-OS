@@ -1,9 +1,32 @@
 # Ken Research Agentic Interlinking OS
 
-A fully self-hosted, local-first system that will manage contextual internal body links across Ken Research
-pages: observe → understand → recommend → approve → publish → verify → measure → learn.
+A fully self-hosted, local-first system that manages contextual internal body links across Ken Research
+pages: observe → understand → discover → retrieve → rank → place → critique → policy gate → **autonomy
+decision** → validate → publish → verify → measure → learn → repeat.
 
-**Current status: Phase 7 (analytics) is complete**, built on Phases 1–6.
+**Current status: the local product is complete and ready for production integration.** It has only ever
+run against a **simulated CMS and a synthetic corpus**. It has not touched a real CMS, a real Ken Research
+page, a real analytics property or any Google service, and nothing has been pushed or deployed. See
+[FINAL_PROJECT_REPORT.md](FINAL_PROJECT_REPORT.md) and [NEXT_STEPS.md](NEXT_STEPS.md).
+
+- **Publishing is autonomous and policy-governed.** There is no approval inbox in the normal flow.
+  Humans monitor, administer policy, investigate blocks and rollbacks, handle exceptions and promote
+  policies and skills. The default mode is `shadow`, which publishes nothing. `guarded` publishes
+  nothing until a decision class is calibrated from real review history. `autonomous` **does** publish
+  uncalibrated plans, with the strict verification profile, and takes three deliberate settings to
+  reach ([docs/AUTONOMY_ENGINE.md](docs/AUTONOMY_ENGINE.md)).
+- **PostgreSQL is the source of truth; Qdrant is a derived, rebuildable semantic index.** pgvector was
+  removed ([docs/QDRANT_ARCHITECTURE.md](docs/QDRANT_ARCHITECTURE.md)). Set `KEN_VECTOR_STORE=qdrant`
+  for a real installation; the code default is `memory` so tests need no container.
+- **Deterministic safety lives outside any model.** Fifteen block codes are computed with no model
+  call; nothing a model returns can clear one. Every publish is verified and rolled back automatically
+  on failure, byte for byte.
+- **Learning is governed.** Promotion of a policy or skill is a human act the database itself enforces,
+  and it is refused outright while demonstration mode is on (the default).
+
+Try it: `make db-up qdrant-up && make demo` (about 22 seconds; [docs/DEMO.md](docs/DEMO.md)).
+
+## How it was built
 
 Phase 7 measures what the published links actually did:
 - a **first-party collector** on its own loopback port (never part of the control API) plus a

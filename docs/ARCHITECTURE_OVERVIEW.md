@@ -7,7 +7,7 @@ The governing specification is TRD.md; this page maps it onto the repository.
 
 ```
 UI → FastAPI Control API → LangGraph Supervisor → Specialist Agent Nodes / Deterministic Services
-   → Local Model Provider → PostgreSQL/pgvector → CMS API → Production
+   → Local Model Provider → PostgreSQL (truth) + Qdrant (derived index) → CMS API → Production
    → Analytics Import → Learning/Evaluation
 ```
 
@@ -31,7 +31,7 @@ LLM → structured decision → policy → deterministic validation → approval
                        ├ OllamaProvider    └ MockCMSProvider        │
                        └ MockModelProvider                          ▼
                               │                          PostgreSQL 16 (container, :5433)
-                              ▼                          pgvector (enabled by migration 0003)
+                              ▼                          no vector extension (ADR-0017)
                      host Ollama :11434                  table: events
                                              ▲
                          worker (agents/ken_agents) — tick loop: heartbeat log every tick;
@@ -75,7 +75,7 @@ start one. Design and rules: [ADR-0009](adr/ADR-0009-content-inventory.md).
 
 ```
  page_versions (current) ──▶ analyze_page (pure; taxonomy policy v1)  ──▶ page_analyses*
-                         ──▶ embedding_text ─▶ ModelProvider.embed(EMBEDDING) ─▶ page_embeddings* (pgvector)
+                         ──▶ embedding_text ─▶ ModelProvider.embed(EMBEDDING) ─▶ page_embeddings* (real[]; indexed into Qdrant)
                          ──▶ match_protections / ingestion CMS sync ─▶ page_protections
  fresh analyses + embeddings ──▶ taxonomy + top-k cosine edges ──▶ page_relationships (version-stamped)
  read time: compute_eligibility(live state) ─▶ LinkEligibility (never stored)
@@ -93,7 +93,7 @@ start one. Design and rules: [ADR-0009](adr/ADR-0009-content-inventory.md).
 ## What Phase 3 added: the recommendation engine
 
 ```
- eligible source ──▶ channels: semantic (pgvector) · lexical (tsvector FTS) · taxonomy (edges) · graph (under-linked)
+ eligible source ──▶ channels: semantic (Qdrant) · lexical (tsvector FTS) · taxonomy (edges) · graph (under-linked)
                  ──▶ pair filters: self · protected · experiment hook · eligibility · already linked · duplicate/live
                                    · previously rejected · page type/intent · excluded target paths
                  ──▶ score: relevance = Σ policy weight × component  (ranking_weights.v1)
