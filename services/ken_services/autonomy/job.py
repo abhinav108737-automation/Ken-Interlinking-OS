@@ -39,6 +39,7 @@ from ken_core.config import Settings
 from ken_core.logging import get_logger
 from ken_services.autonomy.compose import build_engine, build_publisher
 from ken_services.autonomy.engine import CriticDeclinedError, DatabaseAutonomyEngine
+from ken_services.autonomy.gate import require_publishing
 from ken_services.autonomy.policy import effective_retry, load_configured_autonomy_policy
 from ken_services.autonomy.publish import PUBLISH_COUNTERS, PublishOutcome
 from ken_services.jobs.runner import JobContext, run_job, utc_now
@@ -108,6 +109,7 @@ async def run_autonomy(
     resolved = built.resolve_mode(mode)
     publisher = None
     if resolved is not AutonomyMode.SHADOW:
+        require_publishing(settings, resolved)  # before a job row, an engine or a CMS exists
         if principal is None or cms is None:
             raise ValueError(
                 "a publishing autonomy pass needs an operator identity and a CMS provider; "

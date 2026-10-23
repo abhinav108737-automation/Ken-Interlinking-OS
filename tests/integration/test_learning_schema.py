@@ -759,26 +759,49 @@ def test_a_skill_proposal_has_no_target_kind_and_a_policy_proposal_must_have_one
 # --------------------------------------------------------------------------- #
 # Skills
 # --------------------------------------------------------------------------- #
-def test_at_most_one_promoted_skill_per_name(db: SyncDb) -> None:
-    other = uuid.uuid4()
-    db.run(lambda c: _skill(c, status="offline_test"))
-    db.run(lambda c: _skill(c, id=other, version=2, status="offline_test"))
+SKILL_EVAL = uuid.UUID("00000000-0000-4000-8000-000000000911")
+OTHER_SKILL_EVAL = uuid.UUID("00000000-0000-4000-8000-000000000912")
+SETTING_ON = "SELECT set_config('ken.learning_promoter', 'on', true)"
 
-    def _promote_skill(skill_id: uuid.UUID) -> Callable[[Connection], Any]:
-        return lambda c: c.execute(
+
+def _promote_skill(
+    skill_id: uuid.UUID,
+    evaluation: uuid.UUID,
+    *,
+    setting: bool = True,
+    actor: str = "user:ops",
+) -> Callable[[Connection], Any]:
+    """Raw-SQL skill promotion, optionally establishing the promoter setting first."""
+
+    def run(c: Connection) -> None:
+        if setting:
+            c.execute(text(SETTING_ON))
+        c.execute(
             text(
-                "UPDATE skills SET status = 'promoted', promoted_by = 'user:ops', "
+                "UPDATE skills SET status = 'promoted', promoted_by = :a, "
                 "promoted_at = now(), evaluation_run_id = :e WHERE id = :i"
             ),
-            {"e": EVALUATION, "i": skill_id},
+            {"a": actor, "e": evaluation, "i": skill_id},
         )
 
-    db.run(_promote_skill(SKILL))
-    assert _sqlstate(_fails(db, _promote_skill(other))) == "23505"
+    return run
+
+
+def test_at_most_one_promoted_skill_per_name(db: SyncDb) -> None:
+    other = uuid.uuid4()
+    other_eval = uuid.uuid4()
+    db.run(lambda c: _skill(c, status="offline_test"))
+    db.run(lambda c: _skill(c, id=other, version=2, status="offline_test"))
+    db.run(lambda c: _evaluation(c, id=SKILL_EVAL, proposal=None, skill=SKILL))
+    db.run(lambda c: _evaluation(c, id=other_eval, proposal=None, skill=other))
+
+    db.run(_promote_skill(SKILL, SKILL_EVAL))
+    assert _sqlstate(_fails(db, _promote_skill(other, other_eval))) == "23505"
 
 
 def test_a_promoted_skill_always_names_a_human_and_an_evaluation(db: SyncDb) -> None:
     db.run(lambda c: _skill(c, status="offline_test"))
+    db.run(lambda c: _evaluation(c, id=SKILL_EVAL, proposal=None, skill=SKILL))
     assert _guarded(
         _fails(
             db,
@@ -787,16 +810,44 @@ def test_a_promoted_skill_always_names_a_human_and_an_evaluation(db: SyncDb) -> 
             ),
         )
     )
-    assert _guarded(
-        _fails(
-            db,
+    # The setting IS established and the evaluation passes: only the actor is wrong.
+    assert _guarded(_fails(db, _promote_skill(SKILL, SKILL_EVAL, actor="agent:x@1")))
+
+
+def test_a_skill_cannot_be_promoted_by_raw_sql_without_the_promoter_setting(db: SyncDb) -> None:
+    db.run(lambda c: _skill(c, status="offline_test"))
+    db.run(lambda c: _evaluation(c, id=SKILL_EVAL, proposal=None, skill=SKILL))
+    assert _guarded(_fails(db, _promote_skill(SKILL, SKILL_EVAL, setting=False)))
+    assert _skill_status(db) == "offline_test"
+    db.run(_promote_skill(SKILL, SKILL_EVAL))
+    assert _skill_status(db) == "promoted"
+
+
+def test_a_skill_cannot_be_promoted_on_a_failing_evaluation(db: SyncDb) -> None:
+    db.run(lambda c: _skill(c, status="offline_test"))
+    db.run(lambda c: _evaluation(c, id=SKILL_EVAL, proposal=None, skill=SKILL, gate="fail"))
+    assert _guarded(_fails(db, _promote_skill(SKILL, SKILL_EVAL)))
+    assert _skill_status(db) == "offline_test"
+
+
+def test_a_skill_cannot_be_promoted_on_another_skills_evaluation(db: SyncDb) -> None:
+    other = uuid.uuid4()
+    db.run(lambda c: _skill(c, status="offline_test"))
+    db.run(lambda c: _skill(c, id=other, version=2, status="offline_test"))
+    db.run(lambda c: _evaluation(c, id=OTHER_SKILL_EVAL, proposal=None, skill=other))
+    assert _guarded(_fails(db, _promote_skill(SKILL, OTHER_SKILL_EVAL)))
+    # ...nor on a proposal's evaluation, nor on a run that does not exist.
+    assert _guarded(_fails(db, _promote_skill(SKILL, EVALUATION)))
+    assert _guarded(_fails(db, _promote_skill(SKILL, uuid.uuid4())))
+    assert _skill_status(db) == "offline_test"
+
+
+def _skill_status(db: SyncDb) -> str:
+    return str(
+        db.run(
             lambda c: c.execute(
-                text(
-                    "UPDATE skills SET status = 'promoted', promoted_by = 'agent:x@1', "
-                    "promoted_at = now(), evaluation_run_id = :e WHERE id = :i"
-                ),
-                {"e": EVALUATION, "i": SKILL},
-            ),
+                text("SELECT status FROM skills WHERE id = :i"), {"i": SKILL}
+            ).scalar_one()
         )
     )
 

@@ -47,6 +47,7 @@ from typing import Final
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from ken_contracts.agents import CriticVerdict
 from ken_contracts.auth import Permission, Principal, has_permission
 from ken_contracts.autonomy import (
     AutonomyDecision,
@@ -62,11 +63,13 @@ from ken_contracts.autonomy import (
 )
 from ken_contracts.recommendations import LinkPlanStatus, PlanNotFoundError
 from ken_core.config import Settings
+from ken_core.db.models.agents import AgentRunPlan
 from ken_core.db.models.autonomy import AutonomyDecisionRow
 from ken_core.db.models.recommendations import LinkPlan as LinkPlanRow
 from ken_core.db.repositories import autonomy as repo
 from ken_core.db.repositories import recommendations as rec_repo
 from ken_core.logging import get_logger
+from ken_services.autonomy.engine import critic_outcome_of
 from ken_services.autonomy.policy import load_configured_autonomy_policy
 from ken_services.autonomy.protocol import ENGINE_VERSION
 from ken_services.jobs.runner import utc_now
@@ -75,6 +78,7 @@ from ken_services.recommendations.validity import lock_source_plans
 
 __all__ = [
     "OVERRIDE_BLOCKED_BY_CODE",
+    "OVERRIDE_CRITIC_DECLINED",
     "OVERRIDE_NOT_OVERRIDABLE",
     "OVERRIDE_STATUS_MOVED",
     "DatabaseOverrideService",
@@ -88,6 +92,10 @@ _S = LinkPlanStatus
 OVERRIDE_BLOCKED_BY_CODE: Final = "a deterministic block still fires"
 OVERRIDE_STATUS_MOVED: Final = "the plan is no longer in the expected status"
 OVERRIDE_NOT_OVERRIDABLE: Final = "the plan's status cannot be overridden"
+OVERRIDE_CRITIC_DECLINED: Final = (
+    "the critic declined this plan (no_action, e.g. an uncertain review): it has no decision "
+    "to override, and a decision row cannot truthfully record that outcome"
+)
 
 _PUBLISHABLE_FROM: Final[frozenset[LinkPlanStatus]] = frozenset({_S.BLOCKED})
 """A publish override puts a BLOCKED plan back on the ladder. ``blocked -> autonomy_decided``
@@ -156,7 +164,14 @@ class DatabaseOverrideService:
             if locked is None:  # pragma: no cover - plans are never deleted
                 raise PlanNotFoundError
             status = LinkPlanStatus(locked.status)
-            refusal = self._refusal(action, status=status, request=request, blocks=blocks)
+            # The REAL stored critic review, read under the plan's lock. The decision row
+            # below copies it verbatim: an override that records `accept` over a stored
+            # `reject` would falsify the audit trail it exists to protect.
+            verdict, handed_off = await self._critique(session, plan_id=plan_id)
+            critic = critic_outcome_of(verdict, handed_off=handed_off)
+            refusal = self._refusal(
+                action, status=status, request=request, blocks=blocks, critic=critic
+            )
             if refusal is not None:
                 return OperatorOverrideResponse(
                     plan_id=plan_id,
@@ -195,8 +210,8 @@ class DatabaseOverrideService:
                 risk_tier=RiskTier.HIGH,
                 confidence=locked.confidence,
                 calibration_version=locked.calibration_version,
-                critic_outcome=CriticOutcome.ACCEPT,
-                critic_verdict=None,
+                critic_outcome=critic,
+                critic_verdict=verdict,
                 policy_version=load_configured_autonomy_policy(self._settings).version,
                 blocks=(),
                 rollback_available=True,
@@ -255,9 +270,15 @@ class DatabaseOverrideService:
         status: LinkPlanStatus,
         request: OperatorOverrideRequest,
         blocks: tuple[BlockCode, ...],
+        critic: CriticOutcome,
     ) -> str | None:
         if status is not LinkPlanStatus(request.expected_status):
             return OVERRIDE_STATUS_MOVED
+        if critic is CriticOutcome.NO_ACTION:
+            # Declined, not decided: the database forbids a decision row with this outcome
+            # (`ck_autonomy_decisions_no_action_never_decided`), and recording `accept`
+            # instead would be a lie. Refused for BOTH actions, with a clear reason.
+            return OVERRIDE_CRITIC_DECLINED
         allowed = _PUBLISHABLE_FROM if action is OverrideAction.PUBLISH else _BLOCKABLE_FROM
         if status not in allowed:
             return OVERRIDE_NOT_OVERRIDABLE
@@ -265,6 +286,21 @@ class DatabaseOverrideService:
             # A deterministic block is NEVER overridable. Fix the fact, not the decision.
             return OVERRIDE_BLOCKED_BY_CODE
         return None
+
+    @staticmethod
+    async def _critique(
+        session: AsyncSession, *, plan_id: uuid.UUID
+    ) -> tuple[CriticVerdict | None, bool | None]:
+        row = (
+            await session.execute(
+                select(AgentRunPlan.verdict, AgentRunPlan.handed_off).where(
+                    AgentRunPlan.plan_id == plan_id
+                )
+            )
+        ).first()
+        if row is None:
+            return None, None
+        return CriticVerdict(row.verdict), bool(row.handed_off)
 
     async def _blocks(self, *, plan_id: uuid.UUID) -> tuple[BlockCode, ...]:
         """Re-evaluate the deterministic blocks for this plan, now.

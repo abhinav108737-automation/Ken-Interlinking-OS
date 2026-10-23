@@ -15,6 +15,8 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+from sqlalchemy import text
+
 from ken_contracts.autonomy import AutonomyMode, AutonomyPolicy
 from ken_contracts.deployment import (
     VerificationCheck,
@@ -253,6 +255,59 @@ async def to_policy_checked(sessionmaker: SM, plan_id: uuid.UUID) -> None:
         )
 
 
+async def record_critic_review(
+    sessionmaker: SM,
+    plan_id: uuid.UUID,
+    *,
+    source_page_id: uuid.UUID,
+    source_url: str,
+    verdict: str,
+    handed_off: bool,
+    at: datetime = T0,
+) -> None:
+    """A STORED critic review (``agent_runs`` + ``agent_run_plans``) with ``handed_off`` under
+    the test's control. The shared ``record_agent_review`` helper hard-codes ``handed_off``
+    true, which the schema forbids for a ``reject`` (``reject_not_handed_off``) and which a
+    fresh ``uncertain`` review is not."""
+    run_id = uuid.uuid4()
+    async with sessionmaker() as session, session.begin():
+        job_run_id = uuid.uuid4()
+        await session.execute(
+            text(
+                "INSERT INTO job_runs (id, kind, status, triggered_by, started_at, "
+                "completed_at, counters, config_snapshot) VALUES (:id, 'agent', "
+                "'succeeded', 'test', :at, :at, '{}'::jsonb, '{}'::jsonb)"
+            ),
+            {"id": job_run_id, "at": at},
+        )
+        await session.execute(
+            text(
+                "INSERT INTO agent_runs (id, job_run_id, source_page_id, source_page_version, "
+                "source_url, trigger, status, outcome, correlation_id, trace_id, "
+                "graph_version, config_snapshot, started_at, finished_at, created_at, "
+                "updated_at) "
+                "VALUES (:id, :job, :source, 1, :url, 'batch', 'awaiting_approval', "
+                "'recommend', :id, :trace, 'graph-v1', '{}'::jsonb, :at, :at, :at, :at)"
+            ),
+            {
+                "id": run_id,
+                "job": job_run_id,
+                "source": source_page_id,
+                "url": source_url,
+                "trace": run_id.hex,
+                "at": at,
+            },
+        )
+        await session.execute(
+            text(
+                "INSERT INTO agent_run_plans (run_id, plan_id, verdict, reasons, explanation, "
+                "handed_off, fallback_used, model, reviewed_at) VALUES (:run, :plan, :verdict, "
+                "'[]'::jsonb, '', :handed, false, 'qwen3:8b', :at)"
+            ),
+            {"run": run_id, "plan": plan_id, "verdict": verdict, "handed": handed_off, "at": at},
+        )
+
+
 async def decisions(sessionmaker: SM, plan_id: uuid.UUID | None = None) -> list[Any]:
     where = "WHERE plan_id = :p " if plan_id is not None else ""
     return await rows(
@@ -401,6 +456,7 @@ __all__ = [
     "autonomy_settings",
     "decisions",
     "protect",
+    "record_critic_review",
     "seed_calibration",
     "to_policy_checked",
     "transitions",

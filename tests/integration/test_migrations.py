@@ -78,7 +78,7 @@ def _revision(db: SyncDb) -> str | None:
 
 def test_upgrade_downgrade_upgrade_round_trip(alembic_config: Config, sync_db: SyncDb) -> None:
     head = ScriptDirectory.from_config(alembic_config).get_current_head()
-    assert head == "0010_qdrant_and_autonomy"
+    assert head == "0011_governance_hardening"
 
     command.upgrade(alembic_config, "head")
     assert _tables(sync_db) >= APP_TABLES

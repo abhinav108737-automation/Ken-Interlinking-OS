@@ -23,7 +23,11 @@ def create_engine(settings: Settings) -> AsyncEngine:
     ``pool_pre_ping`` discards connections that died while idle in the pool
     (database restart, failover), instead of surfacing the first query on each
     as an error.
+
+    Raises ``ConfigurationError`` (secret-free) when the URL targets the host's native
+    PostgreSQL port, in every environment.
     """
+    settings.assert_safe_runtime_target()
     return create_async_engine(
         settings.database_url,
         echo=settings.database_echo,

@@ -806,6 +806,21 @@ class Settings(BaseSettings):
                 "KEN_DATABASE_URL, or set KEN_ALLOW_NATIVE_POSTGRES_PORT=true if intended."
             )
 
+    def assert_safe_runtime_target(self) -> None:
+        """Refuse a runtime database URL that points at this machine's native PostgreSQL.
+
+        Unlike :meth:`assert_safe_migration_target` this applies in EVERY environment: an
+        API or worker must never connect to the host's own server on port 5432. The message
+        names no part of the URL, so no credential can leak through it.
+        """
+        if self.targets_native_postgres() and not self.allow_native_postgres_port:
+            raise ConfigurationError(
+                "Refusing to connect to PostgreSQL on this machine's port 5432: that is the "
+                "host's own server, not the project database (127.0.0.1:5433, or "
+                "postgres:5432 inside compose). Fix KEN_DATABASE_URL, or set "
+                "KEN_ALLOW_NATIVE_POSTGRES_PORT=true if intended."
+            )
+
     def crawl_config(self) -> CrawlConfig:
         """The crawl configuration, or ConfigurationError when no site is configured.
 

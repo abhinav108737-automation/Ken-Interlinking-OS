@@ -278,18 +278,6 @@ class DatabaseAutonomyEngine:
             )
         return requested
 
-    def publishing_enabled(self) -> bool:
-        """Whether this installation can perform a real CMS write at all (ADR-0018 s2)."""
-        if self.configured_mode is AutonomyMode.SHADOW:
-            return False
-        production = self._settings.cms_provider == "http" and self._settings.cms_writes_enabled
-        if production and not self._settings.autonomy_allow_production:
-            return False
-        return (
-            self.configured_mode is AutonomyMode.GUARDED
-            or self._settings.autonomy_autonomous_acknowledged
-        )
-
     # --------------------------------------------------------------- blocks
     async def deterministic_blocks(self, *, plan_id: uuid.UUID) -> tuple[BlockCode, ...]:
         """The frozen contract's entry point: facts, then the pure evaluator. No inference."""

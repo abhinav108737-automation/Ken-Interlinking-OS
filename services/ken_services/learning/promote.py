@@ -259,8 +259,11 @@ class DatabasePromotionService:
         evaluation = await repo.evaluation_by_id(session, request.evaluation_run_id)
         if evaluation is None:
             raise _refuse(PromotionRefusal.EVALUATION_NOT_FOUND)
-        belongs = evaluation.proposal_id == proposal.id or (
-            skill is not None and evaluation.skill_id == skill.id
+        # A skill is promoted only on a run OF THAT SKILL: migration 0011's guard demands it.
+        belongs = (
+            evaluation.skill_id == skill.id
+            if skill is not None
+            else evaluation.proposal_id == proposal.id
         )
         if not belongs:
             raise _refuse(PromotionRefusal.EVALUATION_FOREIGN)

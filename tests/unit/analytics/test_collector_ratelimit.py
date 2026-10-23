@@ -81,3 +81,23 @@ def test_recently_seen_ips_survive_eviction() -> None:
     assert limits.tracked_ips == 2
     limits.charge("a", 9, now=0.0)
     assert not limits.allows("a", now=0.0)
+
+
+def test_ipv6_peers_share_one_allowance_per_slash_64() -> None:
+    limits = limiter(per_ip_events_per_minute=10, global_events_per_minute=1000)
+    same_64 = [f"2001:db8:1:2:{n:x}::{n:x}" for n in range(1, 6)]
+    for address in same_64:
+        assert limits.allows(address, now=0.0)
+    limits.charge(same_64[0], 10, now=0.0)
+    # rotating inside the /64 buys nothing
+    assert all(not limits.allows(address, now=0.0) for address in same_64)
+    assert limits.tracked_ips == 1
+    # a different /64 has its own allowance
+    assert limits.allows("2001:db8:1:3::1", now=0.0)
+
+
+def test_ipv4_peers_stay_per_address() -> None:
+    limits = limiter()
+    limits.charge("192.0.2.1", 10, now=0.0)
+    assert not limits.allows("192.0.2.1", now=0.0)
+    assert limits.allows("192.0.2.2", now=0.0)

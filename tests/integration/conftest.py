@@ -464,7 +464,7 @@ LEARNING_TRIGGERS = frozenset(
         "experiment_assignments_immutable",
     }
 )
-HEAD_REVISION = "0010_qdrant_and_autonomy"
+HEAD_REVISION = "0011_governance_hardening"
 """The single migration head. Named once, so adding a migration touches one line here
 instead of every schema test that asserts "a round trip came back to head"."""
 

@@ -61,6 +61,7 @@ from ken_core.db.session import create_sessionmaker
 from ken_core.providers.cms.factory import build_cms_provider
 from ken_services.autonomy.compose import build_engine
 from ken_services.autonomy.engine import CriticDeclinedError
+from ken_services.autonomy.gate import PublishingNotEnabledError
 from ken_services.autonomy.job import job_kind_for, run_autonomy
 from ken_services.jobs.runner import JobAlreadyRunningError
 
@@ -248,6 +249,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         code, payload = asyncio.run(_run(settings, args))
     except ValueError as exc:
         print(f"usage error ({type(exc).__name__})", file=sys.stderr)
+        return EXIT_USAGE
+    except PublishingNotEnabledError as exc:
+        # The refusal CODE only, never a URL or a setting's value.
+        print(f"publishing is not enabled ({exc.refusal.value})", file=sys.stderr)
         return EXIT_USAGE
     except JobAlreadyRunningError:
         print("another autonomy pass of this kind is in progress", file=sys.stderr)

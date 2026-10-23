@@ -604,8 +604,9 @@ async def test_a_skill_promotion_retires_the_previous_version_and_names_the_huma
             {"id": new_skill, "p": skill_proposal},
         )
     await force_stage(sessionmaker, skill_proposal, ProposalStatus.OFFLINE_TEST)
+    # Migration 0011: a skill is promoted only on a passing run of THAT skill.
     evaluation = await insert_evaluation(
-        sessionmaker, proposal_id=skill_proposal, fingerprint="f" * 64
+        sessionmaker, proposal_id=None, skill_id=new_skill, fingerprint="f" * 64
     )
     admin = await operator(sessionmaker)
 

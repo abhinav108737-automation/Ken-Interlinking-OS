@@ -224,6 +224,16 @@ def check_vector_store() -> list[Row]:
         return [Row("FAIL", "vector store", f"{type(exc).__name__}: {exc}")]
 
     if settings.vector_store == "memory":
+        if settings.environment in {"staging", "production"}:
+            return [
+                Row(
+                    "WARN",
+                    "vector store",
+                    f"memory in a {settings.environment} environment: the in-process store "
+                    "is lost on restart and is not shared between processes; a real "
+                    "installation should set KEN_VECTOR_STORE=qdrant",
+                )
+            ]
         return [
             Row(
                 "INFO",

@@ -4,8 +4,8 @@ The drafted token bucket keyed by ``HMAC(salt, ip)`` was SIMPLIFIED by the archi
 review: the key is never persisted, so hashing it adds nothing. What is binding instead:
 
 * a **fixed window** of one minute, counting EVENTS (not requests);
-* keyed on the **ASGI peer IP only** -- never a forwarded header (uvicorn runs with
-  ``proxy_headers=False``), so a client cannot choose its own bucket;
+* keyed on the **ASGI peer IP only** (an IPv6 peer by its /64 prefix) -- never a forwarded
+  header (uvicorn runs with ``proxy_headers=False``), so a client cannot choose its own bucket;
 * a **bounded** map: at most ``rate_limit.max_tracked_ips`` entries, least-recently-charged
   evicted first, and the whole map is dropped at every window roll. IPv6 address rotation
   therefore cannot exhaust memory -- and the global cap still bounds what rotation buys;
@@ -24,6 +24,7 @@ parse untrusted bodies before rate limiting them.
 
 from __future__ import annotations
 
+import ipaddress
 from collections import OrderedDict
 from typing import Final
 
@@ -33,6 +34,23 @@ __all__ = ["WINDOW_SECONDS", "FixedWindowRateLimiter"]
 
 WINDOW_SECONDS: Final = 60.0
 """The policy states both caps per minute."""
+
+
+def _bucket(ip: str) -> str:
+    """The rate-limit key: the /64 prefix of an IPv6 peer, the address itself for IPv4.
+
+    A single IPv6 subscriber holds a whole /64, so keying on the full address would let it
+    rotate through 2**64 addresses for 2**64 allowances.
+    """
+    try:
+        address = ipaddress.ip_address(ip.split("%", 1)[0])
+    except ValueError:
+        return ip
+    if isinstance(address, ipaddress.IPv6Address):
+        if address.ipv4_mapped is not None:
+            return str(address.ipv4_mapped)
+        return str(ipaddress.ip_network((address, 64), strict=False))
+    return str(address)
 
 
 class FixedWindowRateLimiter:
@@ -61,6 +79,7 @@ class FixedWindowRateLimiter:
     def allows(self, ip: str, *, now: float) -> bool:
         """Whether a request from ``ip`` may be processed in the current window."""
         self._roll(now)
+        ip = _bucket(ip)
         if self._global_count >= self._global:
             return False
         used = self._counts.get(ip)
@@ -74,6 +93,7 @@ class FixedWindowRateLimiter:
         if events <= 0:
             return
         self._roll(now)
+        ip = _bucket(ip)
         self._global_count += events
         self._counts[ip] = self._counts.pop(ip, 0) + events
         while len(self._counts) > self._max_tracked:

@@ -430,3 +430,40 @@ def test_the_qdrant_collection_name_is_constrained() -> None:
     with pytest.raises(ValidationError):
         _settings(qdrant_collection="Ken Pages")
     assert _settings(qdrant_collection="ken_pages_v2").qdrant_collection == "ken_pages_v2"
+
+
+@pytest.mark.parametrize("environment", ["local", "ci", "staging", "production"])
+@pytest.mark.parametrize(
+    "url",
+    [
+        "postgresql+asyncpg://ken:hunter2pw@localhost:5432/x",
+        "postgresql+asyncpg://ken:hunter2pw@127.0.0.1/x",
+        "postgresql+asyncpg://ken:hunter2pw@localhost:5433/x?port=5432",
+        "postgresql+asyncpg://ken:hunter2pw@h1:5433/x?host=h1:5433&host=localhost:5432",
+    ],
+    ids=["native-port", "default-port", "query-port", "multi-host-includes-5432"],
+)
+def test_runtime_engine_refuses_native_postgres_in_every_environment(
+    url: str, environment: str
+) -> None:
+    from ken_core.db.engine import create_engine
+
+    s = _settings(database_url=url, environment=environment)
+    if environment in {"staging", "production"}:
+        # these environments have their own settings validation; only the guard matters here
+        s = Settings.model_construct(**{**s.model_dump(), "environment": environment})
+    with pytest.raises(ConfigurationError, match="5432") as info:
+        create_engine(s)
+    assert "hunter2pw" not in str(info.value)
+
+
+def test_runtime_engine_allows_project_port_remote_5432_and_explicit_override() -> None:
+    from ken_core.db.engine import create_engine
+
+    for url, allowed in [
+        ("postgresql+asyncpg://ken:ken@localhost:5433/x", False),
+        ("postgresql+asyncpg://ken:ken@10.0.0.5:5432/x", False),
+        ("postgresql+asyncpg://ken:ken@postgres:5432/x", False),
+        ("postgresql+asyncpg://ken:ken@localhost:5432/x", True),
+    ]:
+        create_engine(_settings(database_url=url, allow_native_postgres_port=allowed))

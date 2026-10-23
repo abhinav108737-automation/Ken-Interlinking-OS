@@ -33,6 +33,7 @@ from ken_contracts.errors import ListResponse, PageInfo
 from ken_core.config import Settings
 from ken_core.db.repositories import autonomy as repo
 from ken_services.autonomy.calibration import CALIBRATION_RECIPE
+from ken_services.autonomy.gate import publishing_enabled
 from ken_services.autonomy.policy import load_configured_autonomy_policy
 
 __all__ = ["SqlAutonomyReader"]
@@ -49,23 +50,6 @@ class SqlAutonomyReader:
     def _mode(self) -> AutonomyMode:
         return AutonomyMode(self._settings.autonomy_mode)
 
-    def _publishing_enabled(self) -> bool:
-        """True ONLY when the mode, the acknowledgement and the CMS all permit a real write.
-
-        The three gates are independent on purpose, and the ``shadow`` branch is first so the
-        default installation answers ``False`` without consulting anything else.
-        """
-        if self._mode is AutonomyMode.SHADOW:
-            return False
-        production = self._settings.cms_provider == "http" and self._settings.cms_writes_enabled
-        if production and not self._settings.autonomy_allow_production:
-            return False
-        if not self._settings.cms_writes_enabled:
-            return False
-        if self._mode is AutonomyMode.AUTONOMOUS:
-            return self._settings.autonomy_autonomous_acknowledged
-        return True
-
     async def get_health(self) -> AutonomyHealth:
         return AutonomyHealth(
             mode=self._mode,
@@ -73,7 +57,7 @@ class SqlAutonomyReader:
             allow_production=self._settings.autonomy_allow_production,
             cms_provider=self._settings.cms_provider,
             cms_writes_enabled=self._settings.cms_writes_enabled,
-            publishing_enabled=self._publishing_enabled(),
+            publishing_enabled=publishing_enabled(self._settings),
             verification_profile_default=VerificationProfile(
                 self._settings.autonomy_verification_profile
             ),

@@ -68,8 +68,8 @@ async def test_migrations_probe_at_head(
     result = await probe_migrations(sessionmaker, alembic_ini_path=alembic_ini_path)
     assert result.status is HealthStatus.OK
     assert result.detail == {
-        "code_head": "0010_qdrant_and_autonomy",
-        "db_revision": "0010_qdrant_and_autonomy",
+        "code_head": "0011_governance_hardening",
+        "db_revision": "0011_governance_hardening",
     }
 
 

@@ -72,3 +72,36 @@ def test_embedding_role_with_completion_model_is_warn(doctor: ModuleType) -> Non
 def test_unknown_capabilities_are_trusted(doctor: ModuleType) -> None:
     rows = _rows(doctor, {"qwen3:8b-q4_K_M": None, "nomic-embed-text:latest": None})
     assert {status for status, _ in rows.values()} == {"OK"}
+
+
+@pytest.mark.parametrize(
+    ("environment", "store", "status"),
+    [
+        ("staging", "memory", "WARN"),
+        ("production", "memory", "WARN"),
+        ("local", "memory", "INFO"),
+        ("ci", "memory", "INFO"),
+    ],
+)
+def test_memory_vector_store_warns_only_outside_dev(
+    doctor: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+    environment: str,
+    store: str,
+    status: str,
+) -> None:
+    from types import SimpleNamespace
+
+    import ken_core.config as config
+
+    fake = SimpleNamespace(
+        vector_store=store,
+        environment=environment,
+        qdrant_collection="c",
+        require_qdrant=False,
+    )
+    monkeypatch.setattr(config, "Settings", lambda: fake)
+    (row,) = doctor.check_vector_store()
+    assert row.status == status
+    if status == "WARN":
+        assert "qdrant" in row.detail

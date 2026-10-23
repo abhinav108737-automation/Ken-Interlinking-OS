@@ -181,6 +181,20 @@ def _decode(body: bytes, charset: str | None) -> str:
     return body.decode("utf-8", errors="replace")
 
 
+def _raw_chunks(response: httpx.Response) -> AsyncIterator[bytes]:
+    """The body as sent, never decoded. A response already fully buffered by the transport
+    (in-memory test transports) has no raw stream left; its bytes are already in memory."""
+    if response.is_stream_consumed:
+        return response.aiter_bytes()
+    return response.aiter_raw()
+
+
+def _is_encoded(response: httpx.Response) -> bool:
+    """Whether the response declares any Content-Encoding other than ``identity``."""
+    value = response.headers.get("content-encoding", "")
+    return any(t.strip().lower() not in {"", "identity"} for t in value.split(","))
+
+
 def _content_length(response: httpx.Response) -> int | None:
     value = response.headers.get("content-length")
     if value is None:
@@ -475,8 +489,18 @@ class PublicWebContentSource:
         declared = _content_length(response)
         if declared is not None and declared > self._config.max_bytes:
             return too_large
+        if _is_encoded(response):
+            # We send Accept-Encoding: identity, so any other coding is unsolicited. Never
+            # inflate it: a small body can expand a thousandfold before a size cap applies.
+            return _Failure(
+                IssueCode.TOO_LARGE,
+                IssueSeverity.WARNING,
+                "unsolicited Content-Encoding refused (identity was requested)",
+                status,
+            )
         body = bytearray()
-        async for chunk in response.aiter_bytes():
+        # aiter_raw: the bytes as sent, never decoded, so len(body) is the real memory held.
+        async for chunk in _raw_chunks(response):
             body.extend(chunk)
             if len(body) > self._config.max_bytes:
                 return too_large
@@ -568,8 +592,12 @@ class PublicWebContentSource:
             return _RobotsResponse(status, response.headers.get("location"), b"")
         if not 200 <= status < 300:
             return _RobotsResponse(status, None, b"")
+        if _is_encoded(response):
+            # Fail closed: an encoded robots.txt is never inflated, and 502 makes the
+            # origin disallowed rather than silently allow-all.
+            return _RobotsResponse(502, None, b"")
         body = bytearray()
-        async for chunk in response.aiter_bytes():
+        async for chunk in _raw_chunks(response):
             body.extend(chunk)
             if len(body) >= MAX_ROBOTS_BYTES:
                 break  # RFC 9309 2.5: parse at least 500 KiB, ignore the rest

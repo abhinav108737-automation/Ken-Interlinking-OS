@@ -88,6 +88,7 @@ from ken_services.autonomy.engine import (
     EvaluatedPlan,
 )
 from ken_services.autonomy.facts import plan_identity
+from ken_services.autonomy.gate import PublishingNotEnabledError, require_publishing
 from ken_services.autonomy.protocol import AUTONOMY_ACTOR
 from ken_services.deployment.service import DatabaseDeploymentService
 from ken_services.recommendations.validity import lock_source_plans
@@ -173,8 +174,18 @@ class AutonomousPublisher:
         job_run_id: uuid.UUID | None = None,
     ) -> PublishResult:
         """One plan, end to end. Never raises for a plan-level problem; see
-        :class:`PublishOutcome`."""
+        :class:`PublishOutcome`.
+
+        Raises:
+            PublishingNotEnabledError: the configured CMS and acknowledgements do not permit a
+                publish in this mode. Raised BEFORE anything is evaluated, recorded or sent,
+                so a misconfiguration costs zero CMS calls and writes no decision row. This is
+                the runtime gate (:mod:`ken_services.autonomy.gate`) asked a second time after
+                the `Settings` validator, because settings can be built without validation.
+        """
         resolved = self._engine.resolve_mode(mode)
+        if resolved is not AutonomyMode.SHADOW:
+            require_publishing(self._settings, resolved)
 
         # Two cheap guards before anything is evaluated or recorded.
         #
@@ -279,6 +290,9 @@ class AutonomousPublisher:
         evaluation = recorded.evaluation
         facts = recorded.facts
         plan_id = facts.plan_id
+        # Asked once more, immediately before the deployment service (and so the CMS) is
+        # reachable: a future caller of `_apply` gets the gate for free.
+        require_publishing(self._settings, mode)
 
         # The budget, under the plan-writer lock, immediately before the publish. A decision
         # can be minutes old and the pair may have failed since.
@@ -541,6 +555,8 @@ class AutonomousPublisher:
                 out.append(
                     await self.publish_plan(plan_id=plan_id, mode=mode, job_run_id=job_run_id)
                 )
+            except PublishingNotEnabledError:
+                raise  # a misconfiguration aborts the pass; it is not a per-plan problem
             except Exception as exc:  # the CLASS only: never exception text in a log
                 logger.error(
                     "autonomy_publish_failed",
