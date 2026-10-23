@@ -74,7 +74,10 @@ async def open_context(config: DemoConfig, out: Console) -> AsyncIterator[Ctx]:
     """Recreate the demo's resources and start its two loopback servers; tear everything
     down on exit (the databases and the collection are left for inspection; ``demo-clean``
     removes them)."""
-    ken_logging.configure_logging(level="WARNING", fmt="console")
+    # No logger caching: the demo also runs inside the test process (tests/integration/
+    # test_demo_end_to_end.py), and a logger cached with this configuration would outlive the
+    # restore fixture and blind a later test's capture_logs.
+    ken_logging.configure_logging(level="WARNING", fmt="console", cache_loggers=False)
     await preflight(config, out)
     await resources.recreate_databases(config)
     await resources.migrate(config)

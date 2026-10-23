@@ -52,7 +52,9 @@ def _add_correlation_ids(
     return event_dict
 
 
-def configure_logging(*, level: str = "INFO", fmt: str = "console") -> None:
+def configure_logging(
+    *, level: str = "INFO", fmt: str = "console", cache_loggers: bool = True
+) -> None:
     """Configure structlog and route stdlib logging through it.
 
     Idempotent: calling it twice (API lifespan plus a test fixture, say) is
@@ -105,7 +107,11 @@ def configure_logging(*, level: str = "INFO", fmt: str = "console") -> None:
         ],
         wrapper_class=structlog.make_filtering_bound_logger(logging.getLevelNamesMapping()[level]),
         logger_factory=structlog.stdlib.LoggerFactory(),
-        cache_logger_on_first_use=True,
+        # Caching makes a module-level logger remember these processors from its first use. That
+        # is right for a long-running process and wrong for anything that runs INSIDE a test
+        # process (the demo): the cached logger outlives the config the test fixture restores,
+        # and a later test's ``capture_logs`` then sees nothing. Such callers pass False.
+        cache_logger_on_first_use=cache_loggers,
     )
 
     # The single renderer, shared by structlog events and bridged stdlib

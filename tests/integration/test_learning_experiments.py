@@ -77,7 +77,12 @@ pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("migrated")]
 SYSTEM = "system:learning"
 T0 = datetime(2026, 6, 1, 9, 0, tzinfo=UTC)
 T_END = datetime(2026, 6, 20, 9, 0, tzinfo=UTC)
-PATHS = [f"/p{n:02d}" for n in range(24)]
+# Page ids are random uuid4s and a holdout's arm is a hash of (key, page id), so with a small
+# population there is a real chance that NO page lands in the 20% control arm and the helpers that
+# pick "a control page" raise StopIteration. At 24 pages that is 0.8**24 = 0.5% per test, and
+# several tests share the helper, so the suite failed about one run in thirty. At 64 pages it is
+# 0.8**64 = 6e-7 per test.
+PATHS = [f"/p{n:02d}" for n in range(64)]
 
 
 def _service(
@@ -312,7 +317,9 @@ async def test_activation_needs_assignments_and_enough_pages_per_arm(sessionmake
 
     await service.assign(key="empty-ab", actor=SYSTEM)
     with pytest.raises(ExperimentRefusedError) as thin:
-        await _service(sessionmaker, min_pages=20).activate(principal=admin, key="empty-ab")
+        # More pages per arm than the whole population has: no split can satisfy it, whatever
+        # PATHS is (this once said 20, which was only "thin" while PATHS was 24 pages).
+        await _service(sessionmaker, min_pages=len(PATHS)).activate(principal=admin, key="empty-ab")
     assert thin.value.refusal is ExperimentRefusal.NO_ASSIGNMENTS
     await service.activate(principal=admin, key="empty-ab")
     assert await _status(sessionmaker, "empty-ab") == "active"
