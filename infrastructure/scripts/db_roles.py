@@ -20,6 +20,9 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import base64
+import hashlib
+import hmac
 import os
 import secrets
 import sys
@@ -159,6 +162,25 @@ async def _raw_execute(connection: AsyncConnection, sql: str) -> None:
     await raw.driver_connection.execute(sql)  # type: ignore[union-attr]
 
 
+def scram_verifier(password: str, *, iterations: int = 4096) -> str:
+    """PostgreSQL SCRAM-SHA-256 verifier (RFC 5802/7677) for ``password``.
+
+    Sending this instead of the plaintext means the password never appears in SQL text, so
+    ``log_statement``/``log_min_error_statement`` or ``pg_stat_statements`` cannot capture it.
+    A verifier is salted and one-way (it still must not be published, but it is not the secret).
+    """
+    salt = secrets.token_bytes(16)
+    salted = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, iterations)
+    client_key = hmac.new(salted, b"Client Key", hashlib.sha256).digest()
+    stored_key = hashlib.sha256(client_key).digest()
+    server_key = hmac.new(salted, b"Server Key", hashlib.sha256).digest()
+
+    def b64(raw: bytes) -> str:
+        return base64.b64encode(raw).decode()
+
+    return f"SCRAM-SHA-256${iterations}:{b64(salt)}${b64(stored_key)}:{b64(server_key)}"
+
+
 async def apply_role(owner: URL, *, password: str | None, rotate: bool) -> tuple[bool, str | None]:
     """Create/update ``ken_app``. Returns (role_was_created, password_in_effect_or_None)."""
     assert_safe_target(owner)
@@ -177,14 +199,15 @@ async def apply_role(owner: URL, *, password: str | None, rotate: bool) -> tuple
             if effective is None and (created or rotate):
                 effective = secrets.token_urlsafe(32)
             if effective is not None:
-                # format(%L) quotes the literal server-side; the value never enters SQL text here.
+                # Only a SCRAM verifier crosses the wire, never the plaintext (see scram_verifier);
+                # format(%L) quotes it server-side.
                 statement: str = (
                     await connection.execute(
                         text(
                             "SELECT format('ALTER ROLE %I PASSWORD %L', cast(:r AS text), "
                             "cast(:p AS text))"
                         ),
-                        {"r": APP_ROLE, "p": effective},
+                        {"r": APP_ROLE, "p": scram_verifier(effective)},
                     )
                 ).scalar_one()
                 await _raw_execute(connection, statement)

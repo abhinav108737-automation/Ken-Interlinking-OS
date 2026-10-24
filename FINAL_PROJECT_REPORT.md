@@ -327,7 +327,7 @@ a hostile loop, and the frontend in a real browser.
   placement naturalness on real pages, and a live model's critic quality have never been measured.
 - With no real review history, calibration cannot start; the system is conservative by construction,
   and `autonomous` will publish uncalibrated plans.
-- The least-privilege role `ken_app` exists but is not applied to the dev database or `.env`; until it is, the runtime still connects as the owner (NEXT_STEPS row 28).
+- The application runs as `ken_app` on the dev database (rolled out after the hardening tag); the owner `ken` remains the trust root and is still used by migrations, `make demo`, the simulated CMS and the eval benchmarks.
 - The SSRF connected-address check runs after the request is sent (one blind GET to a rebinding host is possible; the response is discarded).
 - The repository sits in `~/Documents`; file-sync daemons were observed at 90–160% CPU during test
   runs, slowing them 3–10x. Not changed.
@@ -419,6 +419,17 @@ Final gate (fresh DB, caffeinate, Qdrant up): ruff and mypy clean; **6,413 Pytho
 deselected; **1,546 web tests passed**; doctor 0 FAIL, 3 WARN (role not yet rolled out; Qdrant collection
 not indexed in the dev environment). Independent review: no critical findings; the high findings (eval
 benchmarks writing to the shared Qdrant index, `.env` permissions, stale docs) were fixed.
+
+### 26.1 Role rollout (follow-up)
+
+Rolled out `ken_app` on `ken_interlink` (port 5433 only). Before: `pg_dump -Fc` backup (`~/.ken-backups/`,
+mode 0600, with a copy of `.env`) proven restorable into a throwaway database (same revision, 64 pages),
+then dropped. Server logging checked: `log_statement=none`, but `log_min_error_statement=error` would
+log a failing `ALTER ROLE ... PASSWORD`, so the script now sends a SCRAM-SHA-256 verifier instead of the
+plaintext (tests added); server logs contain no password text. After: `make db-roles-check` OK, doctor
+0 FAIL / 1 WARN (Qdrant collection not indexed), `/ready` 200 as `ken_app`, eight privileged statements
+denied with 42501. `.env` stays untracked at mode 0600. Not re-run: the full suite (no application or
+SQL grant code changed; the earlier full gate and the 26 role tests stand).
 
 ## 25. Git state
 

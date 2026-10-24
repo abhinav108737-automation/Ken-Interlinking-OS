@@ -384,6 +384,11 @@ single-role setup keeps working (the doctor warns about it).
   `ken_app` while fixtures, TRUNCATE and migrations keep the owner. `make db-roles-test` runs
   the privilege tests (`tests/integration/test_app_role.py`).
 
+Backup and rollback before a rollout: `docker exec <postgres container> pg_dump -U ken -Fc ken_interlink > ~/.ken-backups/<name>.dump`
+(mode 0600, outside the repo) and copy `.env` beside it; prove it with `pg_restore` into a throwaway `ken_*`
+database. Undo: restore `.env`, then as the owner `DROP OWNED BY ken_app; DROP ROLE ken_app;`.
+The script sends only a SCRAM-SHA-256 verifier, never the plaintext password.
+
 This does not stop a client that can obtain the OWNER credentials: keep the owner DSN only
 where migrations run.
 
