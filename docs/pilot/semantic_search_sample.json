@@ -1,0 +1,90 @@
+{
+  "electric vehicle market size in Asia": [
+    {
+      "url": "https://research.example.com/industry-reports/thailand-electric-vehicle-market",
+      "score": 0.8021
+    },
+    {
+      "url": "https://research.example.com/industry-reports/indonesia-electric-two-wheeler-market",
+      "score": 0.7861
+    },
+    {
+      "url": "https://research.example.com/industry-reports/india-electric-vehicle-market",
+      "score": 0.7769
+    },
+    {
+      "url": "https://research.example.com/industry-reports/india-electric-two-wheeler-market",
+      "score": 0.7682
+    },
+    {
+      "url": "https://research.example.com/insights/charging-infrastructure-gaps-southeast-asia",
+      "score": 0.767
+    }
+  ],
+  "pharmaceutical industry report": [
+    {
+      "url": "https://research.example.com/industries/healthcare",
+      "score": 0.7517
+    },
+    {
+      "url": "https://research.example.com/industry-reports/india-pharmaceutical-market",
+      "score": 0.7224
+    },
+    {
+      "url": "https://research.example.com/industry-reports",
+      "score": 0.7219
+    },
+    {
+      "url": "https://research.example.com/industry-reports/bangladesh-pharmaceutical-market",
+      "score": 0.6883
+    },
+    {
+      "url": "https://research.example.com/industries/technology",
+      "score": 0.684
+    }
+  ],
+  "careers and jobs": [
+    {
+      "url": "https://research.example.com/careers",
+      "score": 0.7108
+    },
+    {
+      "url": "https://research.example.com/about",
+      "score": 0.5455
+    },
+    {
+      "url": "https://research.example.com/insights/semiconductor-supply-chain-shift-malaysia",
+      "score": 0.5284
+    },
+    {
+      "url": "https://research.example.com/insights",
+      "score": 0.5235
+    },
+    {
+      "url": "https://research.example.com/industry-reports",
+      "score": 0.5127
+    }
+  ],
+  "contact the research analysts": [
+    {
+      "url": "https://research.example.com/contact",
+      "score": 0.7323
+    },
+    {
+      "url": "https://research.example.com/careers",
+      "score": 0.6651
+    },
+    {
+      "url": "https://research.example.com/about",
+      "score": 0.6294
+    },
+    {
+      "url": "https://research.example.com/insights/q3-market-update",
+      "score": 0.6084
+    },
+    {
+      "url": "https://research.example.com/",
+      "score": 0.6075
+    }
+  ]
+}

@@ -1,0 +1,5451 @@
+{
+ "synthetic_corpus_notice": "tests/fixtures/demo/research_site.jsonl (research.example.com): synthetic, NOT real Ken Research content",
+ "database": "ken_app@ken_pilot",
+ "writes_to_cms": {
+  "deployments": 0,
+  "deployment_items": 0,
+  "publish_attempts": 0
+ },
+ "count": 48,
+ "recommendations": [
+  {
+   "plan_id": "51c2daaa-1c8e-44f9-add4-a2be5d146d46",
+   "plan_status": "policy_checked",
+   "source_url": "https://research.example.com/industry-reports/india-electric-vehicle-market",
+   "target_url": "https://research.example.com/industry-reports/india-ev-charging-infrastructure-market",
+   "target_title": "India EV Charging Infrastructure Market Outlook",
+   "anchor_text": "charging infrastructure",
+   "anchor_source": "target_topic",
+   "block_id": "b7",
+   "start_offset": 205,
+   "end_offset": 228,
+   "preview": {
+    "after": " along intercity highways is expanding, but home and workplace charging still carries most of the load.",
+    "anchor": "charging infrastructure",
+    "before": "cars are concentrated in the compact SUV segment, where Voltara Motors and two incumbent carmakers account for most volume. Buyers cite range anxiety and resale value as the main barriers. Public "
+   },
+   "total_score": 0.7578059153717212,
+   "plan_confidence": 0.7578059153717212,
+   "reason_codes": [
+    "semantically_similar",
+    "lexical_overlap",
+    "submarket",
+    "complementary_market",
+    "same_geography",
+    "high_commercial_value",
+    "underlinked_target",
+    "anchor_matches_target_topic"
+   ],
+   "channels": [
+    "semantic",
+    "lexical",
+    "taxonomy",
+    "graph"
+   ],
+   "relationship_type": "submarket",
+   "embedding_model": "nomic-embed-text",
+   "rationale": "Link to \"India EV Charging Infrastructure Market Outlook\" (submarket) on the existing phrase \"charging infrastructure\". Why: the pages are semantically similar; the pages share key terms; the target covers a submarket; the markets are complementary; both pages cover the same country; the target is a high-value commercial page; the target has few internal links; the anchor names the target's topic.",
+   "critic_verdict": "accept",
+   "critic_reasons": [
+    "natural_anchor",
+    "relevant_destination",
+    "reader_journey_mismatch"
+   ],
+   "critic_fallback": false,
+   "fallback_reason": null,
+   "critic_model": "qwen3:8b-q4_K_M",
+   "autonomy_mode": "shadow",
+   "autonomy_decision": "block",
+   "would_have_decision": "auto_publish_with_extra_verification",
+   "risk_tier": "medium",
+   "autonomy_confidence": 0.7578059153717212,
+   "critic_outcome": "accept",
+   "autonomy_blocks": [],
+   "calibration_version": null,
+   "evaluated_at": "2026-10-24 21:19:07.424398+00",
+   "score_breakdown": {
+    "total": 0.7578059153717212,
+    "factors": {
+     "placement_quality": 1.0
+    },
+    "relevance": 0.7578059153717212,
+    "components": [
+     {
+      "name": "semantic",
+      "value": 0.5649086067946261,
+      "weight": 0.3,
+      "contribution": 0.1694725820383878
+     },
+     {
+      "name": "taxonomy",
+      "value": 0.8,
+      "weight": 0.2,
+      "contribution": 0.16000000000000003
+     },
+     {
+      "name": "intent",
+      "value": 0.9,
+      "weight": 0.15,
+      "contribution": 0.135
+     },
+     {
+      "name": "graph",
+      "value": 1.0,
+      "weight": 0.15,
+      "contribution": 0.15
+     },
+     {
+      "name": "geography",
+      "value": 1.0,
+      "weight": 0.08,
+      "contribution": 0.08
+     },
+     {
+      "name": "commercial",
+      "value": 1.0,
+      "weight": 0.05,
+      "contribution": 0.05
+     },
+     {
+      "name": "underlinked",
+      "value": 0.33333333333333337,
+      "weight": 0.04,
+      "contribution": 0.013333333333333336
+     },
+     {
+      "name": "historical",
+      "value": 0.0,
+      "weight": 0.03,
+      "contribution": 0.0
+     }
+    ],
+    "policy_name": "ranking",
+    "policy_version": 1,
+    "semantic_floor": 0.78
+   }
+  },
+  {
+   "plan_id": "dddcad11-bea2-44ed-a8c1-870eab903b73",
+   "plan_status": "policy_checked",
+   "source_url": "https://research.example.com/industry-reports/india-electric-vehicle-market",
+   "target_url": "https://research.example.com/industry-reports/india-auto-components-market",
+   "target_title": "India Auto Components Market Report",
+   "anchor_text": "Auto parts",
+   "anchor_source": "target_topic",
+   "block_id": "b9",
+   "start_offset": 198,
+   "end_offset": 208,
+   "preview": {
+    "after": " suppliers that built their business on engines and transmissions are retooling for motors, controllers and thermal management systems.",
+    "anchor": "Auto parts",
+    "before": "Battery packs represent 35 to 40 percent of the cost of an electric vehicle. Domestic cell production is only beginning, so most packs are assembled locally from imported lithium-ion battery cells. "
+   },
+   "total_score": 0.6988063171040874,
+   "plan_confidence": 0.6988063171040874,
+   "reason_codes": [
+    "semantically_similar",
+    "lexical_overlap",
+    "related_market",
+    "supply_chain",
+    "same_geography",
+    "high_commercial_value",
+    "underlinked_target",
+    "anchor_matches_target_topic"
+   ],
+   "channels": [
+    "semantic",
+    "lexical",
+    "taxonomy",
+    "graph"
+   ],
+   "relationship_type": "supply_chain_upstream",
+   "embedding_model": "nomic-embed-text",
+   "rationale": "Link to \"India Auto Components Market Report\" (upstream in the supply chain) on the existing phrase \"Auto parts\". Why: the pages are semantically similar; the pages share key terms; the target covers a related market; the markets are linked in the supply chain; both pages cover the same country; the target is a high-value commercial page; the target has few internal links; the anchor names the target's topic.",
+   "critic_verdict": "accept",
+   "critic_reasons": [
+    "natural_anchor",
+    "relevant_destination",
+    "reader_journey_mismatch"
+   ],
+   "critic_fallback": false,
+   "fallback_reason": null,
+   "critic_model": "qwen3:8b-q4_K_M",
+   "autonomy_mode": "shadow",
+   "autonomy_decision": "block",
+   "would_have_decision": "auto_publish_with_extra_verification",
+   "risk_tier": "medium",
+   "autonomy_confidence": 0.6988063171040874,
+   "critic_outcome": "accept",
+   "autonomy_blocks": [],
+   "calibration_version": null,
+   "evaluated_at": "2026-10-24 21:19:07.443275+00",
+   "score_breakdown": {
+    "total": 0.6988063171040874,
+    "factors": {
+     "placement_quality": 1.0
+    },
+    "relevance": 0.6988063171040874,
+    "components": [
+     {
+      "name": "semantic",
+      "value": 0.4349099459025134,
+      "weight": 0.3,
+      "contribution": 0.13047298377075403
+     },
+     {
+      "name": "taxonomy",
+      "value": 0.7,
+      "weight": 0.2,
+      "contribution": 0.13999999999999999
+     },
+     {
+      "name": "intent",
+      "value": 0.9,
+      "weight": 0.15,
+      "contribution": 0.135
+     },
+     {
+      "name": "graph",
+      "value": 1.0,
+      "weight": 0.15,
+      "contribution": 0.15
+     },
+     {
+      "name": "geography",
+      "value": 1.0,
+      "weight": 0.08,
+      "contribution": 0.08
+     },
+     {
+      "name": "commercial",
+      "value": 1.0,
+      "weight": 0.05,
+      "contribution": 0.05
+     },
+     {
+      "name": "underlinked",
+      "value": 0.33333333333333337,
+      "weight": 0.04,
+      "contribution": 0.013333333333333336
+     },
+     {
+      "name": "historical",
+      "value": 0.0,
+      "weight": 0.03,
+      "contribution": 0.0
+     }
+    ],
+    "policy_name": "ranking",
+    "policy_version": 1,
+    "semantic_floor": 0.78
+   }
+  },
+  {
+   "plan_id": "aa838360-fc4a-4838-80e9-cface5c10b13",
+   "plan_status": "policy_checked",
+   "source_url": "https://research.example.com/insights/cold-chain-vaccine-distribution-india",
+   "target_url": "https://research.example.com/industry-reports/india-cold-chain-market",
+   "target_title": "India Cold Chain Market Outlook to 2030",
+   "anchor_text": "temperature-controlled logistics",
+   "anchor_source": "target_topic",
+   "block_id": "b1",
+   "start_offset": 253,
+   "end_offset": 285,
+   "preview": {
+    "after": " across the country.",
+    "anchor": "temperature-controlled logistics",
+    "before": "cold chain. India's national immunisation programme moves hundreds of millions of doses a year through a network of cold storage points that reaches remote villages, and it has become a reference for "
+   },
+   "total_score": 0.6950698354187206,
+   "plan_confidence": 0.6950698354187206,
+   "reason_codes": [
+    "semantically_similar",
+    "lexical_overlap",
+    "same_market",
+    "same_geography",
+    "high_commercial_value",
+    "underlinked_target",
+    "anchor_matches_target_topic"
+   ],
+   "channels": [
+    "semantic",
+    "lexical",
+    "taxonomy",
+    "graph"
+   ],
+   "relationship_type": "same_market",
+   "embedding_model": "nomic-embed-text",
+   "rationale": "Link to \"India Cold Chain Market Outlook to 2030\" (same market) on the existing phrase \"temperature-controlled logistics\". Why: the pages are semantically similar; the pages share key terms; both pages cover the same market; both pages cover the same country; the target is a high-value commercial page; the target has few internal links; the anchor names the target's topic.",
+   "critic_verdict": "accept",
+   "critic_reasons": [
+    "natural_anchor",
+    "relevant_destination",
+    "reader_journey_mismatch"
+   ],
+   "critic_fallback": false,
+   "fallback_reason": null,
+   "critic_model": "qwen3:8b-q4_K_M",
+   "autonomy_mode": "shadow",
+   "autonomy_decision": "block",
+   "would_have_decision": "auto_publish_with_extra_verification",
+   "risk_tier": "medium",
+   "autonomy_confidence": 0.6950698354187206,
+   "critic_outcome": "accept",
+   "autonomy_blocks": [],
+   "calibration_version": null,
+   "evaluated_at": "2026-10-24 21:19:08.042291+00",
+   "score_breakdown": {
+    "total": 0.6950698354187206,
+    "factors": {
+     "placement_quality": 0.9
+    },
+    "relevance": 0.7722998171319118,
+    "components": [
+     {
+      "name": "semantic",
+      "value": 0.3854438348841502,
+      "weight": 0.3,
+      "contribution": 0.11563315046524505
+     },
+     {
+      "name": "taxonomy",
+      "value": 1.0,
+      "weight": 0.2,
+      "contribution": 0.2
+     },
+     {
+      "name": "intent",
+      "value": 1.0,
+      "weight": 0.15,
+      "contribution": 0.15
+     },
+     {
+      "name": "graph",
+      "value": 1.0,
+      "weight": 0.15,
+      "contribution": 0.15
+     },
+     {
+      "name": "geography",
+      "value": 1.0,
+      "weight": 0.08,
+      "contribution": 0.08
+     },
+     {
+      "name": "commercial",
+      "value": 1.0,
+      "weight": 0.05,
+      "contribution": 0.05
+     },
+     {
+      "name": "underlinked",
+      "value": 0.6666666666666667,
+      "weight": 0.04,
+      "contribution": 0.026666666666666672
+     },
+     {
+      "name": "historical",
+      "value": 0.0,
+      "weight": 0.03,
+      "contribution": 0.0
+     }
+    ],
+    "policy_name": "ranking",
+    "policy_version": 1,
+    "semantic_floor": 0.78
+   }
+  },
+  {
+   "plan_id": "68d59fb8-1dc7-48f2-9fe9-bf85a2cb4459",
+   "plan_status": "proposed",
+   "source_url": "https://research.example.com/industry-reports/gcc-energy-storage-market",
+   "target_url": "https://research.example.com/industry-reports/saudi-arabia-solar-power-market",
+   "target_title": "Saudi Arabia Solar Power Market Report",
+   "anchor_text": "photovoltaic",
+   "anchor_source": "target_topic",
+   "block_id": "b4",
+   "start_offset": 112,
+   "end_offset": 124,
+   "preview": {
+    "after": " plant and a co-located battery storage system. Record-low bids have shown that firm daytime and evening supply can compete with gas-fired generation in the Gulf region.",
+    "anchor": "photovoltaic",
+    "before": "Most new capacity is procured through solar-plus-storage tenders, in which developers bid a single tariff for a "
+   },
+   "total_score": 0.6950178189995986,
+   "plan_confidence": 0.6950178189995986,
+   "reason_codes": [
+    "semantically_similar",
+    "lexical_overlap",
+    "complementary_market",
+    "same_geography",
+    "high_commercial_value",
+    "underlinked_target",
+    "anchor_matches_target_topic"
+   ],
+   "channels": [
+    "semantic",
+    "lexical",
+    "taxonomy",
+    "graph"
+   ],
+   "relationship_type": "complementary_market",
+   "embedding_model": "nomic-embed-text",
+   "rationale": "Link to \"Saudi Arabia Solar Power Market Report\" (complementary market) on the existing phrase \"photovoltaic\". Why: the pages are semantically similar; the pages share key terms; the markets are complementary; both pages cover the same country; the target is a high-value commercial page; the target has few internal links; the anchor names the target's topic.",
+   "critic_verdict": "uncertain",
+   "critic_reasons": [
+    "low_confidence"
+   ],
+   "critic_fallback": true,
+   "fallback_reason": "model_unavailable",
+   "critic_model": null,
+   "autonomy_mode": null,
+   "autonomy_decision": null,
+   "would_have_decision": null,
+   "risk_tier": null,
+   "autonomy_confidence": null,
+   "critic_outcome": null,
+   "autonomy_blocks": null,
+   "calibration_version": null,
+   "evaluated_at": null,
+   "score_breakdown": {
+    "total": 0.6950178189995986,
+    "factors": {
+     "placement_quality": 1.0
+    },
+    "relevance": 0.6950178189995986,
+    "components": [
+     {
+      "name": "semantic",
+      "value": 0.4889482855542174,
+      "weight": 0.3,
+      "contribution": 0.1466844856662652
+     },
+     {
+      "name": "taxonomy",
+      "value": 0.6,
+      "weight": 0.2,
+      "contribution": 0.12
+     },
+     {
+      "name": "intent",
+      "value": 0.9,
+      "weight": 0.15,
+      "contribution": 0.135
+     },
+     {
+      "name": "graph",
+      "value": 1.0,
+      "weight": 0.15,
+      "contribution": 0.15
+     },
+     {
+      "name": "geography",
+      "value": 1.0,
+      "weight": 0.08,
+      "contribution": 0.08
+     },
+     {
+      "name": "commercial",
+      "value": 1.0,
+      "weight": 0.05,
+      "contribution": 0.05
+     },
+     {
+      "name": "underlinked",
+      "value": 0.33333333333333337,
+      "weight": 0.04,
+      "contribution": 0.013333333333333336
+     },
+     {
+      "name": "historical",
+      "value": 0.0,
+      "weight": 0.03,
+      "contribution": 0.0
+     }
+    ],
+    "policy_name": "ranking",
+    "policy_version": 1,
+    "semantic_floor": 0.78
+   }
+  },
+  {
+   "plan_id": "bc02cdd5-960b-4855-b765-5c7d9300900f",
+   "plan_status": "policy_checked",
+   "source_url": "https://research.example.com/industry-reports/india-auto-components-market",
+   "target_url": "https://research.example.com/industry-reports/india-electric-vehicle-market",
+   "target_title": "India Electric Vehicle Market Report 2025-2030",
+   "anchor_text": "electric vehicles",
+   "anchor_source": "target_topic",
+   "block_id": "b6",
+   "start_offset": 13,
+   "end_offset": 30,
+   "preview": {
+    "after": " is reshaping demand for auto parts. Suppliers of pistons, fuel systems and exhaust components face long-term decline, while motors, power electronics, wiring harnesses and thermal management",
+    "anchor": "electric vehicles",
+    "before": "The shift to "
+   },
+   "total_score": 0.685472983770754,
+   "plan_confidence": 0.685472983770754,
+   "reason_codes": [
+    "semantically_similar",
+    "lexical_overlap",
+    "related_market",
+    "supply_chain",
+    "same_geography",
+    "high_commercial_value",
+    "anchor_matches_target_topic"
+   ],
+   "channels": [
+    "semantic",
+    "lexical",
+    "taxonomy",
+    "graph"
+   ],
+   "relationship_type": "supply_chain_downstream",
+   "embedding_model": "nomic-embed-text",
+   "rationale": "Link to \"India Electric Vehicle Market Report 2025-2030\" (downstream in the supply chain) on the existing phrase \"electric vehicles\". Why: the pages are semantically similar; the pages share key terms; the target covers a related market; the markets are linked in the supply chain; both pages cover the same country; the target is a high-value commercial page; the anchor names the target's topic.",
+   "critic_verdict": "accept",
+   "critic_reasons": [
+    "natural_anchor",
+    "relevant_destination",
+    "reader_journey_mismatch"
+   ],
+   "critic_fallback": false,
+   "fallback_reason": null,
+   "critic_model": "qwen3:8b-q4_K_M",
+   "autonomy_mode": "shadow",
+   "autonomy_decision": "block",
+   "would_have_decision": "auto_publish_with_extra_verification",
+   "risk_tier": "medium",
+   "autonomy_confidence": 0.685472983770754,
+   "critic_outcome": "accept",
+   "autonomy_blocks": [],
+   "calibration_version": null,
+   "evaluated_at": "2026-10-24 21:19:07.291605+00",
+   "score_breakdown": {
+    "total": 0.685472983770754,
+    "factors": {
+     "placement_quality": 1.0
+    },
+    "relevance": 0.685472983770754,
+    "components": [
+     {
+      "name": "semantic",
+      "value": 0.4349099459025134,
+      "weight": 0.3,
+      "contribution": 0.13047298377075403
+     },
+     {
+      "name": "taxonomy",
+      "value": 0.7,
+      "weight": 0.2,
+      "contribution": 0.13999999999999999
+     },
+     {
+      "name": "intent",
+      "value": 0.9,
+      "weight": 0.15,
+      "contribution": 0.135
+     },
+     {
+      "name": "graph",
+      "value": 1.0,
+      "weight": 0.15,
+      "contribution": 0.15
+     },
+     {
+      "name": "geography",
+      "value": 1.0,
+      "weight": 0.08,
+      "contribution": 0.08
+     },
+     {
+      "name": "commercial",
+      "value": 1.0,
+      "weight": 0.05,
+      "contribution": 0.05
+     },
+     {
+      "name": "underlinked",
+      "value": 0.0,
+      "weight": 0.04,
+      "contribution": 0.0
+     },
+     {
+      "name": "historical",
+      "value": 0.0,
+      "weight": 0.03,
+      "contribution": 0.0
+     }
+    ],
+    "policy_name": "ranking",
+    "policy_version": 1,
+    "semantic_floor": 0.78
+   }
+  },
+  {
+   "plan_id": "8b8b3fb9-d09b-4358-b087-931f1d88ffe0",
+   "plan_status": "policy_checked",
+   "source_url": "https://research.example.com/insights/charging-infrastructure-gaps-southeast-asia",
+   "target_url": "https://research.example.com/industry-reports/thailand-electric-vehicle-market",
+   "target_title": "Thailand Electric Vehicle Market Outlook",
+   "anchor_text": "electric vehicles",
+   "anchor_source": "target_topic",
+   "block_id": "b2",
+   "start_offset": 160,
+   "end_offset": 177,
+   "preview": {
+    "after": " in Thailand, Indonesia and Malaysia now bundle home chargers with new cars and fund their own fast chargers at dealerships, an expensive stopgap that shows how far public networks lag behind demand.",
+    "anchor": "electric vehicles",
+    "before": "The gap matters because surveys of prospective buyers in the region consistently rank access to charging as a top concern, alongside price. Carmakers that sell "
+   },
+   "total_score": 0.6711687469504719,
+   "plan_confidence": 0.6711687469504719,
+   "reason_codes": [
+    "semantically_similar",
+    "lexical_overlap",
+    "parent_market",
+    "complementary_market",
+    "same_geography",
+    "high_commercial_value",
+    "underlinked_target",
+    "anchor_matches_target_topic"
+   ],
+   "channels": [
+    "semantic",
+    "lexical",
+    "taxonomy",
+    "graph"
+   ],
+   "relationship_type": "parent_market",
+   "embedding_model": "nomic-embed-text",
+   "rationale": "Link to \"Thailand Electric Vehicle Market Outlook\" (parent market) on the existing phrase \"electric vehicles\". Why: the pages are semantically similar; the pages share key terms; the target covers the parent market; the markets are complementary; both pages cover the same country; the target is a high-value commercial page; the target has few internal links; the anchor names the target's topic.",
+   "critic_verdict": "accept",
+   "critic_reasons": [
+    "natural_anchor",
+    "relevant_destination",
+    "reader_journey_mismatch"
+   ],
+   "critic_fallback": false,
+   "fallback_reason": null,
+   "critic_model": "qwen3:8b-q4_K_M",
+   "autonomy_mode": "shadow",
+   "autonomy_decision": "block",
+   "would_have_decision": "auto_publish_with_extra_verification",
+   "risk_tier": "medium",
+   "autonomy_confidence": 0.6711687469504719,
+   "critic_outcome": "accept",
+   "autonomy_blocks": [],
+   "calibration_version": null,
+   "evaluated_at": "2026-10-24 21:19:08.024495+00",
+   "score_breakdown": {
+    "total": 0.6711687469504719,
+    "factors": {
+     "placement_quality": 1.0
+    },
+    "relevance": 0.6711687469504719,
+    "components": [
+     {
+      "name": "semantic",
+      "value": 0.226118045390462,
+      "weight": 0.3,
+      "contribution": 0.0678354136171386
+     },
+     {
+      "name": "taxonomy",
+      "value": 0.8,
+      "weight": 0.2,
+      "contribution": 0.16000000000000003
+     },
+     {
+      "name": "intent",
+      "value": 1.0,
+      "weight": 0.15,
+      "contribution": 0.15
+     },
+     {
+      "name": "graph",
+      "value": 1.0,
+      "weight": 0.15,
+      "contribution": 0.15
+     },
+     {
+      "name": "geography",
+      "value": 1.0,
+      "weight": 0.08,
+      "contribution": 0.08
+     },
+     {
+      "name": "commercial",
+      "value": 1.0,
+      "weight": 0.05,
+      "contribution": 0.05
+     },
+     {
+      "name": "underlinked",
+      "value": 0.33333333333333337,
+      "weight": 0.04,
+      "contribution": 0.013333333333333336
+     },
+     {
+      "name": "historical",
+      "value": 0.0,
+      "weight": 0.03,
+      "contribution": 0.0
+     }
+    ],
+    "policy_name": "ranking",
+    "policy_version": 1,
+    "semantic_floor": 0.78
+   }
+  },
+  {
+   "plan_id": "b8d6381b-6605-4a6b-b8b6-0a0940b1756f",
+   "plan_status": "policy_checked",
+   "source_url": "https://research.example.com/industry-reports/india-battery-energy-storage-market",
+   "target_url": "https://research.example.com/industry-reports/india-lithium-ion-battery-manufacturing-market",
+   "target_title": "India Lithium-ion Battery Manufacturing Market Outlook",
+   "anchor_text": "lithium-ion battery manufacturing",
+   "anchor_source": "target_title",
+   "block_id": "b8",
+   "start_offset": 88,
+   "end_offset": 121,
+   "preview": {
+    "after": " under the production-linked incentive scheme is expected to supply part of the market later in the decade.",
+    "anchor": "lithium-ion battery manufacturing",
+    "before": "Lithium iron phosphate is the dominant chemistry. Most cells are imported, but domestic "
+   },
+   "total_score": 0.662292940041755,
+   "plan_confidence": 0.662292940041755,
+   "reason_codes": [
+    "semantically_similar",
+    "lexical_overlap",
+    "supply_chain",
+    "industry_adjacency",
+    "same_geography",
+    "high_commercial_value",
+    "underlinked_target",
+    "anchor_matches_target_title"
+   ],
+   "channels": [
+    "semantic",
+    "lexical",
+    "taxonomy"
+   ],
+   "relationship_type": "supply_chain_upstream",
+   "embedding_model": "nomic-embed-text",
+   "rationale": "Link to \"India Lithium-ion Battery Manufacturing Market Outlook\" (upstream in the supply chain) on the existing phrase \"lithium-ion battery manufacturing\". Why: the pages are semantically similar; the pages share key terms; the markets are linked in the supply chain; the industries are adjacent; both pages cover the same country; the target is a high-value commercial page; the target has few internal links; the anchor matches the target's title.",
+   "critic_verdict": "accept",
+   "critic_reasons": [
+    "natural_anchor",
+    "relevant_destination",
+    "reader_journey_mismatch"
+   ],
+   "critic_fallback": false,
+   "fallback_reason": null,
+   "critic_model": "qwen3:8b-q4_K_M",
+   "autonomy_mode": "shadow",
+   "autonomy_decision": "block",
+   "would_have_decision": "auto_publish_with_extra_verification",
+   "risk_tier": "medium",
+   "autonomy_confidence": 0.662292940041755,
+   "critic_outcome": "accept",
+   "autonomy_blocks": [],
+   "calibration_version": null,
+   "evaluated_at": "2026-10-24 21:19:07.320384+00",
+   "score_breakdown": {
+    "total": 0.662292940041755,
+    "factors": {
+     "placement_quality": 0.9
+    },
+    "relevance": 0.7358810444908388,
+    "components": [
+     {
+      "name": "semantic",
+      "value": 0.5140479260805737,
+      "weight": 0.3,
+      "contribution": 0.1542143778241721
+     },
+     {
+      "name": "taxonomy",
+      "value": 0.7,
+      "weight": 0.2,
+      "contribution": 0.13999999999999999
+     },
+     {
+      "name": "intent",
+      "value": 0.9,
+      "weight": 0.15,
+      "contribution": 0.135
+     },
+     {
+      "name": "graph",
+      "value": 1.0,
+      "weight": 0.15,
+      "contribution": 0.15
+     },
+     {
+      "name": "geography",
+      "value": 1.0,
+      "weight": 0.08,
+      "contribution": 0.08
+     },
+     {
+      "name": "commercial",
+      "value": 1.0,
+      "weight": 0.05,
+      "contribution": 0.05
+     },
+     {
+      "name": "underlinked",
+      "value": 0.6666666666666667,
+      "weight": 0.04,
+      "contribution": 0.026666666666666672
+     },
+     {
+      "name": "historical",
+      "value": 0.0,
+      "weight": 0.03,
+      "contribution": 0.0
+     }
+    ],
+    "policy_name": "ranking",
+    "policy_version": 1,
+    "semantic_floor": 0.78
+   }
+  },
+  {
+   "plan_id": "828b3f9e-a001-4edb-958c-34ff61ef43d3",
+   "plan_status": "policy_checked",
+   "source_url": "https://research.example.com/insights/battery-swapping-electric-two-wheelers-india",
+   "target_url": "https://research.example.com/industry-reports/india-ev-charging-infrastructure-market",
+   "target_title": "India EV Charging Infrastructure Market Outlook",
+   "anchor_text": "charging stations",
+   "anchor_source": "target_topic",
+   "block_id": "b11",
+   "start_offset": 175,
+   "end_offset": 192,
+   "preview": {
+    "after": ", which competes for the same riders.",
+    "anchor": "charging stations",
+    "before": "Three signals will show whether battery swapping becomes mainstream: the final interoperability standard, the cost of financing large battery fleets and the density of public "
+   },
+   "total_score": 0.6472318602446671,
+   "plan_confidence": 0.6472318602446671,
+   "reason_codes": [
+    "semantically_similar",
+    "lexical_overlap",
+    "related_market",
+    "same_geography",
+    "high_commercial_value",
+    "underlinked_target",
+    "anchor_matches_target_topic"
+   ],
+   "channels": [
+    "semantic",
+    "lexical",
+    "taxonomy",
+    "graph"
+   ],
+   "relationship_type": "related_market",
+   "embedding_model": "nomic-embed-text",
+   "rationale": "Link to \"India EV Charging Infrastructure Market Outlook\" (related market) on the existing phrase \"charging stations\". Why: the pages are semantically similar; the pages share key terms; the target covers a related market; both pages cover the same country; the target is a high-value commercial page; the target has few internal links; the anchor names the target's topic.",
+   "critic_verdict": "accept",
+   "critic_reasons": [
+    "natural_anchor",
+    "relevant_destination",
+    "reader_journey_mismatch"
+   ],
+   "critic_fallback": false,
+   "fallback_reason": null,
+   "critic_model": "qwen3:8b-q4_K_M",
+   "autonomy_mode": "shadow",
+   "autonomy_decision": "block",
+   "would_have_decision": "auto_publish_with_extra_verification",
+   "risk_tier": "medium",
+   "autonomy_confidence": 0.6472318602446671,
+   "critic_outcome": "accept",
+   "autonomy_blocks": [],
+   "calibration_version": null,
+   "evaluated_at": "2026-10-24 21:19:07.976511+00",
+   "score_breakdown": {
+    "total": 0.6472318602446671,
+    "factors": {
+     "placement_quality": 1.0
+    },
+    "relevance": 0.6472318602446671,
+    "components": [
+     {
+      "name": "semantic",
+      "value": 0.27966175637111246,
+      "weight": 0.3,
+      "contribution": 0.08389852691133373
+     },
+     {
+      "name": "taxonomy",
+      "value": 0.6,
+      "weight": 0.2,
+      "contribution": 0.12
+     },
+     {
+      "name": "intent",
+      "value": 1.0,
+      "weight": 0.15,
+      "contribution": 0.15
+     },
+     {
+      "name": "graph",
+      "value": 1.0,
+      "weight": 0.15,
+      "contribution": 0.15
+     },
+     {
+      "name": "geography",
+      "value": 1.0,
+      "weight": 0.08,
+      "contribution": 0.08
+     },
+     {
+      "name": "commercial",
+      "value": 1.0,
+      "weight": 0.05,
+      "contribution": 0.05
+     },
+     {
+      "name": "underlinked",
+      "value": 0.33333333333333337,
+      "weight": 0.04,
+      "contribution": 0.013333333333333336
+     },
+     {
+      "name": "historical",
+      "value": 0.0,
+      "weight": 0.03,
+      "contribution": 0.0
+     }
+    ],
+    "policy_name": "ranking",
+    "policy_version": 1,
+    "semantic_floor": 0.78
+   }
+  },
+  {
+   "plan_id": "ba20afc5-eae9-4b6d-ad6f-4dffff10eb48",
+   "plan_status": "proposed",
+   "source_url": "https://research.example.com/insights/perovskite-solar-cells-commercialisation",
+   "target_url": "https://research.example.com/industry-reports/vietnam-solar-power-market",
+   "target_title": "Vietnam Solar Power Market Report",
+   "anchor_text": "rooftop solar",
+   "anchor_source": "target_topic",
+   "block_id": "b10",
+   "start_offset": 55,
+   "end_offset": 68,
+   "preview": {
+    "after": " customers before utility-scale projects, where lenders demand long operating records. Mainstream adoption is unlikely before the early 2030s.",
+    "anchor": "rooftop solar",
+    "before": "We expect the first commercial tandem modules to reach "
+   },
+   "total_score": 0.6433333333333333,
+   "plan_confidence": 0.6433333333333333,
+   "reason_codes": [
+    "lexical_overlap",
+    "same_market",
+    "same_geography",
+    "high_commercial_value",
+    "underlinked_target",
+    "anchor_matches_target_topic"
+   ],
+   "channels": [
+    "semantic",
+    "lexical",
+    "taxonomy",
+    "graph"
+   ],
+   "relationship_type": "same_market",
+   "embedding_model": "nomic-embed-text",
+   "rationale": "Link to \"Vietnam Solar Power Market Report\" (same market) on the existing phrase \"rooftop solar\". Why: the pages share key terms; both pages cover the same market; both pages cover the same country; the target is a high-value commercial page; the target has few internal links; the anchor names the target's topic.",
+   "critic_verdict": "reject",
+   "critic_reasons": [
+    "reader_journey_mismatch",
+    "misleading_anchor"
+   ],
+   "critic_fallback": false,
+   "fallback_reason": null,
+   "critic_model": "qwen3:8b-q4_K_M",
+   "autonomy_mode": "shadow",
+   "autonomy_decision": "block",
+   "would_have_decision": "block",
+   "risk_tier": "medium",
+   "autonomy_confidence": 0.6433333333333333,
+   "critic_outcome": "reject",
+   "autonomy_blocks": [],
+   "calibration_version": null,
+   "evaluated_at": "2026-10-24 21:19:08.206779+00",
+   "score_breakdown": {
+    "total": 0.6433333333333333,
+    "factors": {
+     "placement_quality": 1.0
+    },
+    "relevance": 0.6433333333333333,
+    "components": [
+     {
+      "name": "semantic",
+      "value": 0.0,
+      "weight": 0.3,
+      "contribution": 0.0
+     },
+     {
+      "name": "taxonomy",
+      "value": 1.0,
+      "weight": 0.2,
+      "contribution": 0.2
+     },
+     {
+      "name": "intent",
+      "value": 1.0,
+      "weight": 0.15,
+      "contribution": 0.15
+     },
+     {
+      "name": "graph",
+      "value": 1.0,
+      "weight": 0.15,
+      "contribution": 0.15
+     },
+     {
+      "name": "geography",
+      "value": 1.0,
+      "weight": 0.08,
+      "contribution": 0.08
+     },
+     {
+      "name": "commercial",
+      "value": 1.0,
+      "weight": 0.05,
+      "contribution": 0.05
+     },
+     {
+      "name": "underlinked",
+      "value": 0.33333333333333337,
+      "weight": 0.04,
+      "contribution": 0.013333333333333336
+     },
+     {
+      "name": "historical",
+      "value": 0.0,
+      "weight": 0.03,
+      "contribution": 0.0
+     }
+    ],
+    "policy_name": "ranking",
+    "policy_version": 1,
+    "semantic_floor": 0.78
+   }
+  },
+  {
+   "plan_id": "fb0260fa-e1af-44fc-b849-4dd41f9be658",
+   "plan_status": "policy_checked",
+   "source_url": "https://research.example.com/insights/last-mile-delivery-economics-thailand-vietnam",
+   "target_url": "https://research.example.com/industry-reports/vietnam-ecommerce-logistics-market",
+   "target_title": "Vietnam E-commerce Logistics Market Report",
+   "anchor_text": "Last-mile delivery",
+   "anchor_source": "target_topic",
+   "block_id": "b1",
+   "start_offset": 0,
+   "end_offset": 18,
+   "preview": {
+    "after": " accounts for roughly half of the cost of shipping a parcel in Thailand and Vietnam. Price wars among express delivery companies have pushed per-parcel revenue down faster than costs, and several",
+    "anchor": "Last-mile delivery",
+    "before": ""
+   },
+   "total_score": 0.6409794711870909,
+   "plan_confidence": 0.6409794711870909,
+   "reason_codes": [
+    "semantically_similar",
+    "lexical_overlap",
+    "same_market",
+    "same_geography",
+    "high_commercial_value",
+    "underlinked_target",
+    "anchor_matches_target_topic"
+   ],
+   "channels": [
+    "semantic",
+    "lexical",
+    "taxonomy",
+    "graph"
+   ],
+   "relationship_type": "same_market",
+   "embedding_model": "nomic-embed-text",
+   "rationale": "Link to \"Vietnam E-commerce Logistics Market Report\" (same market) on the existing phrase \"Last-mile delivery\". Why: the pages are semantically similar; the pages share key terms; both pages cover the same market; both pages cover the same country; the target is a high-value commercial page; the target has few internal links; the anchor names the target's topic.",
+   "critic_verdict": "accept",
+   "critic_reasons": [
+    "natural_anchor",
+    "relevant_destination",
+    "reader_journey_mismatch"
+   ],
+   "critic_fallback": false,
+   "fallback_reason": null,
+   "critic_model": "qwen3:8b-q4_K_M",
+   "autonomy_mode": "shadow",
+   "autonomy_decision": "block",
+   "would_have_decision": "auto_publish_with_extra_verification",
+   "risk_tier": "medium",
+   "autonomy_confidence": 0.6409794711870909,
+   "critic_outcome": "accept",
+   "autonomy_blocks": [],
+   "calibration_version": null,
+   "evaluated_at": "2026-10-24 21:19:08.188372+00",
+   "score_breakdown": {
+    "total": 0.6409794711870909,
+    "factors": {
+     "placement_quality": 0.9
+    },
+    "relevance": 0.712199412430101,
+    "components": [
+     {
+      "name": "semantic",
+      "value": 0.4795535969892255,
+      "weight": 0.3,
+      "contribution": 0.14386607909676766
+     },
+     {
+      "name": "taxonomy",
+      "value": 1.0,
+      "weight": 0.2,
+      "contribution": 0.2
+     },
+     {
+      "name": "intent",
+      "value": 1.0,
+      "weight": 0.15,
+      "contribution": 0.15
+     },
+     {
+      "name": "graph",
+      "value": 0.5,
+      "weight": 0.15,
+      "contribution": 0.075
+     },
+     {
+      "name": "geography",
+      "value": 1.0,
+      "weight": 0.08,
+      "contribution": 0.08
+     },
+     {
+      "name": "commercial",
+      "value": 1.0,
+      "weight": 0.05,
+      "contribution": 0.05
+     },
+     {
+      "name": "underlinked",
+      "value": 0.33333333333333337,
+      "weight": 0.04,
+      "contribution": 0.013333333333333336
+     },
+     {
+      "name": "historical",
+      "value": 0.0,
+      "weight": 0.03,
+      "contribution": 0.0
+     }
+    ],
+    "policy_name": "ranking",
+    "policy_version": 1,
+    "semantic_floor": 0.78
+   }
+  },
+  {
+   "plan_id": "9f04b76f-3a4f-4aa7-a89d-df92734ff0eb",
+   "plan_status": "policy_checked",
+   "source_url": "https://research.example.com/industry-reports/india-lithium-ion-battery-manufacturing-market",
+   "target_url": "https://research.example.com/industry-reports/india-battery-energy-storage-market",
+   "target_title": "India Battery Energy Storage Market Outlook",
+   "anchor_text": "grid storage",
+   "anchor_source": "target_topic",
+   "block_id": "b2",
+   "start_offset": 109,
+   "end_offset": 121,
+   "preview": {
+    "after": ", yet almost all battery cells are still imported. A production-linked incentive scheme for advanced chemistry cells has attracted commitments for several gigafactories, the first of which are now",
+    "anchor": "grid storage",
+    "before": "India's lithium-ion battery demand is growing quickly, driven by electric vehicles, consumer electronics and "
+   },
+   "total_score": 0.6382929400417549,
+   "plan_confidence": 0.6382929400417549,
+   "reason_codes": [
+    "semantically_similar",
+    "lexical_overlap",
+    "supply_chain",
+    "industry_adjacency",
+    "same_geography",
+    "high_commercial_value",
+    "anchor_matches_target_topic"
+   ],
+   "channels": [
+    "semantic",
+    "lexical",
+    "taxonomy"
+   ],
+   "relationship_type": "supply_chain_downstream",
+   "embedding_model": "nomic-embed-text",
+   "rationale": "Link to \"India Battery Energy Storage Market Outlook\" (downstream in the supply chain) on the existing phrase \"grid storage\". Why: the pages are semantically similar; the pages share key terms; the markets are linked in the supply chain; the industries are adjacent; both pages cover the same country; the target is a high-value commercial page; the anchor names the target's topic.",
+   "critic_verdict": "accept",
+   "critic_reasons": [
+    "natural_anchor",
+    "relevant_destination",
+    "reader_journey_mismatch"
+   ],
+   "critic_fallback": false,
+   "fallback_reason": null,
+   "critic_model": "qwen3:8b-q4_K_M",
+   "autonomy_mode": "shadow",
+   "autonomy_decision": "block",
+   "would_have_decision": "auto_publish_with_extra_verification",
+   "risk_tier": "medium",
+   "autonomy_confidence": 0.6382929400417549,
+   "critic_outcome": "accept",
+   "autonomy_blocks": [],
+   "calibration_version": null,
+   "evaluated_at": "2026-10-24 21:19:07.49993+00",
+   "score_breakdown": {
+    "total": 0.6382929400417549,
+    "factors": {
+     "placement_quality": 0.9
+    },
+    "relevance": 0.7092143778241721,
+    "components": [
+     {
+      "name": "semantic",
+      "value": 0.5140479260805737,
+      "weight": 0.3,
+      "contribution": 0.1542143778241721
+     },
+     {
+      "name": "taxonomy",
+      "value": 0.7,
+      "weight": 0.2,
+      "contribution": 0.13999999999999999
+     },
+     {
+      "name": "intent",
+      "value": 0.9,
+      "weight": 0.15,
+      "contribution": 0.135
+     },
+     {
+      "name": "graph",
+      "value": 1.0,
+      "weight": 0.15,
+      "contribution": 0.15
+     },
+     {
+      "name": "geography",
+      "value": 1.0,
+      "weight": 0.08,
+      "contribution": 0.08
+     },
+     {
+      "name": "commercial",
+      "value": 1.0,
+      "weight": 0.05,
+      "contribution": 0.05
+     },
+     {
+      "name": "underlinked",
+      "value": 0.0,
+      "weight": 0.04,
+      "contribution": 0.0
+     },
+     {
+      "name": "historical",
+      "value": 0.0,
+      "weight": 0.03,
+      "contribution": 0.0
+     }
+    ],
+    "policy_name": "ranking",
+    "policy_version": 1,
+    "semantic_floor": 0.78
+   }
+  },
+  {
+   "plan_id": "7873e9df-6dc9-4eaa-a45a-e525d53b05cc",
+   "plan_status": "policy_checked",
+   "source_url": "https://research.example.com/industry-reports/thailand-electric-vehicle-market",
+   "target_url": "https://research.example.com/insights/charging-infrastructure-gaps-southeast-asia",
+   "target_title": "Why Charging Infrastructure Lags EV Sales in Southeast Asia",
+   "anchor_text": "fast chargers",
+   "anchor_source": "target_topic",
+   "block_id": "b8",
+   "start_offset": 127,
+   "end_offset": 140,
+   "preview": {
+    "after": " at fuel stations and shopping malls, but the network outside the main tourist routes is thin.",
+    "anchor": "fast chargers",
+    "before": "Public charging is concentrated in Bangkok and along major highways. The state energy company and private operators are adding "
+   },
+   "total_score": 0.6228354136171387,
+   "plan_confidence": 0.6228354136171387,
+   "reason_codes": [
+    "semantically_similar",
+    "lexical_overlap",
+    "submarket",
+    "complementary_market",
+    "same_geography",
+    "underlinked_target",
+    "anchor_matches_target_topic"
+   ],
+   "channels": [
+    "semantic",
+    "lexical",
+    "taxonomy",
+    "graph"
+   ],
+   "relationship_type": "submarket",
+   "embedding_model": "nomic-embed-text",
+   "rationale": "Link to \"Why Charging Infrastructure Lags EV Sales in Southeast Asia\" (submarket) on the existing phrase \"fast chargers\". Why: the pages are semantically similar; the pages share key terms; the target covers a submarket; the markets are complementary; both pages cover the same country; the target has few internal links; the anchor names the target's topic.",
+   "critic_verdict": "accept",
+   "critic_reasons": [
+    "natural_anchor",
+    "relevant_destination",
+    "reader_journey_mismatch"
+   ],
+   "critic_fallback": false,
+   "fallback_reason": null,
+   "critic_model": "qwen3:8b-q4_K_M",
+   "autonomy_mode": "shadow",
+   "autonomy_decision": "block",
+   "would_have_decision": "auto_publish_with_extra_verification",
+   "risk_tier": "medium",
+   "autonomy_confidence": 0.6228354136171387,
+   "critic_outcome": "accept",
+   "autonomy_blocks": [],
+   "calibration_version": null,
+   "evaluated_at": "2026-10-24 21:19:07.700419+00",
+   "score_breakdown": {
+    "total": 0.6228354136171387,
+    "factors": {
+     "placement_quality": 1.0
+    },
+    "relevance": 0.6228354136171387,
+    "components": [
+     {
+      "name": "semantic",
+      "value": 0.226118045390462,
+      "weight": 0.3,
+      "contribution": 0.0678354136171386
+     },
+     {
+      "name": "taxonomy",
+      "value": 0.8,
+      "weight": 0.2,
+      "contribution": 0.16000000000000003
+     },
+     {
+      "name": "intent",
+      "value": 0.7,
+      "weight": 0.15,
+      "contribution": 0.105
+     },
+     {
+      "name": "graph",
+      "value": 1.0,
+      "weight": 0.15,
+      "contribution": 0.15
+     },
+     {
+      "name": "geography",
+      "value": 1.0,
+      "weight": 0.08,
+      "contribution": 0.08
+     },
+     {
+      "name": "commercial",
+      "value": 0.6666666666666666,
+      "weight": 0.05,
+      "contribution": 0.03333333333333333
+     },
+     {
+      "name": "underlinked",
+      "value": 0.6666666666666667,
+      "weight": 0.04,
+      "contribution": 0.026666666666666672
+     },
+     {
+      "name": "historical",
+      "value": 0.0,
+      "weight": 0.03,
+      "contribution": 0.0
+     }
+    ],
+    "policy_name": "ranking",
+    "policy_version": 1,
+    "semantic_floor": 0.78
+   }
+  },
+  {
+   "plan_id": "298daffa-93dc-46c5-8d25-932a2c5a018c",
+   "plan_status": "policy_checked",
+   "source_url": "https://research.example.com/industry-reports/southeast-asia-battery-materials-market",
+   "target_url": "https://research.example.com/industry-reports/india-lithium-ion-battery-manufacturing-market",
+   "target_title": "India Lithium-ion Battery Manufacturing Market Outlook",
+   "anchor_text": "lithium-ion battery",
+   "anchor_source": "target_topic",
+   "block_id": "b10",
+   "start_offset": 106,
+   "end_offset": 125,
+   "preview": {
+    "after": " makers in Asia and Europe will determine how much of the planned capacity is built.",
+    "anchor": "lithium-ion battery",
+    "before": "We expect Southeast Asia's share of global battery materials processing to rise through 2030. Demand from "
+   },
+   "total_score": 0.6208114152037711,
+   "plan_confidence": 0.6208114152037711,
+   "reason_codes": [
+    "semantically_similar",
+    "lexical_overlap",
+    "related_market",
+    "supply_chain",
+    "regional_context",
+    "high_commercial_value",
+    "underlinked_target",
+    "anchor_matches_target_topic"
+   ],
+   "channels": [
+    "semantic",
+    "lexical",
+    "taxonomy",
+    "graph"
+   ],
+   "relationship_type": "supply_chain_downstream",
+   "embedding_model": "nomic-embed-text",
+   "rationale": "Link to \"India Lithium-ion Battery Manufacturing Market Outlook\" (downstream in the supply chain) on the existing phrase \"lithium-ion battery\". Why: the pages are semantically similar; the pages share key terms; the target covers a related market; the markets are linked in the supply chain; the target adds regional context; the target is a high-value commercial page; the target has few internal links; the anchor names the target's topic.",
+   "critic_verdict": "accept",
+   "critic_reasons": [
+    "natural_anchor",
+    "relevant_destination",
+    "reader_journey_mismatch"
+   ],
+   "critic_fallback": false,
+   "fallback_reason": null,
+   "critic_model": "qwen3:8b-q4_K_M",
+   "autonomy_mode": "shadow",
+   "autonomy_decision": "block",
+   "would_have_decision": "auto_publish_with_extra_verification",
+   "risk_tier": "medium",
+   "autonomy_confidence": 0.6208114152037711,
+   "critic_outcome": "accept",
+   "autonomy_blocks": [],
+   "calibration_version": null,
+   "evaluated_at": "2026-10-24 21:19:07.638701+00",
+   "score_breakdown": {
+    "total": 0.6208114152037711,
+    "factors": {
+     "placement_quality": 1.0
+    },
+    "relevance": 0.6208114152037711,
+    "components": [
+     {
+      "name": "semantic",
+      "value": 0.23714916179034845,
+      "weight": 0.3,
+      "contribution": 0.07114474853710454
+     },
+     {
+      "name": "taxonomy",
+      "value": 0.7,
+      "weight": 0.2,
+      "contribution": 0.13999999999999999
+     },
+     {
+      "name": "intent",
+      "value": 0.9,
+      "weight": 0.15,
+      "contribution": 0.135
+     },
+     {
+      "name": "graph",
+      "value": 1.0,
+      "weight": 0.15,
+      "contribution": 0.15
+     },
+     {
+      "name": "geography",
+      "value": 0.6,
+      "weight": 0.08,
+      "contribution": 0.048
+     },
+     {
+      "name": "commercial",
+      "value": 1.0,
+      "weight": 0.05,
+      "contribution": 0.05
+     },
+     {
+      "name": "underlinked",
+      "value": 0.6666666666666667,
+      "weight": 0.04,
+      "contribution": 0.026666666666666672
+     },
+     {
+      "name": "historical",
+      "value": 0.0,
+      "weight": 0.03,
+      "contribution": 0.0
+     }
+    ],
+    "policy_name": "ranking",
+    "policy_version": 1,
+    "semantic_floor": 0.78
+   }
+  },
+  {
+   "plan_id": "34b48002-7a5a-4fab-95bd-6e4ea6b24cea",
+   "plan_status": "policy_checked",
+   "source_url": "https://research.example.com/insights/battery-swapping-electric-two-wheelers-india",
+   "target_url": "https://research.example.com/industry-reports/india-electric-vehicle-market",
+   "target_title": "India Electric Vehicle Market Report 2025-2030",
+   "anchor_text": "electric cars",
+   "anchor_source": "target_topic",
+   "block_id": "b2",
+   "start_offset": 46,
+   "end_offset": 59,
+   "preview": {
+    "after": " more than a decade ago and failed because carmakers would not agree on a common pack. Two-wheelers are a better fit. Packs are light enough to lift by hand, riders are price-sensitive commercial",
+    "anchor": "electric cars",
+    "before": "Battery swapping is not new: it was tried for "
+   },
+   "total_score": 0.620517366871848,
+   "plan_confidence": 0.620517366871848,
+   "reason_codes": [
+    "semantically_similar",
+    "lexical_overlap",
+    "parent_market",
+    "same_geography",
+    "high_commercial_value",
+    "anchor_matches_target_topic"
+   ],
+   "channels": [
+    "semantic",
+    "lexical",
+    "taxonomy",
+    "graph"
+   ],
+   "relationship_type": "parent_market",
+   "embedding_model": "nomic-embed-text",
+   "rationale": "Link to \"India Electric Vehicle Market Report 2025-2030\" (parent market) on the existing phrase \"electric cars\". Why: the pages are semantically similar; the pages share key terms; the target covers the parent market; both pages cover the same country; the target is a high-value commercial page; the anchor names the target's topic.",
+   "critic_verdict": "accept",
+   "critic_reasons": [
+    "natural_anchor",
+    "relevant_destination",
+    "reader_journey_mismatch"
+   ],
+   "critic_fallback": false,
+   "fallback_reason": null,
+   "critic_model": "qwen3:8b-q4_K_M",
+   "autonomy_mode": "shadow",
+   "autonomy_decision": "block",
+   "would_have_decision": "auto_publish_with_extra_verification",
+   "risk_tier": "medium",
+   "autonomy_confidence": 0.620517366871848,
+   "critic_outcome": "accept",
+   "autonomy_blocks": [],
+   "calibration_version": null,
+   "evaluated_at": "2026-10-24 21:19:07.913587+00",
+   "score_breakdown": {
+    "total": 0.620517366871848,
+    "factors": {
+     "placement_quality": 1.0
+    },
+    "relevance": 0.620517366871848,
+    "components": [
+     {
+      "name": "semantic",
+      "value": 0.10172455623949338,
+      "weight": 0.3,
+      "contribution": 0.03051736687184801
+     },
+     {
+      "name": "taxonomy",
+      "value": 0.8,
+      "weight": 0.2,
+      "contribution": 0.16000000000000003
+     },
+     {
+      "name": "intent",
+      "value": 1.0,
+      "weight": 0.15,
+      "contribution": 0.15
+     },
+     {
+      "name": "graph",
+      "value": 1.0,
+      "weight": 0.15,
+      "contribution": 0.15
+     },
+     {
+      "name": "geography",
+      "value": 1.0,
+      "weight": 0.08,
+      "contribution": 0.08
+     },
+     {
+      "name": "commercial",
+      "value": 1.0,
+      "weight": 0.05,
+      "contribution": 0.05
+     },
+     {
+      "name": "underlinked",
+      "value": 0.0,
+      "weight": 0.04,
+      "contribution": 0.0
+     },
+     {
+      "name": "historical",
+      "value": 0.0,
+      "weight": 0.03,
+      "contribution": 0.0
+     }
+    ],
+    "policy_name": "ranking",
+    "policy_version": 1,
+    "semantic_floor": 0.78
+   }
+  },
+  {
+   "plan_id": "ea49231a-4fed-4b2e-8788-273d2364b8da",
+   "plan_status": "policy_checked",
+   "source_url": "https://research.example.com/insights/fame-scheme-electric-vehicle-adoption-india",
+   "target_url": "https://research.example.com/industry-reports/india-ev-charging-infrastructure-market",
+   "target_title": "India EV Charging Infrastructure Market Outlook",
+   "anchor_text": "charging stations",
+   "anchor_source": "target_topic",
+   "block_id": "b4",
+   "start_offset": 178,
+   "end_offset": 195,
+   "preview": {
+    "after": " in cities and on highways, and tied subsidies to localisation of key components.",
+    "anchor": "charging stations",
+    "before": "FAME II concentrated subsidies on vehicles used intensively: electric buses procured by state transport undertakings, three-wheelers and commercial fleets. It also funded public "
+   },
+   "total_score": 0.6052796208148598,
+   "plan_confidence": 0.6052796208148598,
+   "reason_codes": [
+    "semantically_similar",
+    "lexical_overlap",
+    "submarket",
+    "complementary_market",
+    "same_geography",
+    "high_commercial_value",
+    "underlinked_target",
+    "anchor_matches_target_topic"
+   ],
+   "channels": [
+    "semantic",
+    "lexical",
+    "taxonomy",
+    "graph"
+   ],
+   "relationship_type": "submarket",
+   "embedding_model": "nomic-embed-text",
+   "rationale": "Link to \"India EV Charging Infrastructure Market Outlook\" (submarket) on the existing phrase \"charging stations\". Why: the pages are semantically similar; the pages share key terms; the target covers a submarket; the markets are complementary; both pages cover the same country; the target is a high-value commercial page; the target has few internal links; the anchor names the target's topic.",
+   "critic_verdict": "accept",
+   "critic_reasons": [
+    "natural_anchor",
+    "relevant_destination",
+    "reader_journey_mismatch"
+   ],
+   "critic_fallback": false,
+   "fallback_reason": null,
+   "critic_model": "qwen3:8b-q4_K_M",
+   "autonomy_mode": "shadow",
+   "autonomy_decision": "block",
+   "would_have_decision": "auto_publish_with_extra_verification",
+   "risk_tier": "medium",
+   "autonomy_confidence": 0.6052796208148598,
+   "critic_outcome": "accept",
+   "autonomy_blocks": [],
+   "calibration_version": null,
+   "evaluated_at": "2026-10-24 21:19:08.116995+00",
+   "score_breakdown": {
+    "total": 0.6052796208148598,
+    "factors": {
+     "placement_quality": 1.0
+    },
+    "relevance": 0.6052796208148598,
+    "components": [
+     {
+      "name": "semantic",
+      "value": 0.0064876249384211845,
+      "weight": 0.3,
+      "contribution": 0.0019462874815263554
+     },
+     {
+      "name": "taxonomy",
+      "value": 0.8,
+      "weight": 0.2,
+      "contribution": 0.16000000000000003
+     },
+     {
+      "name": "intent",
+      "value": 1.0,
+      "weight": 0.15,
+      "contribution": 0.15
+     },
+     {
+      "name": "graph",
+      "value": 1.0,
+      "weight": 0.15,
+      "contribution": 0.15
+     },
+     {
+      "name": "geography",
+      "value": 1.0,
+      "weight": 0.08,
+      "contribution": 0.08
+     },
+     {
+      "name": "commercial",
+      "value": 1.0,
+      "weight": 0.05,
+      "contribution": 0.05
+     },
+     {
+      "name": "underlinked",
+      "value": 0.33333333333333337,
+      "weight": 0.04,
+      "contribution": 0.013333333333333336
+     },
+     {
+      "name": "historical",
+      "value": 0.0,
+      "weight": 0.03,
+      "contribution": 0.0
+     }
+    ],
+    "policy_name": "ranking",
+    "policy_version": 1,
+    "semantic_floor": 0.78
+   }
+  },
+  {
+   "plan_id": "2f31691e-d545-4b47-aae7-4fd74629a843",
+   "plan_status": "policy_checked",
+   "source_url": "https://research.example.com/industry-reports/indonesia-ev-charging-infrastructure-market",
+   "target_url": "https://research.example.com/industry-reports/thailand-electric-vehicle-market",
+   "target_title": "Thailand Electric Vehicle Market Outlook",
+   "anchor_text": "electric vehicles",
+   "anchor_source": "target_topic",
+   "block_id": "b8",
+   "start_offset": 72,
+   "end_offset": 89,
+   "preview": {
+    "after": " still a small share of the car parc, many public chargers see only a few sessions a day. Operators that bundle charging with ride-hailing fleets or electric taxi depots report far higher utilisation.",
+    "anchor": "electric vehicles",
+    "before": "Utilisation is the central commercial question for every operator. With "
+   },
+   "total_score": 0.604617384542083,
+   "plan_confidence": 0.604617384542083,
+   "reason_codes": [
+    "semantically_similar",
+    "lexical_overlap",
+    "parent_market",
+    "complementary_market",
+    "regional_context",
+    "high_commercial_value",
+    "underlinked_target",
+    "anchor_matches_target_topic"
+   ],
+   "channels": [
+    "semantic",
+    "lexical",
+    "taxonomy",
+    "graph"
+   ],
+   "relationship_type": "parent_market",
+   "embedding_model": "nomic-embed-text",
+   "rationale": "Link to \"Thailand Electric Vehicle Market Outlook\" (parent market) on the existing phrase \"electric vehicles\". Why: the pages are semantically similar; the pages share key terms; the target covers the parent market; the markets are complementary; the target adds regional context; the target is a high-value commercial page; the target has few internal links; the anchor names the target's topic.",
+   "critic_verdict": "accept",
+   "critic_reasons": [
+    "natural_anchor",
+    "relevant_destination",
+    "reader_journey_mismatch"
+   ],
+   "critic_fallback": false,
+   "fallback_reason": null,
+   "critic_model": "qwen3:8b-q4_K_M",
+   "autonomy_mode": "shadow",
+   "autonomy_decision": "block",
+   "would_have_decision": "auto_publish_with_extra_verification",
+   "risk_tier": "medium",
+   "autonomy_confidence": 0.604617384542083,
+   "critic_outcome": "accept",
+   "autonomy_blocks": [],
+   "calibration_version": null,
+   "evaluated_at": "2026-10-24 21:19:07.542599+00",
+   "score_breakdown": {
+    "total": 0.604617384542083,
+    "factors": {
+     "placement_quality": 1.0
+    },
+    "relevance": 0.604617384542083,
+    "components": [
+     {
+      "name": "semantic",
+      "value": 0.16094683736249873,
+      "weight": 0.3,
+      "contribution": 0.048284051208749616
+     },
+     {
+      "name": "taxonomy",
+      "value": 0.8,
+      "weight": 0.2,
+      "contribution": 0.16000000000000003
+     },
+     {
+      "name": "intent",
+      "value": 0.9,
+      "weight": 0.15,
+      "contribution": 0.135
+     },
+     {
+      "name": "graph",
+      "value": 1.0,
+      "weight": 0.15,
+      "contribution": 0.15
+     },
+     {
+      "name": "geography",
+      "value": 0.6,
+      "weight": 0.08,
+      "contribution": 0.048
+     },
+     {
+      "name": "commercial",
+      "value": 1.0,
+      "weight": 0.05,
+      "contribution": 0.05
+     },
+     {
+      "name": "underlinked",
+      "value": 0.33333333333333337,
+      "weight": 0.04,
+      "contribution": 0.013333333333333336
+     },
+     {
+      "name": "historical",
+      "value": 0.0,
+      "weight": 0.03,
+      "contribution": 0.0
+     }
+    ],
+    "policy_name": "ranking",
+    "policy_version": 1,
+    "semantic_floor": 0.78
+   }
+  },
+  {
+   "plan_id": "4bd3313a-f724-48b3-a95c-91e62ebea065",
+   "plan_status": "policy_checked",
+   "source_url": "https://research.example.com/industry-reports/india-pharmaceutical-market",
+   "target_url": "https://research.example.com/industry-reports/india-cold-chain-market",
+   "target_title": "India Cold Chain Market Outlook to 2030",
+   "anchor_text": "cold chain",
+   "anchor_source": "target_topic",
+   "block_id": "b8",
+   "start_offset": 165,
+   "end_offset": 175,
+   "preview": {
+    "after": " capacity for medicines is growing alongside exports.",
+    "anchor": "cold chain",
+    "before": "Vaccines, insulin and biologics require temperature-controlled distribution. Pharma companies are partnering with specialised logistics providers, and investment in "
+   },
+   "total_score": 0.6046021179102973,
+   "plan_confidence": 0.6046021179102973,
+   "reason_codes": [
+    "semantically_similar",
+    "lexical_overlap",
+    "complementary_market",
+    "industry_adjacency",
+    "same_geography",
+    "high_commercial_value",
+    "underlinked_target",
+    "anchor_matches_target_topic"
+   ],
+   "channels": [
+    "semantic",
+    "lexical",
+    "taxonomy"
+   ],
+   "relationship_type": "complementary_market",
+   "embedding_model": "nomic-embed-text",
+   "rationale": "Link to \"India Cold Chain Market Outlook to 2030\" (complementary market) on the existing phrase \"cold chain\". Why: the pages are semantically similar; the pages share key terms; the markets are complementary; the industries are adjacent; both pages cover the same country; the target is a high-value commercial page; the target has few internal links; the anchor names the target's topic.",
+   "critic_verdict": "accept",
+   "critic_reasons": [
+    "natural_anchor",
+    "relevant_destination",
+    "reader_journey_mismatch"
+   ],
+   "critic_fallback": false,
+   "fallback_reason": null,
+   "critic_model": "qwen3:8b-q4_K_M",
+   "autonomy_mode": "shadow",
+   "autonomy_decision": "block",
+   "would_have_decision": "auto_publish_with_extra_verification",
+   "risk_tier": "medium",
+   "autonomy_confidence": 0.6046021179102973,
+   "critic_outcome": "accept",
+   "autonomy_blocks": [],
+   "calibration_version": null,
+   "evaluated_at": "2026-10-24 21:19:07.516883+00",
+   "score_breakdown": {
+    "total": 0.6046021179102973,
+    "factors": {
+     "placement_quality": 1.0
+    },
+    "relevance": 0.6046021179102973,
+    "components": [
+     {
+      "name": "semantic",
+      "value": 0.143118170812102,
+      "weight": 0.3,
+      "contribution": 0.0429354512436306
+     },
+     {
+      "name": "taxonomy",
+      "value": 0.6,
+      "weight": 0.2,
+      "contribution": 0.12
+     },
+     {
+      "name": "intent",
+      "value": 0.9,
+      "weight": 0.15,
+      "contribution": 0.135
+     },
+     {
+      "name": "graph",
+      "value": 1.0,
+      "weight": 0.15,
+      "contribution": 0.15
+     },
+     {
+      "name": "geography",
+      "value": 1.0,
+      "weight": 0.08,
+      "contribution": 0.08
+     },
+     {
+      "name": "commercial",
+      "value": 1.0,
+      "weight": 0.05,
+      "contribution": 0.05
+     },
+     {
+      "name": "underlinked",
+      "value": 0.6666666666666667,
+      "weight": 0.04,
+      "contribution": 0.026666666666666672
+     },
+     {
+      "name": "historical",
+      "value": 0.0,
+      "weight": 0.03,
+      "contribution": 0.0
+     }
+    ],
+    "policy_name": "ranking",
+    "policy_version": 1,
+    "semantic_floor": 0.78
+   }
+  },
+  {
+   "plan_id": "8e69d364-aec1-4cf3-b8d5-e068f1520071",
+   "plan_status": "policy_checked",
+   "source_url": "https://research.example.com/insights/semiconductor-supply-chain-shift-malaysia",
+   "target_url": "https://research.example.com/industry-reports/india-semiconductor-market",
+   "target_title": "India Semiconductor Market Report",
+   "anchor_text": "wafer fabrication",
+   "anchor_source": "target_topic",
+   "block_id": "b6",
+   "start_offset": 123,
+   "end_offset": 140,
+   "preview": {
+    "after": " plants. Malaysia's advantage is its ecosystem of suppliers and experienced engineers, but talent shortages are a constraint.",
+    "anchor": "wafer fabrication",
+    "before": "Vietnam is attracting assembly and test investment with lower labour costs, and India offers large subsidies for its first "
+   },
+   "total_score": 0.5980564831068433,
+   "plan_confidence": 0.5980564831068433,
+   "reason_codes": [
+    "semantically_similar",
+    "lexical_overlap",
+    "same_market",
+    "same_geography",
+    "high_commercial_value",
+    "underlinked_target",
+    "anchor_matches_target_topic"
+   ],
+   "channels": [
+    "semantic",
+    "lexical",
+    "taxonomy",
+    "graph"
+   ],
+   "relationship_type": "same_market",
+   "embedding_model": "nomic-embed-text",
+   "rationale": "Link to \"India Semiconductor Market Report\" (same market) on the existing phrase \"wafer fabrication\". Why: the pages are semantically similar; the pages share key terms; both pages cover the same market; both pages cover the same country; the target is a high-value commercial page; the target has few internal links; the anchor names the target's topic.",
+   "critic_verdict": "accept",
+   "critic_reasons": [
+    "natural_anchor",
+    "relevant_destination",
+    "reader_journey_mismatch"
+   ],
+   "critic_fallback": false,
+   "fallback_reason": null,
+   "critic_model": "qwen3:8b-q4_K_M",
+   "autonomy_mode": "shadow",
+   "autonomy_decision": "block",
+   "would_have_decision": "auto_publish_with_extra_verification",
+   "risk_tier": "medium",
+   "autonomy_confidence": 0.5980564831068433,
+   "critic_outcome": "accept",
+   "autonomy_blocks": [],
+   "calibration_version": null,
+   "evaluated_at": "2026-10-24 21:19:08.225294+00",
+   "score_breakdown": {
+    "total": 0.5980564831068433,
+    "factors": {
+     "placement_quality": 1.0
+    },
+    "relevance": 0.5980564831068433,
+    "components": [
+     {
+      "name": "semantic",
+      "value": 0.09907716591169999,
+      "weight": 0.3,
+      "contribution": 0.029723149773509996
+     },
+     {
+      "name": "taxonomy",
+      "value": 1.0,
+      "weight": 0.2,
+      "contribution": 0.2
+     },
+     {
+      "name": "intent",
+      "value": 1.0,
+      "weight": 0.15,
+      "contribution": 0.15
+     },
+     {
+      "name": "graph",
+      "value": 0.5,
+      "weight": 0.15,
+      "contribution": 0.075
+     },
+     {
+      "name": "geography",
+      "value": 1.0,
+      "weight": 0.08,
+      "contribution": 0.08
+     },
+     {
+      "name": "commercial",
+      "value": 1.0,
+      "weight": 0.05,
+      "contribution": 0.05
+     },
+     {
+      "name": "underlinked",
+      "value": 0.33333333333333337,
+      "weight": 0.04,
+      "contribution": 0.013333333333333336
+     },
+     {
+      "name": "historical",
+      "value": 0.0,
+      "weight": 0.03,
+      "contribution": 0.0
+     }
+    ],
+    "policy_name": "ranking",
+    "policy_version": 1,
+    "semantic_floor": 0.78
+   }
+  },
+  {
+   "plan_id": "d0b8d4f8-ab35-4f46-bd39-fb10b1d3f37c",
+   "plan_status": "policy_checked",
+   "source_url": "https://research.example.com/industry-reports/uae-cold-chain-market",
+   "target_url": "https://research.example.com/industry-reports/qatar-logistics-market",
+   "target_title": "Qatar Logistics Market Report",
+   "anchor_text": "Logistics",
+   "anchor_source": "target_topic",
+   "block_id": "b4",
+   "start_offset": 243,
+   "end_offset": 252,
+   "preview": {
+    "after": " recently opened an automated cold storage facility in Dubai South.",
+    "anchor": "Logistics",
+    "before": "blast freezing, chilled and ambient zones are replacing older single-temperature warehouses. Automation is rising because labour in sub-zero environments is expensive and hard to retain. ColdPath "
+   },
+   "total_score": 0.5949713103750914,
+   "plan_confidence": 0.5949713103750914,
+   "reason_codes": [
+    "semantically_similar",
+    "lexical_overlap",
+    "parent_market",
+    "regional_context",
+    "high_commercial_value",
+    "underlinked_target",
+    "anchor_matches_target_topic"
+   ],
+   "channels": [
+    "semantic",
+    "lexical",
+    "taxonomy",
+    "graph"
+   ],
+   "relationship_type": "parent_market",
+   "embedding_model": "nomic-embed-text",
+   "rationale": "Link to \"Qatar Logistics Market Report\" (parent market) on the existing phrase \"Logistics\". Why: the pages are semantically similar; the pages share key terms; the target covers the parent market; the target adds regional context; the target is a high-value commercial page; the target has few internal links; the anchor names the target's topic.",
+   "critic_verdict": "accept",
+   "critic_reasons": [
+    "natural_anchor",
+    "relevant_destination",
+    "reader_journey_mismatch"
+   ],
+   "critic_fallback": false,
+   "fallback_reason": null,
+   "critic_model": "qwen3:8b-q4_K_M",
+   "autonomy_mode": "shadow",
+   "autonomy_decision": "block",
+   "would_have_decision": "auto_publish_with_extra_verification",
+   "risk_tier": "medium",
+   "autonomy_confidence": 0.5949713103750914,
+   "critic_outcome": "accept",
+   "autonomy_blocks": [],
+   "calibration_version": null,
+   "evaluated_at": "2026-10-24 21:19:07.763832+00",
+   "score_breakdown": {
+    "total": 0.5949713103750914,
+    "factors": {
+     "placement_quality": 1.0
+    },
+    "relevance": 0.5949713103750914,
+    "components": [
+     {
+      "name": "semantic",
+      "value": 0.08434881236141577,
+      "weight": 0.3,
+      "contribution": 0.02530464370842473
+     },
+     {
+      "name": "taxonomy",
+      "value": 0.8,
+      "weight": 0.2,
+      "contribution": 0.16000000000000003
+     },
+     {
+      "name": "intent",
+      "value": 0.9,
+      "weight": 0.15,
+      "contribution": 0.135
+     },
+     {
+      "name": "graph",
+      "value": 1.0,
+      "weight": 0.15,
+      "contribution": 0.15
+     },
+     {
+      "name": "geography",
+      "value": 0.6,
+      "weight": 0.08,
+      "contribution": 0.048
+     },
+     {
+      "name": "commercial",
+      "value": 1.0,
+      "weight": 0.05,
+      "contribution": 0.05
+     },
+     {
+      "name": "underlinked",
+      "value": 0.6666666666666667,
+      "weight": 0.04,
+      "contribution": 0.026666666666666672
+     },
+     {
+      "name": "historical",
+      "value": 0.0,
+      "weight": 0.03,
+      "contribution": 0.0
+     }
+    ],
+    "policy_name": "ranking",
+    "policy_version": 1,
+    "semantic_floor": 0.78
+   }
+  },
+  {
+   "plan_id": "f18311ea-a4af-4f70-9a22-48169a0ffcd4",
+   "plan_status": "proposed",
+   "source_url": "https://research.example.com/insights/digital-payments-lessons-southeast-asia",
+   "target_url": "https://research.example.com/industry-reports/india-digital-lending-market",
+   "target_title": "India Digital Lending Market Outlook",
+   "anchor_text": "digital payments",
+   "anchor_source": "target_topic",
+   "block_id": "b1",
+   "start_offset": 60,
+   "end_offset": 76,
+   "preview": {
+    "after": " than any other system in the world. Its design, an interoperable public rail on which banks and fintech apps compete, is being studied by regulators across Southeast Asia.",
+    "anchor": "digital payments",
+    "before": "India's Unified Payments Interface processes more real-time "
+   },
+   "total_score": 0.5805339696384924,
+   "plan_confidence": 0.5805339696384924,
+   "reason_codes": [
+    "semantically_similar",
+    "lexical_overlap",
+    "same_market",
+    "same_geography",
+    "high_commercial_value",
+    "underlinked_target",
+    "anchor_matches_target_topic"
+   ],
+   "channels": [
+    "semantic",
+    "lexical",
+    "taxonomy",
+    "graph"
+   ],
+   "relationship_type": "same_market",
+   "embedding_model": "nomic-embed-text",
+   "rationale": "Link to \"India Digital Lending Market Outlook\" (same market) on the existing phrase \"digital payments\". Why: the pages are semantically similar; the pages share key terms; both pages cover the same market; both pages cover the same country; the target is a high-value commercial page; the target has few internal links; the anchor names the target's topic.",
+   "critic_verdict": "reject",
+   "critic_reasons": [
+    "reader_journey_mismatch",
+    "misleading_anchor"
+   ],
+   "critic_fallback": false,
+   "fallback_reason": null,
+   "critic_model": "qwen3:8b-q4_K_M",
+   "autonomy_mode": "shadow",
+   "autonomy_decision": "block",
+   "would_have_decision": "block",
+   "risk_tier": "medium",
+   "autonomy_confidence": 0.5805339696384924,
+   "critic_outcome": "reject",
+   "autonomy_blocks": [],
+   "calibration_version": null,
+   "evaluated_at": "2026-10-24 21:19:08.098702+00",
+   "score_breakdown": {
+    "total": 0.5805339696384924,
+    "factors": {
+     "placement_quality": 0.9
+    },
+    "relevance": 0.6450377440427693,
+    "components": [
+     {
+      "name": "semantic",
+      "value": 0.2112369245870085,
+      "weight": 0.3,
+      "contribution": 0.06337107737610255
+     },
+     {
+      "name": "taxonomy",
+      "value": 1.0,
+      "weight": 0.2,
+      "contribution": 0.2
+     },
+     {
+      "name": "intent",
+      "value": 1.0,
+      "weight": 0.15,
+      "contribution": 0.15
+     },
+     {
+      "name": "graph",
+      "value": 0.5,
+      "weight": 0.15,
+      "contribution": 0.075
+     },
+     {
+      "name": "geography",
+      "value": 1.0,
+      "weight": 0.08,
+      "contribution": 0.08
+     },
+     {
+      "name": "commercial",
+      "value": 1.0,
+      "weight": 0.05,
+      "contribution": 0.05
+     },
+     {
+      "name": "underlinked",
+      "value": 0.6666666666666667,
+      "weight": 0.04,
+      "contribution": 0.026666666666666672
+     },
+     {
+      "name": "historical",
+      "value": 0.0,
+      "weight": 0.03,
+      "contribution": 0.0
+     }
+    ],
+    "policy_name": "ranking",
+    "policy_version": 1,
+    "semantic_floor": 0.78
+   }
+  },
+  {
+   "plan_id": "beb5e83e-f1da-47cc-8356-598b87b8fb3b",
+   "plan_status": "policy_checked",
+   "source_url": "https://research.example.com/insights/gcc-data-center-power-demand",
+   "target_url": "https://research.example.com/industry-reports/saudi-arabia-data-center-market",
+   "target_title": "Saudi Arabia Data Center Market Report",
+   "anchor_text": "data centers",
+   "anchor_source": "target_topic",
+   "block_id": "b1",
+   "start_offset": 146,
+   "end_offset": 158,
+   "preview": {
+    "after": " will become one of the fastest-growing sources of electricity demand in the Gulf region.",
+    "anchor": "data centers",
+    "before": "Announced data center projects in the GCC add up to several gigawatts of IT load, most of it in Saudi Arabia and the UAE. If even half are built, "
+   },
+   "total_score": 0.5794161514274673,
+   "plan_confidence": 0.5794161514274673,
+   "reason_codes": [
+    "semantically_similar",
+    "lexical_overlap",
+    "same_market",
+    "same_geography",
+    "high_commercial_value",
+    "anchor_matches_target_topic"
+   ],
+   "channels": [
+    "semantic",
+    "lexical",
+    "taxonomy",
+    "graph"
+   ],
+   "relationship_type": "same_market",
+   "embedding_model": "nomic-embed-text",
+   "rationale": "Link to \"Saudi Arabia Data Center Market Report\" (same market) on the existing phrase \"data centers\". Why: the pages are semantically similar; the pages share key terms; both pages cover the same market; both pages cover the same country; the target is a high-value commercial page; the anchor names the target's topic.",
+   "critic_verdict": "accept",
+   "critic_reasons": [
+    "natural_anchor",
+    "relevant_destination",
+    "reader_journey_mismatch"
+   ],
+   "critic_fallback": false,
+   "fallback_reason": null,
+   "critic_model": "qwen3:8b-q4_K_M",
+   "autonomy_mode": "shadow",
+   "autonomy_decision": "block",
+   "would_have_decision": "auto_publish_with_extra_verification",
+   "risk_tier": "medium",
+   "autonomy_confidence": 0.5794161514274673,
+   "critic_outcome": "accept",
+   "autonomy_blocks": [],
+   "calibration_version": null,
+   "evaluated_at": "2026-10-24 21:19:08.15212+00",
+   "score_breakdown": {
+    "total": 0.5794161514274673,
+    "factors": {
+     "placement_quality": 0.9
+    },
+    "relevance": 0.643795723808297,
+    "components": [
+     {
+      "name": "semantic",
+      "value": 0.2959857460276565,
+      "weight": 0.3,
+      "contribution": 0.08879572380829694
+     },
+     {
+      "name": "taxonomy",
+      "value": 1.0,
+      "weight": 0.2,
+      "contribution": 0.2
+     },
+     {
+      "name": "intent",
+      "value": 1.0,
+      "weight": 0.15,
+      "contribution": 0.15
+     },
+     {
+      "name": "graph",
+      "value": 0.5,
+      "weight": 0.15,
+      "contribution": 0.075
+     },
+     {
+      "name": "geography",
+      "value": 1.0,
+      "weight": 0.08,
+      "contribution": 0.08
+     },
+     {
+      "name": "commercial",
+      "value": 1.0,
+      "weight": 0.05,
+      "contribution": 0.05
+     },
+     {
+      "name": "underlinked",
+      "value": 0.0,
+      "weight": 0.04,
+      "contribution": 0.0
+     },
+     {
+      "name": "historical",
+      "value": 0.0,
+      "weight": 0.03,
+      "contribution": 0.0
+     }
+    ],
+    "policy_name": "ranking",
+    "policy_version": 1,
+    "semantic_floor": 0.78
+   }
+  },
+  {
+   "plan_id": "4d90817d-31ec-46fc-9235-7557aa4c43df",
+   "plan_status": "proposed",
+   "source_url": "https://research.example.com/insights/digital-payments-lessons-southeast-asia",
+   "target_url": "https://research.example.com/industry-reports/india-health-insurance-market",
+   "target_title": "India Health Insurance Market Report",
+   "anchor_text": "insurance",
+   "anchor_source": "target_topic",
+   "block_id": "b6",
+   "start_offset": 203,
+   "end_offset": 212,
+   "preview": {
+    "after": " distribution and merchant services instead.",
+    "anchor": "insurance",
+    "before": "and small merchant payments on UPI carry no fees, which drove adoption but leaves payment apps without direct revenue. Fintech firms such as Zorvex Pay monetise through digital lending, "
+   },
+   "total_score": 0.5766666666666667,
+   "plan_confidence": 0.5766666666666667,
+   "reason_codes": [
+    "lexical_overlap",
+    "related_market",
+    "same_geography",
+    "high_commercial_value",
+    "underlinked_target",
+    "anchor_matches_target_topic"
+   ],
+   "channels": [
+    "semantic",
+    "lexical",
+    "taxonomy",
+    "graph"
+   ],
+   "relationship_type": "related_market",
+   "embedding_model": "nomic-embed-text",
+   "rationale": "Link to \"India Health Insurance Market Report\" (related market) on the existing phrase \"insurance\". Why: the pages share key terms; the target covers a related market; both pages cover the same country; the target is a high-value commercial page; the target has few internal links; the anchor names the target's topic.",
+   "critic_verdict": "reject",
+   "critic_reasons": [
+    "reader_journey_mismatch",
+    "misleading_anchor"
+   ],
+   "critic_fallback": false,
+   "fallback_reason": null,
+   "critic_model": "qwen3:8b-q4_K_M",
+   "autonomy_mode": "shadow",
+   "autonomy_decision": "block",
+   "would_have_decision": "block",
+   "risk_tier": "medium",
+   "autonomy_confidence": 0.5766666666666667,
+   "critic_outcome": "reject",
+   "autonomy_blocks": [],
+   "calibration_version": null,
+   "evaluated_at": "2026-10-24 21:19:08.080902+00",
+   "score_breakdown": {
+    "total": 0.5766666666666667,
+    "factors": {
+     "placement_quality": 1.0
+    },
+    "relevance": 0.5766666666666667,
+    "components": [
+     {
+      "name": "semantic",
+      "value": 0.0,
+      "weight": 0.3,
+      "contribution": 0.0
+     },
+     {
+      "name": "taxonomy",
+      "value": 0.6,
+      "weight": 0.2,
+      "contribution": 0.12
+     },
+     {
+      "name": "intent",
+      "value": 1.0,
+      "weight": 0.15,
+      "contribution": 0.15
+     },
+     {
+      "name": "graph",
+      "value": 1.0,
+      "weight": 0.15,
+      "contribution": 0.15
+     },
+     {
+      "name": "geography",
+      "value": 1.0,
+      "weight": 0.08,
+      "contribution": 0.08
+     },
+     {
+      "name": "commercial",
+      "value": 1.0,
+      "weight": 0.05,
+      "contribution": 0.05
+     },
+     {
+      "name": "underlinked",
+      "value": 0.6666666666666667,
+      "weight": 0.04,
+      "contribution": 0.026666666666666672
+     },
+     {
+      "name": "historical",
+      "value": 0.0,
+      "weight": 0.03,
+      "contribution": 0.0
+     }
+    ],
+    "policy_name": "ranking",
+    "policy_version": 1,
+    "semantic_floor": 0.78
+   }
+  },
+  {
+   "plan_id": "9fa0af03-9497-4e39-b2a4-b8c99bed9ffa",
+   "plan_status": "policy_checked",
+   "source_url": "https://research.example.com/industry-reports/india-ev-charging-infrastructure-market",
+   "target_url": "https://research.example.com/industry-reports/india-battery-energy-storage-market",
+   "target_title": "India Battery Energy Storage Market Outlook",
+   "anchor_text": "battery storage",
+   "anchor_source": "target_topic",
+   "block_id": "b8",
+   "start_offset": 102,
+   "end_offset": 117,
+   "preview": {
+    "after": " and rooftop solar to manage peak demand charges, a pattern we expect to spread to large depots.",
+    "anchor": "battery storage",
+    "before": "Clusters of fast chargers can strain local distribution networks. Operators are pairing chargers with "
+   },
+   "total_score": 0.5759030909625623,
+   "plan_confidence": 0.5759030909625623,
+   "reason_codes": [
+    "semantically_similar",
+    "lexical_overlap",
+    "industry_adjacency",
+    "same_geography",
+    "high_commercial_value",
+    "anchor_matches_target_topic"
+   ],
+   "channels": [
+    "semantic",
+    "lexical"
+   ],
+   "relationship_type": "industry_adjacency",
+   "embedding_model": "nomic-embed-text",
+   "rationale": "Link to \"India Battery Energy Storage Market Outlook\" (adjacent industry) on the existing phrase \"battery storage\". Why: the pages are semantically similar; the pages share key terms; the industries are adjacent; both pages cover the same country; the target is a high-value commercial page; the anchor names the target's topic.",
+   "critic_verdict": "accept",
+   "critic_reasons": [
+    "natural_anchor",
+    "relevant_destination",
+    "reader_journey_mismatch"
+   ],
+   "critic_fallback": false,
+   "fallback_reason": null,
+   "critic_model": "qwen3:8b-q4_K_M",
+   "autonomy_mode": "shadow",
+   "autonomy_decision": "block",
+   "would_have_decision": "auto_publish_with_extra_verification",
+   "risk_tier": "medium",
+   "autonomy_confidence": 0.5759030909625623,
+   "critic_outcome": "accept",
+   "autonomy_blocks": [],
+   "calibration_version": null,
+   "evaluated_at": "2026-10-24 21:19:07.46198+00",
+   "score_breakdown": {
+    "total": 0.5759030909625623,
+    "factors": {
+     "placement_quality": 1.0
+    },
+    "relevance": 0.5759030909625623,
+    "components": [
+     {
+      "name": "semantic",
+      "value": 0.3363436365418744,
+      "weight": 0.3,
+      "contribution": 0.10090309096256231
+     },
+     {
+      "name": "taxonomy",
+      "value": 0.3,
+      "weight": 0.2,
+      "contribution": 0.06
+     },
+     {
+      "name": "intent",
+      "value": 0.9,
+      "weight": 0.15,
+      "contribution": 0.135
+     },
+     {
+      "name": "graph",
+      "value": 1.0,
+      "weight": 0.15,
+      "contribution": 0.15
+     },
+     {
+      "name": "geography",
+      "value": 1.0,
+      "weight": 0.08,
+      "contribution": 0.08
+     },
+     {
+      "name": "commercial",
+      "value": 1.0,
+      "weight": 0.05,
+      "contribution": 0.05
+     },
+     {
+      "name": "underlinked",
+      "value": 0.0,
+      "weight": 0.04,
+      "contribution": 0.0
+     },
+     {
+      "name": "historical",
+      "value": 0.0,
+      "weight": 0.03,
+      "contribution": 0.0
+     }
+    ],
+    "policy_name": "ranking",
+    "policy_version": 1,
+    "semantic_floor": 0.78
+   }
+  },
+  {
+   "plan_id": "8ea15c92-9cf1-409e-b68f-1893703a953f",
+   "plan_status": "policy_checked",
+   "source_url": "https://research.example.com/industry-reports/thailand-electric-vehicle-market",
+   "target_url": "https://research.example.com/industries/automotive",
+   "target_title": "Automotive and Mobility Industry Reports",
+   "anchor_text": "auto industry",
+   "anchor_source": "target_topic",
+   "block_id": "b4",
+   "start_offset": 239,
+   "end_offset": 252,
+   "preview": {
+    "after": " shifts away from combustion engines.",
+    "anchor": "auto industry",
+    "before": "up to 100,000 baht per car in return for local production of electric vehicles at a ratio to imported units. The policy aims to protect Thailand's role as a regional vehicle manufacturing base as the "
+   },
+   "total_score": 0.5501955451596371,
+   "plan_confidence": 0.5501955451596371,
+   "reason_codes": [
+    "semantically_similar",
+    "lexical_overlap",
+    "parent_market",
+    "same_geography",
+    "underlinked_target",
+    "anchor_matches_target_topic"
+   ],
+   "channels": [
+    "semantic",
+    "lexical",
+    "taxonomy",
+    "graph"
+   ],
+   "relationship_type": "parent_market",
+   "embedding_model": "nomic-embed-text",
+   "rationale": "Link to \"Automotive and Mobility Industry Reports\" (parent market) on the existing phrase \"auto industry\". Why: the pages are semantically similar; the pages share key terms; the target covers the parent market; both pages cover the same country; the target has few internal links; the anchor names the target's topic.",
+   "critic_verdict": "accept",
+   "critic_reasons": [
+    "natural_anchor",
+    "relevant_destination",
+    "reader_journey_mismatch"
+   ],
+   "critic_fallback": false,
+   "fallback_reason": null,
+   "critic_model": "qwen3:8b-q4_K_M",
+   "autonomy_mode": "shadow",
+   "autonomy_decision": "block",
+   "would_have_decision": "auto_publish_with_extra_verification",
+   "risk_tier": "medium",
+   "autonomy_confidence": 0.5501955451596371,
+   "critic_outcome": "accept",
+   "autonomy_blocks": [],
+   "calibration_version": null,
+   "evaluated_at": "2026-10-24 21:19:07.732331+00",
+   "score_breakdown": {
+    "total": 0.5501955451596371,
+    "factors": {
+     "placement_quality": 1.0
+    },
+    "relevance": 0.5501955451596371,
+    "components": [
+     {
+      "name": "semantic",
+      "value": 0.23954070608767897,
+      "weight": 0.3,
+      "contribution": 0.07186221182630369
+     },
+     {
+      "name": "taxonomy",
+      "value": 0.8,
+      "weight": 0.2,
+      "contribution": 0.16000000000000003
+     },
+     {
+      "name": "intent",
+      "value": 0.3,
+      "weight": 0.15,
+      "contribution": 0.045
+     },
+     {
+      "name": "graph",
+      "value": 1.0,
+      "weight": 0.15,
+      "contribution": 0.15
+     },
+     {
+      "name": "geography",
+      "value": 1.0,
+      "weight": 0.08,
+      "contribution": 0.08
+     },
+     {
+      "name": "commercial",
+      "value": 0.3333333333333333,
+      "weight": 0.05,
+      "contribution": 0.016666666666666666
+     },
+     {
+      "name": "underlinked",
+      "value": 0.6666666666666667,
+      "weight": 0.04,
+      "contribution": 0.026666666666666672
+     },
+     {
+      "name": "historical",
+      "value": 0.0,
+      "weight": 0.03,
+      "contribution": 0.0
+     }
+    ],
+    "policy_name": "ranking",
+    "policy_version": 1,
+    "semantic_floor": 0.78
+   }
+  },
+  {
+   "plan_id": "dabf9d8e-c29f-4655-9e4d-3e2be3260e32",
+   "plan_status": "proposed",
+   "source_url": "https://research.example.com/industry-reports/malaysia-data-center-market",
+   "target_url": "https://research.example.com/industry-reports/singapore-cloud-computing-market",
+   "target_title": "Singapore Cloud Computing Market Outlook",
+   "anchor_text": "cloud services",
+   "anchor_source": "target_topic",
+   "block_id": "b8",
+   "start_offset": 122,
+   "end_offset": 136,
+   "preview": {
+    "after": " and data residency rules for financial data support steady demand.",
+    "anchor": "cloud services",
+    "before": "Colocation operators in Greater Kuala Lumpur serve banks, government agencies and multinationals. Enterprise migration to "
+   },
+   "total_score": 0.5501649643029557,
+   "plan_confidence": 0.5501649643029557,
+   "reason_codes": [
+    "semantically_similar",
+    "lexical_overlap",
+    "related_market",
+    "complementary_market",
+    "same_geography",
+    "high_commercial_value",
+    "underlinked_target",
+    "anchor_matches_target_topic"
+   ],
+   "channels": [
+    "semantic",
+    "lexical",
+    "taxonomy",
+    "graph"
+   ],
+   "relationship_type": "related_market",
+   "embedding_model": "nomic-embed-text",
+   "rationale": "Link to \"Singapore Cloud Computing Market Outlook\" (related market) on the existing phrase \"cloud services\". Why: the pages are semantically similar; the pages share key terms; the target covers a related market; the markets are complementary; both pages cover the same country; the target is a high-value commercial page; the target has few internal links; the anchor names the target's topic.",
+   "critic_verdict": "reject",
+   "critic_reasons": [
+    "reader_journey_mismatch",
+    "misleading_anchor"
+   ],
+   "critic_fallback": false,
+   "fallback_reason": null,
+   "critic_model": "qwen3:8b-q4_K_M",
+   "autonomy_mode": "shadow",
+   "autonomy_decision": "block",
+   "would_have_decision": "block",
+   "risk_tier": "medium",
+   "autonomy_confidence": 0.5501649643029557,
+   "critic_outcome": "reject",
+   "autonomy_blocks": [],
+   "calibration_version": null,
+   "evaluated_at": "2026-10-24 21:19:07.602447+00",
+   "score_breakdown": {
+    "total": 0.5501649643029557,
+    "factors": {
+     "placement_quality": 1.0
+    },
+    "relevance": 0.5501649643029557,
+    "components": [
+     {
+      "name": "semantic",
+      "value": 0.006105436565407751,
+      "weight": 0.3,
+      "contribution": 0.001831630969622325
+     },
+     {
+      "name": "taxonomy",
+      "value": 0.6,
+      "weight": 0.2,
+      "contribution": 0.12
+     },
+     {
+      "name": "intent",
+      "value": 0.9,
+      "weight": 0.15,
+      "contribution": 0.135
+     },
+     {
+      "name": "graph",
+      "value": 1.0,
+      "weight": 0.15,
+      "contribution": 0.15
+     },
+     {
+      "name": "geography",
+      "value": 1.0,
+      "weight": 0.08,
+      "contribution": 0.08
+     },
+     {
+      "name": "commercial",
+      "value": 1.0,
+      "weight": 0.05,
+      "contribution": 0.05
+     },
+     {
+      "name": "underlinked",
+      "value": 0.33333333333333337,
+      "weight": 0.04,
+      "contribution": 0.013333333333333336
+     },
+     {
+      "name": "historical",
+      "value": 0.0,
+      "weight": 0.03,
+      "contribution": 0.0
+     }
+    ],
+    "policy_name": "ranking",
+    "policy_version": 1,
+    "semantic_floor": 0.78
+   }
+  },
+  {
+   "plan_id": "9b972123-d305-48cc-bf85-037ee36fecce",
+   "plan_status": "policy_checked",
+   "source_url": "https://research.example.com/industry-reports/vietnam-solar-power-market",
+   "target_url": "https://research.example.com/insights/perovskite-solar-cells-commercialisation",
+   "target_title": "Perovskite Solar Cells: How Close Is Commercialisation?",
+   "anchor_text": "perovskite solar cells",
+   "anchor_source": "target_title",
+   "block_id": "b8",
+   "start_offset": 209,
+   "end_offset": 231,
+   "preview": {
+    "after": " are still at the pilot stage and are not expected to affect Vietnamese procurement before 2030.",
+    "anchor": "perovskite solar cells",
+    "before": "photovoltaic modules installed in Vietnam are imported or assembled from imported cells. Module prices have fallen steeply, which improves project economics even as tariffs decline. Next-generation "
+   },
+   "total_score": 0.5355,
+   "plan_confidence": 0.5355,
+   "reason_codes": [
+    "lexical_overlap",
+    "same_market",
+    "same_geography",
+    "underlinked_target",
+    "anchor_matches_target_title"
+   ],
+   "channels": [
+    "semantic",
+    "lexical",
+    "taxonomy",
+    "graph"
+   ],
+   "relationship_type": "same_market",
+   "embedding_model": "nomic-embed-text",
+   "rationale": "Link to \"Perovskite Solar Cells: How Close Is Commercialisation?\" (same market) on the existing phrase \"perovskite solar cells\". Why: the pages share key terms; both pages cover the same market; both pages cover the same country; the target has few internal links; the anchor matches the target's title.",
+   "critic_verdict": "accept",
+   "critic_reasons": [
+    "natural_anchor",
+    "relevant_destination",
+    "reader_journey_mismatch"
+   ],
+   "critic_fallback": false,
+   "fallback_reason": null,
+   "critic_model": "qwen3:8b-q4_K_M",
+   "autonomy_mode": "shadow",
+   "autonomy_decision": "block",
+   "would_have_decision": "auto_publish_with_extra_verification",
+   "risk_tier": "medium",
+   "autonomy_confidence": 0.5355,
+   "critic_outcome": "accept",
+   "autonomy_blocks": [],
+   "calibration_version": null,
+   "evaluated_at": "2026-10-24 21:19:07.870246+00",
+   "score_breakdown": {
+    "total": 0.5355,
+    "factors": {
+     "placement_quality": 0.9
+    },
+    "relevance": 0.595,
+    "components": [
+     {
+      "name": "semantic",
+      "value": 0.0,
+      "weight": 0.3,
+      "contribution": 0.0
+     },
+     {
+      "name": "taxonomy",
+      "value": 1.0,
+      "weight": 0.2,
+      "contribution": 0.2
+     },
+     {
+      "name": "intent",
+      "value": 0.7,
+      "weight": 0.15,
+      "contribution": 0.105
+     },
+     {
+      "name": "graph",
+      "value": 1.0,
+      "weight": 0.15,
+      "contribution": 0.15
+     },
+     {
+      "name": "geography",
+      "value": 1.0,
+      "weight": 0.08,
+      "contribution": 0.08
+     },
+     {
+      "name": "commercial",
+      "value": 0.6666666666666666,
+      "weight": 0.05,
+      "contribution": 0.03333333333333333
+     },
+     {
+      "name": "underlinked",
+      "value": 0.6666666666666667,
+      "weight": 0.04,
+      "contribution": 0.026666666666666672
+     },
+     {
+      "name": "historical",
+      "value": 0.0,
+      "weight": 0.03,
+      "contribution": 0.0
+     }
+    ],
+    "policy_name": "ranking",
+    "policy_version": 1,
+    "semantic_floor": 0.78
+   }
+  },
+  {
+   "plan_id": "7851731c-0277-4a06-ae0e-a1b7fd338c77",
+   "plan_status": "policy_checked",
+   "source_url": "https://research.example.com/industry-reports/india-electric-two-wheeler-market",
+   "target_url": "https://research.example.com/insights/battery-swapping-electric-two-wheelers-india",
+   "target_title": "Battery Swapping for Electric Two-Wheelers in India: Does the Model Work?",
+   "anchor_text": "Battery swapping",
+   "anchor_source": "target_keyword",
+   "block_id": "b5",
+   "start_offset": 146,
+   "end_offset": 162,
+   "preview": {
+    "after": " is emerging as an alternative for commercial riders: swap stations at fuel retail sites and convenience stores let a rider exchange a depleted pack in under two minutes.",
+    "anchor": "Battery swapping",
+    "before": "The availability of public charging infrastructure remains uneven outside the largest cities, which keeps most owners dependent on home charging. "
+   },
+   "total_score": 0.5245605694606381,
+   "plan_confidence": 0.5245605694606381,
+   "reason_codes": [
+    "semantically_similar",
+    "lexical_overlap",
+    "same_market",
+    "same_geography",
+    "underlinked_target"
+   ],
+   "channels": [
+    "semantic",
+    "lexical",
+    "taxonomy",
+    "graph"
+   ],
+   "relationship_type": "same_market",
+   "embedding_model": "nomic-embed-text",
+   "rationale": "Link to \"Battery Swapping for Electric Two-Wheelers in India: Does the Model Work?\" (same market) on the existing phrase \"Battery swapping\". Why: the pages are semantically similar; the pages share key terms; both pages cover the same market; both pages cover the same country; the target has few internal links.",
+   "critic_verdict": "accept",
+   "critic_reasons": [
+    "natural_anchor",
+    "relevant_destination",
+    "reader_journey_mismatch"
+   ],
+   "critic_fallback": false,
+   "fallback_reason": null,
+   "critic_model": "qwen3:8b-q4_K_M",
+   "autonomy_mode": "shadow",
+   "autonomy_decision": "block",
+   "would_have_decision": "auto_publish_with_extra_verification",
+   "risk_tier": "medium",
+   "autonomy_confidence": 0.5245605694606381,
+   "critic_outcome": "accept",
+   "autonomy_blocks": [],
+   "calibration_version": null,
+   "evaluated_at": "2026-10-24 21:19:07.399423+00",
+   "score_breakdown": {
+    "total": 0.5245605694606381,
+    "factors": {
+     "placement_quality": 0.75
+    },
+    "relevance": 0.6994140926141841,
+    "components": [
+     {
+      "name": "semantic",
+      "value": 0.392491419825058,
+      "weight": 0.3,
+      "contribution": 0.11774742594751739
+     },
+     {
+      "name": "taxonomy",
+      "value": 1.0,
+      "weight": 0.2,
+      "contribution": 0.2
+     },
+     {
+      "name": "intent",
+      "value": 0.7,
+      "weight": 0.15,
+      "contribution": 0.105
+     },
+     {
+      "name": "graph",
+      "value": 1.0,
+      "weight": 0.15,
+      "contribution": 0.15
+     },
+     {
+      "name": "geography",
+      "value": 1.0,
+      "weight": 0.08,
+      "contribution": 0.08
+     },
+     {
+      "name": "commercial",
+      "value": 0.6666666666666666,
+      "weight": 0.05,
+      "contribution": 0.03333333333333333
+     },
+     {
+      "name": "underlinked",
+      "value": 0.33333333333333337,
+      "weight": 0.04,
+      "contribution": 0.013333333333333336
+     },
+     {
+      "name": "historical",
+      "value": 0.0,
+      "weight": 0.03,
+      "contribution": 0.0
+     }
+    ],
+    "policy_name": "ranking",
+    "policy_version": 1,
+    "semantic_floor": 0.78
+   }
+  },
+  {
+   "plan_id": "501ab426-2418-432c-9b09-39a4207234bf",
+   "plan_status": "policy_checked",
+   "source_url": "https://research.example.com/industry-reports/india-cold-chain-market",
+   "target_url": "https://research.example.com/industry-reports/qatar-logistics-market",
+   "target_title": "Qatar Logistics Market Report",
+   "anchor_text": "Logistics",
+   "anchor_source": "target_topic",
+   "block_id": "b10",
+   "start_offset": 156,
+   "end_offset": 165,
+   "preview": {
+    "after": " and other organised players will gain share from unorganised cold storage operators.",
+    "anchor": "Logistics",
+    "before": "We expect the India cold chain market to grow at a double-digit rate through 2030 as organised retail, online grocery and medicine exports expand. ColdPath "
+   },
+   "total_score": 0.5216666666666667,
+   "plan_confidence": 0.5216666666666667,
+   "reason_codes": [
+    "lexical_overlap",
+    "parent_market",
+    "high_commercial_value",
+    "underlinked_target",
+    "anchor_matches_target_topic"
+   ],
+   "channels": [
+    "semantic",
+    "lexical",
+    "taxonomy",
+    "graph"
+   ],
+   "relationship_type": "parent_market",
+   "embedding_model": "nomic-embed-text",
+   "rationale": "Link to \"Qatar Logistics Market Report\" (parent market) on the existing phrase \"Logistics\". Why: the pages share key terms; the target covers the parent market; the target is a high-value commercial page; the target has few internal links; the anchor names the target's topic.",
+   "critic_verdict": "accept",
+   "critic_reasons": [
+    "natural_anchor",
+    "relevant_destination",
+    "reader_journey_mismatch"
+   ],
+   "critic_fallback": false,
+   "fallback_reason": null,
+   "critic_model": "qwen3:8b-q4_K_M",
+   "autonomy_mode": "shadow",
+   "autonomy_decision": "block",
+   "would_have_decision": "auto_publish_with_extra_verification",
+   "risk_tier": "medium",
+   "autonomy_confidence": 0.5216666666666667,
+   "critic_outcome": "accept",
+   "autonomy_blocks": [],
+   "calibration_version": null,
+   "evaluated_at": "2026-10-24 21:19:07.341061+00",
+   "score_breakdown": {
+    "total": 0.5216666666666667,
+    "factors": {
+     "placement_quality": 1.0
+    },
+    "relevance": 0.5216666666666667,
+    "components": [
+     {
+      "name": "semantic",
+      "value": 0.0,
+      "weight": 0.3,
+      "contribution": 0.0
+     },
+     {
+      "name": "taxonomy",
+      "value": 0.8,
+      "weight": 0.2,
+      "contribution": 0.16000000000000003
+     },
+     {
+      "name": "intent",
+      "value": 0.9,
+      "weight": 0.15,
+      "contribution": 0.135
+     },
+     {
+      "name": "graph",
+      "value": 1.0,
+      "weight": 0.15,
+      "contribution": 0.15
+     },
+     {
+      "name": "geography",
+      "value": 0.0,
+      "weight": 0.08,
+      "contribution": 0.0
+     },
+     {
+      "name": "commercial",
+      "value": 1.0,
+      "weight": 0.05,
+      "contribution": 0.05
+     },
+     {
+      "name": "underlinked",
+      "value": 0.6666666666666667,
+      "weight": 0.04,
+      "contribution": 0.026666666666666672
+     },
+     {
+      "name": "historical",
+      "value": 0.0,
+      "weight": 0.03,
+      "contribution": 0.0
+     }
+    ],
+    "policy_name": "ranking",
+    "policy_version": 1,
+    "semantic_floor": 0.78
+   }
+  },
+  {
+   "plan_id": "8f9b7904-ce7f-4745-9ee2-4aaa1c2f4264",
+   "plan_status": "policy_checked",
+   "source_url": "https://research.example.com/industry-reports/philippines-cold-chain-market",
+   "target_url": "https://research.example.com/industry-reports/qatar-logistics-market",
+   "target_title": "Qatar Logistics Market Report",
+   "anchor_text": "Logistics",
+   "anchor_source": "target_topic",
+   "block_id": "b4",
+   "start_offset": 247,
+   "end_offset": 256,
+   "preview": {
+    "after": " entered through an acquisition near Manila.",
+    "anchor": "Logistics",
+    "before": "meat and seafood, while inland facilities serve retailers and food processors. New investment from domestic conglomerates and foreign operators is adding multi-temperature warehouses, and ColdPath "
+   },
+   "total_score": 0.5216666666666667,
+   "plan_confidence": 0.5216666666666667,
+   "reason_codes": [
+    "lexical_overlap",
+    "parent_market",
+    "high_commercial_value",
+    "underlinked_target",
+    "anchor_matches_target_topic"
+   ],
+   "channels": [
+    "semantic",
+    "lexical",
+    "taxonomy",
+    "graph"
+   ],
+   "relationship_type": "parent_market",
+   "embedding_model": "nomic-embed-text",
+   "rationale": "Link to \"Qatar Logistics Market Report\" (parent market) on the existing phrase \"Logistics\". Why: the pages share key terms; the target covers the parent market; the target is a high-value commercial page; the target has few internal links; the anchor names the target's topic.",
+   "critic_verdict": "accept",
+   "critic_reasons": [
+    "natural_anchor",
+    "relevant_destination",
+    "reader_journey_mismatch"
+   ],
+   "critic_fallback": false,
+   "fallback_reason": null,
+   "critic_model": "qwen3:8b-q4_K_M",
+   "autonomy_mode": "shadow",
+   "autonomy_decision": "block",
+   "would_have_decision": "auto_publish_with_extra_verification",
+   "risk_tier": "medium",
+   "autonomy_confidence": 0.5216666666666667,
+   "critic_outcome": "accept",
+   "autonomy_blocks": [],
+   "calibration_version": null,
+   "evaluated_at": "2026-10-24 21:19:07.620657+00",
+   "score_breakdown": {
+    "total": 0.5216666666666667,
+    "factors": {
+     "placement_quality": 1.0
+    },
+    "relevance": 0.5216666666666667,
+    "components": [
+     {
+      "name": "semantic",
+      "value": 0.0,
+      "weight": 0.3,
+      "contribution": 0.0
+     },
+     {
+      "name": "taxonomy",
+      "value": 0.8,
+      "weight": 0.2,
+      "contribution": 0.16000000000000003
+     },
+     {
+      "name": "intent",
+      "value": 0.9,
+      "weight": 0.15,
+      "contribution": 0.135
+     },
+     {
+      "name": "graph",
+      "value": 1.0,
+      "weight": 0.15,
+      "contribution": 0.15
+     },
+     {
+      "name": "geography",
+      "value": 0.0,
+      "weight": 0.08,
+      "contribution": 0.0
+     },
+     {
+      "name": "commercial",
+      "value": 1.0,
+      "weight": 0.05,
+      "contribution": 0.05
+     },
+     {
+      "name": "underlinked",
+      "value": 0.6666666666666667,
+      "weight": 0.04,
+      "contribution": 0.026666666666666672
+     },
+     {
+      "name": "historical",
+      "value": 0.0,
+      "weight": 0.03,
+      "contribution": 0.0
+     }
+    ],
+    "policy_name": "ranking",
+    "policy_version": 1,
+    "semantic_floor": 0.78
+   }
+  },
+  {
+   "plan_id": "df4ee9bf-8fb0-43ee-b5a3-1d5eac57e614",
+   "plan_status": "proposed",
+   "source_url": "https://research.example.com/industry-reports/gcc-energy-storage-market",
+   "target_url": "https://research.example.com/industry-reports/india-lithium-ion-battery-manufacturing-market",
+   "target_title": "India Lithium-ion Battery Manufacturing Market Outlook",
+   "anchor_text": "battery manufacturing",
+   "anchor_source": "target_topic",
+   "block_id": "b8",
+   "start_offset": 233,
+   "end_offset": 254,
+   "preview": {
+    "after": " abroad to secure supply.",
+    "anchor": "battery manufacturing",
+    "before": "and the UAE's grid-scale projects account for most of the pipeline, with Oman and Qatar following. Developers source cells mainly from Asian suppliers, and some GCC investors are taking stakes in "
+   },
+   "total_score": 0.5016666666666667,
+   "plan_confidence": 0.5016666666666667,
+   "reason_codes": [
+    "lexical_overlap",
+    "supply_chain",
+    "industry_adjacency",
+    "high_commercial_value",
+    "underlinked_target",
+    "anchor_matches_target_topic"
+   ],
+   "channels": [
+    "semantic",
+    "lexical",
+    "taxonomy"
+   ],
+   "relationship_type": "supply_chain_upstream",
+   "embedding_model": "nomic-embed-text",
+   "rationale": "Link to \"India Lithium-ion Battery Manufacturing Market Outlook\" (upstream in the supply chain) on the existing phrase \"battery manufacturing\". Why: the pages share key terms; the markets are linked in the supply chain; the industries are adjacent; the target is a high-value commercial page; the target has few internal links; the anchor names the target's topic.",
+   "critic_verdict": "uncertain",
+   "critic_reasons": [
+    "low_confidence"
+   ],
+   "critic_fallback": true,
+   "fallback_reason": "model_unavailable",
+   "critic_model": null,
+   "autonomy_mode": null,
+   "autonomy_decision": null,
+   "would_have_decision": null,
+   "risk_tier": null,
+   "autonomy_confidence": null,
+   "critic_outcome": null,
+   "autonomy_blocks": null,
+   "calibration_version": null,
+   "evaluated_at": null,
+   "score_breakdown": {
+    "total": 0.5016666666666667,
+    "factors": {
+     "placement_quality": 1.0
+    },
+    "relevance": 0.5016666666666667,
+    "components": [
+     {
+      "name": "semantic",
+      "value": 0.0,
+      "weight": 0.3,
+      "contribution": 0.0
+     },
+     {
+      "name": "taxonomy",
+      "value": 0.7,
+      "weight": 0.2,
+      "contribution": 0.13999999999999999
+     },
+     {
+      "name": "intent",
+      "value": 0.9,
+      "weight": 0.15,
+      "contribution": 0.135
+     },
+     {
+      "name": "graph",
+      "value": 1.0,
+      "weight": 0.15,
+      "contribution": 0.15
+     },
+     {
+      "name": "geography",
+      "value": 0.0,
+      "weight": 0.08,
+      "contribution": 0.0
+     },
+     {
+      "name": "commercial",
+      "value": 1.0,
+      "weight": 0.05,
+      "contribution": 0.05
+     },
+     {
+      "name": "underlinked",
+      "value": 0.6666666666666667,
+      "weight": 0.04,
+      "contribution": 0.026666666666666672
+     },
+     {
+      "name": "historical",
+      "value": 0.0,
+      "weight": 0.03,
+      "contribution": 0.0
+     }
+    ],
+    "policy_name": "ranking",
+    "policy_version": 1,
+    "semantic_floor": 0.78
+   }
+  },
+  {
+   "plan_id": "c7650126-11b8-48db-8ce4-ffcb5190b71c",
+   "plan_status": "policy_checked",
+   "source_url": "https://research.example.com/insights/cold-chain-vaccine-distribution-india",
+   "target_url": "https://research.example.com/industry-reports/bangladesh-pharmaceutical-market",
+   "target_title": "Bangladesh Pharmaceutical Market Outlook",
+   "anchor_text": "pharmaceutical",
+   "anchor_source": "target_topic",
+   "block_id": "b4",
+   "start_offset": 254,
+   "end_offset": 268,
+   "preview": {
+    "after": " companies.",
+    "anchor": "pharmaceutical",
+    "before": "system let programme managers see the temperature and stock of every cold storage point in near real time. The same approach is now being adopted by commercial cold chain operators that serve "
+   },
+   "total_score": 0.48833333333333334,
+   "plan_confidence": 0.48833333333333334,
+   "reason_codes": [
+    "lexical_overlap",
+    "complementary_market",
+    "industry_adjacency",
+    "same_geography",
+    "high_commercial_value",
+    "underlinked_target",
+    "anchor_matches_target_topic"
+   ],
+   "channels": [
+    "semantic",
+    "lexical",
+    "taxonomy"
+   ],
+   "relationship_type": "complementary_market",
+   "embedding_model": "nomic-embed-text",
+   "rationale": "Link to \"Bangladesh Pharmaceutical Market Outlook\" (complementary market) on the existing phrase \"pharmaceutical\". Why: the pages share key terms; the markets are complementary; the industries are adjacent; both pages cover the same country; the target is a high-value commercial page; the target has few internal links; the anchor names the target's topic.",
+   "critic_verdict": "accept",
+   "critic_reasons": [
+    "natural_anchor",
+    "relevant_destination",
+    "reader_journey_mismatch"
+   ],
+   "critic_fallback": false,
+   "fallback_reason": null,
+   "critic_model": "qwen3:8b-q4_K_M",
+   "autonomy_mode": "shadow",
+   "autonomy_decision": "block",
+   "would_have_decision": "block",
+   "risk_tier": "medium",
+   "autonomy_confidence": 0.48833333333333334,
+   "critic_outcome": "accept",
+   "autonomy_blocks": [],
+   "calibration_version": null,
+   "evaluated_at": "2026-10-24 21:19:08.061197+00",
+   "score_breakdown": {
+    "total": 0.48833333333333334,
+    "factors": {
+     "placement_quality": 1.0
+    },
+    "relevance": 0.48833333333333334,
+    "components": [
+     {
+      "name": "semantic",
+      "value": 0.0,
+      "weight": 0.3,
+      "contribution": 0.0
+     },
+     {
+      "name": "taxonomy",
+      "value": 0.6,
+      "weight": 0.2,
+      "contribution": 0.12
+     },
+     {
+      "name": "intent",
+      "value": 1.0,
+      "weight": 0.15,
+      "contribution": 0.15
+     },
+     {
+      "name": "graph",
+      "value": 0.5,
+      "weight": 0.15,
+      "contribution": 0.075
+     },
+     {
+      "name": "geography",
+      "value": 1.0,
+      "weight": 0.08,
+      "contribution": 0.08
+     },
+     {
+      "name": "commercial",
+      "value": 1.0,
+      "weight": 0.05,
+      "contribution": 0.05
+     },
+     {
+      "name": "underlinked",
+      "value": 0.33333333333333337,
+      "weight": 0.04,
+      "contribution": 0.013333333333333336
+     },
+     {
+      "name": "historical",
+      "value": 0.0,
+      "weight": 0.03,
+      "contribution": 0.0
+     }
+    ],
+    "policy_name": "ranking",
+    "policy_version": 1,
+    "semantic_floor": 0.78
+   }
+  },
+  {
+   "plan_id": "d4da13f4-5c9a-4542-a6f1-74cf0aabd33c",
+   "plan_status": "proposed",
+   "source_url": "https://research.example.com/industry-reports/thailand-ecommerce-logistics-market",
+   "target_url": "https://research.example.com/industry-reports/qatar-logistics-market",
+   "target_title": "Qatar Logistics Market Report",
+   "anchor_text": "logistics",
+   "anchor_source": "target_topic",
+   "block_id": "b2",
+   "start_offset": 44,
+   "end_offset": 53,
+   "preview": {
+    "after": " in Thailand. Daily parcel volumes have multiplied since 2019, and express delivery companies, marketplace-owned logistics arms and postal operators now compete for every shipment. Bangkok and its",
+    "anchor": "logistics",
+    "before": "Online marketplaces have transformed parcel "
+   },
+   "total_score": 0.4695000000000001,
+   "plan_confidence": 0.4695000000000001,
+   "reason_codes": [
+    "lexical_overlap",
+    "parent_market",
+    "high_commercial_value",
+    "underlinked_target",
+    "anchor_matches_target_topic"
+   ],
+   "channels": [
+    "semantic",
+    "lexical",
+    "taxonomy",
+    "graph"
+   ],
+   "relationship_type": "parent_market",
+   "embedding_model": "nomic-embed-text",
+   "rationale": "Link to \"Qatar Logistics Market Report\" (parent market) on the existing phrase \"logistics\". Why: the pages share key terms; the target covers the parent market; the target is a high-value commercial page; the target has few internal links; the anchor names the target's topic.",
+   "critic_verdict": "reject",
+   "critic_reasons": [
+    "reader_journey_mismatch",
+    "misleading_anchor"
+   ],
+   "critic_fallback": false,
+   "fallback_reason": null,
+   "critic_model": "qwen3:8b-q4_K_M",
+   "autonomy_mode": "shadow",
+   "autonomy_decision": "block",
+   "would_have_decision": "block",
+   "risk_tier": "medium",
+   "autonomy_confidence": 0.4695000000000001,
+   "critic_outcome": "reject",
+   "autonomy_blocks": [],
+   "calibration_version": null,
+   "evaluated_at": "2026-10-24 21:19:07.674255+00",
+   "score_breakdown": {
+    "total": 0.4695000000000001,
+    "factors": {
+     "placement_quality": 0.9
+    },
+    "relevance": 0.5216666666666667,
+    "components": [
+     {
+      "name": "semantic",
+      "value": 0.0,
+      "weight": 0.3,
+      "contribution": 0.0
+     },
+     {
+      "name": "taxonomy",
+      "value": 0.8,
+      "weight": 0.2,
+      "contribution": 0.16000000000000003
+     },
+     {
+      "name": "intent",
+      "value": 0.9,
+      "weight": 0.15,
+      "contribution": 0.135
+     },
+     {
+      "name": "graph",
+      "value": 1.0,
+      "weight": 0.15,
+      "contribution": 0.15
+     },
+     {
+      "name": "geography",
+      "value": 0.0,
+      "weight": 0.08,
+      "contribution": 0.0
+     },
+     {
+      "name": "commercial",
+      "value": 1.0,
+      "weight": 0.05,
+      "contribution": 0.05
+     },
+     {
+      "name": "underlinked",
+      "value": 0.6666666666666667,
+      "weight": 0.04,
+      "contribution": 0.026666666666666672
+     },
+     {
+      "name": "historical",
+      "value": 0.0,
+      "weight": 0.03,
+      "contribution": 0.0
+     }
+    ],
+    "policy_name": "ranking",
+    "policy_version": 1,
+    "semantic_floor": 0.78
+   }
+  },
+  {
+   "plan_id": "d8f9bc56-ce43-430b-9039-d5cc6ec7ef19",
+   "plan_status": "proposed",
+   "source_url": "https://research.example.com/industry-reports/vietnam-ecommerce-logistics-market",
+   "target_url": "https://research.example.com/industry-reports/qatar-logistics-market",
+   "target_title": "Qatar Logistics Market Report",
+   "anchor_text": "logistics",
+   "anchor_source": "target_topic",
+   "block_id": "b2",
+   "start_offset": 174,
+   "end_offset": 183,
+   "preview": {
+    "after": " arms and the national postal service compete across Hanoi, Ho Chi Minh City and the provinces.",
+    "anchor": "logistics",
+    "before": "Vietnam's parcel volumes are growing faster than almost anywhere in Southeast Asia, driven by online marketplaces and social selling. Express delivery operators, marketplace "
+   },
+   "total_score": 0.4695000000000001,
+   "plan_confidence": 0.4695000000000001,
+   "reason_codes": [
+    "lexical_overlap",
+    "parent_market",
+    "high_commercial_value",
+    "underlinked_target",
+    "anchor_matches_target_topic"
+   ],
+   "channels": [
+    "semantic",
+    "lexical",
+    "taxonomy",
+    "graph"
+   ],
+   "relationship_type": "parent_market",
+   "embedding_model": "nomic-embed-text",
+   "rationale": "Link to \"Qatar Logistics Market Report\" (parent market) on the existing phrase \"logistics\". Why: the pages share key terms; the target covers the parent market; the target is a high-value commercial page; the target has few internal links; the anchor names the target's topic.",
+   "critic_verdict": "reject",
+   "critic_reasons": [
+    "reader_journey_mismatch",
+    "misleading_anchor"
+   ],
+   "critic_fallback": false,
+   "fallback_reason": null,
+   "critic_model": "qwen3:8b-q4_K_M",
+   "autonomy_mode": "shadow",
+   "autonomy_decision": "block",
+   "would_have_decision": "block",
+   "risk_tier": "medium",
+   "autonomy_confidence": 0.4695000000000001,
+   "critic_outcome": "reject",
+   "autonomy_blocks": [],
+   "calibration_version": null,
+   "evaluated_at": "2026-10-24 21:19:07.829745+00",
+   "score_breakdown": {
+    "total": 0.4695000000000001,
+    "factors": {
+     "placement_quality": 0.9
+    },
+    "relevance": 0.5216666666666667,
+    "components": [
+     {
+      "name": "semantic",
+      "value": 0.0,
+      "weight": 0.3,
+      "contribution": 0.0
+     },
+     {
+      "name": "taxonomy",
+      "value": 0.8,
+      "weight": 0.2,
+      "contribution": 0.16000000000000003
+     },
+     {
+      "name": "intent",
+      "value": 0.9,
+      "weight": 0.15,
+      "contribution": 0.135
+     },
+     {
+      "name": "graph",
+      "value": 1.0,
+      "weight": 0.15,
+      "contribution": 0.15
+     },
+     {
+      "name": "geography",
+      "value": 0.0,
+      "weight": 0.08,
+      "contribution": 0.0
+     },
+     {
+      "name": "commercial",
+      "value": 1.0,
+      "weight": 0.05,
+      "contribution": 0.05
+     },
+     {
+      "name": "underlinked",
+      "value": 0.6666666666666667,
+      "weight": 0.04,
+      "contribution": 0.026666666666666672
+     },
+     {
+      "name": "historical",
+      "value": 0.0,
+      "weight": 0.03,
+      "contribution": 0.0
+     }
+    ],
+    "policy_name": "ranking",
+    "policy_version": 1,
+    "semantic_floor": 0.78
+   }
+  },
+  {
+   "plan_id": "9f4b542d-bd03-4f11-b134-2375529cd5ba",
+   "plan_status": "policy_checked",
+   "source_url": "https://research.example.com/industry-reports/uae-data-center-market",
+   "target_url": "https://research.example.com/industry-reports/singapore-cloud-computing-market",
+   "target_title": "Singapore Cloud Computing Market Outlook",
+   "anchor_text": "cloud services",
+   "anchor_source": "target_topic",
+   "block_id": "b4",
+   "start_offset": 312,
+   "end_offset": 326,
+   "preview": {
+    "after": ".",
+    "anchor": "cloud services",
+    "before": "capacity. Carrier-neutral operators compete with facilities owned by local conglomerates. Enterprises are moving from server rooms to colocation as they modernise their IT estates and migrate to "
+   },
+   "total_score": 0.4683333333333333,
+   "plan_confidence": 0.4683333333333333,
+   "reason_codes": [
+    "lexical_overlap",
+    "related_market",
+    "complementary_market",
+    "high_commercial_value",
+    "underlinked_target",
+    "anchor_matches_target_topic"
+   ],
+   "channels": [
+    "semantic",
+    "lexical",
+    "taxonomy",
+    "graph"
+   ],
+   "relationship_type": "related_market",
+   "embedding_model": "nomic-embed-text",
+   "rationale": "Link to \"Singapore Cloud Computing Market Outlook\" (related market) on the existing phrase \"cloud services\". Why: the pages share key terms; the target covers a related market; the markets are complementary; the target is a high-value commercial page; the target has few internal links; the anchor names the target's topic.",
+   "critic_verdict": "accept",
+   "critic_reasons": [
+    "natural_anchor",
+    "relevant_destination",
+    "reader_journey_mismatch"
+   ],
+   "critic_fallback": false,
+   "fallback_reason": null,
+   "critic_model": "qwen3:8b-q4_K_M",
+   "autonomy_mode": "shadow",
+   "autonomy_decision": "block",
+   "would_have_decision": "block",
+   "risk_tier": "medium",
+   "autonomy_confidence": 0.4683333333333333,
+   "critic_outcome": "accept",
+   "autonomy_blocks": [],
+   "calibration_version": null,
+   "evaluated_at": "2026-10-24 21:19:07.807541+00",
+   "score_breakdown": {
+    "total": 0.4683333333333333,
+    "factors": {
+     "placement_quality": 1.0
+    },
+    "relevance": 0.4683333333333333,
+    "components": [
+     {
+      "name": "semantic",
+      "value": 0.0,
+      "weight": 0.3,
+      "contribution": 0.0
+     },
+     {
+      "name": "taxonomy",
+      "value": 0.6,
+      "weight": 0.2,
+      "contribution": 0.12
+     },
+     {
+      "name": "intent",
+      "value": 0.9,
+      "weight": 0.15,
+      "contribution": 0.135
+     },
+     {
+      "name": "graph",
+      "value": 1.0,
+      "weight": 0.15,
+      "contribution": 0.15
+     },
+     {
+      "name": "geography",
+      "value": 0.0,
+      "weight": 0.08,
+      "contribution": 0.0
+     },
+     {
+      "name": "commercial",
+      "value": 1.0,
+      "weight": 0.05,
+      "contribution": 0.05
+     },
+     {
+      "name": "underlinked",
+      "value": 0.33333333333333337,
+      "weight": 0.04,
+      "contribution": 0.013333333333333336
+     },
+     {
+      "name": "historical",
+      "value": 0.0,
+      "weight": 0.03,
+      "contribution": 0.0
+     }
+    ],
+    "policy_name": "ranking",
+    "policy_version": 1,
+    "semantic_floor": 0.78
+   }
+  },
+  {
+   "plan_id": "ea4b92d4-f48d-4448-8ad1-510d1102870c",
+   "plan_status": "policy_checked",
+   "source_url": "https://research.example.com/industry-reports/uae-cold-chain-market",
+   "target_url": "https://research.example.com/industry-reports/bangladesh-pharmaceutical-market",
+   "target_title": "Bangladesh Pharmaceutical Market Outlook",
+   "anchor_text": "pharmaceutical",
+   "anchor_source": "target_topic",
+   "block_id": "b8",
+   "start_offset": 169,
+   "end_offset": 183,
+   "preview": {
+    "after": " companies, and Good Distribution Practice certification is a prerequisite to serve them.",
+    "anchor": "pharmaceutical",
+    "before": "Vaccines, biologics and insulin require validated temperature-controlled logistics with continuous monitoring. Dubai's free zones host regional distribution centres for "
+   },
+   "total_score": 0.4683333333333333,
+   "plan_confidence": 0.4683333333333333,
+   "reason_codes": [
+    "lexical_overlap",
+    "complementary_market",
+    "industry_adjacency",
+    "high_commercial_value",
+    "underlinked_target",
+    "anchor_matches_target_topic"
+   ],
+   "channels": [
+    "semantic",
+    "lexical",
+    "taxonomy"
+   ],
+   "relationship_type": "complementary_market",
+   "embedding_model": "nomic-embed-text",
+   "rationale": "Link to \"Bangladesh Pharmaceutical Market Outlook\" (complementary market) on the existing phrase \"pharmaceutical\". Why: the pages share key terms; the markets are complementary; the industries are adjacent; the target is a high-value commercial page; the target has few internal links; the anchor names the target's topic.",
+   "critic_verdict": "accept",
+   "critic_reasons": [
+    "natural_anchor",
+    "relevant_destination",
+    "reader_journey_mismatch"
+   ],
+   "critic_fallback": false,
+   "fallback_reason": null,
+   "critic_model": "qwen3:8b-q4_K_M",
+   "autonomy_mode": "shadow",
+   "autonomy_decision": "block",
+   "would_have_decision": "block",
+   "risk_tier": "medium",
+   "autonomy_confidence": 0.4683333333333333,
+   "critic_outcome": "accept",
+   "autonomy_blocks": [],
+   "calibration_version": null,
+   "evaluated_at": "2026-10-24 21:19:07.785598+00",
+   "score_breakdown": {
+    "total": 0.4683333333333333,
+    "factors": {
+     "placement_quality": 1.0
+    },
+    "relevance": 0.4683333333333333,
+    "components": [
+     {
+      "name": "semantic",
+      "value": 0.0,
+      "weight": 0.3,
+      "contribution": 0.0
+     },
+     {
+      "name": "taxonomy",
+      "value": 0.6,
+      "weight": 0.2,
+      "contribution": 0.12
+     },
+     {
+      "name": "intent",
+      "value": 0.9,
+      "weight": 0.15,
+      "contribution": 0.135
+     },
+     {
+      "name": "graph",
+      "value": 1.0,
+      "weight": 0.15,
+      "contribution": 0.15
+     },
+     {
+      "name": "geography",
+      "value": 0.0,
+      "weight": 0.08,
+      "contribution": 0.0
+     },
+     {
+      "name": "commercial",
+      "value": 1.0,
+      "weight": 0.05,
+      "contribution": 0.05
+     },
+     {
+      "name": "underlinked",
+      "value": 0.33333333333333337,
+      "weight": 0.04,
+      "contribution": 0.013333333333333336
+     },
+     {
+      "name": "historical",
+      "value": 0.0,
+      "weight": 0.03,
+      "contribution": 0.0
+     }
+    ],
+    "policy_name": "ranking",
+    "policy_version": 1,
+    "semantic_floor": 0.78
+   }
+  },
+  {
+   "plan_id": "7e83e9b2-a373-458c-99ad-f6a11688e6f5",
+   "plan_status": "policy_checked",
+   "source_url": "https://research.example.com/insights/charging-infrastructure-gaps-southeast-asia",
+   "target_url": "https://research.example.com/insights/fame-scheme-electric-vehicle-adoption-india",
+   "target_title": "How the FAME Scheme Shaped Electric Vehicle Adoption in India",
+   "anchor_text": "electric vehicle",
+   "anchor_source": "target_topic",
+   "block_id": "b8",
+   "start_offset": 223,
+   "end_offset": 239,
+   "preview": {
+    "after": " users in these markets.",
+    "anchor": "electric vehicle",
+    "before": "transport in Indonesia and Vietnam, and their riders mostly charge at home or use battery swapping. Public charging infrastructure planning based on car ownership alone misses the largest group of "
+   },
+   "total_score": 0.4633333333333334,
+   "plan_confidence": 0.4633333333333334,
+   "reason_codes": [
+    "lexical_overlap",
+    "parent_market",
+    "complementary_market",
+    "anchor_matches_target_topic"
+   ],
+   "channels": [
+    "semantic",
+    "lexical",
+    "taxonomy",
+    "graph"
+   ],
+   "relationship_type": "parent_market",
+   "embedding_model": "nomic-embed-text",
+   "rationale": "Link to \"How the FAME Scheme Shaped Electric Vehicle Adoption in India\" (parent market) on the existing phrase \"electric vehicle\". Why: the pages share key terms; the target covers the parent market; the markets are complementary; the anchor names the target's topic.",
+   "critic_verdict": "accept",
+   "critic_reasons": [
+    "natural_anchor",
+    "relevant_destination",
+    "reader_journey_mismatch"
+   ],
+   "critic_fallback": false,
+   "fallback_reason": null,
+   "critic_model": "qwen3:8b-q4_K_M",
+   "autonomy_mode": "shadow",
+   "autonomy_decision": "block",
+   "would_have_decision": "block",
+   "risk_tier": "medium",
+   "autonomy_confidence": 0.4633333333333334,
+   "critic_outcome": "accept",
+   "autonomy_blocks": [],
+   "calibration_version": null,
+   "evaluated_at": "2026-10-24 21:19:08.005024+00",
+   "score_breakdown": {
+    "total": 0.4633333333333334,
+    "factors": {
+     "placement_quality": 1.0
+    },
+    "relevance": 0.4633333333333334,
+    "components": [
+     {
+      "name": "semantic",
+      "value": 0.0,
+      "weight": 0.3,
+      "contribution": 0.0
+     },
+     {
+      "name": "taxonomy",
+      "value": 0.8,
+      "weight": 0.2,
+      "contribution": 0.16000000000000003
+     },
+     {
+      "name": "intent",
+      "value": 0.8,
+      "weight": 0.15,
+      "contribution": 0.12
+     },
+     {
+      "name": "graph",
+      "value": 1.0,
+      "weight": 0.15,
+      "contribution": 0.15
+     },
+     {
+      "name": "geography",
+      "value": 0.0,
+      "weight": 0.08,
+      "contribution": 0.0
+     },
+     {
+      "name": "commercial",
+      "value": 0.6666666666666666,
+      "weight": 0.05,
+      "contribution": 0.03333333333333333
+     },
+     {
+      "name": "underlinked",
+      "value": 0.0,
+      "weight": 0.04,
+      "contribution": 0.0
+     },
+     {
+      "name": "historical",
+      "value": 0.0,
+      "weight": 0.03,
+      "contribution": 0.0
+     }
+    ],
+    "policy_name": "ranking",
+    "policy_version": 1,
+    "semantic_floor": 0.78
+   }
+  },
+  {
+   "plan_id": "6d1b17f8-c434-4951-b434-5d8047a49877",
+   "plan_status": "policy_checked",
+   "source_url": "https://research.example.com/industry-reports/india-electric-two-wheeler-market",
+   "target_url": "https://research.example.com/industry-reports/india-lithium-ion-battery-manufacturing-market",
+   "target_title": "India Lithium-ion Battery Manufacturing Market Outlook",
+   "anchor_text": "lithium-ion battery",
+   "anchor_source": "target_topic",
+   "block_id": "b7",
+   "start_offset": 356,
+   "end_offset": 375,
+   "preview": {
+    "after": " cells, which leaves margins exposed to currency and commodity swings.",
+    "anchor": "lithium-ion battery",
+    "before": "converting existing platforms. Voltara Motors has built a dealer network across southern and western India and launched an electric motorcycle aimed at rural buyers. Most manufacturers still import "
+   },
+   "total_score": 0.46197510035770667,
+   "plan_confidence": 0.46197510035770667,
+   "reason_codes": [
+    "semantically_similar",
+    "lexical_overlap",
+    "same_geography",
+    "high_commercial_value",
+    "underlinked_target",
+    "anchor_matches_target_topic"
+   ],
+   "channels": [
+    "semantic",
+    "lexical"
+   ],
+   "relationship_type": "semantic_similar",
+   "embedding_model": "nomic-embed-text",
+   "rationale": "Link to \"India Lithium-ion Battery Manufacturing Market Outlook\" (semantically similar) on the existing phrase \"lithium-ion battery\". Why: the pages are semantically similar; the pages share key terms; both pages cover the same country; the target is a high-value commercial page; the target has few internal links; the anchor names the target's topic.",
+   "critic_verdict": "accept",
+   "critic_reasons": [
+    "natural_anchor",
+    "relevant_destination",
+    "reader_journey_mismatch"
+   ],
+   "critic_fallback": false,
+   "fallback_reason": null,
+   "critic_model": "qwen3:8b-q4_K_M",
+   "autonomy_mode": "shadow",
+   "autonomy_decision": "block",
+   "would_have_decision": "block",
+   "risk_tier": "medium",
+   "autonomy_confidence": 0.46197510035770667,
+   "critic_outcome": "accept",
+   "autonomy_blocks": [],
+   "calibration_version": null,
+   "evaluated_at": "2026-10-24 21:19:07.381169+00",
+   "score_breakdown": {
+    "total": 0.46197510035770667,
+    "factors": {
+     "placement_quality": 1.0
+    },
+    "relevance": 0.46197510035770667,
+    "components": [
+     {
+      "name": "semantic",
+      "value": 0.06769477897013332,
+      "weight": 0.3,
+      "contribution": 0.020308433691039993
+     },
+     {
+      "name": "taxonomy",
+      "value": 0.0,
+      "weight": 0.2,
+      "contribution": 0.0
+     },
+     {
+      "name": "intent",
+      "value": 0.9,
+      "weight": 0.15,
+      "contribution": 0.135
+     },
+     {
+      "name": "graph",
+      "value": 1.0,
+      "weight": 0.15,
+      "contribution": 0.15
+     },
+     {
+      "name": "geography",
+      "value": 1.0,
+      "weight": 0.08,
+      "contribution": 0.08
+     },
+     {
+      "name": "commercial",
+      "value": 1.0,
+      "weight": 0.05,
+      "contribution": 0.05
+     },
+     {
+      "name": "underlinked",
+      "value": 0.6666666666666667,
+      "weight": 0.04,
+      "contribution": 0.026666666666666672
+     },
+     {
+      "name": "historical",
+      "value": 0.0,
+      "weight": 0.03,
+      "contribution": 0.0
+     }
+    ],
+    "policy_name": "ranking",
+    "policy_version": 1,
+    "semantic_floor": 0.78
+   }
+  },
+  {
+   "plan_id": "b2727111-f1ec-46ce-bdaa-d53a5b763335",
+   "plan_status": "proposed",
+   "source_url": "https://research.example.com/insights/gcc-data-center-power-demand",
+   "target_url": "https://research.example.com/industry-reports/gcc-energy-storage-market",
+   "target_title": "GCC Energy Storage Market Report",
+   "anchor_text": "energy storage",
+   "anchor_source": "target_topic",
+   "block_id": "b6",
+   "start_offset": 171,
+   "end_offset": 185,
+   "preview": {
+    "after": " to cover night-time load. Cooling adds to demand: in summer it can account for a large share of a data center's consumption.",
+    "anchor": "energy storage",
+    "before": "Cloud providers have committed to match their consumption with clean electricity. In the Gulf that means contracts with large solar power plants, increasingly paired with "
+   },
+   "total_score": 0.46154839912382567,
+   "plan_confidence": 0.46154839912382567,
+   "reason_codes": [
+    "semantically_similar",
+    "lexical_overlap",
+    "same_geography",
+    "high_commercial_value",
+    "anchor_matches_target_topic"
+   ],
+   "channels": [
+    "semantic",
+    "lexical"
+   ],
+   "relationship_type": "semantic_similar",
+   "embedding_model": "nomic-embed-text",
+   "rationale": "Link to \"GCC Energy Storage Market Report\" (semantically similar) on the existing phrase \"energy storage\". Why: the pages are semantically similar; the pages share key terms; both pages cover the same country; the target is a high-value commercial page; the anchor names the target's topic.",
+   "critic_verdict": "reject",
+   "critic_reasons": [
+    "misleading_anchor",
+    "weak_relevance"
+   ],
+   "critic_fallback": false,
+   "fallback_reason": null,
+   "critic_model": "qwen3:8b-q4_K_M",
+   "autonomy_mode": "shadow",
+   "autonomy_decision": "block",
+   "would_have_decision": "block",
+   "risk_tier": "medium",
+   "autonomy_confidence": 0.46154839912382567,
+   "critic_outcome": "reject",
+   "autonomy_blocks": [],
+   "calibration_version": null,
+   "evaluated_at": "2026-10-24 21:19:08.135205+00",
+   "score_breakdown": {
+    "total": 0.46154839912382567,
+    "factors": {
+     "placement_quality": 1.0
+    },
+    "relevance": 0.46154839912382567,
+    "components": [
+     {
+      "name": "semantic",
+      "value": 0.1051613304127523,
+      "weight": 0.3,
+      "contribution": 0.03154839912382569
+     },
+     {
+      "name": "taxonomy",
+      "value": 0.0,
+      "weight": 0.2,
+      "contribution": 0.0
+     },
+     {
+      "name": "intent",
+      "value": 1.0,
+      "weight": 0.15,
+      "contribution": 0.15
+     },
+     {
+      "name": "graph",
+      "value": 1.0,
+      "weight": 0.15,
+      "contribution": 0.15
+     },
+     {
+      "name": "geography",
+      "value": 1.0,
+      "weight": 0.08,
+      "contribution": 0.08
+     },
+     {
+      "name": "commercial",
+      "value": 1.0,
+      "weight": 0.05,
+      "contribution": 0.05
+     },
+     {
+      "name": "underlinked",
+      "value": 0.0,
+      "weight": 0.04,
+      "contribution": 0.0
+     },
+     {
+      "name": "historical",
+      "value": 0.0,
+      "weight": 0.03,
+      "contribution": 0.0
+     }
+    ],
+    "policy_name": "ranking",
+    "policy_version": 1,
+    "semantic_floor": 0.78
+   }
+  },
+  {
+   "plan_id": "2f678e4e-6739-4943-aee0-507b1f89150f",
+   "plan_status": "proposed",
+   "source_url": "https://research.example.com/insights/charging-infrastructure-gaps-southeast-asia",
+   "target_url": "https://research.example.com/industry-reports/india-electric-vehicle-market",
+   "target_title": "India Electric Vehicle Market Report 2025-2030",
+   "anchor_text": "Electric vehicle",
+   "anchor_source": "target_topic",
+   "block_id": "b1",
+   "start_offset": 0,
+   "end_offset": 16,
+   "preview": {
+    "after": " sales in Southeast Asia have grown far faster than the charging infrastructure meant to support them. In Thailand, the region's largest EV market, the number of electric cars per public charging",
+    "anchor": "Electric vehicle",
+    "before": ""
+   },
+   "total_score": 0.459,
+   "plan_confidence": 0.459,
+   "reason_codes": [
+    "lexical_overlap",
+    "parent_market",
+    "complementary_market",
+    "high_commercial_value",
+    "anchor_matches_target_topic"
+   ],
+   "channels": [
+    "semantic",
+    "lexical",
+    "taxonomy",
+    "graph"
+   ],
+   "relationship_type": "parent_market",
+   "embedding_model": "nomic-embed-text",
+   "rationale": "Link to \"India Electric Vehicle Market Report 2025-2030\" (parent market) on the existing phrase \"Electric vehicle\". Why: the pages share key terms; the target covers the parent market; the markets are complementary; the target is a high-value commercial page; the anchor names the target's topic.",
+   "critic_verdict": "uncertain",
+   "critic_reasons": [
+    "over_linking",
+    "natural_anchor",
+    "relevant_destination",
+    "reader_journey_mismatch"
+   ],
+   "critic_fallback": false,
+   "fallback_reason": null,
+   "critic_model": "qwen3:8b-q4_K_M",
+   "autonomy_mode": null,
+   "autonomy_decision": null,
+   "would_have_decision": null,
+   "risk_tier": null,
+   "autonomy_confidence": null,
+   "critic_outcome": null,
+   "autonomy_blocks": null,
+   "calibration_version": null,
+   "evaluated_at": null,
+   "score_breakdown": {
+    "total": 0.459,
+    "factors": {
+     "placement_quality": 0.9
+    },
+    "relevance": 0.51,
+    "components": [
+     {
+      "name": "semantic",
+      "value": 0.0,
+      "weight": 0.3,
+      "contribution": 0.0
+     },
+     {
+      "name": "taxonomy",
+      "value": 0.8,
+      "weight": 0.2,
+      "contribution": 0.16000000000000003
+     },
+     {
+      "name": "intent",
+      "value": 1.0,
+      "weight": 0.15,
+      "contribution": 0.15
+     },
+     {
+      "name": "graph",
+      "value": 1.0,
+      "weight": 0.15,
+      "contribution": 0.15
+     },
+     {
+      "name": "geography",
+      "value": 0.0,
+      "weight": 0.08,
+      "contribution": 0.0
+     },
+     {
+      "name": "commercial",
+      "value": 1.0,
+      "weight": 0.05,
+      "contribution": 0.05
+     },
+     {
+      "name": "underlinked",
+      "value": 0.0,
+      "weight": 0.04,
+      "contribution": 0.0
+     },
+     {
+      "name": "historical",
+      "value": 0.0,
+      "weight": 0.03,
+      "contribution": 0.0
+     }
+    ],
+    "policy_name": "ranking",
+    "policy_version": 1,
+    "semantic_floor": 0.78
+   }
+  },
+  {
+   "plan_id": "4cd755b6-48b4-4a1e-b0fe-a64b7322cd56",
+   "plan_status": "policy_checked",
+   "source_url": "https://research.example.com/insights/battery-swapping-electric-two-wheelers-india",
+   "target_url": "https://research.example.com/industry-reports/india-lithium-ion-battery-manufacturing-market",
+   "target_title": "India Lithium-ion Battery Manufacturing Market Outlook",
+   "anchor_text": "lithium-ion battery",
+   "anchor_source": "target_topic",
+   "block_id": "b6",
+   "start_offset": 164,
+   "end_offset": 183,
+   "preview": {
+    "after": " that sits on a shelf is dead capital. Operators also need spare packs in the network, so they hold more batteries than vehicles on the road.",
+    "anchor": "lithium-ion battery",
+    "before": "Operators carry the cost of the battery fleet, which means utilisation decides profitability. Every pack must cycle several times a day to pay back its cost, and a "
+   },
+   "total_score": 0.45666666666666667,
+   "plan_confidence": 0.45666666666666667,
+   "reason_codes": [
+    "lexical_overlap",
+    "same_geography",
+    "high_commercial_value",
+    "underlinked_target",
+    "anchor_matches_target_topic"
+   ],
+   "channels": [
+    "semantic",
+    "lexical"
+   ],
+   "relationship_type": "same_geography",
+   "embedding_model": "nomic-embed-text",
+   "rationale": "Link to \"India Lithium-ion Battery Manufacturing Market Outlook\" (same geography) on the existing phrase \"lithium-ion battery\". Why: the pages share key terms; both pages cover the same country; the target is a high-value commercial page; the target has few internal links; the anchor names the target's topic.",
+   "critic_verdict": "accept",
+   "critic_reasons": [
+    "natural_anchor",
+    "relevant_destination",
+    "reader_journey_mismatch"
+   ],
+   "critic_fallback": false,
+   "fallback_reason": null,
+   "critic_model": "qwen3:8b-q4_K_M",
+   "autonomy_mode": "shadow",
+   "autonomy_decision": "block",
+   "would_have_decision": "block",
+   "risk_tier": "medium",
+   "autonomy_confidence": 0.45666666666666667,
+   "critic_outcome": "accept",
+   "autonomy_blocks": [],
+   "calibration_version": null,
+   "evaluated_at": "2026-10-24 21:19:07.956622+00",
+   "score_breakdown": {
+    "total": 0.45666666666666667,
+    "factors": {
+     "placement_quality": 1.0
+    },
+    "relevance": 0.45666666666666667,
+    "components": [
+     {
+      "name": "semantic",
+      "value": 0.0,
+      "weight": 0.3,
+      "contribution": 0.0
+     },
+     {
+      "name": "taxonomy",
+      "value": 0.0,
+      "weight": 0.2,
+      "contribution": 0.0
+     },
+     {
+      "name": "intent",
+      "value": 1.0,
+      "weight": 0.15,
+      "contribution": 0.15
+     },
+     {
+      "name": "graph",
+      "value": 1.0,
+      "weight": 0.15,
+      "contribution": 0.15
+     },
+     {
+      "name": "geography",
+      "value": 1.0,
+      "weight": 0.08,
+      "contribution": 0.08
+     },
+     {
+      "name": "commercial",
+      "value": 1.0,
+      "weight": 0.05,
+      "contribution": 0.05
+     },
+     {
+      "name": "underlinked",
+      "value": 0.6666666666666667,
+      "weight": 0.04,
+      "contribution": 0.026666666666666672
+     },
+     {
+      "name": "historical",
+      "value": 0.0,
+      "weight": 0.03,
+      "contribution": 0.0
+     }
+    ],
+    "policy_name": "ranking",
+    "policy_version": 1,
+    "semantic_floor": 0.78
+   }
+  },
+  {
+   "plan_id": "143588f2-d552-4c6a-955d-45fcfbd14d9b",
+   "plan_status": "policy_checked",
+   "source_url": "https://research.example.com/industry-reports/vietnam-wind-power-market",
+   "target_url": "https://research.example.com/industry-reports/gcc-energy-storage-market",
+   "target_title": "GCC Energy Storage Market Report",
+   "anchor_text": "battery storage",
+   "anchor_source": "target_topic",
+   "block_id": "b8",
+   "start_offset": 88,
+   "end_offset": 103,
+   "preview": {
+    "after": " and new interconnectors as essential to integrate variable renewables.",
+    "anchor": "battery storage",
+    "before": "Grid constraints limit how much new wind power the system can absorb. Grid planners see "
+   },
+   "total_score": 0.455,
+   "plan_confidence": 0.455,
+   "reason_codes": [
+    "lexical_overlap",
+    "complementary_market",
+    "high_commercial_value",
+    "anchor_matches_target_topic"
+   ],
+   "channels": [
+    "semantic",
+    "lexical",
+    "taxonomy",
+    "graph"
+   ],
+   "relationship_type": "complementary_market",
+   "embedding_model": "nomic-embed-text",
+   "rationale": "Link to \"GCC Energy Storage Market Report\" (complementary market) on the existing phrase \"battery storage\". Why: the pages share key terms; the markets are complementary; the target is a high-value commercial page; the anchor names the target's topic.",
+   "critic_verdict": "accept",
+   "critic_reasons": [
+    "natural_anchor",
+    "relevant_destination",
+    "reader_journey_mismatch"
+   ],
+   "critic_fallback": false,
+   "fallback_reason": null,
+   "critic_model": "qwen3:8b-q4_K_M",
+   "autonomy_mode": "shadow",
+   "autonomy_decision": "block",
+   "would_have_decision": "block",
+   "risk_tier": "medium",
+   "autonomy_confidence": 0.455,
+   "critic_outcome": "accept",
+   "autonomy_blocks": [],
+   "calibration_version": null,
+   "evaluated_at": "2026-10-24 21:19:07.892434+00",
+   "score_breakdown": {
+    "total": 0.455,
+    "factors": {
+     "placement_quality": 1.0
+    },
+    "relevance": 0.455,
+    "components": [
+     {
+      "name": "semantic",
+      "value": 0.0,
+      "weight": 0.3,
+      "contribution": 0.0
+     },
+     {
+      "name": "taxonomy",
+      "value": 0.6,
+      "weight": 0.2,
+      "contribution": 0.12
+     },
+     {
+      "name": "intent",
+      "value": 0.9,
+      "weight": 0.15,
+      "contribution": 0.135
+     },
+     {
+      "name": "graph",
+      "value": 1.0,
+      "weight": 0.15,
+      "contribution": 0.15
+     },
+     {
+      "name": "geography",
+      "value": 0.0,
+      "weight": 0.08,
+      "contribution": 0.0
+     },
+     {
+      "name": "commercial",
+      "value": 1.0,
+      "weight": 0.05,
+      "contribution": 0.05
+     },
+     {
+      "name": "underlinked",
+      "value": 0.0,
+      "weight": 0.04,
+      "contribution": 0.0
+     },
+     {
+      "name": "historical",
+      "value": 0.0,
+      "weight": 0.03,
+      "contribution": 0.0
+     }
+    ],
+    "policy_name": "ranking",
+    "policy_version": 1,
+    "semantic_floor": 0.78
+   }
+  },
+  {
+   "plan_id": "2f2a0c09-2972-4165-a006-1eaa8ae196b5",
+   "plan_status": "policy_checked",
+   "source_url": "https://research.example.com/industry-reports/vietnam-solar-power-market",
+   "target_url": "https://research.example.com/industry-reports/gcc-energy-storage-market",
+   "target_title": "GCC Energy Storage Market Report",
+   "anchor_text": "energy storage",
+   "anchor_source": "target_topic",
+   "block_id": "b4",
+   "start_offset": 300,
+   "end_offset": 314,
+   "preview": {
+    "after": " is one option grid planners are studying to reduce curtailment.",
+    "anchor": "energy storage",
+    "before": "provinces. Developers now face a transition from fixed feed-in tariffs to competitive pricing and direct power purchase agreements with large industrial buyers. Pairing solar plants with "
+   },
+   "total_score": 0.455,
+   "plan_confidence": 0.455,
+   "reason_codes": [
+    "lexical_overlap",
+    "complementary_market",
+    "high_commercial_value",
+    "anchor_matches_target_topic"
+   ],
+   "channels": [
+    "semantic",
+    "lexical",
+    "taxonomy",
+    "graph"
+   ],
+   "relationship_type": "complementary_market",
+   "embedding_model": "nomic-embed-text",
+   "rationale": "Link to \"GCC Energy Storage Market Report\" (complementary market) on the existing phrase \"energy storage\". Why: the pages share key terms; the markets are complementary; the target is a high-value commercial page; the anchor names the target's topic.",
+   "critic_verdict": "accept",
+   "critic_reasons": [
+    "natural_anchor",
+    "relevant_destination",
+    "reader_journey_mismatch"
+   ],
+   "critic_fallback": false,
+   "fallback_reason": null,
+   "critic_model": "qwen3:8b-q4_K_M",
+   "autonomy_mode": "shadow",
+   "autonomy_decision": "block",
+   "would_have_decision": "block",
+   "risk_tier": "medium",
+   "autonomy_confidence": 0.455,
+   "critic_outcome": "accept",
+   "autonomy_blocks": [],
+   "calibration_version": null,
+   "evaluated_at": "2026-10-24 21:19:07.849879+00",
+   "score_breakdown": {
+    "total": 0.455,
+    "factors": {
+     "placement_quality": 1.0
+    },
+    "relevance": 0.455,
+    "components": [
+     {
+      "name": "semantic",
+      "value": 0.0,
+      "weight": 0.3,
+      "contribution": 0.0
+     },
+     {
+      "name": "taxonomy",
+      "value": 0.6,
+      "weight": 0.2,
+      "contribution": 0.12
+     },
+     {
+      "name": "intent",
+      "value": 0.9,
+      "weight": 0.15,
+      "contribution": 0.135
+     },
+     {
+      "name": "graph",
+      "value": 1.0,
+      "weight": 0.15,
+      "contribution": 0.15
+     },
+     {
+      "name": "geography",
+      "value": 0.0,
+      "weight": 0.08,
+      "contribution": 0.0
+     },
+     {
+      "name": "commercial",
+      "value": 1.0,
+      "weight": 0.05,
+      "contribution": 0.05
+     },
+     {
+      "name": "underlinked",
+      "value": 0.0,
+      "weight": 0.04,
+      "contribution": 0.0
+     },
+     {
+      "name": "historical",
+      "value": 0.0,
+      "weight": 0.03,
+      "contribution": 0.0
+     }
+    ],
+    "policy_name": "ranking",
+    "policy_version": 1,
+    "semantic_floor": 0.78
+   }
+  },
+  {
+   "plan_id": "bfa8ba9b-e4a2-4b65-ac4d-2a0da70a0c6d",
+   "plan_status": "policy_checked",
+   "source_url": "https://research.example.com/insights/indonesia-nickel-battery-materials",
+   "target_url": "https://research.example.com/industry-reports/indonesia-electric-two-wheeler-market",
+   "target_title": "Indonesia Electric Two-Wheeler Market Report",
+   "anchor_text": "electric motorcycles",
+   "anchor_source": "target_topic",
+   "block_id": "b8",
+   "start_offset": 97,
+   "end_offset": 117,
+   "preview": {
+    "after": " and cars aim to create domestic demand for batteries made from Indonesian nickel.",
+    "anchor": "electric motorcycles",
+    "before": "Indonesia wants to go further, into battery cells and electric vehicles. Local content rules for "
+   },
+   "total_score": 0.44333333333333336,
+   "plan_confidence": 0.44333333333333336,
+   "reason_codes": [
+    "lexical_overlap",
+    "same_geography",
+    "high_commercial_value",
+    "underlinked_target",
+    "anchor_matches_target_topic"
+   ],
+   "channels": [
+    "semantic",
+    "lexical"
+   ],
+   "relationship_type": "same_geography",
+   "embedding_model": "nomic-embed-text",
+   "rationale": "Link to \"Indonesia Electric Two-Wheeler Market Report\" (same geography) on the existing phrase \"electric motorcycles\". Why: the pages share key terms; both pages cover the same country; the target is a high-value commercial page; the target has few internal links; the anchor names the target's topic.",
+   "critic_verdict": "accept",
+   "critic_reasons": [
+    "natural_anchor",
+    "relevant_destination",
+    "reader_journey_mismatch"
+   ],
+   "critic_fallback": false,
+   "fallback_reason": null,
+   "critic_model": "qwen3:8b-q4_K_M",
+   "autonomy_mode": "shadow",
+   "autonomy_decision": "block",
+   "would_have_decision": "block",
+   "risk_tier": "medium",
+   "autonomy_confidence": 0.44333333333333336,
+   "critic_outcome": "accept",
+   "autonomy_blocks": [],
+   "calibration_version": null,
+   "evaluated_at": "2026-10-24 21:19:08.17051+00",
+   "score_breakdown": {
+    "total": 0.44333333333333336,
+    "factors": {
+     "placement_quality": 1.0
+    },
+    "relevance": 0.44333333333333336,
+    "components": [
+     {
+      "name": "semantic",
+      "value": 0.0,
+      "weight": 0.3,
+      "contribution": 0.0
+     },
+     {
+      "name": "taxonomy",
+      "value": 0.0,
+      "weight": 0.2,
+      "contribution": 0.0
+     },
+     {
+      "name": "intent",
+      "value": 1.0,
+      "weight": 0.15,
+      "contribution": 0.15
+     },
+     {
+      "name": "graph",
+      "value": 1.0,
+      "weight": 0.15,
+      "contribution": 0.15
+     },
+     {
+      "name": "geography",
+      "value": 1.0,
+      "weight": 0.08,
+      "contribution": 0.08
+     },
+     {
+      "name": "commercial",
+      "value": 1.0,
+      "weight": 0.05,
+      "contribution": 0.05
+     },
+     {
+      "name": "underlinked",
+      "value": 0.33333333333333337,
+      "weight": 0.04,
+      "contribution": 0.013333333333333336
+     },
+     {
+      "name": "historical",
+      "value": 0.0,
+      "weight": 0.03,
+      "contribution": 0.0
+     }
+    ],
+    "policy_name": "ranking",
+    "policy_version": 1,
+    "semantic_floor": 0.78
+   }
+  },
+  {
+   "plan_id": "6d91a45b-2380-491b-a08b-c0a28b89666d",
+   "plan_status": "policy_checked",
+   "source_url": "https://research.example.com/industry-reports/india-lithium-ion-battery-manufacturing-market",
+   "target_url": "https://research.example.com/industry-reports/india-electric-two-wheeler-market",
+   "target_title": "India Electric Two-Wheeler Market Outlook to 2030",
+   "anchor_text": "electric two-wheelers",
+   "anchor_source": "target_topic",
+   "block_id": "b6",
+   "start_offset": 92,
+   "end_offset": 113,
+   "preview": {
+    "after": " and three-wheelers. Safety incidents prompted stricter testing standards for battery packs, which favour larger assemblers with better quality control.",
+    "anchor": "electric two-wheelers",
+    "before": "Battery pack assembly is already a domestic industry, with hundreds of assemblers supplying "
+   },
+   "total_score": 0.43530843369104,
+   "plan_confidence": 0.43530843369104,
+   "reason_codes": [
+    "semantically_similar",
+    "lexical_overlap",
+    "same_geography",
+    "high_commercial_value",
+    "anchor_matches_target_topic"
+   ],
+   "channels": [
+    "semantic",
+    "lexical"
+   ],
+   "relationship_type": "semantic_similar",
+   "embedding_model": "nomic-embed-text",
+   "rationale": "Link to \"India Electric Two-Wheeler Market Outlook to 2030\" (semantically similar) on the existing phrase \"electric two-wheelers\". Why: the pages are semantically similar; the pages share key terms; both pages cover the same country; the target is a high-value commercial page; the anchor names the target's topic.",
+   "critic_verdict": "accept",
+   "critic_reasons": [
+    "natural_anchor",
+    "relevant_destination",
+    "reader_journey_mismatch"
+   ],
+   "critic_fallback": false,
+   "fallback_reason": null,
+   "critic_model": "qwen3:8b-q4_K_M",
+   "autonomy_mode": "shadow",
+   "autonomy_decision": "block",
+   "would_have_decision": "block",
+   "risk_tier": "medium",
+   "autonomy_confidence": 0.43530843369104,
+   "critic_outcome": "accept",
+   "autonomy_blocks": [],
+   "calibration_version": null,
+   "evaluated_at": "2026-10-24 21:19:07.48113+00",
+   "score_breakdown": {
+    "total": 0.43530843369104,
+    "factors": {
+     "placement_quality": 1.0
+    },
+    "relevance": 0.43530843369104,
+    "components": [
+     {
+      "name": "semantic",
+      "value": 0.06769477897013332,
+      "weight": 0.3,
+      "contribution": 0.020308433691039993
+     },
+     {
+      "name": "taxonomy",
+      "value": 0.0,
+      "weight": 0.2,
+      "contribution": 0.0
+     },
+     {
+      "name": "intent",
+      "value": 0.9,
+      "weight": 0.15,
+      "contribution": 0.135
+     },
+     {
+      "name": "graph",
+      "value": 1.0,
+      "weight": 0.15,
+      "contribution": 0.15
+     },
+     {
+      "name": "geography",
+      "value": 1.0,
+      "weight": 0.08,
+      "contribution": 0.08
+     },
+     {
+      "name": "commercial",
+      "value": 1.0,
+      "weight": 0.05,
+      "contribution": 0.05
+     },
+     {
+      "name": "underlinked",
+      "value": 0.0,
+      "weight": 0.04,
+      "contribution": 0.0
+     },
+     {
+      "name": "historical",
+      "value": 0.0,
+      "weight": 0.03,
+      "contribution": 0.0
+     }
+    ],
+    "policy_name": "ranking",
+    "policy_version": 1,
+    "semantic_floor": 0.78
+   }
+  },
+  {
+   "plan_id": "5db70797-c40f-4afe-be82-0013229a4e20",
+   "plan_status": "proposed",
+   "source_url": "https://research.example.com/industry-reports/thailand-ecommerce-logistics-market",
+   "target_url": "https://research.example.com/industry-reports/philippines-fintech-market",
+   "target_title": "Philippines Fintech Market Outlook",
+   "anchor_text": "digital payments",
+   "anchor_source": "target_topic",
+   "block_id": "b6",
+   "start_offset": 208,
+   "end_offset": 224,
+   "preview": {
+    "after": " are growing quickly.",
+    "anchor": "digital payments",
+    "before": "and third-party logistics providers are building fulfilment centres with automated sortation near Bangkok's ring roads. Cash on delivery remains common, which adds reconciliation costs, although "
+   },
+   "total_score": 0.42833333333333334,
+   "plan_confidence": 0.42833333333333334,
+   "reason_codes": [
+    "same_geography",
+    "high_commercial_value",
+    "underlinked_target",
+    "anchor_matches_target_topic"
+   ],
+   "channels": [
+    "semantic"
+   ],
+   "relationship_type": "same_geography",
+   "embedding_model": "nomic-embed-text",
+   "rationale": "Link to \"Philippines Fintech Market Outlook\" (same geography) on the existing phrase \"digital payments\". Why: both pages cover the same country; the target is a high-value commercial page; the target has few internal links; the anchor names the target's topic.",
+   "critic_verdict": "reject",
+   "critic_reasons": [
+    "reader_journey_mismatch",
+    "misleading_anchor"
+   ],
+   "critic_fallback": false,
+   "fallback_reason": null,
+   "critic_model": "qwen3:8b-q4_K_M",
+   "autonomy_mode": "shadow",
+   "autonomy_decision": "block",
+   "would_have_decision": "block",
+   "risk_tier": "medium",
+   "autonomy_confidence": 0.42833333333333334,
+   "critic_outcome": "reject",
+   "autonomy_blocks": [],
+   "calibration_version": null,
+   "evaluated_at": "2026-10-24 21:19:07.656715+00",
+   "score_breakdown": {
+    "total": 0.42833333333333334,
+    "factors": {
+     "placement_quality": 1.0
+    },
+    "relevance": 0.42833333333333334,
+    "components": [
+     {
+      "name": "semantic",
+      "value": 0.0,
+      "weight": 0.3,
+      "contribution": 0.0
+     },
+     {
+      "name": "taxonomy",
+      "value": 0.0,
+      "weight": 0.2,
+      "contribution": 0.0
+     },
+     {
+      "name": "intent",
+      "value": 0.9,
+      "weight": 0.15,
+      "contribution": 0.135
+     },
+     {
+      "name": "graph",
+      "value": 1.0,
+      "weight": 0.15,
+      "contribution": 0.15
+     },
+     {
+      "name": "geography",
+      "value": 1.0,
+      "weight": 0.08,
+      "contribution": 0.08
+     },
+     {
+      "name": "commercial",
+      "value": 1.0,
+      "weight": 0.05,
+      "contribution": 0.05
+     },
+     {
+      "name": "underlinked",
+      "value": 0.33333333333333337,
+      "weight": 0.04,
+      "contribution": 0.013333333333333336
+     },
+     {
+      "name": "historical",
+      "value": 0.0,
+      "weight": 0.03,
+      "contribution": 0.0
+     }
+    ],
+    "policy_name": "ranking",
+    "policy_version": 1,
+    "semantic_floor": 0.78
+   }
+  },
+  {
+   "plan_id": "922a86f4-d68d-4486-8c51-aea7db5d861e",
+   "plan_status": "policy_checked",
+   "source_url": "https://research.example.com/industry-reports/india-cold-chain-market",
+   "target_url": "https://research.example.com/industry-reports/india-rooftop-solar-market",
+   "target_title": "India Rooftop Solar Market Outlook",
+   "anchor_text": "solar panels",
+   "anchor_source": "target_topic",
+   "block_id": "b4",
+   "start_offset": 336,
+   "end_offset": 348,
+   "preview": {
+    "after": " to their roofs.",
+    "anchor": "solar panels",
+    "before": "into multi-temperature facilities near consumption centres, supported by central subsidies for integrated cold chain projects. Electricity is the largest operating cost, and many operators are adding "
+   },
+   "total_score": 0.42833333333333334,
+   "plan_confidence": 0.42833333333333334,
+   "reason_codes": [
+    "lexical_overlap",
+    "same_geography",
+    "high_commercial_value",
+    "underlinked_target",
+    "anchor_matches_target_topic"
+   ],
+   "channels": [
+    "semantic",
+    "lexical"
+   ],
+   "relationship_type": "same_geography",
+   "embedding_model": "nomic-embed-text",
+   "rationale": "Link to \"India Rooftop Solar Market Outlook\" (same geography) on the existing phrase \"solar panels\". Why: the pages share key terms; both pages cover the same country; the target is a high-value commercial page; the target has few internal links; the anchor names the target's topic.",
+   "critic_verdict": "accept",
+   "critic_reasons": [
+    "natural_anchor",
+    "relevant_destination",
+    "reader_journey_mismatch"
+   ],
+   "critic_fallback": false,
+   "fallback_reason": null,
+   "critic_model": "qwen3:8b-q4_K_M",
+   "autonomy_mode": "shadow",
+   "autonomy_decision": "block",
+   "would_have_decision": "block",
+   "risk_tier": "medium",
+   "autonomy_confidence": 0.42833333333333334,
+   "critic_outcome": "accept",
+   "autonomy_blocks": [],
+   "calibration_version": null,
+   "evaluated_at": "2026-10-24 21:19:07.361959+00",
+   "score_breakdown": {
+    "total": 0.42833333333333334,
+    "factors": {
+     "placement_quality": 1.0
+    },
+    "relevance": 0.42833333333333334,
+    "components": [
+     {
+      "name": "semantic",
+      "value": 0.0,
+      "weight": 0.3,
+      "contribution": 0.0
+     },
+     {
+      "name": "taxonomy",
+      "value": 0.0,
+      "weight": 0.2,
+      "contribution": 0.0
+     },
+     {
+      "name": "intent",
+      "value": 0.9,
+      "weight": 0.15,
+      "contribution": 0.135
+     },
+     {
+      "name": "graph",
+      "value": 1.0,
+      "weight": 0.15,
+      "contribution": 0.15
+     },
+     {
+      "name": "geography",
+      "value": 1.0,
+      "weight": 0.08,
+      "contribution": 0.08
+     },
+     {
+      "name": "commercial",
+      "value": 1.0,
+      "weight": 0.05,
+      "contribution": 0.05
+     },
+     {
+      "name": "underlinked",
+      "value": 0.33333333333333337,
+      "weight": 0.04,
+      "contribution": 0.013333333333333336
+     },
+     {
+      "name": "historical",
+      "value": 0.0,
+      "weight": 0.03,
+      "contribution": 0.0
+     }
+    ],
+    "policy_name": "ranking",
+    "policy_version": 1,
+    "semantic_floor": 0.78
+   }
+  },
+  {
+   "plan_id": "c9c120a3-3a03-4c04-af75-e3e42d408ae3",
+   "plan_status": "proposed",
+   "source_url": "https://research.example.com/industry-reports/indonesia-ev-charging-infrastructure-market",
+   "target_url": "https://research.example.com/industry-reports/southeast-asia-battery-materials-market",
+   "target_title": "Southeast Asia Battery Materials Market Report",
+   "anchor_text": "battery materials",
+   "anchor_source": "target_topic",
+   "block_id": "b9",
+   "start_offset": 61,
+   "end_offset": 78,
+   "preview": {
+    "after": " hub, and policymakers see the charging network as the demand-side counterpart of that strategy.",
+    "anchor": "battery materials",
+    "before": "Nickel processing investments are positioning Indonesia as a "
+   },
+   "total_score": 0.41500000000000004,
+   "plan_confidence": 0.41500000000000004,
+   "reason_codes": [
+    "lexical_overlap",
+    "same_geography",
+    "high_commercial_value",
+    "anchor_matches_target_topic"
+   ],
+   "channels": [
+    "semantic",
+    "lexical"
+   ],
+   "relationship_type": "same_geography",
+   "embedding_model": "nomic-embed-text",
+   "rationale": "Link to \"Southeast Asia Battery Materials Market Report\" (same geography) on the existing phrase \"battery materials\". Why: the pages share key terms; both pages cover the same country; the target is a high-value commercial page; the anchor names the target's topic.",
+   "critic_verdict": "reject",
+   "critic_reasons": [
+    "misleading_anchor",
+    "weak_relevance"
+   ],
+   "critic_fallback": false,
+   "fallback_reason": null,
+   "critic_model": "qwen3:8b-q4_K_M",
+   "autonomy_mode": "shadow",
+   "autonomy_decision": "block",
+   "would_have_decision": "block",
+   "risk_tier": "medium",
+   "autonomy_confidence": 0.41500000000000004,
+   "critic_outcome": "reject",
+   "autonomy_blocks": [],
+   "calibration_version": null,
+   "evaluated_at": "2026-10-24 21:19:07.56548+00",
+   "score_breakdown": {
+    "total": 0.41500000000000004,
+    "factors": {
+     "placement_quality": 1.0
+    },
+    "relevance": 0.41500000000000004,
+    "components": [
+     {
+      "name": "semantic",
+      "value": 0.0,
+      "weight": 0.3,
+      "contribution": 0.0
+     },
+     {
+      "name": "taxonomy",
+      "value": 0.0,
+      "weight": 0.2,
+      "contribution": 0.0
+     },
+     {
+      "name": "intent",
+      "value": 0.9,
+      "weight": 0.15,
+      "contribution": 0.135
+     },
+     {
+      "name": "graph",
+      "value": 1.0,
+      "weight": 0.15,
+      "contribution": 0.15
+     },
+     {
+      "name": "geography",
+      "value": 1.0,
+      "weight": 0.08,
+      "contribution": 0.08
+     },
+     {
+      "name": "commercial",
+      "value": 1.0,
+      "weight": 0.05,
+      "contribution": 0.05
+     },
+     {
+      "name": "underlinked",
+      "value": 0.0,
+      "weight": 0.04,
+      "contribution": 0.0
+     },
+     {
+      "name": "historical",
+      "value": 0.0,
+      "weight": 0.03,
+      "contribution": 0.0
+     }
+    ],
+    "policy_name": "ranking",
+    "policy_version": 1,
+    "semantic_floor": 0.78
+   }
+  },
+  {
+   "plan_id": "38672f3e-9b4f-4bb8-93d3-95a4141a4dcf",
+   "plan_status": "proposed",
+   "source_url": "https://research.example.com/industry-reports/malaysia-data-center-market",
+   "target_url": "https://research.example.com/insights/gcc-data-center-power-demand",
+   "target_title": "GCC Data Center Boom: What It Means for Power Demand",
+   "anchor_text": "power demand",
+   "anchor_source": "target_keyword",
+   "block_id": "b6",
+   "start_offset": 12,
+   "end_offset": 24,
+   "preview": {
+    "after": " is now a significant share of the national grid's planned growth. The state power company introduced a green tariff for data center operators seeking renewable energy, and water use for cooling has",
+    "anchor": "power demand",
+    "before": "Data center "
+   },
+   "total_score": 0.38315080032590765,
+   "plan_confidence": 0.38315080032590765,
+   "reason_codes": [
+    "semantically_similar",
+    "lexical_overlap",
+    "same_market",
+    "underlinked_target"
+   ],
+   "channels": [
+    "semantic",
+    "lexical",
+    "taxonomy",
+    "graph"
+   ],
+   "relationship_type": "same_market",
+   "embedding_model": "nomic-embed-text",
+   "rationale": "Link to \"GCC Data Center Boom: What It Means for Power Demand\" (same market) on the existing phrase \"power demand\". Why: the pages are semantically similar; the pages share key terms; both pages cover the same market; the target has few internal links.",
+   "critic_verdict": "reject",
+   "critic_reasons": [
+    "reader_journey_mismatch",
+    "weak_relevance"
+   ],
+   "critic_fallback": false,
+   "fallback_reason": null,
+   "critic_model": "qwen3:8b-q4_K_M",
+   "autonomy_mode": "shadow",
+   "autonomy_decision": "block",
+   "would_have_decision": "block",
+   "risk_tier": "medium",
+   "autonomy_confidence": 0.38315080032590765,
+   "critic_outcome": "reject",
+   "autonomy_blocks": [],
+   "calibration_version": null,
+   "evaluated_at": "2026-10-24 21:19:07.584456+00",
+   "score_breakdown": {
+    "total": 0.38315080032590765,
+    "factors": {
+     "placement_quality": 0.75
+    },
+    "relevance": 0.5108677337678769,
+    "components": [
+     {
+      "name": "semantic",
+      "value": 0.030670223670700464,
+      "weight": 0.3,
+      "contribution": 0.00920106710121014
+     },
+     {
+      "name": "taxonomy",
+      "value": 1.0,
+      "weight": 0.2,
+      "contribution": 0.2
+     },
+     {
+      "name": "intent",
+      "value": 0.7,
+      "weight": 0.15,
+      "contribution": 0.105
+     },
+     {
+      "name": "graph",
+      "value": 1.0,
+      "weight": 0.15,
+      "contribution": 0.15
+     },
+     {
+      "name": "geography",
+      "value": 0.0,
+      "weight": 0.08,
+      "contribution": 0.0
+     },
+     {
+      "name": "commercial",
+      "value": 0.6666666666666666,
+      "weight": 0.05,
+      "contribution": 0.03333333333333333
+     },
+     {
+      "name": "underlinked",
+      "value": 0.33333333333333337,
+      "weight": 0.04,
+      "contribution": 0.013333333333333336
+     },
+     {
+      "name": "historical",
+      "value": 0.0,
+      "weight": 0.03,
+      "contribution": 0.0
+     }
+    ],
+    "policy_name": "ranking",
+    "policy_version": 1,
+    "semantic_floor": 0.78
+   }
+  }
+ ]
+}

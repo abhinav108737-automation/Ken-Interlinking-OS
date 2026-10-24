@@ -57,6 +57,17 @@ any governing document, so none was guessed.
 | 26 | **Real review history before any calibration.** Plain `AUTO_PUBLISH` needs a calibrated decision class: a passing, fresh evaluation with at least 30 samples for that exact class. That cannot exist until reviewers (or operators acting on exceptions) have produced real decisions on real content. Until then every plan gets extra verification or a block. | The system is conservative by construction until it has evidence | informational |
 | 27 | **Run on Qdrant, not the in-memory index.** The code default is `KEN_VECTOR_STORE=qdrant` (the test factories select `memory` explicitly); `.env.example` also sets it. A production installation must run `make qdrant-up`, `make qdrant-index` and keep `KEN_VECTOR_STORE=qdrant`. `make doctor` warns in staging/production if it is not. | Without it the semantic channel has no index to search | action (you) |
 | 28 | ~~Roll out the least-privilege role.~~ **Done (2026-10-24).** `ken_interlink` now runs as `ken_app`: `KEN_DATABASE_URL` is the app DSN and `KEN_MIGRATION_DATABASE_URL` the owner `ken` DSN in the (gitignored, mode 0600) `.env`. Verified: `make db-roles-check` OK, `make doctor` role check OK, `/ready` 200 as `ken_app`, and TRUNCATE, CREATE/ALTER/DROP, `DISABLE TRIGGER`, `SET session_replication_role`, `ALTER ... OWNER` and `CREATE ROLE` all return 42501. Still true: the owner (`ken`, a superuser in the dev container) is the trust root; `make demo`, the simulated CMS and the eval benchmarks keep using it; the `ken.*` promotion/activation settings remain a code-path control. Rollback: restore `.env` from `~/.ken-backups/env-*.bak`, or `DROP OWNED BY ken_app; DROP ROLE ken_app;` as `ken`. | Residual: the owner credential | done |
+## Local shadow pilot (2026-10-25) - what remains
+
+See `LOCAL_SHADOW_PILOT_REPORT.md` (corpus is SYNTHETIC `research.example.com`; nothing published).
+
+| Item | Note |
+|---|---|
+| Dev DB has stranded legacy plans | `ken_interlink` holds 33 plans in the pre-ADR-0018 status `awaiting_approval`; the autonomy engine does not decide that status, so a shadow pass there only saw 15 critic-rejected plans. Rebuild the dev DB (or add an explicit, reviewed migration of those plans) before using it as a pilot base. The full flow was run in a fresh `ken_pilot` database instead. |
+| Agent step is slow | About 2 hours for 30 sources with local qwen3:8b (about 2 min per source); needs a faster model/batching before a real site. |
+| Real pilot inputs (ASK) | Approved Ken source URL or export, a 200-500 page sample with real templates, and human relevance labels (a few hundred) for precision and calibration; see report section 5. Nothing is calibrated until then. |
+| Pilot leftovers | `ken_pilot` database and `ken_pilot_pages` collection (safe to drop). |
+
 ## Hardening pass (post `local-product-complete`) - what remains
 
 | Item | Note |
