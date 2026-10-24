@@ -92,7 +92,7 @@ def test_defaults_are_safe() -> None:
     # default in-memory store it always answers ok. Ollama stays optional.
     assert s.require_qdrant is True
     assert not hasattr(s, "require_pgvector")
-    assert s.vector_store == "memory"
+    assert s.vector_store == "qdrant"  # ADR-0017: normal deployments use Qdrant
     assert s.require_ollama is False
     assert s.auto_approve_enabled is False
     # ADR-0018: the default mode publishes NOTHING, and neither acknowledgement is set.
@@ -378,7 +378,7 @@ def test_the_autonomy_settings_are_published_but_no_secret_is() -> None:
     public = _settings(qdrant_api_key=SECRET).public_settings()
     assert public["autonomy_mode"] == "shadow"
     assert public["autonomy_allow_production"] is False
-    assert public["vector_store"] == "memory"
+    assert public["vector_store"] == "qdrant"
     assert public["qdrant_collection"] == "ken_pages"
     # The API key and the URL are deliberately absent from /meta (CONTRACTS rule 9).
     assert "qdrant_api_key" not in public
@@ -389,10 +389,11 @@ def test_the_autonomy_settings_are_published_but_no_secret_is() -> None:
 # --------------------------------------------------------------------------- #
 # Phase 9: the vector store (ADR-0017)
 # --------------------------------------------------------------------------- #
-def test_the_default_vector_store_needs_no_container() -> None:
-    settings = _settings()
-    assert settings.vector_store == "memory"
-    assert settings.require_qdrant is True
+def test_the_code_default_is_qdrant_and_the_test_factory_opts_into_memory() -> None:
+    assert _settings().vector_store == "qdrant"
+    assert make_settings().vector_store == "memory"
+    assert make_settings(vector_store="qdrant").vector_store == "qdrant"
+    assert _settings().require_qdrant is True
 
 
 @pytest.mark.parametrize(

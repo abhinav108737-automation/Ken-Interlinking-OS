@@ -4,7 +4,9 @@ URL precedence (first non-empty wins):
 
 1. ``-x dburl=...`` on the command line (integration tests, one-off targets);
 2. ``sqlalchemy.url`` set programmatically on the Config object;
-3. ``ken_core.config.get_settings().database_url`` (``KEN_DATABASE_URL``).
+3. ``KEN_MIGRATION_DATABASE_URL`` (the OWNER role), else ``KEN_DATABASE_URL`` when unset.
+   The application runtime connects as a least-privilege role and cannot run DDL, so
+   migrations must use the owner DSN (docs/DEVELOPMENT.md "Database roles").
 
 ``alembic.ini`` deliberately leaves ``sqlalchemy.url`` empty so credentials
 never live in a committed file. The same ``postgresql+asyncpg://`` URL drives
@@ -63,7 +65,7 @@ def _x_arguments() -> dict[str, str]:
 def _database_url() -> str:
     x_args = _x_arguments()
     url = x_args.get("dburl") or config.get_main_option("sqlalchemy.url")
-    resolved = url or get_settings().database_url
+    resolved = url or get_settings().effective_migration_database_url
     # Guard the URL actually used -- including a -x dburl= override -- before
     # any DDL runs: locally, port 5432 is the developer's own PostgreSQL.
     get_settings().model_copy(update={"database_url": resolved}).assert_safe_migration_target()

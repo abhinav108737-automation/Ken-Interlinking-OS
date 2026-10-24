@@ -25,7 +25,7 @@ The system must:
 - Local/self-hosted inference only by default.
 - Ollama is the initial inference server.
 - Qwen-family models are the preferred first reasoning candidates.
-- PostgreSQL + pgvector is the initial system of record and vector store.
+- PostgreSQL is the system of record; self-hosted Qdrant is the approved derived semantic index (ADR-0017 superseded the original pgvector plan).
 - LangGraph is the initial supervisor/state-machine framework.
 - Agents never write directly to production data stores.
 - Production mutations occur only through explicit validated APIs.

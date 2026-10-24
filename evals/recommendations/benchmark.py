@@ -57,7 +57,12 @@ def _settings(provider: str, database_url: str) -> Any:
 
     flow = _import("tests.unit.recommendation_evals.db_flow")
     flow.require_test_database(database_url)
-    overrides: dict[str, Any] = {"model_provider": provider, "database_url": database_url}
+    # vector_store="memory": an offline benchmark must never write into the shared Qdrant index.
+    overrides: dict[str, Any] = {
+        "model_provider": provider,
+        "database_url": database_url,
+        "vector_store": "memory",
+    }
     if provider == "ollama":
         overrides["ollama_base_url"] = LOCAL_OLLAMA
     else:

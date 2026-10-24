@@ -128,6 +128,7 @@ asyncio_default_fixture_loop_scope = "function"
 addopts = "-ra --strict-markers --strict-config"
 markers = [
   "integration: requires a reachable PostgreSQL database (auto-skips when absent)",
-  "live: requires a reachable live Ollama daemon (deselected by default)",
+  "live: requires a reachable live Ollama daemon (opt-in via KEN_RUN_LIVE_OLLAMA=1; make test-live)",
+  "qdrant: requires the REAL Qdrant container (make test-qdrant fails, not skips, when it is down)",
 ]
 filterwarnings = ["error::DeprecationWarning:ken_.*"]

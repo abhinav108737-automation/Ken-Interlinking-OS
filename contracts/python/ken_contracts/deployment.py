@@ -21,6 +21,7 @@ from uuid import UUID
 from pydantic import AwareDatetime, Field, model_validator
 
 from ken_contracts.auth import Principal
+from ken_contracts.autonomy import AutonomyDecision, AutonomyMode
 from ken_contracts.common import FrozenModel, reject_unstorable_text
 from ken_contracts.errors import ListResponse
 from ken_contracts.recommendations import LinkPlanStatus
@@ -226,6 +227,24 @@ class DeploymentView(FrozenModel):
     verified_at: AwareDatetime | None = None
     rolled_back_at: AwareDatetime | None = None
     idempotent_replay: bool = False
+    autonomous: bool = Field(
+        default=False,
+        description=(
+            "True when the autonomy engine published this deployment (ADR-0018). Derived from "
+            "a ``publish_attempts`` row linked to the deployment, never from the note or the "
+            "actor (which is the operator account). It describes how the deployment was "
+            "PUBLISHED and does not change if someone later rolls it back."
+        ),
+    )
+    autonomy_decision_id: int | None = Field(
+        default=None, description="The ``autonomy_decisions`` row that sanctioned the publish."
+    )
+    autonomy_decision: AutonomyDecision | None = None
+    autonomy_mode: AutonomyMode | None = None
+    autonomy_rolled_back: bool = Field(
+        default=False,
+        description="True only when the autonomy engine itself rolled the deployment back.",
+    )
 
 
 class VerificationRun(FrozenModel):

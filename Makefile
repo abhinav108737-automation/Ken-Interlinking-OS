@@ -18,8 +18,8 @@ COMPOSE          := docker compose
 export NEXT_TELEMETRY_DISABLED := 1
 
 .DEFAULT_GOAL := help
-.PHONY: help setup lock db-up db-down migrate dev dev-api dev-web \
-        test test-integration test-all test-live web-test lint format types \
+.PHONY: help setup lock db-up db-down migrate db-roles db-roles-check db-roles-test dev dev-api dev-web \
+        test test-integration test-qdrant test-all test-live web-test lint format types \
         compose-config compose-full-up compose-full-down doctor verify openapi \
         ingest-file ingest-cms-mock crawl analyze recommend agents \
         user-create user-list user-disable user-enable user-set-role user-set-password \
@@ -57,7 +57,7 @@ db-up: ## Start the project Postgres container on 127.0.0.1:5433 and wait for he
 db-down: ## Stop the Postgres container (keeps its data volume)
 	$(COMPOSE) stop postgres
 
-migrate: ## Apply Alembic migrations to KEN_DATABASE_URL
+migrate: ## Apply Alembic migrations as the OWNER (KEN_MIGRATION_DATABASE_URL, else KEN_DATABASE_URL)
 	$(VENV)/alembic upgrade head
 
 # ------------------------------------------------- vector store (ADR-0017)
@@ -111,8 +111,11 @@ test: ## Unit + contract tests (no database, no network)
 test-integration: ## Integration tests (needs Postgres on :5433; FAILS if unreachable)
 	KEN_REQUIRE_INTEGRATION_DB=1 $(VENV)/pytest -m integration
 
-test-all: ## Everything except live tests; FAILS if the test DB is unreachable
-	KEN_REQUIRE_INTEGRATION_DB=1 $(VENV)/pytest -m "not live"
+test-qdrant: ## Tests that need the REAL Qdrant container (make qdrant-up); FAILS, never skips, if it is down
+	KEN_REQUIRE_INTEGRATION_DB=1 KEN_REQUIRE_QDRANT_TESTS=1 $(VENV)/pytest -m qdrant
+
+test-all: ## Everything except live tests; FAILS if the test DB or real Qdrant is unreachable
+	KEN_REQUIRE_INTEGRATION_DB=1 KEN_REQUIRE_QDRANT_TESTS=1 $(VENV)/pytest -m "not live"
 
 test-live: ## Live tests against the host Ollama daemon (opt-in, slow)
 	KEN_RUN_LIVE_OLLAMA=1 $(VENV)/pytest -m live
@@ -311,3 +314,17 @@ demo: ## Run the local end-to-end demo (about a minute; docs/DEMO.md). ARGS=--ol
 
 demo-clean: ## Drop the demo databases (ken_demo, ken_cms_sim_demo) and delete ken_demo_* collections
 	$(VENV)/python infrastructure/scripts/demo.py clean
+
+# ----------------------------------------------------------- database roles (ADR-0014 s5)
+# The application connects as the least-privilege role `ken_app`; migrations and the dev tools
+# that create databases use the owner `ken`. See docs/DEVELOPMENT.md "Database roles".
+# Both refuse port 5432 and any database not named ken_*. The password is generated at runtime
+# (or taken from KEN_APP_DB_PASSWORD) and is never printed.
+db-roles: ## Create/update the ken_app role and grants. ARGS=--write-env appends the DSNs to .env
+	$(VENV)/python infrastructure/scripts/db_roles.py apply $(ARGS)
+
+db-roles-check: ## Audit the live grants; non-zero if ken_app is a superuser, owns anything or can TRUNCATE/DDL
+	$(VENV)/python infrastructure/scripts/db_roles.py check
+
+db-roles-test: ## Privilege tests AS ken_app (needs KEN_TEST_APP_DATABASE_URL + KEN_TEST_DATABASE_URL)
+	$(VENV)/pytest -q tests/integration/test_app_role.py

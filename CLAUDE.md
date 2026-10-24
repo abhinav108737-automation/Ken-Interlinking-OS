@@ -12,9 +12,9 @@ Treat these files as the governing project specification.
 
 1. Do not introduce mandatory paid APIs.
 2. Default to local/self-hosted inference.
-3. Do not add OpenAI, Anthropic, Gemini, paid Browser Use Cloud, managed vector databases or paid SaaS dependencies unless the user explicitly changes project constraints.
+3. Do not add OpenAI, Anthropic, Gemini, paid Browser Use Cloud, managed/hosted vector databases or paid SaaS dependencies (self-hosted Qdrant is approved, see rule 5) unless the user explicitly changes project constraints.
 4. PostgreSQL is the primary system of record.
-5. pgvector is the initial vector layer.
+5. PostgreSQL holds the embedding values and is the source of truth. Self-hosted Qdrant is the approved semantic retrieval backend: a derived, rebuildable index, selected with KEN_VECTOR_STORE=qdrant (ADR-0017; pgvector was removed). The in-memory vector store exists for deterministic tests and CI only and is not a deployment mode. Neo4j, Redis, Kafka, Celery and Temporal remain forbidden.
 6. Ollama is the initial model server.
 7. LangGraph is the initial supervisor/state-machine framework.
 8. Prefer deterministic code over LLM reasoning whenever possible.

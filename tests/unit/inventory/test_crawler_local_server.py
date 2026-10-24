@@ -47,7 +47,11 @@ def config_for(site: LocalSite, **overrides: Any) -> CrawlConfig:
 
 
 async def run(config: CrawlConfig) -> tuple[list[Record], SourceSummary]:
-    source = PublicWebContentSource(config, clock=lambda: datetime(2026, 10, 13, tzinfo=UTC))
+    source = PublicWebContentSource(
+        config,
+        clock=lambda: datetime(2026, 10, 13, tzinfo=UTC),
+        allow_private_networks=True,  # loopback fixture server on port 0 (SSRF escape hatch)
+    )
     try:
         await source.site_scope()
         records = [r async for r in source.iter_records()]

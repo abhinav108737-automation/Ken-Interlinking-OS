@@ -13,6 +13,9 @@ failure (no off-host redirect can be taken, and a redirecting target is not a cl
 Outcomes: :attr:`FetchOutcome.OK` (200), :attr:`FetchOutcome.FAILED` (deterministic: 3xx,
 4xx, out of scope), :attr:`FetchOutcome.INCONCLUSIVE` (transient: 5xx, timeout, network
 error -- never fails a plan).
+
+SSRF: the shared ``ken_core.net.NetworkGuard`` judges every URL (all resolved addresses, then
+the address actually connected to). Redirects are never followed, so no hop can escape it.
 """
 
 from __future__ import annotations
@@ -25,6 +28,7 @@ from urllib.parse import urlsplit
 
 import httpx
 
+from ken_core.net import NetworkGuard, UnsafeDestinationError
 from ken_services.inventory import urls
 
 __all__ = ["FetchOutcome", "FetchResult", "HttpProbe"]
@@ -46,7 +50,7 @@ class FetchResult:
     body: str | None = None
     detail: str = ""
     """Fixed vocabulary: ``http_<status>``, ``redirect``, ``out_of_scope``, ``timeout``,
-    ``network_error``, ``too_large``."""
+    ``network_error``, ``too_large``, ``unsafe_destination``."""
 
 
 async def _strip_credentials(request: httpx.Request) -> None:
@@ -66,6 +70,8 @@ class HttpProbe:
         user_agent: str,
         max_bytes: int = 5_000_000,
         transport: httpx.AsyncBaseTransport | None = None,
+        guard: NetworkGuard | None = None,
+        allow_private_networks: bool = False,
     ) -> None:
         normalized = urls.normalize_url(base_url)
         self._base = normalized.rstrip("/")
@@ -74,6 +80,12 @@ class HttpProbe:
         self._agent = user_agent
         self._max = max_bytes
         self._transport = transport
+        # SSRF guard: always on for real sockets; an injected in-memory transport opens none.
+        self._guard: NetworkGuard | None = guard or (
+            None
+            if transport is not None
+            else NetworkGuard(allow_private_networks=allow_private_networks)
+        )
 
     @property
     def base_url(self) -> str:
@@ -93,6 +105,8 @@ class HttpProbe:
         if not self.in_scope(url):
             return FetchResult(FetchOutcome.FAILED, detail="out_of_scope")
         try:
+            if self._guard is not None:
+                await self._guard.check_url(url)
             async with (
                 httpx.AsyncClient(
                     timeout=self._timeout,
@@ -104,6 +118,8 @@ class HttpProbe:
                 ) as client,
                 client.stream("GET", url) as response,
             ):
+                if self._guard is not None:
+                    self._guard.check_response(response)  # DNS-rebinding TOCTOU
                 status = response.status_code
                 if 300 <= status < 400:
                     return FetchResult(FetchOutcome.FAILED, status=status, detail="redirect")
@@ -124,6 +140,8 @@ class HttpProbe:
                     chunks.append(chunk)
                 body = _decode(b"".join(chunks), response.charset_encoding)
                 return FetchResult(FetchOutcome.OK, status=status, body=body)
+        except UnsafeDestinationError:
+            return FetchResult(FetchOutcome.FAILED, detail="unsafe_destination")
         except httpx.TimeoutException:
             return FetchResult(FetchOutcome.INCONCLUSIVE, detail="timeout")
         except httpx.HTTPError:

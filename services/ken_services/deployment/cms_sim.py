@@ -369,7 +369,9 @@ async def _serve(settings: Settings) -> int:
             return EXIT_RUN_ERRORS
         print(serve_line(base_url, pages), flush=True)
         print(
-            f"serving until interrupted (Ctrl-C); e.g. KEN_DEPLOY_VERIFY_BASE_URL={base_url}",
+            "serving until interrupted (Ctrl-C); e.g. "
+            f"KEN_DEPLOY_VERIFY_BASE_URL={base_url} KEN_CRAWL_ALLOW_PRIVATE_NETWORKS=true "
+            "(loopback needs the local/ci-only SSRF escape hatch)",
             file=sys.stderr,
             flush=True,
         )

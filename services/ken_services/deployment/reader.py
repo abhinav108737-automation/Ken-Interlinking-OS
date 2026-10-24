@@ -13,6 +13,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from ken_contracts.autonomy import AutonomyDecision, AutonomyMode
 from ken_contracts.deployment import (
     ChangePreview,
     DeploymentDetail,
@@ -26,6 +27,7 @@ from ken_contracts.deployment import (
 )
 from ken_contracts.errors import ListResponse, PageInfo
 from ken_contracts.recommendations import LinkPlanStatus, PlanNotFoundError
+from ken_core.db.models.autonomy import AutonomyDecisionRow, PublishAttempt
 from ken_core.db.models.deployment import Deployment, ItemStage
 from ken_core.db.models.recommendations import LinkPlan as LinkPlanRow
 from ken_core.db.repositories import deployments as repo
@@ -33,10 +35,52 @@ from ken_core.db.repositories import deployments as repo
 __all__ = ["SqlDeploymentReader", "detail_of", "view_of"]
 
 
+_ENGINE_ACTOR = "system:autonomy-engine"
+"""``ken_services.autonomy.protocol.AUTONOMY_ACTOR`` (not imported: services layering)."""
+
+
+async def _autonomy_tag(session: AsyncSession, row: Deployment) -> dict[str, Any]:
+    """The audit tag of an autonomous publish, from ``publish_attempts`` ONLY.
+
+    ``deployments.actor`` is the operator account and the note is free text a human can type,
+    so neither is evidence. An attempt row (actor ``system:autonomy-engine``, ``deployment_id``
+    set) is written solely by the autonomous publisher.
+    """
+    attempt = (
+        await session.execute(
+            select(PublishAttempt)
+            .where(PublishAttempt.deployment_id == row.id, PublishAttempt.actor == _ENGINE_ACTOR)
+            .order_by(PublishAttempt.id.desc())
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+    if attempt is None:
+        return {}
+    decision_id = await session.scalar(
+        select(AutonomyDecisionRow.id)
+        .where(
+            AutonomyDecisionRow.plan_id == attempt.plan_id,
+            AutonomyDecisionRow.decision == attempt.decision,
+            AutonomyDecisionRow.mode == attempt.mode,
+            AutonomyDecisionRow.evaluated_at <= attempt.occurred_at,
+        )
+        .order_by(AutonomyDecisionRow.id.desc())
+        .limit(1)
+    )
+    return {
+        "autonomous": True,
+        "autonomy_decision_id": None if decision_id is None else int(decision_id),
+        "autonomy_decision": AutonomyDecision(attempt.decision),
+        "autonomy_mode": AutonomyMode(attempt.mode),
+        "autonomy_rolled_back": bool(attempt.rolled_back),
+    }
+
+
 async def view_of(
     session: AsyncSession, row: Deployment, *, replay: bool = False
 ) -> DeploymentView:
     return DeploymentView(
+        **await _autonomy_tag(session, row),
         id=row.id,
         operation_id=row.operation_id,
         source_page_id=row.source_page_id,

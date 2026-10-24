@@ -2356,6 +2356,50 @@
             ],
             "title": "Applied At"
           },
+          "autonomous": {
+            "default": false,
+            "description": "True when the autonomy engine published this deployment (ADR-0018). Derived from a ``publish_attempts`` row linked to the deployment, never from the note or the actor (which is the operator account). It describes how the deployment was PUBLISHED and does not change if someone later rolls it back.",
+            "title": "Autonomous",
+            "type": "boolean"
+          },
+          "autonomy_decision": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AutonomyDecision"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "autonomy_decision_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The ``autonomy_decisions`` row that sanctioned the publish.",
+            "title": "Autonomy Decision Id"
+          },
+          "autonomy_mode": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AutonomyMode"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "autonomy_rolled_back": {
+            "default": false,
+            "description": "True only when the autonomy engine itself rolled the deployment back.",
+            "title": "Autonomy Rolled Back",
+            "type": "boolean"
+          },
           "cms_page_id": {
             "title": "Cms Page Id",
             "type": "string"
@@ -2522,6 +2566,11 @@
           "verified_at",
           "rolled_back_at",
           "idempotent_replay",
+          "autonomous",
+          "autonomy_decision_id",
+          "autonomy_decision",
+          "autonomy_mode",
+          "autonomy_rolled_back",
           "items",
           "preview",
           "verifications",
@@ -2653,6 +2702,50 @@
             ],
             "title": "Applied At"
           },
+          "autonomous": {
+            "default": false,
+            "description": "True when the autonomy engine published this deployment (ADR-0018). Derived from a ``publish_attempts`` row linked to the deployment, never from the note or the actor (which is the operator account). It describes how the deployment was PUBLISHED and does not change if someone later rolls it back.",
+            "title": "Autonomous",
+            "type": "boolean"
+          },
+          "autonomy_decision": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AutonomyDecision"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "autonomy_decision_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The ``autonomy_decisions`` row that sanctioned the publish.",
+            "title": "Autonomy Decision Id"
+          },
+          "autonomy_mode": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AutonomyMode"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "autonomy_rolled_back": {
+            "default": false,
+            "description": "True only when the autonomy engine itself rolled the deployment back.",
+            "title": "Autonomy Rolled Back",
+            "type": "boolean"
+          },
           "cms_page_id": {
             "title": "Cms Page Id",
             "type": "string"
@@ -2776,7 +2869,12 @@
           "applied_at",
           "verified_at",
           "rolled_back_at",
-          "idempotent_replay"
+          "idempotent_replay",
+          "autonomous",
+          "autonomy_decision_id",
+          "autonomy_decision",
+          "autonomy_mode",
+          "autonomy_rolled_back"
         ],
         "title": "DeploymentView",
         "type": "object"

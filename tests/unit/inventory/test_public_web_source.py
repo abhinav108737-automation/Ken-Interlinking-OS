@@ -401,14 +401,14 @@ async def test_in_scope_redirect_followed_with_chain() -> None:
         {
             u("/"): html("/old"),
             u("/old"): redirect("/mid", 302),
-            u("/mid"): redirect("http://site.test/new", 308),
-            "http://site.test/new": html(),
+            u("/mid"): redirect("https://site.test/new", 308),
+            "https://site.test/new": html(),
         }
     )
     records, summary = await crawl(site)
     doc = docs(records)[1]
     assert doc.requested_url == u("/old")
-    assert doc.final_url == doc.source_id == "http://site.test/new"
+    assert doc.final_url == doc.source_id == "https://site.test/new"
     assert doc.redirect_chain == (u("/old"), u("/mid"))
     assert doc.depth == 1
     assert summary.discovered == 4

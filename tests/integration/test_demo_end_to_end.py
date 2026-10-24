@@ -27,8 +27,9 @@ from ken_services.demo import resources
 from ken_services.demo.config import DemoConfig, DemoRefusalError
 from ken_services.demo.console import Console, normalise
 from ken_services.demo.runner import run_demo
+from tests.support.qdrant import qdrant_required
 
-pytestmark = pytest.mark.integration
+pytestmark = [pytest.mark.integration, pytest.mark.qdrant]  # the demo uses the REAL container
 
 ACCEPTANCE = ("1", "2", "3", "4", "5", "6", "7", "8", "9", "P")
 
@@ -63,6 +64,10 @@ async def test_the_demo_runs_end_to_end_and_every_acceptance_check_passes(
     out = Console(stream=io.StringIO())
     code = await run_demo(config, out)
     if code == 2:
+        if qdrant_required():  # the gate: never a silent skip of the real-Qdrant tests
+            pytest.fail(
+                "KEN_REQUIRE_QDRANT_TESTS is set but the demo refused to run", pytrace=False
+            )
         pytest.skip("the demo refused to run: PostgreSQL or Qdrant is not reachable")
     report = "\n".join(out.lines)
 

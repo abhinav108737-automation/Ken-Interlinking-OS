@@ -187,6 +187,11 @@ class Settings(BaseSettings):
     # Default targets the Phase 0 project container on host port 5433, NOT the
     # developer's own PostgreSQL on 5432. See docs/adr/ADR-0003.md.
     database_url: str = "postgresql+asyncpg://ken:ken@localhost:5433/ken_interlink"
+    # The OWNER / migrator DSN (role `ken`, owns every object). Used ONLY by Alembic and the
+    # dev tooling that creates databases. When unset, migrations fall back to database_url
+    # (the single-role dev setup). database_url is the APPLICATION DSN (role `ken_app`,
+    # least privilege; see docs/DEVELOPMENT.md "Database roles"). Never log either.
+    migration_database_url: str | None = None
     database_echo: bool = False
     database_pool_size: int = Field(default=5, ge=1)
     database_pool_timeout_s: float = Field(default=10.0, gt=0)
@@ -288,6 +293,15 @@ class Settings(BaseSettings):
     crawl_timeout_s: float = Field(default=15.0, gt=0.0, le=120.0)
     crawl_max_bytes: int = Field(default=5_000_000, ge=1024, le=50_000_000)
     crawl_max_redirects: int = Field(default=5, ge=0, le=10)
+    crawl_allow_private_networks: bool = Field(
+        default=False,
+        description=(
+            "TEST/LOCAL ONLY (SSRF guard escape hatch). Lets the crawler and the "
+            "verification probe reach LOOPBACK fixtures (the simulated site, test servers). "
+            "Refused unless KEN_ENVIRONMENT is local or ci; private, link-local and "
+            "metadata addresses stay refused even when set."
+        ),
+    )
     ingest_max_file_bytes: int = Field(
         default=200_000_000, ge=1, description="Largest JSONL export an import will read."
     )
@@ -428,10 +442,13 @@ class Settings(BaseSettings):
     # embedding VALUES and stays the source of truth. The extension is removed, not
     # bypassed: there is no KEN_REQUIRE_PGVECTOR and no extension created anywhere.
     vector_store: Literal["memory", "qdrant"] = Field(
-        default="memory",
+        default="qdrant",
         description=(
-            "DEFAULT 'memory' deliberately: the in-process exact-cosine store makes the "
-            "whole test suite and CI run with no container. 'qdrant' is the local service."
+            "DEFAULT 'qdrant': a normal local deployment runs on the self-hosted Qdrant "
+            "service (`make qdrant-up`, started by `make dev`). 'memory' is the in-process "
+            "exact-cosine store for deterministic tests and CI only: the test factories "
+            "(tests/conftest.py make_settings) select it explicitly, so the suite needs no "
+            "container. It is not a deployment mode."
         ),
     )
     qdrant_url: str = Field(
@@ -457,9 +474,9 @@ class Settings(BaseSettings):
         default=True,
         description=(
             "ADR-0017 s5: the vector-store probe is REQUIRED while the semantic channel is "
-            "enabled, which it is by default. With the default in-memory store the probe "
-            "always answers ok, so this is honest rather than noisy; with "
-            "KEN_VECTOR_STORE=qdrant an unreachable Qdrant correctly makes /ready 503."
+            "enabled, which it is by default. With the default KEN_VECTOR_STORE=qdrant an "
+            "unreachable Qdrant correctly makes /ready 503 (the in-memory test store "
+            "always answers ok)."
         ),
     )
     require_ollama: bool = Field(
@@ -536,15 +553,17 @@ class Settings(BaseSettings):
         "section 20); the validator below still refuses true.",
     )
 
-    @field_validator("database_url")
+    @field_validator("database_url", "migration_database_url")
     @classmethod
-    def _require_asyncpg_driver(cls, value: str) -> str:
+    def _require_asyncpg_driver(cls, value: str | None) -> str | None:
         """Reject any driver other than asyncpg.
 
         One driver, async-only, Apache-2.0 (docs/adr/ADR-0004.md).
         Catching this here turns a confusing runtime import error into a clear
         configuration error.
         """
+        if value is None:  # migration_database_url is optional
+            return None
         if not value.startswith("postgresql+asyncpg://"):
             # Report the scheme only when one is clearly present. A libpq
             # key=value DSN ("host=... password=...") has no "://", and
@@ -582,6 +601,16 @@ class Settings(BaseSettings):
                     "KEN_DATABASE_URL uses the local development credentials; set real "
                     "credentials for a staging or production environment"
                 )
+        return self
+
+    @model_validator(mode="after")
+    def _refuse_private_network_crawl_outside_local(self) -> Settings:
+        """The SSRF escape hatch may never be enabled in staging or production."""
+        if self.crawl_allow_private_networks and self.environment not in {"local", "ci"}:
+            raise ValueError(
+                "KEN_CRAWL_ALLOW_PRIVATE_NETWORKS is only permitted when KEN_ENVIRONMENT is "
+                "local or ci"
+            )
         return self
 
     @model_validator(mode="after")
@@ -785,6 +814,11 @@ class Settings(BaseSettings):
             if port == NATIVE_POSTGRES_PORT and _is_host_local(str(host)):
                 return True
         return False
+
+    @property
+    def effective_migration_database_url(self) -> str:
+        """The DSN Alembic uses: the owner DSN when set, else the application DSN."""
+        return self.migration_database_url or self.database_url
 
     def assert_safe_migration_target(self) -> None:
         """Refuse to migrate the developer's own PostgreSQL by accident.

@@ -138,6 +138,8 @@ def settings_for(
         "autonomy_mode": mode,
         "autonomy_autonomous_acknowledged": mode == "autonomous",
         "deploy_verify_base_url": verify_base_url,
+        # Explicit and visible: the demo's simulated site is a LOOPBACK fixture (local env only).
+        "crawl_allow_private_networks": True,
         "deploy_verify_retry_delay_s": 0.0,
         "autonomy_strict_verify_delay_s": 0.0,
         "learning_demonstration_mode": True,

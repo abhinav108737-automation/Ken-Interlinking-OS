@@ -42,7 +42,7 @@ from tests.integration.intelligence_support import (
     page_ids,
     seed,
 )
-from tests.unit.vectors.test_store_contract import QDRANT_REACHABLE, QDRANT_URL
+from tests.support.qdrant import QDRANT_URL, require_real_qdrant
 
 pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("migrated", "leave_clean")]
 
@@ -60,7 +60,7 @@ D = page("/reports/d", "delta delta delta gamma market:batteries")
         "memory",
         pytest.param(
             "qdrant",
-            marks=pytest.mark.skipif(not QDRANT_REACHABLE, reason="Qdrant is not reachable"),
+            marks=pytest.mark.qdrant,  # needs the REAL container; see tests/support/qdrant.py
         ),
     ]
 )
@@ -69,6 +69,7 @@ async def store(request: pytest.FixtureRequest) -> AsyncIterator[VectorStore]:
     if request.param == "memory":
         instance: VectorStore = MemoryVectorStore(collection=name)
     else:
+        require_real_qdrant()  # skips loudly, or FAILS under KEN_REQUIRE_QDRANT_TESTS=1
         instance = QdrantVectorStore(url=QDRANT_URL, collection=name, timeout_s=5.0)
     try:
         yield instance

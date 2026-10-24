@@ -142,8 +142,8 @@ both directions (orphaned and missing vectors). A real-container round trip was 
 rebuild → verify gave the same hits before and after. Image `qdrant/qdrant:v1.19.1`, bound to
 127.0.0.1.
 
-**Caveat:** `KEN_VECTOR_STORE` defaults to `memory` in code so tests need no container; `.env.example`
-sets `qdrant`. A default install that skips the example does **not** use Qdrant.
+**Update (hardening pass):** `KEN_VECTOR_STORE` now defaults to `qdrant` in code; the in-memory store is
+selected explicitly by the test factories and the offline eval benchmarks only.
 
 ## 7. Agent architecture
 
@@ -314,8 +314,9 @@ publishes (exactly one CMS write); 13 malformed-HTML cases; the holdout fraction
 | IPv6 rate-limit rotation within a /64 | Keyed on the /64 |
 | Publishing gate was a single startup validator | One shared function, asserted before every CMS call |
 
-Accepted and documented (NEXT_STEPS): `TRUNCATE` on an append-only table by the table owner (needs a
-non-owner role), crawler private-range check, the audit tag, and two unexecuted read-only suspicions.
+Items from this review were closed in the hardening pass (see section 26): the runtime-role `TRUNCATE`
+exposure (role built, rollout pending), the crawler private-range check and the audit tag. Two
+unexecuted read-only suspicions remain accepted (NEXT_STEPS).
 **Not verified by the reviewer:** real Qdrant orphan/rebuild behaviour (covered by the agent's own
 round trip and the demo), a stale CMS version conflict and a broken redirect, the retry budget under
 a hostile loop, and the frontend in a real browser.
@@ -326,15 +327,14 @@ a hostile loop, and the frontend in a real browser.
   placement naturalness on real pages, and a live model's critic quality have never been measured.
 - With no real review history, calibration cannot start; the system is conservative by construction,
   and `autonomous` will publish uncalibrated plans.
-- The audit tag for autonomous deployments is missing from the deployment history view.
-- One wall-clock test (a 15-minute lockout) can fail if the host sleeps through it.
+- The least-privilege role `ken_app` exists but is not applied to the dev database or `.env`; until it is, the runtime still connects as the owner (NEXT_STEPS row 28).
+- The SSRF connected-address check runs after the request is sent (one blind GET to a rebinding host is possible; the response is discarded).
 - The repository sits in `~/Documents`; file-sync daemons were observed at 90–160% CPU during test
   runs, slowing them 3–10x. Not changed.
 - Commit `9f634a7` is labelled docs-only but contains 44 files and 18,759 inserted lines of the Phase 8 contract freeze
   (a blanket `git add -A` while a specialist was mid-task). History was deliberately not rewritten;
   the next commit discloses it.
-- **`CLAUDE.md` still states "pgvector is the initial vector layer" (rule 5).** ADR-0017 overrides it
-  on your explicit instruction; I did not edit `CLAUDE.md`. You may want to.
+- `CLAUDE.md` rules 3 and 5 were reconciled with ADR-0017 in the hardening pass, on your explicit instruction.
 
 ## 20. Remaining external production requirements
 
@@ -399,6 +399,26 @@ before and after.
    live site.
 5. Run on Qdrant (`KEN_VECTOR_STORE=qdrant`) and watch `make doctor`.
 6. Decide the analytics and consent questions before putting the beacon on a real page.
+
+## 26. Post-completion hardening pass
+
+Scope: a focused hardening pass, not a rebuild. Shadow mode stays the default; nothing enables live
+autonomous publishing; nothing was pushed or deployed.
+
+| Objective | Result |
+|---|---|
+| CLAUDE.md / Qdrant | CLAUDE.md rules 3 and 5, TRD, START_HERE, REPO_CLONE_PLAN, IMPLEMENTATION_PLAN, MULTI_AGENT_ORCHESTRATION reconciled (PostgreSQL = truth, self-hosted Qdrant = approved derived index, memory store = tests only). Code default is `qdrant`; test factories pick `memory`. I added to rule 5 the sentence "Neo4j, Redis, Kafka, Celery and Temporal remain forbidden" - from your earlier directives, not from an ADR; strike it if unwanted. |
+| SSRF | Shared `ken_core/net/guard.py` for the crawler and the verification probe: all-record DNS check, address classes above, hostnames, odd literals, per-hop redirect checks, connected-peer check; fixture escape hatch `KEN_CRAWL_ALLOW_PRIVATE_NETWORKS` (loopback only; refused outside local/ci). 95 guard/fetcher tests. Behaviour change: https to http redirects are now refused. |
+| DB roles | `ken_app` + `KEN_MIGRATION_DATABASE_URL`, `make db-roles`/`db-roles-check`, doctor check; 26 tests as `ken_app` and the autonomy, deployment, learning, review, analytics, vector and graph suites run through it. Rollout to the dev DB is yours (NEXT_STEPS 28). |
+| Lockout test | Injected fake clock; asserts held at +14m59s and released after. |
+| Audit tag | `autonomous`, `autonomy_decision`, `autonomy_decision_id`, `autonomy_mode`, `autonomy_rolled_back` on deployment views, UI badge, OpenAPI/TS regenerated, 5 backend and 2 web tests. |
+| Live vs mock | `qdrant` marker + `KEN_REQUIRE_QDRANT_TESTS`; `make test-all`/`verify` fail if Qdrant is down. Live Ollama (`make test-live`) ran once: 5 passed. |
+
+Final gate (fresh DB, caffeinate, Qdrant up): ruff and mypy clean; **6,413 Python passed, 26 skipped**
+(the `ken_app` tests, which need `KEN_TEST_APP_DATABASE_URL`, and were run separately: 26 passed), 5 live-Ollama
+deselected; **1,546 web tests passed**; doctor 0 FAIL, 3 WARN (role not yet rolled out; Qdrant collection
+not indexed in the dev environment). Independent review: no critical findings; the high findings (eval
+benchmarks writing to the shared Qdrant index, `.env` permissions, stale docs) were fixed.
 
 ## 25. Git state
 

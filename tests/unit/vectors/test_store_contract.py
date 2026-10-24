@@ -7,7 +7,6 @@ shared container is never clobbered.
 
 from __future__ import annotations
 
-import urllib.request
 import uuid
 from collections.abc import AsyncIterator
 
@@ -27,23 +26,12 @@ from ken_contracts.vectors import (
 from ken_core.providers.vectors.base import InspectableVectorStore
 from ken_core.providers.vectors.memory import MemoryVectorStore
 from ken_core.providers.vectors.qdrant import QdrantVectorStore
+from tests.support.qdrant import QDRANT_URL, require_real_qdrant
 
-QDRANT_URL = "http://127.0.0.1:6333"
 H = "a" * 64
 H2 = "b" * 64
 MODEL = "m1"
 VERSION = "r1-abc"
-
-
-def _qdrant_up() -> bool:
-    try:
-        with urllib.request.urlopen(f"{QDRANT_URL}/readyz", timeout=1) as response:  # noqa: S310
-            return bool(response.status == 200)
-    except Exception:
-        return False
-
-
-QDRANT_REACHABLE = _qdrant_up()
 
 
 def pid(n: int) -> uuid.UUID:
@@ -81,7 +69,7 @@ def point(
         "memory",
         pytest.param(
             "qdrant",
-            marks=pytest.mark.skipif(not QDRANT_REACHABLE, reason="Qdrant is not reachable"),
+            marks=pytest.mark.qdrant,  # needs the REAL container; see tests/support/qdrant.py
         ),
     ]
 )
@@ -90,6 +78,7 @@ async def store(request: pytest.FixtureRequest) -> AsyncIterator[VectorStore]:
     if request.param == "memory":
         instance: VectorStore = MemoryVectorStore(collection=name)
     else:
+        require_real_qdrant()  # skips loudly, or FAILS under KEN_REQUIRE_QDRANT_TESTS=1
         instance = QdrantVectorStore(url=QDRANT_URL, collection=name, timeout_s=5.0)
     try:
         yield instance

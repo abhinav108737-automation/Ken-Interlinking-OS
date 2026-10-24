@@ -7,6 +7,7 @@ import { ApiErrorNotice } from "@/components/ApiErrorNotice";
 import { StatusBadge } from "@/components/StatusBadge";
 import { LinkPerformanceTable } from "@/components/analytics/LinkPerformanceTable";
 import { SyntheticBanner } from "@/components/analytics/SyntheticNotice";
+import { AutonomousBadge } from "@/components/deployments/AutonomousBadge";
 import { ChangePreviewView } from "@/components/deployments/ChangePreviewView";
 import { DeploymentActionsPanel } from "@/components/deployments/DeploymentActionsPanel";
 import { VerificationRuns } from "@/components/deployments/VerificationRuns";
@@ -131,6 +132,7 @@ export default async function DeploymentDetailPage({
         <h1 className="break-words text-2xl font-semibold">Deployment to {deployment.source_url}</h1>
         <div className="flex flex-wrap items-center gap-4">
           <StatusBadge presentation={status} />
+          <AutonomousBadge deployment={deployment} />
           <span className="text-sm text-slate-700">{status.description}</span>
         </div>
         {justDeployed && (
@@ -177,6 +179,19 @@ export default async function DeploymentDetailPage({
           <Fact term="Requested by">
             {actor.label}: {actor.id}
           </Fact>
+          {deployment.autonomous === true && (
+            <Fact term="Autonomous publish">
+              Decision{" "}
+              {deployment.autonomy_decision === null || deployment.autonomy_decision === undefined
+                ? "not recorded"
+                : <code className="text-xs">{deployment.autonomy_decision}</code>}
+              {deployment.autonomy_decision_id === null || deployment.autonomy_decision_id === undefined
+                ? ""
+                : ` · decision #${deployment.autonomy_decision_id}`}
+              {deployment.autonomy_mode === null || deployment.autonomy_mode === undefined ? "" : ` · mode ${deployment.autonomy_mode}`}
+              {deployment.autonomy_rolled_back === true ? " · rolled back by the engine" : ""}
+            </Fact>
+          )}
           <Fact term="Requested">
             <When iso={deployment.created_at} />
           </Fact>

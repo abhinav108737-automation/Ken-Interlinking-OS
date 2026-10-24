@@ -84,6 +84,7 @@ def _critic_provider(provider_name: str, database_url: str) -> Any:
         model_provider="ollama",
         ollama_base_url=LOCAL_OLLAMA,
         database_url=database_url,
+        vector_store="memory",  # never write benchmark vectors into the shared Qdrant index
     )
     host = urlsplit(settings.ollama_base_url).hostname
     if host != "127.0.0.1":

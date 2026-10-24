@@ -141,7 +141,12 @@ async def test_deploy_to_the_simulated_cms_then_recrawl_finds_the_link(
                 principal=reviewer,
             )
         settings = SETTINGS.model_copy(update={"deploy_verify_base_url": base})
-        probe = HttpProbe(base_url=base, timeout_s=5.0, user_agent="KenDeployE2E/1.0")
+        probe = HttpProbe(
+            base_url=base,
+            timeout_s=5.0,
+            user_agent="KenDeployE2E/1.0",
+            allow_private_networks=True,
+        )
         service = DatabaseDeploymentService(
             sessionmaker=sessionmaker,
             settings=settings,
@@ -177,7 +182,8 @@ async def test_deploy_to_the_simulated_cms_then_recrawl_finds_the_link(
             max_redirects=2,
         )
         crawled = await run_ingestion(
-            source=PublicWebContentSource(config), sessionmaker=sessionmaker
+            source=PublicWebContentSource(config, allow_private_networks=True),
+            sessionmaker=sessionmaker,
         )
         assert crawled.counters.pages_failed == 0
         assert crawled.counters.pages_changed >= 1  # the source page gained two links

@@ -82,7 +82,7 @@ git clone https://github.com/QwenLM/Qwen3.git _research/repos/Qwen3
 Likely production dependencies:
 - LangGraph
 - Ollama
-- PostgreSQL/pgvector
+- PostgreSQL + self-hosted Qdrant (ADR-0017; pgvector superseded)
 - FastAPI
 - Next.js
 - Playwright

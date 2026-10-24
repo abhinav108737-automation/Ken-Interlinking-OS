@@ -66,7 +66,7 @@ Owns:
 - SQLAlchemy;
 - Alembic;
 - PostgreSQL;
-- pgvector;
+- vector store (Qdrant, ADR-0017);
 - repository/service layers;
 - CMS adapters;
 - backend tests.

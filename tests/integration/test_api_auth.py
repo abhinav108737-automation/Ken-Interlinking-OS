@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Iterator
+from datetime import UTC, datetime
 from typing import Any
 
 import pytest
@@ -22,7 +23,13 @@ from ken_contracts.auth import Role
 from ken_core import logging as ken_logging
 from tests.conftest import FakeCMSProvider, FakeModelProvider, make_app
 from tests.integration.recommendation_support import SM
-from tests.integration.review_support import PASSWORD, api_client, auth_provider, create_user
+from tests.integration.review_support import (
+    PASSWORD,
+    Clock,
+    api_client,
+    auth_provider,
+    create_user,
+)
 from tests.support.route_permissions import (
     PUBLIC,
     ROLE_PERMISSIONS,
@@ -35,12 +42,14 @@ from tests.support.route_permissions import (
 pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("migrated")]
 
 
-def _app(sessionmaker: SM) -> Any:
+def _app(sessionmaker: SM, *, clock: Clock | None = None) -> Any:
     app = make_app(real_auth=True)
     app.state.sessionmaker = sessionmaker
     app.state.model_provider = FakeModelProvider()
     app.state.cms_provider = FakeCMSProvider()
-    app.state.auth_provider = auth_provider(sessionmaker)
+    app.state.auth_provider = (
+        auth_provider(sessionmaker) if clock is None else auth_provider(sessionmaker, clock=clock)
+    )
     return app
 
 
@@ -81,7 +90,10 @@ async def test_every_login_failure_is_the_same_401(sessionmaker: SM) -> None:
     await create_user(sessionmaker, "carol")
     async with sessionmaker() as session, session.begin():
         await session.execute(text("UPDATE users SET disabled = true WHERE username = 'bob'"))
-    client = api_client(_app(sessionmaker))
+    clock = Clock(
+        datetime(2026, 10, 1, 12, 0, tzinfo=UTC)
+    )  # lock expiry is judged on this clock, never on wall-clock time
+    client = api_client(_app(sessionmaker, clock=clock))
     for _ in range(5):
         assert (await _login(client, "carol", "not the password at all")).status_code == 401
     bodies = []
@@ -98,6 +110,13 @@ async def test_every_login_failure_is_the_same_401(sessionmaker: SM) -> None:
         bodies.append(_strip(response.json()))
     assert all(b == bodies[0] for b in bodies)
     assert bodies[0] == {"code": "unauthenticated", "message": "Unauthorized", "details": []}
+
+    # The 15-minute lock, on the fake clock: held just under 15 minutes, released just after.
+    clock.advance(minutes=14, seconds=59)
+    assert (await _login(client, "carol", PASSWORD)).status_code == 401
+    clock.advance(seconds=2)  # 15 minutes and one second after the lock began
+    released = await _login(client, "carol", PASSWORD)
+    assert released.status_code == 200, released.text
 
 
 async def test_the_permission_matrix_over_every_route(sessionmaker: SM) -> None:

@@ -62,6 +62,11 @@ export function deploymentView(overrides: Partial<DeploymentView> = {}): Deploym
     verified_at: "2026-10-15T08:00:03Z",
     rolled_back_at: null,
     idempotent_replay: false,
+    autonomous: false,
+    autonomy_decision_id: null,
+    autonomy_decision: null,
+    autonomy_mode: null,
+    autonomy_rolled_back: false,
     ...overrides,
   };
 }

@@ -6,6 +6,7 @@ import { formatDateTime } from "@/lib/format";
 import { describeActor } from "@/lib/recommendations";
 
 import { StatusBadge } from "../StatusBadge";
+import { AutonomousBadge } from "./AutonomousBadge";
 import { pageHref } from "../inventory/PageInventoryTable";
 import { CELL, EmptyRow, HeaderRow, NUM_CELL, ROW, TableFrame } from "../inventory/Table";
 
@@ -47,7 +48,8 @@ export function DeploymentTable({
                   </Link>
                 </th>
                 <td className={CELL}>
-                  <StatusBadge presentation={describeDeploymentStatus(row.status)} />
+                  <StatusBadge presentation={describeDeploymentStatus(row.status)} />{" "}
+                  <AutonomousBadge deployment={row} />
                 </td>
                 {showSource && (
                   <td className={CELL}>

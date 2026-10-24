@@ -6,6 +6,7 @@ The skip-when-unreachable and ``_test``-name guard live in tests/conftest.py.
 from __future__ import annotations
 
 import asyncio
+import os
 from collections.abc import AsyncIterator, Callable, Iterator
 from datetime import UTC, datetime, timedelta
 from hashlib import sha256
@@ -16,6 +17,7 @@ import pytest
 from alembic import command
 from alembic.config import Config
 from sqlalchemy import Connection, text
+from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -132,8 +134,35 @@ async def async_engine(test_database_url: str) -> AsyncIterator[AsyncEngine]:
 
 
 @pytest.fixture
-def sessionmaker(async_engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
-    return create_sessionmaker(async_engine)
+async def app_async_engine(
+    async_engine: AsyncEngine, test_database_url: str
+) -> AsyncIterator[AsyncEngine]:
+    """The engine handed to the code under test.
+
+    By default the owner engine. When ``KEN_TEST_APP_DATABASE_URL`` is set it is a
+    least-privilege ``ken_app`` engine (``make db-roles``), so the application code runs
+    exactly as in production while fixtures, TRUNCATE and migrations keep the owner.
+    """
+    app_url = os.environ.get("KEN_TEST_APP_DATABASE_URL")
+    if not app_url:
+        yield async_engine
+        return
+    # Same server and database as the owner URL, a different role: never another database.
+    owner, app = make_url(test_database_url), make_url(app_url)
+    assert (owner.host, owner.port, owner.database) == (app.host, app.port, app.database), (
+        "KEN_TEST_APP_DATABASE_URL must name the same database as KEN_TEST_DATABASE_URL"
+    )
+    assert app.username != owner.username, "KEN_TEST_APP_DATABASE_URL must be a different role"
+    engine = create_async_app_engine(make_settings(database_url=app_url))
+    try:
+        yield engine
+    finally:
+        await engine.dispose()
+
+
+@pytest.fixture
+def sessionmaker(app_async_engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
+    return create_sessionmaker(app_async_engine)
 
 
 # --------------------------------------------------------------------------- #

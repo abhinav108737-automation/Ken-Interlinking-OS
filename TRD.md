@@ -36,8 +36,8 @@ without mandatory paid APIs.
 
 ### Data
 - PostgreSQL.
-- pgvector.
-- No Qdrant/Neo4j in v1 unless a measured requirement justifies them.
+- Qdrant (self-hosted, derived index; ADR-0017 supersedes pgvector).
+- No Neo4j in v1 unless a measured requirement justifies it (Qdrant is approved by ADR-0017).
 
 ### Crawling / Parsing
 - httpx.
@@ -55,7 +55,7 @@ without mandatory paid APIs.
 
 ## 3. Core Architecture
 
-UI → FastAPI Control API → LangGraph Supervisor → Specialist Agent Nodes / Deterministic Services → Local Model Provider → PostgreSQL/pgvector → CMS API → Production → Analytics Import → Learning/Evaluation
+UI → FastAPI Control API → LangGraph Supervisor → Specialist Agent Nodes / Deterministic Services → Local Model Provider → PostgreSQL + Qdrant → CMS API → Production → Analytics Import → Learning/Evaluation
 
 ## 4. Repository Layout
 

@@ -59,6 +59,7 @@ from ken_contracts.inventory import (
     SourceSummary,
     SourceType,
 )
+from ken_core.net import NetworkGuard, UnsafeDestinationError
 from ken_services.inventory import urls
 from ken_services.inventory.html import discover
 from ken_services.inventory.robots import (
@@ -245,8 +246,17 @@ class PublicWebContentSource:
         sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
         clock: Callable[[], datetime] = utc_now,
         monotonic: Callable[[], float] = time.monotonic,
+        guard: NetworkGuard | None = None,
+        allow_private_networks: bool = False,
     ) -> None:
         self._config = config
+        # SSRF guard (ken_core.net). Always on for real network I/O. With an injected
+        # in-memory transport no socket is ever opened, so there is nothing to guard.
+        self._guard: NetworkGuard | None = guard or (
+            None
+            if transport is not None
+            else NetworkGuard(allow_private_networks=allow_private_networks)
+        )
         self._transport = transport
         self._clock = clock
         self._limiter = _RateLimiter(sleep, monotonic)
@@ -416,6 +426,21 @@ class PublicWebContentSource:
                 IssueSeverity.WARNING,
                 "redirect leaves the site scope; target not fetched",
             )
+        if chain.current.startswith("https:") and target.startswith("http:"):
+            return fail(
+                IssueCode.REDIRECT_OUT_OF_SCOPE,
+                IssueSeverity.WARNING,
+                "redirect downgrades https to http; target not fetched",
+            )
+        if self._guard is not None:
+            try:
+                await self._guard.check_url(target)
+            except UnsafeDestinationError as exc:
+                return fail(
+                    IssueCode.REDIRECT_OUT_OF_SCOPE,
+                    IssueSeverity.WARNING,
+                    f"redirect target refused by the network guard ({exc.code})",
+                )
         self._discovered.add(target)
         if target == chain.current or target in chain.hops:
             return fail(IssueCode.REDIRECT_LOOP, IssueSeverity.ERROR, "redirect loop detected")
@@ -530,11 +555,21 @@ class PublicWebContentSource:
             await self._limiter.wait(gap)
             try:
                 async with asyncio.timeout(self._config.timeout_s):
+                    if self._guard is not None:
+                        await self._guard.check_url(url)
                     response = await client.send(request, stream=True)
                     try:
+                        if self._guard is not None:
+                            self._guard.check_response(response)  # DNS-rebinding TOCTOU
                         return await handle(response)
                     finally:
                         await response.aclose()
+            except UnsafeDestinationError as exc:
+                return _Failure(
+                    IssueCode.OUT_OF_SCOPE,
+                    IssueSeverity.ERROR,
+                    f"destination refused by the network guard ({exc.code})",
+                )
             except (TimeoutError, httpx.TimeoutException) as exc:
                 return _Failure(
                     IssueCode.TIMEOUT,

@@ -1,7 +1,7 @@
 # Implementation Plan
 
 ## Phase 0 — Foundation
-Deliver monorepo, FastAPI, Next.js, PostgreSQL + pgvector, Ollama provider abstraction, Docker Compose, SQLAlchemy/Alembic, baseline contracts, tests/lint/type checks and a mock CMS.
+Deliver monorepo, FastAPI, Next.js, PostgreSQL (Qdrant added by ADR-0017; pgvector superseded), Ollama provider abstraction, Docker Compose, SQLAlchemy/Alembic, baseline contracts, tests/lint/type checks and a mock CMS.
 
 Exit: `docker compose up` starts the local stack and tests pass.
 
@@ -9,7 +9,7 @@ Exit: `docker compose up` starts the local stack and tests pass.
 Crawler, parser, canonical page model, content hashing, existing-link extraction and page/version persistence.
 
 ## Phase 2 — Content Intelligence
-Taxonomy, entity extraction, embeddings, pgvector and graph relationships.
+Taxonomy, entity extraction, embeddings, vectors (Qdrant per ADR-0017) and graph relationships.
 
 ## Phase 3 — Recommendation Engine
 Hybrid retrieval, eligibility filters, scoring, contextual placement, LinkPlan and explanation.

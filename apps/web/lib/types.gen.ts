@@ -2352,6 +2352,25 @@ export interface components {
             actor: string;
             /** Applied At */
             applied_at: string | null;
+            /**
+             * Autonomous
+             * @description True when the autonomy engine published this deployment (ADR-0018). Derived from a ``publish_attempts`` row linked to the deployment, never from the note or the actor (which is the operator account). It describes how the deployment was PUBLISHED and does not change if someone later rolls it back.
+             * @default false
+             */
+            autonomous: boolean;
+            autonomy_decision: components["schemas"]["AutonomyDecision"] | null;
+            /**
+             * Autonomy Decision Id
+             * @description The ``autonomy_decisions`` row that sanctioned the publish.
+             */
+            autonomy_decision_id: number | null;
+            autonomy_mode: components["schemas"]["AutonomyMode"] | null;
+            /**
+             * Autonomy Rolled Back
+             * @description True only when the autonomy engine itself rolled the deployment back.
+             * @default false
+             */
+            autonomy_rolled_back: boolean;
             /** Cms Page Id */
             cms_page_id: string;
             /** Cms Provider */
@@ -2451,6 +2470,25 @@ export interface components {
             actor: string;
             /** Applied At */
             applied_at: string | null;
+            /**
+             * Autonomous
+             * @description True when the autonomy engine published this deployment (ADR-0018). Derived from a ``publish_attempts`` row linked to the deployment, never from the note or the actor (which is the operator account). It describes how the deployment was PUBLISHED and does not change if someone later rolls it back.
+             * @default false
+             */
+            autonomous: boolean;
+            autonomy_decision: components["schemas"]["AutonomyDecision"] | null;
+            /**
+             * Autonomy Decision Id
+             * @description The ``autonomy_decisions`` row that sanctioned the publish.
+             */
+            autonomy_decision_id: number | null;
+            autonomy_mode: components["schemas"]["AutonomyMode"] | null;
+            /**
+             * Autonomy Rolled Back
+             * @description True only when the autonomy engine itself rolled the deployment back.
+             * @default false
+             */
+            autonomy_rolled_back: boolean;
             /** Cms Page Id */
             cms_page_id: string;
             /** Cms Provider */

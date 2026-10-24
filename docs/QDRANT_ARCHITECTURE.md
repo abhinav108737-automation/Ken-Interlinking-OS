@@ -11,7 +11,7 @@ PostgreSQL is the source of truth for everything, including embedding values. Qd
 | PostgreSQL | `page_embeddings`: the vector as `real[]`, model, recipe version and fingerprint, the input content hash, the dimension (CHECK `array_length(embedding, 1) = dimensions`). Also pages, versions and `pages.current_version`. |
 | Qdrant | One cosine collection (default name `ken_pages`, `KEN_QDRANT_COLLECTION`) of points: the vector plus payload `page_id`, `page_version_id`, `chunk_id`, `content_hash`, `embedding_model`, `embedding_version`, `metadata`, and `page_type` / `language` when present (`services/ken_core/providers/vectors/qdrant.py`). Keyword indexes are created on the filterable fields. |
 
-The contract is `contracts/python/ken_contracts/vectors.py` (`VectorStore`, `VectorPoint`, `VectorQuery`, `VectorFilters`, `VectorHit`). `build_vector_store(settings)` in `services/ken_core/providers/vectors/factory.py` selects the implementation from `KEN_VECTOR_STORE`, which defaults to `memory`, not `qdrant`. Selecting `qdrant` never falls back silently to memory. A comment in `factory.py` still says the Qdrant module is "a separate workstream" that may be absent; it exists and is used.
+The contract is `contracts/python/ken_contracts/vectors.py` (`VectorStore`, `VectorPoint`, `VectorQuery`, `VectorFilters`, `VectorHit`). `build_vector_store(settings)` in `services/ken_core/providers/vectors/factory.py` selects the implementation from `KEN_VECTOR_STORE`, which defaults to `qdrant`; `memory` is selected explicitly by test factories only. Selecting `qdrant` never falls back silently to memory. A comment in `factory.py` still says the Qdrant module is "a separate workstream" that may be absent; it exists and is used.
 
 ## Deterministic `point_id`
 
@@ -29,11 +29,11 @@ All code is in `services/ken_services/vectors/`.
 - **Rebuild** (`PostgresVectorRebuilder`): `rebuild_from` drops the collection, recreates it and refills from PostgreSQL in batches.
 - **Verify** (`verify.py`, read-only): reports in both directions. `missing_vectors`: a current embedded version with no point. `orphaned_points`: a point whose page is gone or unknown or whose version is superseded. It additionally reports `stale_points` (current version, hash mismatch), `identity_mismatch` and `dimension_mismatch`. The CLI exits non-zero unless all are clear (`vectors/cli.py`).
 - A collection with a different vector size or metric is never recreated silently; it raises, and an operator rebuilds.
-- The recommendation job (`recommendations/pipeline.py`) runs one incremental index pass per run into whichever store is configured, when an embedding provider is reachable. With the default memory store that fills a process-local index. Without a shared store, `generators.py` falls back to an exact in-process index built from PostgreSQL.
+- The recommendation job (`recommendations/pipeline.py`) runs one incremental index pass per run into whichever store is configured, when an embedding provider is reachable. With the memory store (tests only) that fills a process-local index. Without a shared store, `generators.py` falls back to an exact in-process index built from PostgreSQL.
 
 ## `MemoryVectorStore`
 
-`services/ken_core/providers/vectors/memory.py`: exact cosine over a dict keyed by `point_id`, process-local, default for tests and CI so no container is needed. It is a store, never a source of truth, and is rebuilt through `rebuild_from`. It implements the same protocol; a shared contract test suite runs against it (`tests/unit/vectors/test_store_contract.py`). Qdrant integration tests need a running container (skip behaviour when unreachable: not verified here).
+`services/ken_core/providers/vectors/memory.py`: exact cosine over a dict keyed by `point_id`, process-local, used by tests and CI (selected explicitly) so no container is needed. It is a store, never a source of truth, and is rebuilt through `rebuild_from`. It implements the same protocol; a shared contract test suite runs against it (`tests/unit/vectors/test_store_contract.py`). Qdrant integration tests carry the `qdrant` marker and need the running container: they skip with a loud reason by default and FAIL under `KEN_REQUIRE_QDRANT_TESTS=1` (set by `make test-all`/`test-qdrant`).
 
 ## Readiness
 
@@ -44,7 +44,7 @@ All code is in `services/ken_services/vectors/`.
 - collection status red: unavailable, with advice to run `make qdrant-rebuild`;
 - otherwise `ok`, with point count and embedding model and version.
 
-With the default memory store the probe is `ok` (the store reports healthy). Drift is not a readiness concern; it is `make qdrant-verify`.
+With the memory store the probe is `ok` (the store reports healthy). Drift is not a readiness concern; it is `make qdrant-verify`.
 
 ## pgvector removal and the migrations
 

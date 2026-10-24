@@ -345,6 +345,7 @@ class DatabaseDeploymentService:
                 base_url=settings.deploy_verify_base_url,
                 timeout_s=settings.deploy_http_timeout_s,
                 user_agent=settings.crawl_user_agent,
+                allow_private_networks=settings.crawl_allow_private_networks,
             )
         self._probe = probe
         self._policy = policy

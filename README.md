@@ -16,8 +16,9 @@ page, a real analytics property or any Google service, and nothing has been push
   uncalibrated plans, with the strict verification profile, and takes three deliberate settings to
   reach ([docs/AUTONOMY_ENGINE.md](docs/AUTONOMY_ENGINE.md)).
 - **PostgreSQL is the source of truth; Qdrant is a derived, rebuildable semantic index.** pgvector was
-  removed ([docs/QDRANT_ARCHITECTURE.md](docs/QDRANT_ARCHITECTURE.md)). Set `KEN_VECTOR_STORE=qdrant`
-  for a real installation; the code default is `memory` so tests need no container.
+  removed ([docs/QDRANT_ARCHITECTURE.md](docs/QDRANT_ARCHITECTURE.md)). `KEN_VECTOR_STORE`
+  defaults to `qdrant` (`make dev` starts it); the in-memory store is selected explicitly by the test
+  factories only, so tests need no container.
 - **Deterministic safety lives outside any model.** Fifteen block codes are computed with no model
   call; nothing a model returns can clear one. Every publish is verified and rolled back automatically
   on failure, byte for byte.
@@ -93,7 +94,7 @@ Phase 6.
 
 Phase 2 adds deterministic understanding of every page from a versioned taxonomy policy:
 - page type, intent, market, geography, entities, keywords and an extractive summary;
-- local embeddings (`nomic-embed-text` via Ollama) in pgvector;
+- local embeddings (`nomic-embed-text` via Ollama) stored in PostgreSQL and indexed in Qdrant;
 - typed page relationships;
 - protected-page flags;
 - link eligibility.
@@ -147,7 +148,7 @@ Full instructions: [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
 
 ## Non-negotiables
 
-No paid APIs. Local inference via Ollama. PostgreSQL + pgvector as the system of record, through the
+No paid APIs. Local inference via Ollama. PostgreSQL as the system of record (Qdrant as the derived semantic index), through the
 Apache-2.0 asyncpg driver. Every model
 output crossing a boundary is validated with Pydantic. No LLM writes to production storage. Every
 mutation is idempotent, version-aware, auditable and reversible. `AUTO_APPROVE` is disabled in v1.

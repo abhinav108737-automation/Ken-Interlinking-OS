@@ -48,7 +48,9 @@ def config_for(site: LocalSite) -> CrawlConfig:
 
 async def crawl(site: LocalSite) -> list[SourceDocument | SourceIssue]:
     source = PublicWebContentSource(
-        config_for(site), clock=lambda: datetime(2026, 10, 18, tzinfo=UTC)
+        config_for(site),
+        clock=lambda: datetime(2026, 10, 18, tzinfo=UTC),
+        allow_private_networks=True,  # loopback fixture (SSRF escape hatch)
     )
     try:
         await source.site_scope()

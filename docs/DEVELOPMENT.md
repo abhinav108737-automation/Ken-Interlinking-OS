@@ -88,7 +88,7 @@ make crawl                                                            # the ONE 
 Expected `/ready` in Mode A from Phase 2 on, with `nomic-embed-text` pulled:
 - postgres `ok`;
 - migrations `ok` (head is 0003);
-- pgvector `ok` (the extension is enabled by migration 0003, and it is **required**);
+- the vector-store probe (Qdrant; ADR-0017 removed pgvector) is required;
 - model_provider `ok`;
 - cms `ok`.
 
@@ -196,9 +196,9 @@ runs are visible in job runs, and `make jobs-reap` applies to them like any othe
 ## Qdrant, the link graph and recommendations
 
 Qdrant is a derived, rebuildable index; PostgreSQL holds the embedding values and stays the truth
-(ADR-0017, `docs/QDRANT_ARCHITECTURE.md`). **A real installation must set `KEN_VECTOR_STORE=qdrant`**
-(`.env.example` does). The code default is `memory`, so the test suite needs no container, which also
-means a default install silently builds a throwaway index per run.
+(ADR-0017, `docs/QDRANT_ARCHITECTURE.md`). **`KEN_VECTOR_STORE` defaults to `qdrant`**
+(`make dev` starts the container). `memory` is a test/CI store that `tests/conftest.py::make_settings`
+selects explicitly; it is not a deployment mode.
 
 ```bash
 make qdrant-up            # container on 127.0.0.1:6333 (also started by `make dev`)
@@ -344,7 +344,7 @@ All settings use the `KEN_` prefix; see `.env.example` for every variable and it
 | `KEN_DATABASE_URL` | `postgresql+asyncpg://ken:ken@localhost:5433/ken_interlink` | Must use `postgresql+asyncpg://` (ADR-0004). Port **5432 on this machine is refused** for migrations. |
 | `KEN_MODEL_PROVIDER` | `ollama` in `.env.example`, `mock` in code and tests | |
 | `KEN_MODEL_FAST` / `_REASONING` / `_EMBEDDING` | `qwen3:8b-q4_K_M` / same / `nomic-embed-text` | Models are chosen by role, never named in code |
-| `KEN_REQUIRE_PGVECTOR` | `true` (from Phase 2) | missing pgvector makes `/ready` 503 |
+| `KEN_REQUIRE_QDRANT` | `true` | an unreachable Qdrant makes `/ready` 503 when `KEN_VECTOR_STORE=qdrant` |
 | `KEN_TAXONOMY_PATH` | `policies/taxonomy/taxonomy.v1.yaml` | versioned taxonomy policy driving analysis |
 | `KEN_EMBEDDING_DOCUMENT_PREFIX` / `_QUERY_PREFIX` / `_MAX_CHARS` / `_BATCH_SIZE` | `search_document: ` / `search_query: ` / `6000` / `16` | embedding recipe (prefixes are the default model's convention) |
 | `KEN_SIMILARITY_TOP_K` / `KEN_SIMILARITY_MIN_SCORE` | `10` / `0.78` | `semantic_similar` edges; the threshold is model-specific |
@@ -356,6 +356,36 @@ All settings use the `KEN_` prefix; see `.env.example` for every variable and it
 | `KEN_CRAWL_BASE_URL` | *unset* | The one site the crawler may visit. **No default, by design.** |
 | `KEN_CRAWL_ALLOWED_HOSTS` | empty | Extra in-scope hosts, comma-separated (subdomains are not implied) |
 | `KEN_CRAWL_DELAY_S` / `_CONCURRENCY` / `_MAX_PAGES` / `_MAX_DEPTH` | `1.0` / `2` / `500` / `10` | Politeness and limits; robots.txt cannot be disabled. Also `KEN_CRAWL_TIMEOUT_S`, `_MAX_BYTES`, `_MAX_REDIRECTS`, `KEN_INGEST_MAX_FILE_BYTES` — see `.env.example` |
+
+## Database roles (least privilege; ADR-0014 section 5)
+
+Two DSNs, two roles, one database:
+
+| DSN | Role | Used by |
+|---|---|---|
+| `KEN_DATABASE_URL` | `ken_app` (LOGIN only, owns nothing, DML on app tables, no TRUNCATE/DDL) | the API, worker, jobs, reaper and every service CLI |
+| `KEN_MIGRATION_DATABASE_URL` | `ken` (owner, superuser in the dev container) | `make migrate` / Alembic, and the dev tools that create databases |
+
+When `KEN_MIGRATION_DATABASE_URL` is unset, migrations use `KEN_DATABASE_URL`, so the original
+single-role setup keeps working (the doctor warns about it).
+
+- `make db-roles` creates or updates `ken_app` and its grants in the database the owner DSN
+  names (`infrastructure/sql/app_role.sql`, idempotent; future migrations are covered by
+  `ALTER DEFAULT PRIVILEGES`). The password is `KEN_APP_DB_PASSWORD` if you set it, else
+  generated and never printed. `make db-roles ARGS=--write-env` appends the two DSNs to `.env`
+  (only keys it does not already define). Add `--rotate-password` to replace the password.
+- `make db-roles-check` inspects the live grants and exits non-zero if `ken_app` is a superuser,
+  owns an object, or holds TRUNCATE/DDL. `make doctor` runs the same audit against the
+  application DSN (WARN in local/ci, FAIL in staging/production).
+- Both refuse port 5432 and any database not named `ken_*`.
+- The simulated CMS database (`ken_cms_sim*`, schema `cms_sim`) and `make demo` create
+  databases, so they stay under the owner role; they are dev tooling, not the application.
+- `KEN_TEST_APP_DATABASE_URL` (optional) makes the integration `sessionmaker` connect as
+  `ken_app` while fixtures, TRUNCATE and migrations keep the owner. `make db-roles-test` runs
+  the privilege tests (`tests/integration/test_app_role.py`).
+
+This does not stop a client that can obtain the OWNER credentials: keep the owner DSN only
+where migrations run.
 
 ## Migrations and the database
 

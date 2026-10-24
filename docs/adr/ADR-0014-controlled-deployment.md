@@ -143,9 +143,20 @@ The CMS is chosen by `KEN_CMS_PROVIDER` (`mock` | `simulated` | `http`). The def
     the Phase 3 QA M2 gate.
 - **Read-only GET path.** Readers run their transactions `READ ONLY` (a separate session
   factory), so a bug in a GET handler cannot write.
-- **Least-privilege database role:** documented as a production deployment requirement (an
-  app role with DML on application tables only, no DDL; migrations run as the owner). Creating
-  roles on a shared or production server is an operator action, and is not done here.
+- **Least-privilege database role (implemented, operator-applied).** The application connects
+  as `ken_app`: LOGIN only, not a superuser, owns nothing, DML on application tables
+  (SELECT only on `alembic_version`), no TRUNCATE, REFERENCES, TRIGGER or any DDL, and it
+  cannot `SET session_replication_role` or disable a trigger. Migrations and the tools that
+  create databases run as the owner `ken` (`KEN_MIGRATION_DATABASE_URL`; the application uses
+  `KEN_DATABASE_URL`). `make db-roles` applies `infrastructure/sql/app_role.sql` (idempotent;
+  `ALTER DEFAULT PRIVILEGES` covers future migrations) with a runtime-generated password, and
+  `make db-roles-check` / `infrastructure/scripts/doctor.py` audit the live grants. It is a
+  script, not an Alembic migration, because roles are cluster-level; creating it on a shared or
+  production server remains an operator action. It narrows what a compromised or buggy
+  APPLICATION can do; it does not stop a client that obtains the OWNER credentials, so the
+  owner DSN belongs only to the migration step. The transaction-local `ken.*` settings that
+  gate promotion and activation can be set by any role (PostgreSQL custom settings carry no
+  privilege), so those guards remain a code-path control, not a privilege boundary.
 - **Job reaper.** `make jobs-reap` fails `running` `job_runs` whose kind's advisory lock is not
   held, closing the Phase 1/2 "stays running" gap.
 
@@ -347,7 +358,7 @@ Verdict: **PASS WITH REQUIRED FIXES**, with no critical or high finding. The rev
 | L4. The mutator and verifier ran synchronously on the event loop. Also, tx1 holds the plan locks across the CMS read and validate calls. | The mutator and verifier now run in `asyncio.to_thread`, in the service and in the mock and simulated providers. The mock re-checks after the thread, so an edit that lands mid-apply becomes a version conflict. **Known limitation:** tx1 (`_intent`) holds the source advisory lock and plan row locks across three network calls: CMS `get_page`, the sequential target-reachability probes, and CMS `validate_link_changes`. This is bounded by the HTTP timeouts. Moving the network checks before the locks, with a re-check under them, is deferred. |
 | L5. The sim test DB name was hard-coded. | `KEN_TEST_CMS_SIM_DATABASE_URL` is honoured everywhere. |
 | L6. `test_analysis_pipeline` flaked once. | The test picked the lowest of 30 random uuid4 page ids, and about 2 in 30 runs that page's re-seed was a no-op. It now picks among the 24 intended pages and asserts the count. The assertion is not weakened. |
-| I1. The status-integrity trigger checks that a transition row exists. It is not authorisation: a forged transition row in the same transaction passes. | By design. Production needs the non-superuser app role (§5). |
+| I1. The status-integrity trigger checks that a transition row exists. It is not authorisation: a forged transition row in the same transaction passes. | By design. Production runs the non-superuser app role (§5, `make db-roles`). |
 | I2–I4. An empty-host sim URL falls back to `PGHOST`; the verification probe has no overall deadline; `inert` / `opacity:0` are not modelled. | Accepted (informational). |
 
 ## Consequences

@@ -69,7 +69,9 @@ def build_crawl_source(settings: Settings) -> ContentSourceProvider:
         config = settings.crawl_config()
     except ConfigurationError as exc:
         raise UsageError(str(exc)) from exc  # fixed, secret-free text from Settings
-    source: ContentSourceProvider = _module("public_web").PublicWebContentSource(config)
+    source: ContentSourceProvider = _module("public_web").PublicWebContentSource(
+        config, allow_private_networks=settings.crawl_allow_private_networks
+    )
     return source
 
 

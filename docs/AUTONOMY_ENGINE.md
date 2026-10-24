@@ -83,6 +83,7 @@ Enforced at startup by `Settings._autonomy_is_deliberate` (`config.py`):
 
 - Plan transitions and `autonomy_decisions` rows carry actor `system:autonomy-engine`; an override row carries `user:<name>` and a mandatory `override_reason`.
 - `deployments.actor` is the run's operator account, so it cannot tell the two apart. The deployment note reads `autonomous publish (<decision>) decision#<id>`, and `publish_attempts` (actor `system:autonomy-engine`, `deployment_id` set) joins from the other side. A human deploy has neither.
+- The deployment API (`GET /deployments`, `GET /deployments/{id}`, `GET /recommendations/{id}/deployments`) exposes this as `autonomous`, `autonomy_decision_id`, `autonomy_decision`, `autonomy_mode` and `autonomy_rolled_back`, derived from `publish_attempts` (never the note, which a person can type). `autonomous` describes how the deployment was published and stays true after any rollback; `autonomy_rolled_back` is true only when the engine rolled it back itself. The UI shows an "Autonomous" badge. The decision id is the latest `autonomy_decisions` row of the plan with the attempt's decision and mode at or before the attempt (best effort: `publish_attempts` has no decision foreign key, and adding one needs a migration).
 
 ## The critic as a signal
 

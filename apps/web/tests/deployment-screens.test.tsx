@@ -82,6 +82,22 @@ describe("/deployments history", () => {
     expect(table).toHaveTextContent("olivia");
   });
 
+  it("tags an autonomous deployment with an Autonomous badge and not a human one", async () => {
+    const autonomous = deploymentView({
+      id: OLD_PLAN_ID,
+      autonomous: true,
+      autonomy_decision_id: 41,
+      autonomy_decision: "auto_publish_with_extra_verification",
+      autonomy_mode: "autonomous",
+    });
+    api.listDeployments.mockResolvedValue(ok(list([deploymentView(), autonomous])));
+    render(await DeploymentsPage({ searchParams: Promise.resolve({}) }));
+    const rows = within(screen.getByRole("table", { name: /Deployment history/ })).getAllByRole("row");
+    expect(within(rows[1]!).queryByText("Autonomous")).toBeNull();
+    expect(within(rows[2]!).getByText("Autonomous")).toBeInTheDocument();
+    expect(within(rows[2]!).getByText("Autonomous").parentElement).toHaveAttribute("title", expect.stringContaining("decision #41"));
+  });
+
   it("applies valid filters and paging; ignores invalid ones", async () => {
     api.listDeployments.mockResolvedValue(ok(list([deploymentView()], { total: 120, offset: 50, has_more: true })));
     render(await DeploymentsPage({ searchParams: Promise.resolve({ status: "rolled_back", source_page_id: PAGE_ID, offset: "50" }) }));
@@ -111,6 +127,23 @@ async function renderDetail(search: Record<string, string> = {}) {
 }
 
 describe("/deployments/[deploymentId]", () => {
+  it("shows the autonomous badge, decision id and decision on an autonomous deployment only", async () => {
+    api.getDeployment.mockResolvedValue(
+      ok(deploymentDetail({ autonomous: true, autonomy_decision_id: 41, autonomy_decision: "auto_publish", autonomy_mode: "autonomous" })),
+    );
+    const view = await renderDetail();
+    expect(screen.getByText("Autonomous")).toBeInTheDocument();
+    const facts = screen.getByRole("heading", { level: 2, name: "Deployment" }).closest("section")!;
+    expect(facts).toHaveTextContent("Autonomous publish");
+    expect(facts).toHaveTextContent("decision #41");
+    expect(facts).toHaveTextContent("auto_publish");
+    view.unmount();
+    api.getDeployment.mockResolvedValue(ok(deploymentDetail()));
+    await renderDetail();
+    expect(screen.queryByText("Autonomous")).toBeNull();
+    expect(screen.queryByText("Autonomous publish")).toBeNull();
+  });
+
   it("shows the header facts, items, verification checks and preview as text", async () => {
     api.getDeployment.mockResolvedValue(ok(deploymentDetail()));
     const { container } = await renderDetail({ deployed: "1" });

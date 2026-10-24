@@ -1,9 +1,10 @@
 """In-process vector store: exact cosine over a dict (ADR-0017 section 3).
 
-This is the DEFAULT (``KEN_VECTOR_STORE=memory``), and deliberately so: the whole test suite
-and CI run with no container, and nothing about retrieval quality changes -- an exact cosine
-scan over the ~65-page demo corpus is not an approximation of a nearest-neighbour index, it
-is the exact answer the index approximates.
+This is the TEST/CI store (``KEN_VECTOR_STORE=memory``, selected explicitly by the test
+factories; the code default is ``qdrant``): the whole test suite and CI run with no container,
+and nothing about retrieval quality changes -- an exact cosine scan over the ~65-page demo
+corpus is not an approximation of a nearest-neighbour index, it is the exact answer the index
+approximates.
 
 It is a store, never a source of truth: every point is rebuilt from ``page_embeddings``. The
 contents live for the lifetime of the process, which is also why

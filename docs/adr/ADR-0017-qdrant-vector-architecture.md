@@ -109,8 +109,8 @@ latest published version (Apache-2.0). Nothing binds 8765.
 - `page_embeddings` stays immutable and append-only, so the index is always rebuildable.
 - One new dependency (`qdrant-client`, Apache-2.0) and one new local container. Both are explicitly
   approved by the directive.
-- Tests default to `MemoryVectorStore`, so the suite needs no container; Qdrant integration tests are
-  marked and skip when it is unreachable.
+- Tests select `MemoryVectorStore` explicitly (`make_settings`), so most of the suite needs no container;
+  Qdrant tests carry the `qdrant` marker and FAIL, not skip, under `make test-all` (hardening pass).
 
 ## Alternatives considered
 
@@ -164,7 +164,7 @@ latest published version (Apache-2.0). Nothing binds 8765.
    `sha256:12364fe851b9f17356fc88189fc06d1b521262e04659ec7345975b00c9246a10` in a comment next to it.
    A tag can be re-pushed; pinning the digest in the `image:` line itself is a hardening for any
    shared environment.
-2. **`KEN_VECTOR_STORE` defaults to `memory`, not `qdrant`.** The default is chosen so that the test
+2. **[Amended by the hardening pass: the code default is now `qdrant`; the test factories select `memory` explicitly. The original text follows.] `KEN_VECTOR_STORE` defaulted to `memory`, not `qdrant`.** The default is chosen so that the test
    suite and CI need no container. The consequence is that **a default installation does not use
    Qdrant**: it builds an exact in-process index per run, which is correct but not the production path.
    The Qdrant make targets (`qdrant-index`, `qdrant-rebuild`, `qdrant-verify`) pin

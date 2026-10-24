@@ -91,6 +91,9 @@ def _test_database_unavailable_reason() -> str | None:
 
 
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
+    from tests.support.qdrant import gate_collection
+
+    gate_collection(items)  # KEN_REQUIRE_QDRANT_TESTS: unreachable Qdrant fails, never skips
     integration = [item for item in items if item.get_closest_marker("integration")]
     if not integration:
         return
@@ -266,6 +269,9 @@ def make_settings(**overrides: Any) -> Any:
     """
     from ken_core.config import Settings
 
+    # ADR-0017: the code default is qdrant; deterministic tests select the in-memory store
+    # explicitly so they need no container. Live-Qdrant tests pass vector_store="qdrant".
+    overrides.setdefault("vector_store", "memory")
     inherited = {key: os.environ.pop(key) for key in list(os.environ) if key.startswith("KEN_")}
     try:
         return Settings(_env_file=None, **overrides)

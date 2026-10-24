@@ -25,6 +25,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
+from sqlalchemy.engine import make_url
+
 if TYPE_CHECKING:
     from ken_core.config import Settings
 
@@ -114,6 +116,54 @@ async def _database_facts(database_url: str) -> dict[str, str | None]:
             }
     finally:
         await engine.dispose()
+
+
+async def _application_role_problems(database_url: str) -> tuple[str, list[str]]:
+    """(role name, violations) for the role the application DSN connects as."""
+    import db_roles
+    from sqlalchemy import text
+    from sqlalchemy.ext.asyncio import create_async_engine
+    from sqlalchemy.pool import NullPool
+
+    engine = create_async_engine(database_url, poolclass=NullPool, connect_args={"timeout": 3})
+    try:
+        async with engine.connect() as conn:
+            role = str((await conn.execute(text("select current_user"))).scalar_one())
+            return role, await db_roles.audit_role(conn, role)
+    finally:
+        await engine.dispose()
+
+
+def check_database_role(settings: Settings) -> list[Row]:
+    """The application DSN must be a least-privilege role (ADR-0014 section 5).
+
+    WARN with the fix in local/ci (the single-role dev setup keeps working), FAIL in
+    staging/production. Never prints a credential or a DSN.
+    """
+    strict = settings.environment in {"staging", "production"}
+    status: Status = "FAIL" if strict else "WARN"
+    fix = "run: make db-roles ARGS=--write-env, then restart (docs/DEVELOPMENT.md 'Database roles')"
+    rows: list[Row] = []
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    try:
+        role, problems = asyncio.run(_application_role_problems(settings.database_url))
+    except Exception as exc:
+        return [Row("WARN", "database role", f"could not inspect the role ({type(exc).__name__})")]
+    migration_user = make_url(settings.effective_migration_database_url).username
+    if settings.migration_database_url is None or migration_user == role:
+        rows.append(
+            Row(
+                status,
+                "application/migration DSN",
+                f"the application and migrations use the SAME role ({role}); the application "
+                f"holds schema-owner rights. {fix}",
+            )
+        )
+    if problems:
+        rows.append(Row(status, "database role", f"{role}: {'; '.join(problems)}. {fix}"))
+    else:
+        rows.append(Row("OK", "database role", f"{role}: no superuser/DDL/TRUNCATE, owns nothing"))
+    return rows
 
 
 def check_settings_and_database() -> list[Row]:
@@ -207,6 +257,7 @@ def check_settings_and_database() -> list[Row]:
                 f"database at {db_revision!r}, code head {head!r} — run: make migrate",
             )
         )
+    rows.extend(check_database_role(settings))
     return rows
 
 
