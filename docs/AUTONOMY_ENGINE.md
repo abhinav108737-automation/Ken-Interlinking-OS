@@ -100,3 +100,14 @@ The default is `shadow`, the corpus has no evaluation history and every plan's c
 - Under acknowledged `autonomous`, plans with no block, no critic rejection, rollback metadata and raw confidence at or above 0.50 would publish with the strict profile and never as plain `AUTO_PUBLISH`. The v1 policy comments note the demo corpus scores its best pairs around 0.65.
 - With the default critic policy (`use_model: true`) and no reachable model, every plan is NO_ACTION and nothing reaches the engine.
 - Calibration cannot start without reviewer or outcome history, so plain `AUTO_PUBLISH` stays unreachable until the learning pipeline has produced a passed, sufficiently sampled evaluation. Not verified against a real CMS: all end-to-end evidence here is against the simulated CMS.
+
+
+## Legacy `awaiting_approval` plans (hardening pass)
+
+Plans that the pre-ADR-0018 agent hand-off left in `awaiting_approval` cannot be decided: `ALLOWED_TRANSITIONS`
+and the database guard have no edge from that status onto the autonomous ladder. The engine treats it as a
+**shadow-only** status (`SHADOW_ONLY_STATUSES`): a shadow pass records a decision row and moves nothing; a
+publishing pass raises `ShadowOnlyStatusError`. `make autonomy-legacy` (`legacy-reconcile`) classifies such plans
+deterministically (stale, duplicate, protected, invalid, critic-not-accept, eligible); `--apply` only expires or
+blocks the defective ones along existing edges, as `system:legacy-reconcile`, and never approves or publishes. See
+`docs/pilot/SHADOW_PILOT_PERFORMANCE_REPORT.md` section 6.

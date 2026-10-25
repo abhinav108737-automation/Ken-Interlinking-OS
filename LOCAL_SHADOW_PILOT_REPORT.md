@@ -66,7 +66,10 @@ recommend -> agents (critic + policy gate) -> autonomy (shadow).
   `decision=block` because shadow records but never acts; `would_have_decision` is the answer.
   The cleanest separation: all deferred accepts <= 0.488, all extra-verification >= 0.522.
 * Confidence equals the raw plan score here (uncalibrated), range 0.38-0.76.
-* **Runtime:** the agent step took **about 2 hours** for 30 sources (live 8B model on this Mac).
+* **Runtime (corrected 2026-10-25):** the agent step's wall clock was about 2 hours, but that was **host sleep, not
+  the critic**. The run was not under `caffeinate`; `pmset -g log` shows the Mac asleep from 00:49 IST with 45-second
+  DarkWakes about every 15 minutes, and 8 of the 30 agent runs each span exactly one such gap (910-977 s) while their
+  measured step times are 8-13 s. Active compute was about 6 minutes (see `docs/pilot/SHADOW_PILOT_PERFORMANCE_REPORT.md`).
 
 ### Audit export
 
@@ -88,8 +91,8 @@ tier, confidence and blocks. The JSON header records the table counts proving no
 3. 1,573 of 1,773 candidates were rejected for "no natural anchor": expected for short synthetic pages, not
    evidence about real pages.
 4. `DeploymentView` tags and verification were not exercised (nothing was published).
-5. The agent step is slow (about 2 min per source with qwen3:8b). A 10k-page site needs a faster model, a
-   batch window or concurrency work; not attempted.
+5. (Corrected) The critic is not 2 hours slow: it is about 10 s per source. Long local jobs must run under
+   `caffeinate -i` (now built into `make agents`).
 6. `ken_pilot` (database) and `ken_pilot_pages` (collection) were left in place for inspection; drop them
    with `DROP DATABASE ken_pilot` and a `DELETE /collections/ken_pilot_pages` on the project Qdrant.
 
@@ -104,8 +107,8 @@ tier, confidence and blocks. The JSON header records the table counts proving no
 3. **Human relevance judgements:** have Ken editors label a few hundred shadow recommendations
    (accept / reject / wrong anchor). This is the only way to learn real precision, tune the 0.50/0.85
    thresholds, and start calibration. Until then every plan is uncalibrated.
-4. **Model sizing decision:** the 2-hour critic pass must shrink for a real site (smaller/faster model, batch
-   window, or a concurrency change); evaluate on the labelled sample first.
+4. **Model sizing:** at about 10 s per source the critic needs roughly 3 hours for 1,000 sources on this Mac;
+   measure again on real pages (see the performance report).
 5. **Keep `shadow`**; no CMS credentials are needed for a read-only shadow pilot. Real CMS write access,
    `KEN_AUTONOMY_ALLOW_PRODUCTION`, a named operator account and consent for any beacon are separate ASK items
    (NEXT_STEPS rows 12, 24, 25).

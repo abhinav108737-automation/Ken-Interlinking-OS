@@ -120,9 +120,11 @@ from ken_services.recommendations.validity import lock_source_plans
 __all__ = [
     "DECIDABLE_STATUSES",
     "MODE_ORDER",
+    "SHADOW_ONLY_STATUSES",
     "CriticDeclinedError",
     "DatabaseAutonomyEngine",
     "EvaluatedPlan",
+    "ShadowOnlyStatusError",
     "critic_outcome_of",
 ]
 
@@ -146,6 +148,16 @@ already took responsibility for and goes to the ordinary deployment service.
 ``autonomy_decided`` IS here, so a plan whose facts changed after its decision is blocked by
 the next pass instead of being published on a stale decision."""
 
+SHADOW_ONLY_STATUSES: Final[tuple[LinkPlanStatus, ...]] = (_S.AWAITING_APPROVAL,)
+"""Statuses a SHADOW pass may evaluate but no publishing pass may touch.
+
+``awaiting_approval`` is the pre-ADR-0018 hand-off state (and still the operator-exception
+state). ``ALLOWED_TRANSITIONS`` (and the database guard) has no edge from it onto the
+autonomous ladder, so the engine can neither advance nor decide such a plan. A shadow pass writes
+a decision row and moves nothing, so it can say what WOULD happen without touching the plan's
+status or history. Going further is an operator act (override / approval), or the explicit,
+audited ``legacy-reconcile`` command (``ken_services.autonomy.legacy``)."""
+
 _TO_POLICY_CHECKED: Final[frozenset[LinkPlanStatus]] = frozenset({_S.PROPOSED, _S.CRITIQUED})
 """Statuses the engine first advances to ``policy_checked``: the deterministic policy check
 it just performed IS that step of the ladder (ADR-0018 s3)."""
@@ -156,6 +168,14 @@ MODE_ORDER: Final[tuple[AutonomyMode, ...]] = (
     AutonomyMode.AUTONOMOUS,
 )
 """Least to most permissive. A run may move DOWN this list, never up."""
+
+
+class ShadowOnlyStatusError(Exception):
+    """A publishing pass reached a plan whose status only a shadow pass may evaluate."""
+
+    def __init__(self, plan_id: uuid.UUID) -> None:
+        super().__init__(f"plan {plan_id} is in a shadow-evaluation-only status")
+        self.plan_id = plan_id
 
 
 class CriticDeclinedError(Exception):
@@ -456,6 +476,8 @@ class DatabaseAutonomyEngine:
             if row is None:
                 raise PlanNotFoundError
             status = LinkPlanStatus(row.status)
+            if status in SHADOW_ONLY_STATUSES and evaluation.mode is not AutonomyMode.SHADOW:
+                raise ShadowOnlyStatusError(evaluation.plan_id)
             moved = evaluation.mode is AutonomyMode.SHADOW or await self._advance(
                 session, evaluation=evaluation, status=status
             )
@@ -556,13 +578,20 @@ class DatabaseAutonomyEngine:
         return out
 
     async def decidable_plans(
-        self, *, source_page_ids: Sequence[uuid.UUID] | None = None
+        self,
+        *,
+        source_page_ids: Sequence[uuid.UUID] | None = None,
+        include_shadow_only: bool = False,
     ) -> list[uuid.UUID]:
-        """Plan ids a pass should evaluate, oldest first (a stable, reproducible order)."""
+        """Plan ids a pass should evaluate, oldest first (a stable, reproducible order).
+
+        ``include_shadow_only`` adds :data:`SHADOW_ONLY_STATUSES`; callers pass it only for a
+        SHADOW pass."""
+        statuses = DECIDABLE_STATUSES + (SHADOW_ONLY_STATUSES if include_shadow_only else ())
         async with self._sessionmaker() as session:
             statement = (
                 select(LinkPlanRow.id)
-                .where(LinkPlanRow.status.in_([status.value for status in DECIDABLE_STATUSES]))
+                .where(LinkPlanRow.status.in_([status.value for status in statuses]))
                 .order_by(LinkPlanRow.created_at, LinkPlanRow.id)
             )
             if source_page_ids:

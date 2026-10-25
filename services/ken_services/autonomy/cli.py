@@ -63,6 +63,7 @@ from ken_services.autonomy.compose import build_engine
 from ken_services.autonomy.engine import CriticDeclinedError
 from ken_services.autonomy.gate import PublishingNotEnabledError
 from ken_services.autonomy.job import job_kind_for, run_autonomy
+from ken_services.autonomy.legacy import reconcile
 from ken_services.jobs.runner import JobAlreadyRunningError
 
 __all__ = [
@@ -121,7 +122,45 @@ def _parser() -> argparse.ArgumentParser:
         action="store_true",
         help="evaluate and print; record nothing (no decisions, no transitions, no attempts)",
     )
+    legacy = sub.add_parser(
+        "legacy-reconcile",
+        help="classify plans stranded in awaiting_approval (dry run unless --apply)",
+    )
+    legacy.add_argument(
+        "--apply",
+        action="store_true",
+        help="expire stale/duplicate and block invalid/protected legacy plans; never publishes",
+    )
     return parser
+
+
+async def _legacy(settings: Settings, args: argparse.Namespace) -> dict[str, Any]:
+    engine = create_engine(settings)
+    try:
+        sessionmaker = create_sessionmaker(engine)
+        autonomy = build_engine(sessionmaker=sessionmaker, settings=settings)
+        findings = await reconcile(sessionmaker=sessionmaker, engine=autonomy, apply=args.apply)
+    finally:
+        await engine.dispose()
+    counts: dict[str, int] = {}
+    for finding in findings:
+        counts[finding.legacy_class.value] = counts.get(finding.legacy_class.value, 0) + 1
+    return {
+        "command": "legacy-reconcile",
+        "applied": bool(args.apply),
+        "plans": len(findings),
+        "classes": dict(sorted(counts.items())),
+        "moved": sum(1 for finding in findings if finding.moved_to),
+        "detail": [
+            {
+                "plan_id": str(finding.plan_id),
+                "class": finding.legacy_class.value,
+                "codes": list(finding.codes),
+                "moved_to": finding.moved_to,
+            }
+            for finding in findings
+        ],
+    }
 
 
 async def _principal(settings: Settings, username: str) -> Principal | str:
@@ -160,7 +199,10 @@ async def _dry_run(settings: Settings, args: argparse.Namespace) -> dict[str, An
         ids = (
             list(args.plans)
             if args.plans
-            else await autonomy.decidable_plans(source_page_ids=args.sources)
+            else await autonomy.decidable_plans(
+                source_page_ids=args.sources,
+                include_shadow_only=mode is AutonomyMode.SHADOW,
+            )
         )
         counts: dict[str, int] = {}
         for plan_id in ids:
@@ -242,6 +284,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"configuration error ({type(exc).__name__})", file=sys.stderr)
         return EXIT_USAGE
     try:
+        if args.command == "legacy-reconcile":
+            print(json.dumps(asyncio.run(_legacy(settings, args)), sort_keys=True))
+            return EXIT_OK
         if args.dry_run:
             payload = asyncio.run(_dry_run(settings, args))
             print(json.dumps(payload, sort_keys=True))

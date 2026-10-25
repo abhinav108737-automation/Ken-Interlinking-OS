@@ -27,7 +27,7 @@ export NEXT_TELEMETRY_DISABLED := 1
         analytics-import analytics-aggregate analytics-demo-seed analytics-sim-serve \
         reflect eval shadow policy-promote experiment-create experiment-assign \
         qdrant-up qdrant-down qdrant-index qdrant-rebuild qdrant-verify graph-metrics \
-        autonomy autonomy-shadow autonomy-run autonomy-dry-run \
+        autonomy autonomy-shadow autonomy-run autonomy-dry-run autonomy-legacy \
         demo demo-clean
 
 help: ## List targets
@@ -153,8 +153,12 @@ analyze: ## Phase 2: analyse, embed and relate stale pages (ARGS="--force" | "--
 recommend: ## Phase 3: propose contextual links for eligible sources (ARGS="--source PAGE_ID ...")
 	$(VENV)/python -m ken_services.recommendations.cli recommend $(ARGS)
 
+# A sleeping Mac suspends the process (the shadow pilot's 2-hour 'critic' time was sleep): hold the
+# machine awake for long local jobs where caffeinate exists.
+KEEP_AWAKE := $(shell command -v caffeinate >/dev/null 2>&1 && echo caffeinate -i)
+
 agents: ## Phase 4: agents review proposed plans and hand accepted ones on to the autonomy engine (ARGS="--source PAGE_ID ...")
-	$(VENV)/python -m ken_agents.cli agents $(ARGS)
+	$(KEEP_AWAKE) $(VENV)/python -m ken_agents.cli agents $(ARGS)
 
 # ---------------------------------------------------------------- users (Phase 5)
 # Accounts are created ONLY here (no HTTP endpoint, no default credentials). Passwords are
@@ -292,6 +296,9 @@ autonomy-shadow: ## Force a shadow pass: record what WOULD happen, publish nothi
 autonomy-run: ## Publish+verify eligible plans as an operator: make autonomy-run AS_USER=…
 	@test -n "$(AS_USER)" || (echo 'usage: make autonomy-run AS_USER=<username> [ARGS="--source PAGE_ID ..."]' >&2; exit 2)
 	$(VENV)/python -m ken_services.autonomy.cli evaluate --as-user "$(AS_USER)" $(ARGS)
+
+autonomy-legacy: ## Classify plans stranded in awaiting_approval (dry run; ARGS=--apply expires/blocks the invalid ones)
+	$(VENV)/python -m ken_services.autonomy.cli legacy-reconcile $(ARGS)
 
 autonomy-dry-run: ## Evaluate and print; record nothing (no decisions, transitions, attempts)
 	$(VENV)/python -m ken_services.autonomy.cli evaluate --dry-run $(ARGS)

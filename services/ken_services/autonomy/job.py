@@ -128,7 +128,10 @@ async def run_autonomy(
         ids = (
             list(plan_ids)
             if plan_ids is not None
-            else await built.decidable_plans(source_page_ids=source_page_ids)
+            else await built.decidable_plans(
+                source_page_ids=source_page_ids,
+                include_shadow_only=resolved is AutonomyMode.SHADOW,
+            )
         )
         for plan_id in ids:
             job.increment("plans_considered")
