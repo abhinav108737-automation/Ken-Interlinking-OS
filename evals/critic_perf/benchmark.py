@@ -34,7 +34,7 @@ import httpx
 ROOT = Path(__file__).resolve().parents[2]
 HERE = Path(__file__).resolve().parent
 OLLAMA = "http://127.0.0.1:11434"
-MODEL = "qwen3:8b-q4_K_M"
+MODEL = "qwen3:8b-q4_K_M"  # overridden by --model (offline model comparison only)
 sys.path[:0] = [
     str(ROOT),
     str(ROOT / "services"),
@@ -377,6 +377,10 @@ async def run_variant(
                     "plans": len(work["plans"]),
                     "build_s": round(build_s, 4),
                     "wall_s": round(result["wall_s"], 3),
+                    "daemon_total_s": round(result["total_duration"] / 1e9, 3),
+                    # perf_counter stops while the Mac sleeps; the daemon's clock does not. A call
+                    # where the daemon reports far more time than we measured slept mid-call.
+                    "sleep_suspect": result["total_duration"] / 1e9 > result["wall_s"] * 1.5 + 2,
                     "load_s": round(result["load_duration"] / 1e9, 3),
                     "prompt_tokens": result["prompt_eval_count"],
                     "prompt_eval_s": round(result["prompt_eval_duration"] / 1e9, 3),
@@ -390,19 +394,35 @@ async def run_variant(
         began = time.perf_counter()
         await asyncio.gather(*(one(i, g) for i, g in enumerate(groups)))
         total = time.perf_counter() - began
+        try:
+            ps = (await client.get(f"{OLLAMA}/api/ps", timeout=10.0)).json().get("models", [])
+            memory = [
+                {
+                    "model": m["name"],
+                    "size_bytes": m.get("size"),
+                    "size_vram_bytes": m.get("size_vram"),
+                }
+                for m in ps
+            ]
+        except Exception:  # memory is informational only
+            memory = []
 
     labels = {p["id"]: (p["label"], g["kind"]) for g in groups for p in g["plans"]}
     stats = _quality(verdicts, groups)
-    walls = [c["wall_s"] for c in per_call]
+    clean = [c for c in per_call if not c["sleep_suspect"]]
+    walls = [c["wall_s"] for c in clean]
     return {
         "variant": name,
         "model": MODEL,
+        "loaded_models_after_run": memory,
         "keep_alive": keep_alive,
         "config": {
             "num_ctx": cfg["num_ctx"],
             "concurrency": cfg["concurrency"],
             "prefilter": cfg["prefilter"],
         },
+        "sleep_suspect_calls": len(per_call) - len(clean),
+        "clean_calls_wall_s_sum": round(sum(walls), 2),
         "groups": len(groups),
         "model_calls": len(per_call),
         "calls_skipped_by_prefilter": skipped_calls,
@@ -469,6 +489,7 @@ def main() -> int:
     r.add_argument("--limit", type=int, default=None)
     r.add_argument("--keep-alive", default="30m")
     r.add_argument("--out", default=None)
+    r.add_argument("--model", default=None, help="offline comparison only; never touches settings")
     args = parser.parse_args()
     if args.cmd == "dataset":
         data = asyncio.run(build_dataset(args.database_url))
@@ -478,9 +499,13 @@ def main() -> int:
             f"{data['planted']} planted"
         )
         return 0
+    global MODEL
+    if args.model:
+        MODEL = args.model
     dataset = json.loads((HERE / "dataset.json").read_text())
     report = asyncio.run(run_variant(args.variant, dataset, args.limit, args.keep_alive))
-    out = Path(args.out) if args.out else HERE / "results" / f"{args.variant}.json"
+    suffix = "" if MODEL == "qwen3:8b-q4_K_M" else "." + MODEL.replace(":", "-")
+    out = Path(args.out) if args.out else HERE / "results" / f"{args.variant}{suffix}.json"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(report, indent=1))
     q = report["quality"]

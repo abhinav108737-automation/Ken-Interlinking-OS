@@ -154,8 +154,9 @@ recommend: ## Phase 3: propose contextual links for eligible sources (ARGS="--so
 	$(VENV)/python -m ken_services.recommendations.cli recommend $(ARGS)
 
 # A sleeping Mac suspends the process (the shadow pilot's 2-hour 'critic' time was sleep): hold the
-# machine awake for long local jobs where caffeinate exists.
-KEEP_AWAKE := $(shell command -v caffeinate >/dev/null 2>&1 && echo caffeinate -i)
+# machine awake for long local jobs where caffeinate exists. `-i` alone did NOT stop a later
+# sleep during the model comparison; `-dims` did.
+KEEP_AWAKE := $(shell command -v caffeinate >/dev/null 2>&1 && echo caffeinate -dims)
 
 agents: ## Phase 4: agents review proposed plans and hand accepted ones on to the autonomy engine (ARGS="--source PAGE_ID ...")
 	$(KEEP_AWAKE) $(VENV)/python -m ken_agents.cli agents $(ARGS)

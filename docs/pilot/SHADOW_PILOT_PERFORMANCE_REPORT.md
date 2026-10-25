@@ -86,7 +86,7 @@ samples; that is a reason to keep the status quo, not evidence the faster varian
 
 Shipped from this pass:
 
-* `make agents` runs under `caffeinate -i` (the true cause of the two-hour figure).
+* `make agents` runs under `caffeinate -dims` (see section 7: `-i` alone was not enough) (the true cause of the two-hour figure).
 * `evals/critic_perf/` (harness, frozen dataset, all result files) so the comparison can be repeated, for example
   against a smaller model once one is approved.
 * The deterministic guards, hard blocks and the fail-closed critic mapping are untouched; `uncertain` still maps to
@@ -140,3 +140,80 @@ expired; an injected failure after the transition row rolls the whole move back 
 an `uncertain` review is never called eligible; no deployment, delivery or attempt rows exist afterwards.
 Invalid-block and duplicate paths are covered by the classification table (duplicate also needs a second open
 plan on the pair, which the demo corpus cannot produce without regenerating plans).
+
+
+## 7. Smaller-model experiment (owner decision of 2026-10-25): `qwen3:4b-q4_K_M`
+
+Offline evaluation only. No production setting, `.env` value or policy was changed; `KEN_MODEL_REASONING` is still
+`qwen3:8b-q4_K_M` and the critic prompt is the unchanged production prompt.
+
+**Model and licence.** `qwen3:4b-q4_K_M` from the Ollama library (pulled once, 2.6 GB on disk), Qwen3 family, 4.0 B
+parameters, Q4_K_M, GGUF, capabilities completion / tools / thinking. The licence text that ships with the model
+(`/api/show`) is **Apache License 2.0**, the same as `qwen3:8b`, so it is compatible with the project's rules.
+It was chosen over `llama3.2:3b` (Llama community licence) and `gemma` (Gemma terms) because those are not plain
+permissive licences.
+
+**Method.** Same fixed dataset (`evals/critic_perf/dataset.json`: 38 calls, 64 plans: 21 GOOD, 26 ACCEPTABLE, 1 BAD,
+8 planted defects, 8 others), same production prompt, same Ollama daemon, temperature 0, `think=false`, model only
+(deterministic guards NOT applied, so the model's own judgment is what is compared). Two runs of the 4B model, two
+of the 8B model. Run under `caffeinate -dimsu`, with per-call sleep detection added to the harness.
+
+| | qwen3:8b (run 1 / run 2) | qwen3:4b (run 1 / run 2) |
+|---|---|---|
+| Wall time, 38 calls | 386 s / 433 s | **282 s / 278 s** |
+| Mean / p95 per call | 10.2 / 13.6 s ; 11.4 / 15.2 s | **7.4 / 9.7 s ; 7.3 / 9.7 s** |
+| Speed-up | 1.00x | **1.4x (1.39x vs the first 8B run, 1.56x vs the second)** |
+| Output tokens | 4.9k | 5.6k (it writes more) |
+| Invalid outputs / timeouts | 0 / 0 | 0 / 0 |
+| Verdicts identical between its two runs | yes | yes |
+| GOOD accepted | 21/21 | 21/21 |
+| ACCEPTABLE accepted | 16/26 | **26/26** |
+| **BAD plan accepted** | **0/1** | **1/1  (FAIL)** |
+| Planted defects accepted | 0/8 | 0/8 |
+| Accept / reject (56 judged) | 37 / 19 | 48 / 8 |
+
+**Quality difference.** The 4B model disagrees with the 8B model on exactly 11 plans, always in the permissive
+direction: it accepts 10 ACCEPTABLE plans and **the one BAD plan** that the 8B model rejects. Its only rejections are
+the eight planted mismatches (a destination swapped for the careers/contact/about page), i.e. it catches an obvious
+nonsense link and approves everything else. Both models accept all 21 GOOD plans and reject all 8 planted defects.
+
+**Latency.** Repeatable: 278-282 s for the 4B model against 386-433 s for the 8B model (1.4-1.6x). The two 8B runs
+differ by 12% (the second includes a 6.7 s model reload after the 4B runs), so the 4B advantage is real but its
+size depends on which 8B run you compare against.
+
+**Memory.** `ollama ps`: `qwen3:8b-q4_K_M` 5.6 GB resident, 100% GPU, 4096 context; `qwen3:4b-q4_K_M` 3.0 GB,
+100% GPU. Loading one evicts the other on this 16 GB Mac.
+
+**Gates (from the decision):**
+
+| Requirement | Result |
+|---|---|
+| No additional unsafe-plan acceptance | **FAIL**: accepts the BAD plan the 8B model rejects |
+| No additional planted-defect acceptance | pass (0/8 both) |
+| No loss of deterministic safety | pass (guards, hard blocks and the fail-closed critic mapping are model-independent and untouched) |
+| Comparable valid-plan acceptance | pass (GOOD 21/21; it is more permissive on ACCEPTABLE) |
+| Repeatable latency improvement | pass (about 1.4x) |
+
+**Recommendation: do not adopt `qwen3:4b`. Retain `qwen3:8b-q4_K_M`.** A faster critic that also approves the one
+plan the hand-written judgments forbid is the wrong trade: the critic's job in this system is the reject signal, and
+the 4B model's reject signal is close to "obvious mismatches only". The 4B model remains a candidate only for a
+non-gating use (for example a cheap first pass whose accepts still go to the 8B model), which is a design change not
+made here. Caveat: one BAD plan is a single data point; it is enough to fail a zero-tolerance gate but not to estimate
+a rate. The 4B model (2.6 GB) is still installed; `ollama rm qwen3:4b-q4_K_M` removes it.
+
+**Host sleep, again.** A first 4B run on the prefiltered variant was discarded: the Mac went to sleep mid-run even
+under `caffeinate -i` (one call recorded 959 s of generation against 6.8 s measured; `pmset` shows the Sleep at 13:17).
+`caffeinate -dims` held for the later runs (no sleep between 13:35 and 13:50). The harness now flags a call as
+`sleep_suspect` when the daemon's clock exceeds its own monotonic measurement, and none of the reported runs has one.
+That discarded run also taught one thing about the earlier `*_prefilter` rows in section 3: because the planted clone
+shares its sibling's anchor and span, the deterministic guards remove it before the model sees it, so the
+"planted defects accepted 0/8" figure is only a model test in the non-prefilter variants (baseline, compact,
+compact_ctx2k) and in this section.
+
+## 8. Legacy plans (decision of 2026-10-25)
+
+Unchanged and confirmed: the 33 `awaiting_approval` plans and their history are preserved, were not moved through any
+status, and were not published. No legacy marker column was added: `link_plans` has no field for it and adding one
+would need a migration, which the decision rules out. The shadow decision rows and the `legacy-reconcile` report
+already identify them (status `awaiting_approval`, actor `system:legacy-reconcile` only if ever applied). Future shadow
+pilots use plans generated under the current architecture (as in `ken_pilot`).
