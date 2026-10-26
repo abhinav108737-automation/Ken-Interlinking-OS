@@ -18,7 +18,7 @@ COMPOSE          := docker compose
 export NEXT_TELEMETRY_DISABLED := 1
 
 .DEFAULT_GOAL := help
-.PHONY: help setup lock db-up db-down migrate db-roles db-roles-check db-roles-test dev dev-api dev-web \
+.PHONY: help setup lock db-up db-down migrate db-roles db-roles-check pilot-db-create pilot-preflight pilot-robots pilot-crawl db-roles-test dev dev-api dev-web \
         test test-integration test-qdrant test-all test-live web-test lint format types \
         compose-config compose-full-up compose-full-down doctor verify openapi \
         ingest-file ingest-cms-mock crawl analyze recommend agents \
@@ -330,6 +330,25 @@ demo-clean: ## Drop the demo databases (ken_demo, ken_cms_sim_demo) and delete k
 # (or taken from KEN_APP_DB_PASSWORD) and is never printed.
 db-roles: ## Create/update the ken_app role and grants. ARGS=--write-env appends the DSNs to .env
 	$(VENV)/python infrastructure/scripts/db_roles.py apply $(ARGS)
+
+# ---------------------------------------------------- Ken public crawl pilot (docs/pilot/KEN_PUBLIC_CRAWL_PILOT.md)
+# NONE of these sends a request to the target site except pilot-robots / pilot-crawl, which require an
+# approval file (pilots/kenresearch/approvals/, gitignored) quoting the exact configuration hash.
+PILOT ?= pilots/kenresearch/pilot-25.yaml
+
+pilot-db-create: ## Local only: create + migrate + grant the SEPARATE pilot database (never the demo ones)
+	$(VENV)/python infrastructure/scripts/pilot_db.py --config $(PILOT)
+
+pilot-preflight: ## OFFLINE report of what the pilot would do + blockers (sends nothing to the site)
+	$(VENV)/python -m ken_services.inventory.pilot preflight --config $(PILOT)
+
+pilot-robots: ## LIVE, approval-gated: fetch ONLY robots.txt of the approved hosts. make pilot-robots APPROVAL=file
+	@test -n "$(APPROVAL)" || (echo 'usage: make pilot-robots APPROVAL=pilots/kenresearch/approvals/<file>.json' >&2; exit 2)
+	$(VENV)/python -m ken_services.inventory.pilot preflight --config $(PILOT) --live-robots --approval $(APPROVAL)
+
+pilot-crawl: ## LIVE, approval-gated crawl. NOT run without explicit authorisation. make pilot-crawl APPROVAL=file
+	@test -n "$(APPROVAL)" || (echo 'usage: make pilot-crawl APPROVAL=pilots/kenresearch/approvals/<file>.json' >&2; exit 2)
+	$(KEEP_AWAKE) $(VENV)/python -m ken_services.inventory.pilot crawl --config $(PILOT) --approval $(APPROVAL)
 
 db-roles-check: ## Audit the live grants; non-zero if ken_app is a superuser, owns anything or can TRUNCATE/DDL
 	$(VENV)/python infrastructure/scripts/db_roles.py check

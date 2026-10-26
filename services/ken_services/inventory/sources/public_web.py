@@ -39,7 +39,10 @@ from __future__ import annotations
 
 import asyncio
 import codecs
+import email.utils
+import fnmatch
 import http.cookiejar
+import posixpath
 import time
 from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass, field
@@ -142,15 +145,22 @@ class _RateLimiter:
         self._monotonic = monotonic
         self._lock = asyncio.Lock()
         self._last: float | None = None
+        self._hold_until: float = 0.0
+
+    def hold(self, seconds: float) -> None:
+        """Delay every later request start by at least ``seconds`` from now (Retry-After)."""
+        self._hold_until = max(self._hold_until, self._monotonic() + seconds)
 
     async def wait(self, gap: float) -> None:
         async with self._lock:
             now = self._monotonic()
+            due = now
             if self._last is not None:
-                due = self._last + gap
-                if due > now:
-                    await self._sleep(due - now)
-                    now = max(self._monotonic(), due)
+                due = max(due, self._last + gap)
+            due = max(due, self._hold_until)
+            if due > now:
+                await self._sleep(due - now)
+                now = max(self._monotonic(), due)
             self._last = now
 
 
@@ -229,6 +239,45 @@ def _path_and_query(normalized_url: str) -> str:
     return f"{parts.path or '/'}?{parts.query}" if parts.query else (parts.path or "/")
 
 
+def rule_reason(config: CrawlConfig, normalized_url: str) -> str | None:
+    """Why the include/exclude rules refuse an already-normalised URL, or ``None``."""
+    parts = urlsplit(normalized_url)
+    if config.https_only and parts.scheme != "https":
+        return "not https"
+    path = parts.path or "/"
+    lowered = path.lower()
+    if config.include_path_prefixes and not any(
+        path.startswith(prefix) for prefix in config.include_path_prefixes
+    ):
+        return "outside the included paths"
+    if any(fnmatch.fnmatchcase(lowered, glob.lower()) for glob in config.exclude_path_globs):
+        return "matches an exclude pattern"
+    extension = posixpath.splitext(lowered)[1]
+    if extension and extension in config.exclude_extensions:
+        return "excluded file type"
+    if config.exclude_query_params and parts.query:
+        names = {pair.split("=", 1)[0].lower() for pair in parts.query.split("&") if pair}
+        if names & set(config.exclude_query_params):
+            return "excluded query parameter"
+    return None
+
+
+def _retry_after_seconds(value: str | None, now: datetime) -> float | None:
+    """``Retry-After`` as seconds from now (delta-seconds or HTTP-date), or ``None``."""
+    if value is None or not value.strip():
+        return None
+    text = value.strip()
+    if text.isdigit():
+        return float(int(text))
+    try:
+        moment = email.utils.parsedate_to_datetime(text)
+    except (TypeError, ValueError):
+        return None
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=UTC)
+    return max(0.0, (moment - now).total_seconds())
+
+
 # --------------------------------------------------------------------------- #
 # The source
 # --------------------------------------------------------------------------- #
@@ -276,6 +325,9 @@ class PublicWebContentSource:
         self._variant_limited: set[str] = set()
         self._budget = config.max_pages
         self._page_limited = 0
+        self._consecutive_blocks = 0
+        self._aborted: str | None = None
+        self._rule_skipped = 0
 
     # -- ContentSourceProvider -------------------------------------------- #
     def config_snapshot(self) -> dict[str, Any]:
@@ -321,7 +373,15 @@ class PublicWebContentSource:
                         yield issue
             level = next_level
             depth += 1
+            if self._aborted is not None:
+                break
 
+        if self._aborted is not None:
+            yield self._issue(
+                IssueCode.HTTP_ERROR,
+                IssueSeverity.ERROR,
+                f"crawl aborted to protect the site: {self._aborted}",
+            )
         if self._page_limited:
             yield self._issue(
                 IssueCode.LIMIT_REACHED,
@@ -346,6 +406,17 @@ class PublicWebContentSource:
                 chain.page_limited = True
                 self._page_limited += 1
                 self._skipped.add(url)
+                continue
+            reason = self._rule_reason(url)
+            if reason is not None:
+                chain.outcome = self._issue(
+                    IssueCode.OUT_OF_SCOPE,
+                    IssueSeverity.INFO,
+                    f"skipped by the crawl rules ({reason})",
+                    url=url,
+                )
+                self._skipped.add(url)
+                self._rule_skipped += 1
                 continue
             policy = await self._robots_policy(url, chain)
             if not policy.can_fetch(_path_and_query(url)):
@@ -456,6 +527,16 @@ class PublicWebContentSource:
                 IssueSeverity.ERROR,
                 f"more than {self._config.max_redirects} redirects",
             )
+        reason = self._rule_reason(target)
+        if reason is not None:
+            self._skipped.add(target)
+            self._seen.add(target)
+            self._rule_skipped += 1
+            return fail(
+                IssueCode.OUT_OF_SCOPE,
+                IssueSeverity.INFO,
+                f"redirect target skipped by the crawl rules ({reason})",
+            )
         policy = await self._robots_policy(target, chain)
         if not policy.can_fetch(_path_and_query(target)):
             self._skipped.add(target)
@@ -470,6 +551,38 @@ class PublicWebContentSource:
         self._claimed.add(target)
         self._seen.add(target)
         return True
+
+    def _rule_reason(self, normalized_url: str) -> str | None:
+        """Why the include/exclude rules refuse this URL, or ``None`` if they allow it."""
+        return rule_reason(self._config, normalized_url)
+
+    def _abort(self, reason: str) -> None:
+        if self._aborted is None:
+            self._aborted = reason
+
+    def _note_status(self, status: int, retry_after: str | None) -> None:
+        """Back-off bookkeeping for one answered request (never retried, only slowed/stopped)."""
+        config = self._config
+        blocked = status in (403, 429) or status >= 500
+        if not blocked:
+            self._consecutive_blocks = 0
+            return
+        self._consecutive_blocks += 1
+        if status in (429, 503) and config.max_retry_after_s > 0:
+            seconds = _retry_after_seconds(retry_after, self._clock())
+            if seconds is None:
+                seconds = config.max_retry_after_s  # no usable header: wait the cap
+            if seconds > config.max_retry_after_s:
+                self._abort(
+                    f"Retry-After {seconds:g}s exceeds the {config.max_retry_after_s:g}s cap"
+                )
+            else:
+                self._limiter.hold(seconds)
+        if (
+            config.max_consecutive_blocks
+            and self._consecutive_blocks >= config.max_consecutive_blocks
+        ):
+            self._abort(f"{self._consecutive_blocks} consecutive 403/429/5xx responses")
 
     def _gap_for(self, url: str) -> float:
         policy = self._robots.get(_origin(url))
@@ -552,7 +665,19 @@ class PublicWebContentSource:
         except httpx.InvalidURL:
             return _Failure(IssueCode.INVALID_URL, IssueSeverity.ERROR, "URL cannot be requested")
         async with self._semaphore:
+            if self._aborted is not None:  # never touch the site again after an abort
+                return _Failure(
+                    IssueCode.LIMIT_REACHED,
+                    IssueSeverity.INFO,
+                    "not requested: the crawl was aborted",
+                )
             await self._limiter.wait(gap)
+            if self._aborted is not None:
+                return _Failure(
+                    IssueCode.LIMIT_REACHED,
+                    IssueSeverity.INFO,
+                    "not requested: the crawl was aborted",
+                )
             try:
                 async with asyncio.timeout(self._config.timeout_s):
                     if self._guard is not None:
@@ -561,6 +686,7 @@ class PublicWebContentSource:
                     try:
                         if self._guard is not None:
                             self._guard.check_response(response)  # DNS-rebinding TOCTOU
+                        self._note_status(response.status_code, response.headers.get("retry-after"))
                         return await handle(response)
                     finally:
                         await response.aclose()
@@ -668,10 +794,14 @@ class PublicWebContentSource:
                 continue
             # 4xx means "no robots.txt": allow all (RFC 9309) -- except 429, which
             # means "slow down", so it is treated like a 5xx: disallow (QA L4).
-            if 400 <= status < 500 and status != 429:
+            if 400 <= status < 500 and status != 429 and not self._config.require_robots_file:
                 return allow_all(), None
             return unavailable(f"HTTP {status}", status)
         return unavailable("too many redirects")
+
+    async def robots_status(self, origin: str) -> tuple[RobotsPolicy, SourceIssue | None]:
+        """The robots.txt policy for ``origin`` (one rate-limited fetch; no page is requested)."""
+        return await self._fetch_robots(origin)
 
     # -- records ------------------------------------------------------------ #
     def _document(self, chain: _Chain, page: _Page) -> SourceDocument:
@@ -734,6 +864,10 @@ class PublicWebContentSource:
             self._seen.add(target)
             if at_depth_limit:
                 self._skipped.add(target)
+                continue
+            if self._rule_reason(target) is not None:
+                self._skipped.add(target)
+                self._rule_skipped += 1
                 continue
             key = urls.path_key(target)
             count = self._variants.get(key, 0)

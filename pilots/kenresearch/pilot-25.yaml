@@ -1,0 +1,127 @@
+# Ken Research public-site crawl pilot, STAGE 1: 25 pages, read-only.
+# Version-controlled configuration only. Nothing here starts a crawl: a live run needs the
+# operator approval file described in docs/pilot/KEN_PUBLIC_CRAWL_PILOT.md.
+schema: 1
+name: kenresearch-public-25
+activated: true            # this stage may run once an approval file is supplied
+description: >
+  25-page, single-host, read-only inventory of the public site. GET only; no authentication, cookies,
+  forms, CMS writes or publishing. Autonomy stays in shadow mode.
+
+site:
+  base_url: https://www.kenresearch.com/
+  # Explicit host approval. The apex (kenresearch.com) is a SEPARATE host and is NOT approved until
+  # the www/apex redirect and canonical behaviour has been verified and this list is changed in a
+  # reviewed commit. Subdomains are never implied.
+  approved_hosts:
+    - www.kenresearch.com
+  # Discovery is by link-following only. The crawler has no sitemap reader, so a sitemap can never
+  # widen the host, robots or request limits. Sitemap URLs listed here would be refused by the loader.
+  sitemap_sources: []
+
+identity:
+  product: KenInterlinkBot/0.1
+  # Name of the environment variable holding the contact for site operators: a role mailbox
+  # (inventory@...) or a public URL describing the bot. Never a personal credential or a secret.
+  contact_env: KEN_CRAWL_CONTACT
+
+limits:
+  max_pages: 25            # page requests, whatever their outcome (not counting robots.txt)
+  concurrency: 1
+  delay_s: 3.0             # minimum gap between request starts, robots.txt included
+  max_depth: 3
+  timeout_s: 20
+  max_bytes: 3000000
+  max_redirects: 3
+  max_query_variants_per_path: 3
+
+politeness:
+  https_only: true
+  require_robots_file: true       # robots.txt must answer 2xx; a 404 or 403 is NOT "allow all"
+  max_consecutive_blocks: 3       # abort after 3 consecutive 403/429/5xx answers
+  max_retry_after_s: 300          # honour Retry-After up to 5 minutes; a longer one aborts
+
+rules:
+  include_path_prefixes: ["/"]
+  exclude_path_globs:
+    # accounts, authentication, commerce
+    - "/login*"
+    - "/signin*"
+    - "/sign-in*"
+    - "/register*"
+    - "/account*"
+    - "/my-account*"
+    - "/user*"
+    - "/cart*"
+    - "/checkout*"
+    - "/basket*"
+    - "/order*"
+    - "/payment*"
+    - "/wp-admin*"
+    - "/wp-login*"
+    - "/wp-json*"
+    - "/admin*"
+    # search results, feeds, utility endpoints
+    - "/search*"
+    - "/*/search*"
+    - "/feed*"
+    - "/*/feed*"
+    - "/xmlrpc*"
+    - "/cdn-cgi/*"
+    # downloadable / licensed report material
+    - "/download*"
+    - "/*/download*"
+    - "/downloads/*"
+    - "/*report-download*"
+  exclude_query_params:
+    - s
+    - q
+    - query
+    - search
+    - keyword
+    - keywords
+    - sort
+    - orderby
+    - order
+    - filter
+    - ref
+    - source
+    - sid
+    - sessionid
+    - token
+    - replytocom
+  exclude_extensions:
+    - .pdf
+    - .doc
+    - .docx
+    - .xls
+    - .xlsx
+    - .ppt
+    - .pptx
+    - .zip
+    - .rar
+    - .gz
+    - .csv
+    - .xml
+    - .json
+    - .jpg
+    - .jpeg
+    - .png
+    - .gif
+    - .svg
+    - .webp
+    - .mp3
+    - .mp4
+    - .css
+    - .js
+
+# Live public content lives ONLY here: never in the synthetic demo database (ken_interlink,
+# ken_demo) and never in the synthetic Qdrant collections.
+destination:
+  database: ken_kenresearch_pilot
+  qdrant_collection: ken_kenresearch_pilot_pages
+
+autonomy_mode: shadow
+# Eligibility for FUTURE linking is not assumed: crawled pages are inventory only. The existing
+# recommendation eligibility policy, page protections and the shadow-only autonomy mode decide
+# what, if anything, may ever be proposed; nothing is published.

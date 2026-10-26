@@ -291,6 +291,51 @@ class CrawlConfig(FrozenModel):
     respect_meta_nofollow: bool = Field(
         default=True, description="Do not follow links from pages marked robots nofollow."
     )
+    # ---- pilot hardening (all default to the previous, unrestricted behaviour) -------------
+    https_only: bool = Field(
+        default=False, description="Only https URLs are eligible; http links are skipped."
+    )
+    require_robots_file: bool = Field(
+        default=False,
+        description=(
+            "Fail closed unless robots.txt answers 2xx: a 404/410 (no file) or any other 4xx "
+            "disallows the origin instead of allowing everything (RFC 9309 would allow)."
+        ),
+    )
+    include_path_prefixes: tuple[str, ...] = Field(
+        default=(),
+        description="When non-empty, only paths starting with one of these are crawled.",
+    )
+    exclude_path_globs: tuple[str, ...] = Field(
+        default=(),
+        description="Case-insensitive fnmatch patterns on the URL path; a match is skipped.",
+    )
+    exclude_query_params: tuple[str, ...] = Field(
+        default=(),
+        description="A URL carrying any of these query parameter names is skipped.",
+    )
+    exclude_extensions: tuple[str, ...] = Field(
+        default=(),
+        description="Path extensions (with the dot) that are never requested, e.g. .pdf.",
+    )
+    max_consecutive_blocks: int = Field(
+        default=0,
+        ge=0,
+        le=50,
+        description=(
+            "Abort the crawl after this many CONSECUTIVE 403 / 429 / 5xx responses "
+            "(0 = never abort). Pages are never retried."
+        ),
+    )
+    max_retry_after_s: float = Field(
+        default=0.0,
+        ge=0.0,
+        le=3600.0,
+        description=(
+            "Honour Retry-After on 429/503 by pausing every request up to this many seconds; "
+            "a larger value aborts the crawl. 0 = ignore the header."
+        ),
+    )
 
     @field_validator("base_url")
     @classmethod
@@ -310,6 +355,24 @@ class CrawlConfig(FrozenModel):
         if isinstance(value, (list, tuple, set, frozenset)):
             return tuple(sorted({_normalise_netloc(str(item)) for item in value}))
         return value
+
+    @field_validator("exclude_extensions", mode="after")
+    @classmethod
+    def _extensions(cls, value: tuple[str, ...]) -> tuple[str, ...]:
+        return tuple(sorted({e.lower() if e.startswith(".") else f".{e.lower()}" for e in value}))
+
+    @field_validator("exclude_query_params", mode="after")
+    @classmethod
+    def _query_names(cls, value: tuple[str, ...]) -> tuple[str, ...]:
+        return tuple(sorted({q.strip().lower() for q in value if q.strip()}))
+
+    @field_validator("include_path_prefixes", "exclude_path_globs", mode="after")
+    @classmethod
+    def _paths(cls, value: tuple[str, ...]) -> tuple[str, ...]:
+        cleaned = tuple(p.strip() for p in value if p.strip())
+        if any(not p.startswith("/") for p in cleaned):
+            raise ValueError("path rules must start with '/'")
+        return cleaned
 
 
 # --------------------------------------------------------------------------- #
