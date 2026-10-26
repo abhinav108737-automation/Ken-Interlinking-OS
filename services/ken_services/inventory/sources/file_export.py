@@ -42,6 +42,7 @@ from ken_contracts.inventory import (
     SourceSummary,
     SourceType,
 )
+from ken_services.inventory.provenance import check_label
 from ken_services.inventory.urls import (
     InvalidUrlError,
     build_scope,
@@ -86,9 +87,11 @@ class FileExportContentSource:
         *,
         max_bytes: int,
         clock: Callable[[], datetime] = _utc_now,
+        provenance: str | None = None,
     ) -> None:
         if max_bytes < 1:
             raise ValueError("max_bytes must be positive")
+        self._provenance = check_label(provenance)
         self._path = Path(path)
         self._max_bytes = max_bytes
         self._clock = clock
@@ -121,13 +124,16 @@ class FileExportContentSource:
                     allowed_hosts.append(normalize_netloc(host))
                 except InvalidUrlError:
                     continue
-        return {
+        snapshot: dict[str, Any] = {
             "path": self._path.name,
             "format_version": EXPORT_FORMAT_VERSION,
             "site_url": site_url,
             "allowed_hosts": sorted(set(allowed_hosts)),
             "max_bytes": self._max_bytes,
         }
+        if self._provenance:
+            snapshot["provenance"] = self._provenance
+        return snapshot
 
     async def site_scope(self) -> SiteScope:
         if self._scope is None:
@@ -298,7 +304,10 @@ class FileExportContentSource:
                     meta_description=record.meta_description,
                     published_at=record.published_at,
                     modified_at=record.modified_at,
-                    metadata=dict(record.metadata),
+                    metadata={
+                        **dict(record.metadata),
+                        **({"provenance": self._provenance} if self._provenance else {}),
+                    },
                 ),
             )
         except ValidationError as exc:

@@ -1,0 +1,14 @@
+# Agent policy for the FAST offline demo: the critic is the deterministic rule (no model call).
+# Same values as policies/agents/agents.v1.yaml except critic.use_model: false. Demo use only.
+version: 1
+planner:
+  use_model: false
+  timeout_seconds: 30
+critic:
+  use_model: false
+  timeout_seconds: 90
+  accept_min_confidence: 0.5
+max_plans_per_run: 3
+node_timeout_seconds: 30
+tool_retries: 1
+max_sources_per_batch: 100

@@ -4,6 +4,7 @@ Runs start here, never over HTTP (ADR-0009 section 7)::
 
     import-file PATH                 import a JSONL export (docs/CONTRACTS.md)
     crawl                            crawl the ONE site in KEN_CRAWL_BASE_URL
+    import-html-dir FOLDER --site-url URL   import a folder of local HTML files
     import-cms-mock --site-url URL   read the mock CMS through CMSContentSource
 
 Prints one JSON line (run id, status, counters) on success. Exit codes:
@@ -55,12 +56,31 @@ def _module(name: str) -> Any:
     return importlib.import_module(f"{_SOURCES}.{name}")
 
 
-def build_file_source(path: Path, settings: Settings) -> ContentSourceProvider:
+def build_file_source(
+    path: Path, settings: Settings, provenance: str | None = None
+) -> ContentSourceProvider:
     if not path.is_file():
         raise UsageError("import-file: the export file does not exist or is not a file")
-    source: ContentSourceProvider = _module("file_export").FileExportContentSource(
-        path, max_bytes=settings.ingest_max_file_bytes
-    )
+    try:
+        source: ContentSourceProvider = _module("file_export").FileExportContentSource(
+            path, max_bytes=settings.ingest_max_file_bytes, provenance=provenance
+        )
+    except ValueError as exc:
+        raise UsageError(str(exc)) from exc
+    return source
+
+
+def build_html_dir_source(
+    folder: Path, site_url: str, provenance: str | None, allowed_hosts: tuple[str, ...] = ()
+) -> ContentSourceProvider:
+    if not folder.is_dir():
+        raise UsageError("import-html-dir: the folder does not exist or is not a directory")
+    try:
+        source: ContentSourceProvider = _module("html_dir").HtmlDirectoryContentSource(
+            folder, site_url=site_url, provenance=provenance, allowed_hosts=allowed_hosts
+        )
+    except ValueError as exc:
+        raise UsageError(str(exc)) from exc
     return source
 
 
@@ -91,6 +111,17 @@ def _parser() -> argparse.ArgumentParser:
     commands = parser.add_subparsers(dest="command", required=True)
     file_cmd = commands.add_parser("import-file", help="Import a JSONL export file.")
     file_cmd.add_argument("path", type=Path, help="Path to the .jsonl export.")
+    file_cmd.add_argument(
+        "--provenance",
+        default=None,
+        help="label stamped on every page (synthetic_base, synthetic_extension, authorized_import)",
+    )
+    html_cmd = commands.add_parser(
+        "import-html-dir", help="Import a folder of HTML files you are already allowed to use."
+    )
+    html_cmd.add_argument("folder", type=Path)
+    html_cmd.add_argument("--site-url", required=True, help="URL the folder is the root of.")
+    html_cmd.add_argument("--provenance", default=None)
     commands.add_parser("crawl", help="Crawl the site configured in KEN_CRAWL_BASE_URL.")
     cms_cmd = commands.add_parser("import-cms-mock", help="Import from the mock CMS reader.")
     cms_cmd.add_argument("--site-url", required=True, help="Base URL of the mock CMS site.")
@@ -99,7 +130,9 @@ def _parser() -> argparse.ArgumentParser:
 
 def _build_source(args: argparse.Namespace, settings: Settings) -> ContentSourceProvider:
     if args.command == "import-file":
-        return build_file_source(args.path, settings)
+        return build_file_source(args.path, settings, args.provenance)
+    if args.command == "import-html-dir":
+        return build_html_dir_source(args.folder, args.site_url, args.provenance)
     if args.command == "crawl":
         return build_crawl_source(settings)
     return build_cms_mock_source(args.site_url)

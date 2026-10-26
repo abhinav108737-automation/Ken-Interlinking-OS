@@ -1,0 +1,34 @@
+{
+ "database": "ken_app@ken_offline_demo",
+ "pages": 75,
+ "plans": 56,
+ "provenance": {
+  "synthetic_base": 64,
+  "synthetic_extension": 11
+ },
+ "side_effects": {
+  "deployments": 0,
+  "deployment_items": 0,
+  "publish_attempts": 0
+ },
+ "evaluation_synthetic": {
+  "plans_judged_source": 50,
+  "labels": {
+   "good": 21,
+   "unjudged": 10,
+   "acceptable": 19
+  },
+  "precision_good_or_acceptable": "80% (40/50)",
+  "bad_rate": "0% (0/50)",
+  "critic_by_label": {
+   "acceptable/accept": 14,
+   "acceptable/reject": 5,
+   "good/accept": 19,
+   "good/reject": 2,
+   "unjudged/accept": 4,
+   "unjudged/reject": 5,
+   "unjudged/uncertain": 1
+  },
+  "bad_plans_accepted_by_critic": 0
+ }
+}

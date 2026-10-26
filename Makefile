@@ -18,7 +18,7 @@ COMPOSE          := docker compose
 export NEXT_TELEMETRY_DISABLED := 1
 
 .DEFAULT_GOAL := help
-.PHONY: help setup lock db-up db-down migrate db-roles db-roles-check pilot-db-create pilot-preflight pilot-robots pilot-crawl db-roles-test dev dev-api dev-web \
+.PHONY: help setup lock db-up db-down migrate db-roles db-roles-check pilot-db-create pilot-preflight pilot-robots pilot-crawl offline-demo offline-demo-fast offline-demo-report import-html-dir db-roles-test dev dev-api dev-web \
         test test-integration test-qdrant test-all test-live web-test lint format types \
         compose-config compose-full-up compose-full-down doctor verify openapi \
         ingest-file ingest-cms-mock crawl analyze recommend agents \
@@ -349,6 +349,21 @@ pilot-robots: ## LIVE, approval-gated: fetch ONLY robots.txt of the approved hos
 pilot-crawl: ## LIVE, approval-gated crawl. NOT run without explicit authorisation. make pilot-crawl APPROVAL=file
 	@test -n "$(APPROVAL)" || (echo 'usage: make pilot-crawl APPROVAL=pilots/kenresearch/approvals/<file>.json' >&2; exit 2)
 	$(KEEP_AWAKE) $(VENV)/python -m ken_services.inventory.pilot crawl --config $(PILOT) --approval $(APPROVAL)
+
+# ----------------------------------------------- offline interlinking demo (docs/pilot/OFFLINE_INTERLINKING_DEMO.md)
+# Synthetic corpus only (plus any folder YOU are already authorised to use). Shadow mode, mock CMS, no website.
+offline-demo: ## Full local shadow pipeline + management report (real local Ollama critic, ~12 min). ARGS=--fresh
+	$(VENV)/python evals/offline_demo/run_demo.py $(ARGS)
+
+offline-demo-fast: ## Same pipeline with the deterministic rule critic (~2 min)
+	$(VENV)/python evals/offline_demo/run_demo.py --fresh --rule-critic
+
+offline-demo-report: ## Rebuild only the report from the demo database
+	KEN_DATABASE_URL=$$($(VENV)/python -c "import sys; sys.path.insert(0,'evals/offline_demo'); import run_demo; print(run_demo.environment(False)['KEN_DATABASE_URL'])") $(VENV)/python evals/offline_demo/report.py
+
+import-html-dir: ## Import a local HTML folder you may use: make import-html-dir DIR=... SITE=https://host/ PROVENANCE=authorized_import
+	@test -n "$(DIR)" -a -n "$(SITE)" || (echo 'usage: make import-html-dir DIR=<folder> SITE=<url> [PROVENANCE=authorized_import]' >&2; exit 2)
+	$(VENV)/python -m ken_services.inventory.cli import-html-dir "$(DIR)" --site-url "$(SITE)" $(if $(PROVENANCE),--provenance $(PROVENANCE),)
 
 db-roles-check: ## Audit the live grants; non-zero if ken_app is a superuser, owns anything or can TRUNCATE/DDL
 	$(VENV)/python infrastructure/scripts/db_roles.py check

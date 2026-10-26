@@ -1,4 +1,4 @@
-"""Create the LOCAL, separate database for a public-crawl pilot (never the synthetic ones).
+"""Create a LOCAL, separate database: a crawl pilot (--config) or the offline demo (--database).
 
     .venv/bin/python infrastructure/scripts/pilot_db.py --config pilots/kenresearch/pilot-25.yaml
 
@@ -51,13 +51,20 @@ async def _create(owner_admin_url: URL, database: str) -> bool:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config", type=Path, required=True)
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument("--config", type=Path, help="a crawl pilot file (its destination database)")
+    group.add_argument("--database", help="a ken_* database name, e.g. ken_offline_demo")
     args = parser.parse_args()
-    config = load_pilot(args.config if args.config.is_absolute() else REPO / args.config)
     settings = Settings()
     owner = make_url(settings.effective_migration_database_url)
     app = make_url(settings.database_url)
-    database = config.destination.database
+    if args.database:
+        database = args.database
+    else:
+        config = load_pilot(args.config if args.config.is_absolute() else REPO / args.config)
+        database = config.destination.database
+    if not database.startswith("ken_") or database.endswith("_test") or database == "ken_interlink":
+        raise SystemExit("refusing this database name")
     target_owner = owner.set(database=database)
     db_roles.assert_safe_target(target_owner)
     created = asyncio.run(_create(owner.set(database="postgres"), database))
