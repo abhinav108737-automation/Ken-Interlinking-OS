@@ -368,6 +368,12 @@ class Settings(BaseSettings):
         description="File holding a read-only OAuth access token (mode 0600). Never logged, "
         "never in /meta, never in a job snapshot.",
     )
+    analytics_service_account_file: str | None = Field(
+        default=None,
+        description="Google service-account JSON key (mode 0600) with READ-ONLY access to the GA4 "
+        "and Search Console properties. Used instead of the token file; never logged, never in "
+        "/meta, never in a job snapshot.",
+    )
     ga4_property_id: str | None = Field(default=None, pattern=r"^[0-9]{1,20}$")
     ga4_timezone: str = Field(
         default="UTC", description="The GA4 property's time zone (its day boundaries)."
@@ -739,9 +745,17 @@ class Settings(BaseSettings):
                 raise ValueError(f"KEN_{env} must be https://{expected_host}")
             if parts.port not in {None, 443}:
                 raise ValueError(f"KEN_{env} must use the default https port")
-        if self.analytics_google_enabled and not self.analytics_google_token_file:
+        if self.analytics_google_token_file and self.analytics_service_account_file:
             raise ValueError(
-                "KEN_ANALYTICS_GOOGLE_ENABLED=true requires KEN_ANALYTICS_GOOGLE_TOKEN_FILE"
+                "set only one of KEN_ANALYTICS_GOOGLE_TOKEN_FILE and "
+                "KEN_ANALYTICS_SERVICE_ACCOUNT_FILE"
+            )
+        if self.analytics_google_enabled and not (
+            self.analytics_google_token_file or self.analytics_service_account_file
+        ):
+            raise ValueError(
+                "KEN_ANALYTICS_GOOGLE_ENABLED=true requires KEN_ANALYTICS_GOOGLE_TOKEN_FILE "
+                "or KEN_ANALYTICS_SERVICE_ACCOUNT_FILE"
             )
         return self
 

@@ -511,3 +511,21 @@ Verdict: **PASS WITH REQUIRED FIXES**, with no critical or high finding. The rev
 | I7. An all-rejected import now writes no ledger row; the attempt is recorded only as a failed job run. | Accepted: the failure reason is `file_invalid` and the run is auditable. |
 
 **Not verifiable here, by design:** real GA4 and Search Console calls (the code is asserted unable to reach them rather than tried), `make analytics-sim-serve` end to end (it needs a seeded `ken_cms_sim`; it exits cleanly and binds nothing without one), real-browser beacon behaviour (Playwright still deferred), and concurrent collector inserts under real load.
+
+
+## Amendment (2026-10-27): service-account authentication
+
+Section 12's recommendation (a pre-obtained access token in `KEN_ANALYTICS_GOOGLE_TOKEN_FILE`) stays supported. A
+second source is now available: `KEN_ANALYTICS_SERVICE_ACCOUNT_FILE`, a Google service-account JSON key (mode 0600) for a
+service account with read-only access to the GA4 property and the Search Console property. Setting both is refused.
+
+* `ken_core/providers/analytics/service_account.py` signs an RS256 JWT (scope `analytics.readonly` for GA4,
+  `webmasters.readonly` for Search Console) and exchanges it at `https://oauth2.googleapis.com/token` for a short-lived
+  access token, cached in memory per scope and refreshed two minutes before expiry. The key is re-read at each refresh.
+* The token URI in the key file is ignored (always the fixed Google host); the request is https, no redirects, no
+  proxy, bounded 3-try backoff. A bad key file, a wrong mode, an invalid PEM or a non-service-account JSON is the fixed
+  code `token_file_invalid`; Google refusing the assertion is `google_auth_failed`. No key material reaches a log, an
+  error or a snapshot.
+* Egress rules are unchanged: `KEN_ANALYTICS_GOOGLE_ENABLED` (an ASK action) must be on, and nothing but the property id and the
+  dates is sent to the data APIs. Loopback fixtures never read the key.
+* New dependency: `cryptography` (Apache-2.0 OR BSD-3-Clause), used only for the RS256 signature.

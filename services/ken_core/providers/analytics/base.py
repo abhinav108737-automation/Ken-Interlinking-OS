@@ -48,6 +48,10 @@ from ken_contracts.common import LinkId, PageId
 from ken_contracts.model import ProviderHealth
 from ken_core.config import GOOGLE_ANALYTICS_HOSTS, Settings
 from ken_core.logging import get_logger
+from ken_core.providers.analytics.service_account import (
+    ServiceAccountError,
+    ServiceAccountTokenSource,
+)
 
 __all__ = [
     "GOOGLE_RETRY_STATUSES",
@@ -235,10 +239,13 @@ class GoogleEgress:
         *,
         base_url: str,
         host_setting: str,
+        scope: str | None = None,
         transport: httpx.AsyncBaseTransport | None = None,
         sleep: Any = asyncio.sleep,
     ) -> None:
         self._settings = settings
+        self._scope = scope
+        self._token_source: ServiceAccountTokenSource | None = None
         self._base = base_url.rstrip("/")
         self._host_setting = host_setting
         self._transport = transport
@@ -278,6 +285,32 @@ class GoogleEgress:
             raise AnalyticsFetchError(FetchErrorCode.INVALID_REQUEST)
         if parts.port not in {None, 443}:
             raise AnalyticsFetchError(FetchErrorCode.INVALID_REQUEST)
+
+    async def access_token(self) -> str | None:
+        """The bearer token for THIS import: from the service-account key when
+        ``KEN_ANALYTICS_SERVICE_ACCOUNT_FILE`` is set, else from the token file. ``None`` only for
+        a loopback test fixture. Refusals are the fixed ``AnalyticsFetchError`` codes."""
+        if self._loopback_fixture():
+            return None
+        key_file = self._settings.analytics_service_account_file
+        if not key_file:
+            return self.read_token()
+        if self._scope is None:
+            raise AnalyticsFetchError(FetchErrorCode.INVALID_REQUEST)
+        if self._token_source is None:
+            self._token_source = ServiceAccountTokenSource(
+                key_file,
+                timeout_s=self._settings.analytics_google_timeout_s,
+                transport=self._transport,
+            )
+        try:
+            return await self._token_source.token(self._scope)
+        except ServiceAccountError as exc:
+            if exc.code == "key_invalid":
+                raise AnalyticsFetchError(FetchErrorCode.TOKEN_FILE_INVALID) from None
+            if exc.code == "auth_failed":
+                raise AnalyticsFetchError(FetchErrorCode.GOOGLE_AUTH_FAILED) from None
+            raise AnalyticsFetchError(FetchErrorCode.GOOGLE_UNAVAILABLE) from None
 
     def read_token(self) -> str | None:
         """The access token for THIS import, or ``None`` for a loopback fixture.
@@ -373,6 +406,9 @@ class GoogleEgress:
 
     async def aclose(self) -> None:
         self._closed = True
+        if self._token_source is not None:
+            await self._token_source.aclose()
+            self._token_source = None
         client, self._client = self._client, None
         if client is not None:
             await client.aclose()

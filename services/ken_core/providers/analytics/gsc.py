@@ -44,6 +44,7 @@ from ken_core.providers.analytics.base import (
     GoogleEgress,
     StatsBuilder,
 )
+from ken_core.providers.analytics.service_account import GSC_SCOPE
 
 __all__ = [
     "GSC_HOST_SETTING",
@@ -110,6 +111,7 @@ class SearchConsoleAnalyticsProvider(BaseAnalyticsProvider):
             settings,
             base_url=settings.analytics_gsc_base_url,
             host_setting=GSC_HOST_SETTING,
+            scope=GSC_SCOPE,
             transport=transport,
         )
         self._site = settings.gsc_site_url
@@ -139,7 +141,7 @@ class SearchConsoleAnalyticsProvider(BaseAnalyticsProvider):
             # Search Console has no link-level data: nothing to fetch, nothing sent.
             return AnalyticsBatch()
         path = self._path()
-        token = self._egress.read_token()
+        token = await self._egress.access_token()
         stats = StatsBuilder()
         page_rows: list[PageMetrics] = []
         start_row = 0

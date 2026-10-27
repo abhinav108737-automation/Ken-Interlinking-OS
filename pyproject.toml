@@ -38,6 +38,9 @@ dependencies = [
   # grpcio and protobuf (Apache-2.0 / BSD-3), numpy and portalocker (BSD-3),
   # h2 / hpack / hyperframe (MIT).
   "qdrant-client==1.19.1",
+  # Google service-account auth for the read-only GA4 / Search Console providers (RS256 signing of the
+  # token request). Apache-2.0 OR BSD-3-Clause; no network, no paid service.
+  "cryptography==50.0.2",
 ]
 
 [project.optional-dependencies]

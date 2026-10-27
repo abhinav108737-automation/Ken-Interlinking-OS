@@ -47,6 +47,7 @@ from ken_core.providers.analytics.base import (
     GoogleEgress,
     StatsBuilder,
 )
+from ken_core.providers.analytics.service_account import GA4_SCOPE
 
 __all__ = [
     "EVENT_NAMES",
@@ -109,6 +110,7 @@ class Ga4AnalyticsProvider(BaseAnalyticsProvider):
             settings,
             base_url=settings.analytics_ga4_base_url,
             host_setting=GA4_HOST_SETTING,
+            scope=GA4_SCOPE,
             transport=transport,
         )
         self._property_id = settings.ga4_property_id
@@ -173,7 +175,7 @@ class Ga4AnalyticsProvider(BaseAnalyticsProvider):
     ) -> AnalyticsBatch:
         self._egress.gate()  # before ANY I/O, and before the token file is touched
         path = self._path()
-        token = self._egress.read_token()
+        token = await self._egress.access_token()
         stats = StatsBuilder()
         link_rows: list[LinkMetrics] = []
         page_rows: list[PageMetrics] = []
