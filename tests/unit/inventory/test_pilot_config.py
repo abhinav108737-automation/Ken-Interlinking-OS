@@ -107,8 +107,24 @@ def _mutated(tmp_path: Path, mutate: Any) -> pilot.PilotConfig:
         (lambda r: r["site"].update(approved_hosts=["kenresearch.com"]), "approved"),
         (lambda r: r["site"].update(base_url="http://www.kenresearch.com/"), "https"),
         (
+            # a sitemap needs max_depth 0 (the pilot-25 file follows links at depth 3)
             lambda r: r["site"].update(sitemap_sources=["https://www.kenresearch.com/s.xml"]),
-            "sitemap",
+            "max_depth must be 0",
+        ),
+        (
+            lambda r: r["site"].update(sitemap_sources=["http://www.kenresearch.com/s.xml"]),
+            "exact https URLs",
+        ),
+        (
+            lambda r: r["site"].update(sitemap_sources=["https://www.kenresearch.com/s.txt"]),
+            "exact https URLs",
+        ),
+        (
+            lambda r: (
+                r["limits"].update(max_depth=0),
+                r["site"].update(sitemap_sources=["https://other.example/s.xml"]),
+            ),
+            "approved host",
         ),
         (lambda r: r["destination"].update(database="ken_interlink"), "synthetic"),
         (lambda r: r["destination"].update(database="ken_demo"), "synthetic"),

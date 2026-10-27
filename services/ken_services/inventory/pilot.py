@@ -51,6 +51,7 @@ REPO_ROOT: Final = Path(__file__).resolve().parents[3]
 MIN_DELAY_S: Final = 3.0
 MAX_PILOT_PAGES: Final = 500
 MAX_ROBOTS_REDIRECTS: Final = 5
+MAX_SITEMAPS: Final = 3
 SYNTHETIC_DATABASES: Final = frozenset({"ken_interlink", "ken_demo", "ken_cms_sim", "ken_pilot"})
 _HOST_RE: Final = re.compile(r"^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$")
 _PLACEHOLDER_CONTACTS: Final = ("example", "changeme", "change_me", "todo", "xxx", "invalid")
@@ -85,12 +86,27 @@ class _Site(FrozenModel):
 
     @field_validator("sitemap_sources")
     @classmethod
-    def _no_sitemaps(cls, value: tuple[str, ...]) -> tuple[str, ...]:
-        if value:
-            raise ValueError(
-                "sitemap_sources must be empty: the crawler has no sitemap reader, so no sitemap "
-                "may widen the host, robots or request limits"
-            )
+    def _sitemaps(cls, value: tuple[str, ...]) -> tuple[str, ...]:
+        """Exact, named sitemap files only (https, a .xml path, no credentials/port/fragment)."""
+        if len(value) > MAX_SITEMAPS:
+            raise ValueError(f"sitemap_sources may name at most {MAX_SITEMAPS} sitemaps")
+        for item in value:
+            parts = urlsplit(item)
+            if (
+                parts.scheme != "https"
+                or not parts.hostname
+                or parts.username
+                or parts.password
+                or parts.port not in (None, 443)
+                or parts.fragment
+                or not parts.path.lower().endswith(".xml")
+            ):
+                raise ValueError(
+                    "sitemap_sources entries must be exact https URLs of a .xml file "
+                    "(no credentials, port or fragment)"
+                )
+        if len(set(value)) != len(value):
+            raise ValueError("sitemap_sources must not repeat a sitemap")
         return value
 
 
@@ -167,6 +183,14 @@ class PilotConfig(FrozenModel):
             raise ValueError("site.base_url must carry no credentials and no custom port")
         if parts.hostname.lower() not in self.site.approved_hosts:
             raise ValueError("the base URL host must be in approved_hosts")
+        for sitemap in self.site.sitemap_sources:
+            if (urlsplit(sitemap).hostname or "").lower() not in self.site.approved_hosts:
+                raise ValueError("every sitemap must be on an approved host")
+        if self.site.sitemap_sources and self.limits.max_depth != 0:
+            raise ValueError(
+                "limits.max_depth must be 0 when sitemap_sources is set: the named sitemap is the "
+                "whole scope and links found on pages are not followed"
+            )
         return self
 
     # ---- derived ------------------------------------------------------------------
@@ -194,6 +218,7 @@ class PilotConfig(FrozenModel):
             exclude_path_globs=self.rules.exclude_path_globs,
             exclude_query_params=self.rules.exclude_query_params,
             exclude_extensions=self.rules.exclude_extensions,
+            sitemap_urls=self.site.sitemap_sources,
             render=self.politeness.render,
             browser_max_subrequests=self.politeness.browser_max_subrequests,
             max_consecutive_blocks=self.politeness.max_consecutive_blocks,
@@ -208,7 +233,7 @@ class PilotConfig(FrozenModel):
             per_page += self.politeness.browser_max_subrequests
         pages = limits.max_pages * per_page
         robots = len(self.site.approved_hosts) * (MAX_ROBOTS_REDIRECTS + 1)
-        total = pages + robots
+        total = pages + robots + len(self.site.sitemap_sources)
         return {
             "page_requests_typical_max": limits.max_pages,
             "http_requests_worst_case": total,
@@ -407,7 +432,11 @@ async def preflight(
             "status": "NOT CHECKED (live check needs approval: --live-robots)",
             "live_check_approval": robots_note if not approved_robots else "approved",
         },
-        "sitemap_sources": "none; the crawler has no sitemap reader (link-following only)",
+        "sitemap_sources": (
+            list(config.site.sitemap_sources)
+            if config.site.sitemap_sources
+            else "none (link-following from the base URL)"
+        ),
         "render": config.politeness.render,
         "limits": config.limits.model_dump(),
         "politeness": config.politeness.model_dump(),

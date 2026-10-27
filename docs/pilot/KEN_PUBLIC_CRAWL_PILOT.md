@@ -41,9 +41,12 @@ pages, http, no robots requirement, no back-off, a non-shadow mode, a wildcard h
   origin is treated as **disallowed** and no page is requested (`robots_unavailable`). (The general crawler follows
   RFC 9309 and treats a 404 as "no rules"; the pilot sets `require_robots_file` to be stricter.) `Disallow` and
   `Crawl-delay` are honoured (delay up to 60 s, never below 3 s).
-* **Sitemaps cannot bypass anything.** The crawler has no sitemap reader. `Sitemap:` lines in robots.txt are ignored,
-  `/sitemap.xml` is never requested, and the loader refuses a non-empty `sitemap_sources`. Discovery is by link
-  following inside the approved host, depth 3, 25 requests.
+* **Sitemaps cannot bypass anything.** By default the crawler has no sitemap input and discovers by following links
+  (depth 3). `pilot-sitemap-25.yaml` (ADR-0020) names ONE exact sitemap file instead: it is fetched once, only after
+  `robots.txt` allows it, on an approved host, spaced by the same limiter, with a size cap, no redirect followed and no
+  sitemap INDEX expanded. `Sitemap:` lines in robots.txt are still ignored. Its entries become the seed list, and each
+  one still passes the host, include/exclude rules, `robots.txt` and the page budget. `max_depth` must be 0 there, so
+  links found on pages are never followed.
 * **Back-off, no hammering.** Pages are never retried. `Retry-After` on 429/503 (seconds or HTTP date) pauses every
   later request by that long, up to 300 s; a longer value aborts the crawl. Three **consecutive** 403/429/5xx answers
   abort the crawl and no further request is sent. Timeouts and network errors are recorded and not retried.
@@ -182,3 +185,19 @@ corporate pages as `/about-us`, and a `/_next` path. `policies/taxonomy/taxonomy
 `KEN_TAXONOMY_PATH=policies/taxonomy/taxonomy.v2.yaml` when analysing real content. Both pilot configs now exclude
 `/_next/*`, so the approval-template hash was refreshed (`9f3cefb5...`); any approval must be written against the
 current hash.
+
+## Sitemap-seeded pilot (2026-10-27, ADR-0020)
+
+`pilots/kenresearch/pilot-sitemap-25.yaml` crawls up to 25 pages taken from
+`https://www.kenresearch.com/product-sitemap.xml?p=2` and nothing else (no home page, no link-following), rendering each
+in headless Chromium. Its configuration hash is different from `pilot-25.yaml`, so an approval for one never covers the
+other. Run it by pointing the Makefile at it:
+
+```
+make pilot-preflight PILOT=pilots/kenresearch/pilot-sitemap-25.yaml          # offline
+make pilot-robots    PILOT=pilots/kenresearch/pilot-sitemap-25.yaml APPROVAL=pilots/kenresearch/approvals/pilot-sitemap-25.json
+make pilot-crawl     PILOT=pilots/kenresearch/pilot-sitemap-25.yaml APPROVAL=pilots/kenresearch/approvals/pilot-sitemap-25.json
+```
+
+The approval file needs the scopes `live_robots_check` and `live_crawl`, your name in `approved_by`, the hosts list and an
+unexpired `expires_at`; copy `approvals/pilot-sitemap-25.TEMPLATE.json` (invalid until you complete it).

@@ -41,8 +41,10 @@ import asyncio
 import codecs
 import email.utils
 import fnmatch
+import html as html_lib
 import http.cookiejar
 import posixpath
+import re
 import time
 from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass, field
@@ -83,6 +85,16 @@ MAX_CRAWL_DELAY_S: Final = 60.0
 MAX_ROBOTS_REDIRECTS: Final = 5
 _MAX_CONTENT_LANGUAGE: Final = 100
 _FORBIDDEN_HEADERS: Final = ("cookie", "authorization", "proxy-authorization")
+SITEMAP_MEDIA_TYPES: Final = frozenset({"application/xml", "text/xml", "application/xhtml+xml"})
+# Regex, not an XML parser: nothing here can expand entities or fetch an external DTD.
+_LOC_RE: Final = re.compile(r"<loc>\s*(?:<!\[CDATA\[)?\s*(.*?)\s*(?:\]\]>)?\s*</loc>", re.I | re.S)
+_SITEMAP_INDEX_RE: Final = re.compile(r"<\s*sitemapindex\b", re.I)
+
+
+def parse_sitemap(text: str) -> tuple[bool, list[str]]:
+    """``(is_index, <loc> values in document order)`` of a sitemap document."""
+    locs = [html_lib.unescape(m.group(1)).strip() for m in _LOC_RE.finditer(text)]
+    return bool(_SITEMAP_INDEX_RE.search(text)), [loc for loc in locs if loc]
 
 
 def utc_now() -> datetime:
@@ -359,12 +371,17 @@ class PublicWebContentSource:
             raise RuntimeError("iter_records() can be consumed only once")
         self._started = True
         scope = self._scope()
-        seed = urls.normalize_url(self._config.base_url)
-        self._discovered.add(seed)
-        self._seen.add(seed)
-        self._variants[urls.path_key(seed)] = 1
-
-        level = [seed]
+        if self._config.sitemap_urls:
+            level, sitemap_issues = await self._sitemap_seeds(scope)
+            for sitemap_issue in sitemap_issues:
+                yield sitemap_issue
+        else:
+            seed = urls.normalize_url(self._config.base_url)
+            level = [seed]
+        for seed in level:
+            self._discovered.add(seed)
+            self._seen.add(seed)
+            self._variants[urls.path_key(seed)] = self._variants.get(urls.path_key(seed), 0) + 1
         depth = 0
         while level:
             chains = await self._plan_level(level, depth)
@@ -397,6 +414,117 @@ class PublicWebContentSource:
                 f"page request limit ({self._config.max_pages}) reached; "
                 f"{self._page_limited} discovered URLs were not requested",
             )
+
+    # -- sitemap seeds ------------------------------------------------------ #
+    async def _sitemap_seeds(self, scope: SiteScope) -> tuple[list[str], list[SourceIssue]]:
+        """Seed URLs from the sitemaps NAMED in the config, plus the issues met reading them.
+
+        Each sitemap is one rate-limited, guarded GET that must be in scope and allowed by
+        robots.txt; a redirect is not followed and a sitemap index is not expanded. The page rules,
+        robots check and page budget still apply to every seed afterwards.
+        """
+        seeds: list[str] = []
+        seen: set[str] = set()
+        problems: list[SourceIssue] = []
+        for raw in self._config.sitemap_urls:
+            sitemap = _normalize(raw, raw)
+            if sitemap is None or not urls.in_scope(sitemap, scope):
+                problems.append(
+                    self._issue(
+                        IssueCode.OUT_OF_SCOPE,
+                        IssueSeverity.ERROR,
+                        "sitemap URL is invalid or outside the approved hosts; not fetched",
+                        url=raw,
+                    )
+                )
+                continue
+            holder = _Chain(requested=sitemap, depth=0, current=sitemap)
+            policy = await self._robots_policy(sitemap, holder)
+            problems.extend(holder.pre)
+            if not policy.can_fetch(_path_and_query(sitemap)):
+                problems.append(
+                    self._issue(
+                        IssueCode.ROBOTS_DISALLOWED,
+                        IssueSeverity.ERROR,
+                        "sitemap disallowed by robots.txt; not fetched",
+                        url=sitemap,
+                    )
+                )
+                continue
+            result = await self._request(sitemap, self._gap_for(sitemap), self._handle_sitemap)
+            if isinstance(result, _Failure):
+                problems.append(
+                    self._issue(
+                        result.code,
+                        result.severity,
+                        f"sitemap not read: {result.message}",
+                        url=sitemap,
+                        http_status=result.http_status,
+                    )
+                )
+                continue
+            is_index, locs = parse_sitemap(_decode(result, "utf-8"))
+            if is_index:
+                problems.append(
+                    self._issue(
+                        IssueCode.LIMIT_REACHED,
+                        IssueSeverity.WARNING,
+                        "this is a sitemap INDEX; child sitemaps are not followed (name the exact "
+                        "sitemap URL instead)",
+                        url=sitemap,
+                    )
+                )
+                continue
+            kept = 0
+            for loc in locs:
+                url = _normalize(loc, sitemap)
+                if url is None or url in seen or not urls.in_scope(url, scope):
+                    continue
+                seen.add(url)
+                seeds.append(url)
+                kept += 1
+            problems.append(
+                self._issue(
+                    IssueCode.LIMIT_REACHED,
+                    IssueSeverity.INFO,
+                    f"sitemap read: {len(locs)} entries, {kept} in scope",
+                    url=sitemap,
+                )
+            )
+        return seeds, problems
+
+    async def _handle_sitemap(self, response: httpx.Response) -> bytes | _Failure:
+        status = response.status_code
+        if not 200 <= status < 300:
+            return _Failure(
+                IssueCode.HTTP_ERROR,
+                IssueSeverity.ERROR,
+                f"unexpected HTTP status {status} (redirects are not followed)",
+                _http_status(status),
+            )
+        media = _media_type(response.headers.get("content-type"))
+        if media not in SITEMAP_MEDIA_TYPES:
+            return _Failure(
+                IssueCode.NON_HTML, IssueSeverity.ERROR, f"not XML ({media or 'no content type'})"
+            )
+        if _is_encoded(response):
+            return _Failure(
+                IssueCode.TOO_LARGE,
+                IssueSeverity.ERROR,
+                "unsolicited Content-Encoding refused (identity was requested)",
+            )
+        limit = self._config.sitemap_max_bytes
+        declared = _content_length(response)
+        if declared is not None and declared > limit:
+            return _Failure(IssueCode.TOO_LARGE, IssueSeverity.ERROR, f"larger than {limit} bytes")
+        body = bytearray()
+        async for chunk in _raw_chunks(response):
+            body.extend(chunk)
+            if len(body) > limit:
+                return _Failure(
+                    IssueCode.TOO_LARGE, IssueSeverity.ERROR, f"larger than {limit} bytes"
+                )
+        return bytes(body)
 
     # -- planning and fetching -------------------------------------------- #
     def _scope(self) -> SiteScope:

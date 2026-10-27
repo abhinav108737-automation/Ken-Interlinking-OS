@@ -351,6 +351,21 @@ class CrawlConfig(FrozenModel):
         ),
     )
 
+    sitemap_urls: tuple[str, ...] = Field(
+        default=(),
+        max_length=5,
+        description=(
+            "Exact sitemap URLs to read for the seed list. Empty = discover by following "
+            "links from base_url. A named sitemap is fetched once (robots.txt, host scope, "
+            "rate limit and size cap apply, no redirect is followed) and its <loc> entries "
+            "replace base_url as the seeds. A sitemap INDEX is never expanded: only the "
+            "sitemaps named here are read."
+        ),
+    )
+    sitemap_max_bytes: int = Field(
+        default=10_000_000, ge=1024, le=50_000_000, description="Per-sitemap body cap."
+    )
+
     @field_validator("base_url")
     @classmethod
     def _base_url_is_plain_http(cls, value: str) -> str:
