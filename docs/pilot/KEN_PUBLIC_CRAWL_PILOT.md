@@ -173,3 +173,12 @@ never covers it.
 4. robots.txt of `www.kenresearch.com` **has not been read**; its rules, crawl-delay and any bot restrictions are
    unknown. The exclude patterns above are untested against the real site structure.
 5. The www/apex redirect and canonical behaviour is **unverified**; the apex stays unapproved until it is.
+
+## Real URL layout and taxonomy v2 (2026-10-27)
+
+The operator's own GA4 and Search Console paths show reports as top-level `-market` slugs, articles under `/articles/`,
+corporate pages as `/about-us`, and a `/_next` path. `policies/taxonomy/taxonomy.v2.yaml` classifies these correctly
+(page-type rules only; markets and entities are unchanged seed data). It is not the default: select it with
+`KEN_TAXONOMY_PATH=policies/taxonomy/taxonomy.v2.yaml` when analysing real content. Both pilot configs now exclude
+`/_next/*`, so the approval-template hash was refreshed (`9f3cefb5...`); any approval must be written against the
+current hash.

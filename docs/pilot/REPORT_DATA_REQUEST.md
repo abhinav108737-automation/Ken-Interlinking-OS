@@ -11,6 +11,20 @@ ourselves, so those are not part of this request.
 approve, and it returns page text rather than the CMS's own fields. An export or read-only API gives complete content with
 no load on the site. If neither is possible, we ask for approval of a small, throttled crawl instead (option C).
 
+## What we already know about the site (from our own analytics)
+
+Read-only GA4 and Search Console reads (7 days, 2026-10-18 to 2026-10-24) returned about 37,000 GA4 page-day rows and
+about 35,000 Search Console page-day rows. That is thousands of live pages, so the pilot sample (200-500) is a small
+slice. The page paths show this layout, which we would like you to confirm or correct:
+
+* **Reports** are top-level slugs, usually ending in `-market`: `/africa-chia-seeds-market`, `/africa-construction-market`.
+* **Articles** live under `/articles/`: `/articles/egypt-gypsum-board-export-growth-opportunity`.
+* **Corporate pages** such as `/about-us`.
+* A `/_next` path appears, which suggests the site is built with Next.js.
+
+Please say whether pages are **server-rendered** (the article text is in the HTML the server sends) or built in the
+browser. This decides whether a crawl needs a headless browser and whether an HTML export is complete.
+
 ## Options, in order of preference
 
 | | Option | What we need from you |
@@ -42,10 +56,10 @@ improve relevance and cost nothing to export.
 
 ```json
 {"format": "ken-inventory-export", "version": 1, "site_url": "https://www.kenresearch.com/", "allowed_hosts": [], "exported_at": "2026-11-01T00:00:00Z", "generator": "cms-export"}
-{"url": "https://www.kenresearch.com/reports/india-ev-market", "external_id": "1234", "page_type": "report", "title": "India EV Market", "meta_description": "...", "publication_state": "published", "language": "en", "canonical_url": "https://www.kenresearch.com/reports/india-ev-market", "published_at": "2025-06-01T09:00:00Z", "modified_at": "2026-10-01T09:00:00Z", "metadata": {"region": "India", "industry": "Automotive", "cms_protected": "false"}, "body_html": "<main>...</main>"}
+{"url": "https://www.kenresearch.com/india-ev-market", "external_id": "1234", "page_type": "report", "title": "India EV Market", "meta_description": "...", "publication_state": "published", "language": "en", "canonical_url": "https://www.kenresearch.com/india-ev-market", "published_at": "2025-06-01T09:00:00Z", "modified_at": "2026-10-01T09:00:00Z", "metadata": {"region": "India", "industry": "Automotive", "cms_protected": "false"}, "body_html": "<main>...</main>"}
 ```
 
-A folder of HTML files (one per page, `reports/india-ev-market.html` -> `/reports/india-ev-market`) also works if JSONL is
+A folder of HTML files (one per page, `india-ev-market.html` -> `/india-ev-market`) also works if JSONL is
 awkward. Full specification: `docs/CONTRACTS.md` section 13. A working example: `tests/fixtures/offline_demo/synthetic_extension.jsonl`.
 
 ## Scope, volume and handling
@@ -65,6 +79,7 @@ awkward. Full specification: `docs/CONTRACTS.md` section 13. A working example: 
 
 1. Which option (A, B or C) can you provide, and by when?
 2. Is `www.kenresearch.com` the canonical host, and what does `kenresearch.com` do?
-3. Which page types and URL patterns exist (report, insight, hub, country, sector, landing), and which are gated or licensed?
+3. Which page types and URL patterns exist (report, insight, hub, country, sector, landing), and which are gated or licensed? Is the layout above right (top-level `-market` report slugs, `/articles/`)?
 4. Is there a "protected" or "do not edit" flag in the CMS?
-5. If C: the allowed rate, hours, the bot contact mailbox and the egress IP to allow-list.
+5. Are pages server-rendered, and is the site built with Next.js?
+6. If C: the allowed rate, hours, the bot contact mailbox and the egress IP to allow-list.

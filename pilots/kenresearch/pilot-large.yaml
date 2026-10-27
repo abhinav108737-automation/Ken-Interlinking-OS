@@ -76,6 +76,7 @@ rules:
     - "/*/feed*"
     - "/xmlrpc*"
     - "/cdn-cgi/*"
+    - "/_next/*"
     # downloadable / licensed report material
     - "/download*"
     - "/*/download*"
