@@ -48,6 +48,11 @@ dev = [
   "ruff==0.17.0",
   "mypy>=1.18,<1.19",
 ]
+# Headless-browser page rendering for the public crawler (TRD "Playwright first"). Apache-2.0; it
+# downloads its own Chromium build with `python -m playwright install chromium`.
+browser = [
+  "playwright==1.64.1",
+]
 
 # ---------------------------------------------------------------------------
 # Multi-root package discovery.
@@ -130,5 +135,6 @@ markers = [
   "integration: requires a reachable PostgreSQL database (auto-skips when absent)",
   "live: requires a reachable live Ollama daemon (opt-in via KEN_RUN_LIVE_OLLAMA=1; make test-live)",
   "qdrant: requires the REAL Qdrant container (make test-qdrant fails, not skips, when it is down)",
+  "browser: needs Playwright + Chromium; skips when absent (python -m playwright install chromium)",
 ]
 filterwarnings = ["error::DeprecationWarning:ken_.*"]

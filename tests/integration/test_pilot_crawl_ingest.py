@@ -20,7 +20,7 @@ async def test_the_pilot_fixture_crawl_stores_only_the_approved_host(sessionmake
     fake = site.time
     assert fake is not None
     source = PublicWebContentSource(
-        config.crawl_config(CONTACT),
+        config.crawl_config(CONTACT).model_copy(update={"render": "http"}),
         transport=site.transport(),
         sleep=fake.sleep,
         monotonic=fake.monotonic,

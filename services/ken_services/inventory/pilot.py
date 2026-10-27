@@ -111,6 +111,8 @@ class _Limits(FrozenModel):
 
 
 class _Politeness(FrozenModel):
+    render: Literal["http", "browser"] = "http"
+    browser_max_subrequests: int = Field(default=15, ge=0, le=30)
     https_only: Literal[True]
     require_robots_file: Literal[True]
     max_consecutive_blocks: int = Field(ge=1, le=10)
@@ -192,6 +194,8 @@ class PilotConfig(FrozenModel):
             exclude_path_globs=self.rules.exclude_path_globs,
             exclude_query_params=self.rules.exclude_query_params,
             exclude_extensions=self.rules.exclude_extensions,
+            render=self.politeness.render,
+            browser_max_subrequests=self.politeness.browser_max_subrequests,
             max_consecutive_blocks=self.politeness.max_consecutive_blocks,
             max_retry_after_s=self.politeness.max_retry_after_s,
         )
@@ -199,7 +203,10 @@ class PilotConfig(FrozenModel):
     def request_ceiling(self) -> dict[str, int | float]:
         """Worst-case HTTP requests and the shortest time they need at the configured spacing."""
         limits = self.limits
-        pages = limits.max_pages * (limits.max_redirects + 1)
+        per_page = limits.max_redirects + 1
+        if self.politeness.render == "browser":  # plus the same-host scripts a page may load
+            per_page += self.politeness.browser_max_subrequests
+        pages = limits.max_pages * per_page
         robots = len(self.site.approved_hosts) * (MAX_ROBOTS_REDIRECTS + 1)
         total = pages + robots
         return {
@@ -353,6 +360,10 @@ async def preflight(
         blockers.append(f"KEN_CMS_PROVIDER is {settings.cms_provider!r}; a pilot requires 'mock'")
     if settings.vector_store != "qdrant":
         blockers.append("KEN_VECTOR_STORE is not 'qdrant'")
+    if config.politeness.render == "browser":
+        missing = _browser_problem()
+        if missing:
+            blockers.append(missing)
     seed = urls.normalize_url(config.site.base_url)
     probe = config.crawl_config(contact or "placeholder@invalid.invalid")
     # the seed must pass its own rules
@@ -397,6 +408,7 @@ async def preflight(
             "live_check_approval": robots_note if not approved_robots else "approved",
         },
         "sitemap_sources": "none; the crawler has no sitemap reader (link-following only)",
+        "render": config.politeness.render,
         "limits": config.limits.model_dump(),
         "politeness": config.politeness.model_dump(),
         "rules": config.rules.model_dump(),
@@ -411,6 +423,27 @@ async def preflight(
         },
         "blockers": blockers,
     }
+
+
+def _browser_problem() -> str | None:
+    """Why browser rendering cannot start here. Looks at the filesystem only: it starts nothing
+    and opens no socket (the Playwright driver must not run inside the preflight)."""
+    import importlib.util
+    import os
+    import sys
+
+    if importlib.util.find_spec("playwright") is None:
+        return "render is 'browser' but Playwright is not installed (pip install 'playwright')"
+    override = os.environ.get("PLAYWRIGHT_BROWSERS_PATH")
+    if override:
+        root = Path(override)
+    elif sys.platform == "darwin":
+        root = Path.home() / "Library" / "Caches" / "ms-playwright"
+    else:
+        root = Path.home() / ".cache" / "ms-playwright"
+    if root.is_dir() and any(root.glob("chromium*")):
+        return None
+    return "render is 'browser' but Chromium is missing (python -m playwright install chromium)"
 
 
 def _not_approved(config: PilotConfig) -> list[str]:
@@ -453,7 +486,9 @@ async def live_robots(config: PilotConfig, contact: str) -> list[dict[str, Any]]
     return report
 
 
-async def run_crawl(config: PilotConfig, settings: Settings, contact: str) -> dict[str, Any]:
+async def run_crawl(
+    config: PilotConfig, settings: Settings, contact: str, screenshots: Path | None = None
+) -> dict[str, Any]:
     from ken_core.db.engine import create_engine
     from ken_core.db.session import create_sessionmaker
     from ken_services.inventory.ingest import run_ingestion
@@ -461,7 +496,7 @@ async def run_crawl(config: PilotConfig, settings: Settings, contact: str) -> di
 
     pilot_settings = settings.model_copy(update={"database_url": destination_url(settings, config)})
     engine = create_engine(pilot_settings)
-    source = PublicWebContentSource(config.crawl_config(contact))
+    source = PublicWebContentSource(config.crawl_config(contact), screenshot_dir=screenshots)
     try:
         detail = await run_ingestion(source=source, sessionmaker=create_sessionmaker(engine))
     finally:
@@ -487,6 +522,10 @@ def _parser() -> argparse.ArgumentParser:
         command = sub.add_parser(name, help=helptext)
         command.add_argument("--config", type=Path, required=True)
         command.add_argument("--approval", type=Path, default=None)
+        if name == "crawl":
+            command.add_argument(
+                "--screenshots", type=Path, default=None, help="save a full-page PNG per page here"
+            )
         if name == "preflight":
             command.add_argument("--live-robots", action="store_true")
     return parser
@@ -541,7 +580,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         return EXIT_BLOCKED
     if contact is None:  # unreachable: reported above; keeps the type narrow without assert
         return EXIT_BLOCKED
-    result = asyncio.run(run_crawl(config, settings, contact))
+    result = asyncio.run(run_crawl(config, settings, contact, args.screenshots))
     print(json.dumps(result, sort_keys=True))
     return EXIT_OK if result["status"] == "succeeded" else EXIT_BLOCKED
 

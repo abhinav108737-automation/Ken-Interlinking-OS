@@ -1,7 +1,14 @@
 # Ken Research public-site crawl pilot (read-only)
 
-Status: **PREPARED. NO LIVE REQUEST HAS BEEN SENT.** Nothing in this repository crawls `kenresearch.com` until the
-operator supplies a signed-off approval file for the exact configuration (section 4).
+Status: **PREPARED.** The pilot crawler renders pages with Playwright/Chromium (section 2a). A live run still requires
+the operator's signed-off approval file for the exact configuration (section 4). **Incident, 2026-10-26:** while this
+browser mode was being added, two unit tests drove the shipped pilot configuration with a mock transport that the
+browser ignored, so Chromium made REAL requests to `https://www.kenresearch.com/` (about 65 s of 3-second-spaced
+page loads, up to 25 pages, honest user-agent with a placeholder contact, and **without reading the real robots.txt**,
+because robots came from the mock). Nothing was stored (unit tests write no database), but it was unapproved live
+traffic. Fixed: browser mode now refuses an injected transport and runs only with the SSRF guard, tests that use
+mocks force `render: http`, and an autouse fixture blocks any real browser start outside `@pytest.mark.browser` tests,
+which use only local loopback sites.
 
 Written for: the operator who will authorise and run the pilot.
 
@@ -63,6 +70,25 @@ pages, http, no robots requirement, no back-off, a non-shadow mode, a wildcard h
   `ken_interlink`, `ken_demo`, `ken_cms_sim`, any `*_test` database and the `ken_pages` collection; the preflight
   blocks if the destination already holds pages from any other host (for example `research.example.com`).
 
+## 2a. Browser rendering (Playwright)
+
+`politeness.render: browser` in both pilot files. Chromium is only a **transport**: for every request a page makes
+(the document and same-host `script` / `xhr` / `fetch`) the crawler's own gate runs first (https, approved host,
+robots.txt, SSRF guard), the request goes through the shared 3-second limiter, and the browser is never allowed to follow
+a redirect itself (a 3xx aborts the navigation and the crawler checks the hop). Images, fonts, stylesheets, iframes,
+media and third-party code are never loaded; at most 15 same-host subrequests per page; each page gets a fresh context
+with no cookies, storage, service workers or downloads; the user-agent stays the honest `KenInterlinkBot` one (no stealth,
+no browser impersonation). If the page navigates itself away, that is a failure, not a follow. Limits: the DNS check
+replaces the HTTP path's connected-peer check, and a body is buffered before the size cap applies.
+
+Setup (once): `.venv/bin/pip install "playwright==1.64.1"` (or `pip install -e ".[browser]"`), then
+`.venv/bin/python -m playwright install chromium`. `make pilot-preflight` blocks if either is missing.
+Optional audit images: `--screenshots DIR` on the crawl saves one full-page PNG per page.
+Tests: `make test-browser` (loopback fixtures only).
+
+Request ceiling for 25 pages: 25 x (3 redirect hops + 1 + 15 scripts) + 6 robots = **481 requests worst case** (typically
+about 26 to 60), at least 78 s and at most 24 minutes of spacing.
+
 ## 3. Operator steps up to the approval point (none contacts the site)
 
 ```bash
@@ -79,8 +105,8 @@ make pilot-preflight
 
 Exit code 0 means no blockers. The report prints `config_sha256`: the approval file must quote it.
 
-For the 25-page pilot the request ceiling is **106 HTTP requests worst case** (25 pages x up to 4 hops, plus up to 6
-robots.txt fetches), typically 26, and at least 78 s of spacing (318 s worst case).
+For the 25-page pilot the request ceiling is **481 HTTP requests worst case** in browser mode (section 2a), typically a
+few dozen, and at least 78 s of spacing.
 
 ## 4. Approval (this is the explicit authorisation step)
 
@@ -88,7 +114,7 @@ Create `pilots/kenresearch/approvals/pilot-25.json` (gitignored). Nothing ships 
 
 ```json
 {
-  "config_sha256": "<value printed by make pilot-preflight>",
+  "config_sha256": "<value printed by make pilot-preflight>",   // 7c9abb1a... for the current browser-mode file
   "scopes": ["live_robots_check", "live_crawl"],
   "hosts": ["www.kenresearch.com"],
   "approved_by": "<name of the person authorising>",

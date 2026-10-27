@@ -47,6 +47,7 @@ import time
 from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any, Final
 from urllib.parse import urlsplit
 
@@ -73,6 +74,7 @@ from ken_services.inventory.robots import (
     disallow_all,
     parse_robots,
 )
+from ken_services.inventory.sources.browser_render import BrowserRenderer, RenderResult
 
 ACCEPT: Final = "text/html,application/xhtml+xml;q=0.9,*/*;q=0.1"
 HTML_MEDIA_TYPES: Final = frozenset({"text/html", "application/xhtml+xml"})
@@ -297,8 +299,11 @@ class PublicWebContentSource:
         monotonic: Callable[[], float] = time.monotonic,
         guard: NetworkGuard | None = None,
         allow_private_networks: bool = False,
+        screenshot_dir: Path | None = None,
     ) -> None:
         self._config = config
+        self._screenshot_dir = screenshot_dir
+        self._renderer: BrowserRenderer | None = None
         # SSRF guard (ken_core.net). Always on for real network I/O. With an injected
         # in-memory transport no socket is ever opened, so there is nothing to guard.
         self._guard: NetworkGuard | None = guard or (
@@ -342,6 +347,9 @@ class PublicWebContentSource:
 
     async def aclose(self) -> None:
         self._closed = True
+        if self._renderer is not None:
+            renderer, self._renderer = self._renderer, None
+            await renderer.close()
         if self._client is not None:
             client, self._client = self._client, None
             await client.aclose()
@@ -593,7 +601,135 @@ class PublicWebContentSource:
         return gap
 
     async def _fetch_page(self, url: str) -> _PageResult:
+        if self._config.render == "browser":
+            return await self._fetch_page_browser(url)
         return await self._request(url, self._gap_for(url), self._handle_page)
+
+    # -- browser rendering -------------------------------------------------- #
+    async def _browser_gate(self, url: str, is_document: bool) -> str | None:
+        """Refusal reason for ONE browser request, or None. Applied to the document and to every
+        subresource, so the page cannot reach anything the HTTP crawler could not."""
+        normalized = _normalize(url, url)
+        if normalized is None:
+            return "invalid url"
+        if not normalized.startswith("https:") and self._config.https_only:
+            return "not https"
+        if not urls.in_scope(normalized, self._scope()):
+            return "outside the approved hosts"
+        if is_document:
+            reason = self._rule_reason(normalized)
+            if reason is not None:
+                return reason
+        if self._guard is not None:
+            try:
+                await self._guard.check_url(normalized)
+            except UnsafeDestinationError as exc:
+                return f"network guard ({exc.code})"
+        policy = self._robots.get(_origin(normalized))
+        if policy is None:
+            return "robots.txt not loaded for this origin"
+        if not policy.can_fetch(_path_and_query(normalized)):
+            return "disallowed by robots.txt"
+        return None
+
+    def _get_renderer(self) -> BrowserRenderer:
+        if self._closed:
+            raise RuntimeError("source is closed")
+        if self._transport is not None or self._guard is None:
+            # An injected in-memory transport (tests) has no sockets, but a browser would open real
+            # ones: browser mode is never combined with it, and never runs without the SSRF guard.
+            raise RuntimeError("browser rendering requires the real network path and the guard")
+        if self._renderer is None:
+            self._renderer = BrowserRenderer(
+                user_agent=self._config.user_agent,
+                timeout_s=self._config.timeout_s,
+                max_bytes=self._config.max_bytes,
+                max_subrequests=self._config.browser_max_subrequests,
+                gate=self._browser_gate,
+                pace=self._browser_pace,
+                on_status=self._note_status,
+                screenshot_dir=self._screenshot_dir,
+            )
+        return self._renderer
+
+    async def _browser_pace(self) -> None:
+        if self._aborted is not None:
+            raise RuntimeError("crawl aborted")
+        await self._limiter.wait(self._config.delay_s)
+
+    async def _fetch_page_browser(self, url: str) -> _PageResult:
+        async with self._semaphore:
+            if self._aborted is not None:
+                return _Failure(
+                    IssueCode.LIMIT_REACHED,
+                    IssueSeverity.INFO,
+                    "not requested: the crawl was aborted",
+                )
+            renderer = self._get_renderer()  # misconfiguration fails the run loudly
+            try:
+                # robots.txt of the origin must already be known (plan level fetched it)
+                result = await renderer.render(url)
+            except RuntimeError:
+                return _Failure(
+                    IssueCode.LIMIT_REACHED,
+                    IssueSeverity.INFO,
+                    "not requested: the crawl was aborted",
+                )
+            return self._from_render(result)
+
+    def _from_render(self, result: RenderResult) -> _PageResult:
+        if result.kind == "redirect":
+            return _Redirect(result.status, result.location)
+        if result.kind == "page":
+            return _Page(
+                status=result.status,
+                content_type=result.content_type,
+                content_language=result.content_language,
+                html=result.html,
+            )
+        status = _http_status(result.status) if result.status else None
+        match result.failure:
+            case "timeout":
+                return _Failure(IssueCode.TIMEOUT, IssueSeverity.ERROR, "browser render timed out")
+            case "too_large":
+                return _Failure(
+                    IssueCode.TOO_LARGE,
+                    IssueSeverity.WARNING,
+                    f"response larger than {self._config.max_bytes} bytes",
+                    status,
+                )
+            case "non_html":
+                return _Failure(
+                    IssueCode.NON_HTML,
+                    IssueSeverity.INFO,
+                    f"not HTML ({result.content_type or 'no content type'}); skipped",
+                    status,
+                )
+            case "status":
+                if result.status == 404:
+                    return _Failure(
+                        IssueCode.HTTP_NOT_FOUND, IssueSeverity.WARNING, "not found", 404
+                    )
+                if result.status == 410:
+                    return _Failure(IssueCode.HTTP_GONE, IssueSeverity.WARNING, "gone", 410)
+                return _Failure(
+                    IssueCode.HTTP_ERROR,
+                    IssueSeverity.ERROR,
+                    f"unexpected HTTP status {result.status}",
+                    status,
+                )
+            case "refused":
+                return _Failure(
+                    IssueCode.OUT_OF_SCOPE,
+                    IssueSeverity.WARNING,
+                    f"browser request refused ({result.location})",
+                )
+            case _:
+                return _Failure(
+                    IssueCode.NETWORK_ERROR,
+                    IssueSeverity.ERROR,
+                    "browser navigation failed or the page redirected itself",
+                )
 
     async def _handle_page(self, response: httpx.Response) -> _PageResult:
         status = response.status_code

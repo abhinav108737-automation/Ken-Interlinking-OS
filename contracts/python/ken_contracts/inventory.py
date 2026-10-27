@@ -318,6 +318,20 @@ class CrawlConfig(FrozenModel):
         default=(),
         description="Path extensions (with the dot) that are never requested, e.g. .pdf.",
     )
+    render: Literal["http", "browser"] = Field(
+        default="http",
+        description=(
+            "'browser' renders each page in headless Chromium (Playwright) so JavaScript-built "
+            "content is captured. Every request the page makes is gated, paced and "
+            "redirect-checked like an HTTP fetch (see sources/browser_render.py)."
+        ),
+    )
+    browser_max_subrequests: int = Field(
+        default=15,
+        ge=0,
+        le=100,
+        description="Browser mode: same-host script/xhr/fetch requests allowed per page.",
+    )
     max_consecutive_blocks: int = Field(
         default=0,
         ge=0,

@@ -26,6 +26,11 @@ CONTACT = "inventory@pilot-fixture.test"
 HOST = "https://www.kenresearch.com"
 
 
+def _offline(crawl: Any) -> Any:
+    """Tests drive a MockTransport, which only the HTTP path can use: browser mode needs sockets."""
+    return crawl.model_copy(update={"render": "http"})
+
+
 def _raw(path: Path = PILOT25) -> dict[str, Any]:
     loaded = yaml.safe_load(path.read_text())
     assert isinstance(loaded, dict)
@@ -232,8 +237,10 @@ async def test_preflight_reports_everything_without_touching_the_network(
     assert "none" in report["sitemap_sources"]
     assert report["limits"]["max_pages"] == 25
     assert report["autonomy_mode"] == "shadow"
-    assert report["request_ceiling"]["http_requests_worst_case"] == 25 * 4 + 6
-    assert report["request_ceiling"]["minimum_seconds_worst_case"] >= 3.0 * 106
+    assert report["render"] == "browser"
+    # 25 pages x (3 redirects + 1 + up to 15 same-host scripts) + 6 robots fetches
+    assert report["request_ceiling"]["http_requests_worst_case"] == 25 * 19 + 6
+    assert report["request_ceiling"]["minimum_seconds_worst_case"] >= 3.0 * 481
     assert report["destination"]["database"] == "ken_kenresearch_pilot"
     assert report["approvals"]["live_crawl"].startswith("required")
     assert report["blockers"] == []
@@ -336,7 +343,7 @@ async def test_the_full_pilot_workflow_on_a_fixture_site() -> None:
     fake = site.time
     assert fake is not None
     source = PublicWebContentSource(
-        config.crawl_config(CONTACT),
+        _offline(config.crawl_config(CONTACT)),
         transport=site.transport(),
         sleep=fake.sleep,
         monotonic=fake.monotonic,
@@ -383,7 +390,9 @@ async def test_the_full_pilot_workflow_on_a_fixture_site() -> None:
 async def test_a_forbidden_robots_txt_stops_the_pilot_before_any_page() -> None:
     config = pilot.load_pilot(PILOT25)
     site = MockSite({f"{HOST}/robots.txt": (403, {}, "forbidden"), f"{HOST}/": html()})
-    source = PublicWebContentSource(config.crawl_config(CONTACT), transport=site.transport())
+    source = PublicWebContentSource(
+        _offline(config.crawl_config(CONTACT)), transport=site.transport()
+    )
     try:
         records = [r async for r in source.iter_records()]
     finally:
@@ -403,7 +412,7 @@ async def test_a_blocked_site_is_left_alone_after_three_answers() -> None:
     fake = site.time
     assert fake is not None
     source = PublicWebContentSource(
-        config.crawl_config(CONTACT),
+        _offline(config.crawl_config(CONTACT)),
         transport=site.transport(),
         sleep=fake.sleep,
         monotonic=fake.monotonic,

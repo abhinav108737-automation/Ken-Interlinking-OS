@@ -18,7 +18,7 @@ COMPOSE          := docker compose
 export NEXT_TELEMETRY_DISABLED := 1
 
 .DEFAULT_GOAL := help
-.PHONY: help setup lock db-up db-down migrate db-roles db-roles-check pilot-db-create pilot-preflight pilot-robots pilot-crawl offline-demo offline-demo-fast offline-demo-report import-html-dir db-roles-test dev dev-api dev-web \
+.PHONY: help setup lock db-up db-down migrate db-roles db-roles-check pilot-db-create pilot-preflight pilot-robots pilot-crawl test-browser offline-demo offline-demo-fast offline-demo-report import-html-dir db-roles-test dev dev-api dev-web \
         test test-integration test-qdrant test-all test-live web-test lint format types \
         compose-config compose-full-up compose-full-down doctor verify openapi \
         ingest-file ingest-cms-mock crawl analyze recommend agents \
@@ -364,6 +364,9 @@ offline-demo-report: ## Rebuild only the report from the demo database
 import-html-dir: ## Import a local HTML folder you may use: make import-html-dir DIR=... SITE=https://host/ PROVENANCE=authorized_import
 	@test -n "$(DIR)" -a -n "$(SITE)" || (echo 'usage: make import-html-dir DIR=<folder> SITE=<url> [PROVENANCE=authorized_import]' >&2; exit 2)
 	$(VENV)/python -m ken_services.inventory.cli import-html-dir "$(DIR)" --site-url "$(SITE)" $(if $(PROVENANCE),--provenance $(PROVENANCE),)
+
+test-browser: ## Playwright/Chromium crawler tests (loopback fixtures only; skips if Chromium is missing)
+	$(VENV)/pytest -m browser tests/unit/inventory/test_browser_render.py
 
 db-roles-check: ## Audit the live grants; non-zero if ken_app is a superuser, owns anything or can TRUNCATE/DDL
 	$(VENV)/python infrastructure/scripts/db_roles.py check
