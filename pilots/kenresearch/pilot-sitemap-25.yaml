@@ -33,7 +33,7 @@ limits:
   concurrency: 1
   delay_s: 3.0             # minimum gap between request starts, robots.txt included
   max_depth: 0             # required to be 0 with sitemap_sources: the sitemap is the whole scope
-  timeout_s: 20
+  timeout_s: 60
   max_bytes: 3000000
   max_redirects: 3
   max_query_variants_per_path: 3
@@ -45,7 +45,7 @@ politeness:
   # host, robots.txt and the SSRF guard, paced by the same 3 s limiter, never follows a redirect on its
   # own, and loads no images, fonts, stylesheets, iframes or third-party code.
   render: browser
-  browser_max_subrequests: 15
+  browser_max_subrequests: 8
   require_robots_file: true       # robots.txt must answer 2xx; a 404 or 403 is NOT "allow all"
   max_consecutive_blocks: 3       # abort after 3 consecutive 403/429/5xx answers
   max_retry_after_s: 300          # honour Retry-After up to 5 minutes; a longer one aborts
