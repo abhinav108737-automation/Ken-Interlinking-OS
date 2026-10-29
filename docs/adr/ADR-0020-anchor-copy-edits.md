@@ -108,6 +108,11 @@ New plan kind, contract and migration, new invariants, a generalised splice, new
 a v2 policy, UI diff support in the review screens, and tests for every new endpoint. A realistic
 estimate is one full phase of work.
 
+> **2026-10-29 update:** the owner widened the scope beyond the single word "market". Decision 2
+> and the resolution of decision 4 below are **superseded by [ADR-0023](ADR-0023-contextual-copy-with-links.md)**
+> once that is accepted. Decision 3 (`operator_admin` only) stands. The text below is kept as the
+> record of what was decided on 2026-10-28.
+
 ## Owner answers (2026-10-28)
 
 1. **Editing published copy is in scope.** Yes.
