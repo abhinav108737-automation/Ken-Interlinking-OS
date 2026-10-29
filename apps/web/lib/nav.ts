@@ -14,15 +14,23 @@ export interface NavLink {
   readonly requires?: Permission;
 }
 
+/**
+ * Operations first (ADR-0018 §5): the console's job is monitoring, exception
+ * handling and administration, so Autonomy and Blocked actions sit next to the
+ * dashboard and "Recommendations" is a monitoring list rather than an inbox.
+ */
 export const NAV_LINKS: readonly NavLink[] = [
   { href: "/", label: "Dashboard" },
+  { href: "/autonomy", label: "Autonomy" },
+  { href: "/autonomy/blocked", label: "Blocked" },
+  { href: "/recommendations", label: "Recommendations" },
+  { href: "/deployments", label: "Deployments" },
   { href: "/inventory", label: "Inventory" },
   { href: "/inventory/runs", label: "Runs" },
   { href: "/intelligence", label: "Intelligence" },
-  { href: "/recommendations", label: "Recommendations" },
   { href: "/agents", label: "Agents" },
-  { href: "/deployments", label: "Deployments" },
   { href: "/analytics", label: "Analytics" },
+  { href: "/learning", label: "Learning" },
   { href: "/jobs", label: "Jobs" },
   { href: "/audit/reviews", label: "Audit", requires: "read_audit" },
   { href: "/settings/policies", label: "Settings", requires: "read_settings" },

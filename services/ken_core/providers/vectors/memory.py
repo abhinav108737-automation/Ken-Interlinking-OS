@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import time
 import uuid
-from collections.abc import Sequence
+from collections.abc import AsyncIterator, Sequence
 from datetime import UTC, datetime
 from typing import Final
 
@@ -26,13 +26,13 @@ from ken_contracts.vectors import (
     RebuildReport,
     UpsertResult,
     VectorDistance,
-    VectorFilters,
     VectorHit,
     VectorPoint,
     VectorQuery,
     VectorStoreError,
     cosine_similarity,
 )
+from ken_core.providers.vectors.base import PointRef, point_matches, ref_of, sort_hits
 
 __all__ = ["NAME", "MemoryVectorStore"]
 
@@ -109,6 +109,10 @@ class MemoryVectorStore:
         updated = 0
         skipped = 0
         for point in points:
+            if not any(component != 0.0 for component in point.vector):
+                # A zero vector has no direction under cosine; the Qdrant store skips it too.
+                skipped += 1
+                continue
             if self._vector_size is not None and len(point.vector) != self._vector_size:
                 # A vector of another dimension is never comparable: drop it, loudly in the
                 # result rather than silently in the data.
@@ -170,7 +174,7 @@ class MemoryVectorStore:
     async def search(self, *, query: VectorQuery) -> list[VectorHit]:
         scored: list[tuple[float, VectorPoint]] = []
         for point in self._points.values():
-            if not _matches(point, query.filters):
+            if not point_matches(point, query.filters):
                 continue
             score = cosine_similarity(query.vector, point.vector)
             if score is None:
@@ -180,9 +184,7 @@ class MemoryVectorStore:
             if query.score_threshold is not None and score < query.score_threshold:
                 continue
             scored.append((score, point))
-        # Deterministic: best first, then (page_id, chunk_id) so ties never reorder.
-        scored.sort(key=lambda item: (-item[0], str(item[1].page_id), item[1].chunk_id or ""))
-        return [
+        hits = [
             VectorHit(
                 page_id=point.page_id,
                 page_version_id=point.page_version_id,
@@ -193,8 +195,14 @@ class MemoryVectorStore:
                 # layer re-checks freshness against PostgreSQL (ADR-0017 s4).
                 stale=False,
             )
-            for score, point in scored[: query.limit]
+            for score, point in scored
         ]
+        return sort_hits(hits)[: query.limit]
+
+    async def scan_points(self, *, batch_size: int = 512) -> AsyncIterator[PointRef]:
+        """Read-only enumeration for drift reporting (``InspectableVectorStore``)."""
+        for point_id in sorted(self._points, key=str):
+            yield ref_of(self._points[point_id])
 
     async def health(self) -> ProviderHealth:
         info = await self.collection_info()
@@ -215,30 +223,3 @@ class MemoryVectorStore:
     async def aclose(self) -> None:
         """Idempotent, as :class:`~ken_contracts.common.AsyncClosable` requires."""
         self._points.clear()
-
-
-def _matches(point: VectorPoint, filters: VectorFilters) -> bool:
-    if filters.page_ids is not None and point.page_id not in set(filters.page_ids):
-        return False
-    if point.page_id in set(filters.exclude_page_ids):
-        return False
-    if filters.embedding_model is not None and point.embedding_model != filters.embedding_model:
-        return False
-    if (
-        filters.embedding_version is not None
-        and point.embedding_version != filters.embedding_version
-    ):
-        return False
-    if filters.content_hashes is not None and point.content_hash not in set(
-        filters.content_hashes
-    ):
-        return False
-    if filters.page_types is not None and point.metadata.get("page_type") not in set(
-        filters.page_types
-    ):
-        return False
-    if filters.languages is not None and point.metadata.get("language") not in set(
-        filters.languages
-    ):
-        return False
-    return True

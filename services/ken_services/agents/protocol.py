@@ -13,10 +13,11 @@ Rules every implementation must keep:
   yet (no ``agent_run_plans`` row), in engine order (total score desc, created_at, id).
 * ``check_plan`` re-checks deterministic invariants of one plan against LIVE state.
 * ``hand_off`` is the policy gate, ONE transaction for the whole run: for each review it
-  appends the ``agent_run_plans`` row and, if the verdict is ``accept`` or ``uncertain`` and
-  the plan is still ``proposed``, moves it ``proposed -> critiqued`` (``CRITIC_ACTOR``) ->
-  ``policy_checked`` -> ``awaiting_approval`` (``POLICY_GATE_ACTOR``) through the Phase 3
-  transition service with ``expected_from``. Each plan runs under a SAVEPOINT: a plan that
+  appends the ``agent_run_plans`` row and, if the verdict is ``accept`` and the plan is still
+  ``proposed``, moves it ``proposed -> critiqued`` (``CRITIC_ACTOR``) -> ``policy_checked``
+  (``POLICY_GATE_ACTOR``) through the Phase 3 transition service with ``expected_from``
+  (ADR-0019: the ladder ends where the autonomy engine takes over; ``reject`` and
+  ``uncertain`` are recorded and not moved). Each plan runs under a SAVEPOINT: a plan that
   is no longer ``proposed`` (a concurrent ``make recommend`` expired it), already reviewed,
   or fails an invariant re-checked under its row lock is reported in ``conflicts`` and gets
   no row; the rest commit. Actors are bound inside the service; no
@@ -93,7 +94,7 @@ class PlanReviewInput:
 @dataclass(frozen=True, slots=True)
 class HandOffResult:
     handed_off: tuple[UUID, ...]
-    """Now ``awaiting_approval``."""
+    """Now ``policy_checked``: handed on to the autonomy engine."""
     recorded: tuple[UUID, ...]
     """Every plan that got its ``agent_run_plans`` row (handed off or not)."""
     conflicts: Mapping[UUID, str] = field(default_factory=dict)

@@ -24,8 +24,8 @@ from sqlalchemy.exc import DBAPIError, IntegrityError
 import ken_core.db.models  # noqa: F401 -- registers every model
 from ken_core.db.base import Base
 from ken_core.db.models.agents import APPEND_ONLY_AGENT_TABLES
-from ken_core.db.models.autonomy import APPEND_ONLY_AUTONOMY_TABLES
 from ken_core.db.models.analytics import APPEND_ONLY_ANALYTICS_TABLES
+from ken_core.db.models.autonomy import APPEND_ONLY_AUTONOMY_TABLES
 from ken_core.db.models.deployment import APPEND_ONLY_DEPLOYMENT_TABLES
 from ken_core.db.models.intelligence import IMMUTABLE_INTELLIGENCE_TABLES
 from ken_core.db.models.inventory import IMMUTABLE_TABLES

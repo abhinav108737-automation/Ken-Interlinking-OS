@@ -1763,6 +1763,11 @@ export interface components {
              * Format: uuid
              */
             plan_id: string;
+            /**
+             * Reason
+             * @description Why the plan is blocked, in words, as recorded when it was blocked: either the deterministic codes that fired, or -- for a DEFERRAL, whose block list is empty -- 'deferred' with the risk tier, confidence and calibration facts that declined it.
+             */
+            reason: string | null;
             risk_tier: components["schemas"]["RiskTier"];
             /**
              * Source Page Id
@@ -2566,7 +2571,7 @@ export interface components {
          *     (``evals/README.md`` section 5 sources them from there). Phase 9 should look in section 20.
          * @enum {string}
          */
-        EvalSuite: "destination-selection" | "anchor-selection" | "relationship-detection" | "critic" | "no-action" | "protected-content" | "stale-page-version" | "policy-regression" | "reflection-grounding" | "proposal-safety" | "editorial-agreement";
+        EvalSuite: "destination-selection" | "anchor-selection" | "relationship-detection" | "critic" | "no-action" | "protected-content" | "stale-page-version" | "policy-regression" | "reflection-grounding" | "proposal-safety" | "rollback-correctness" | "autonomy-classification" | "editorial-agreement";
         /**
          * EvaluationDetail
          * @description ``evaluation_ref`` is ``str(policy_evaluations.id)``; the promotion service accepts
@@ -4960,7 +4965,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "taxonomy" | "recommendation" | "ranking" | "agents" | "analytics" | "learning";
+            kind: "taxonomy" | "recommendation" | "ranking" | "agents" | "analytics" | "learning" | "autonomy";
             /**
              * Path
              * @description Repository-relative path of the active file.

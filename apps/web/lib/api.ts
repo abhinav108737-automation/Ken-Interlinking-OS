@@ -110,6 +110,28 @@ import {
   type ListAnalyticsImportsQuery,
   type ListLinkPerformanceQuery,
   type PageImpactView,
+  type AdvanceProposalRequest,
+  type AdvanceProposalResponse,
+  type AutonomyDecisionList,
+  type AutonomyHealth,
+  type AutonomySummary,
+  type BlockedActionList,
+  type EvaluationDetail,
+  type EvaluationList,
+  type LearningOverview,
+  type ListAutonomyDecisionsQuery,
+  type ListBlockedActionsQuery,
+  type ListLearningEvaluationsQuery,
+  type ListLearningProposalsQuery,
+  type ListPublishAttemptsQuery,
+  type ListSkillsQuery,
+  type OperatorOverrideRequest,
+  type OperatorOverrideResponse,
+  type ProposalDetail,
+  type ProposalList,
+  type PublishAttemptList,
+  type SkillDetail,
+  type SkillList,
   DEFAULT_API_BASE_URL,
   PUBLIC_API_PATHS,
   configError,
@@ -270,6 +292,60 @@ export type {
   PageWindowComparison,
   SourceFreshness,
   WindowStats,
+  AdvanceProposalRequest,
+  AdvanceProposalResponse,
+  AutonomyDecision,
+  AutonomyDecisionList,
+  AutonomyDecisionView,
+  AutonomyHealth,
+  AutonomyMode,
+  AutonomySummary,
+  BlockCode,
+  BlockedActionList,
+  BlockedActionView,
+  CandidateAttribution,
+  CorpusBanner,
+  CriticOutcome,
+  EvalSuite,
+  EvaluationDetail,
+  EvaluationList,
+  EvaluationMode,
+  EvaluationSummary,
+  GateReason,
+  GateReasonCode,
+  GateResult,
+  GraphSignals,
+  LearningOverview,
+  ListAutonomyDecisionsQuery,
+  ListBlockedActionsQuery,
+  ListLearningEvaluationsQuery,
+  ListLearningProposalsQuery,
+  ListPublishAttemptsQuery,
+  ListSkillsQuery,
+  OperatorOverrideRequest,
+  OperatorOverrideResponse,
+  OverrideAction,
+  PolicyChange,
+  PromotionPreview,
+  PromotionRefusal,
+  ProposalDetail,
+  ProposalEvidence,
+  ProposalKind,
+  ProposalList,
+  ProposalRejectionReason,
+  ProposalStatus,
+  ProposalSummary,
+  ProposalTransitionView,
+  PublishAttemptList,
+  PublishAttemptView,
+  RiskTier,
+  SkillDetail,
+  SkillList,
+  SkillSource,
+  SkillStatus,
+  SkillSummary,
+  TargetKind,
+  VerificationProfile,
 } from "./api-client";
 export {
   DEFAULT_API_BASE_URL,
@@ -822,4 +898,120 @@ export function listAnalyticsImports(
   query: ListAnalyticsImportsQuery = {},
 ): Promise<ApiResult<AnalyticsImportList>> {
   return withServerClient("/analytics/imports", (client) => client.listAnalyticsImports(query));
+}
+
+// ---------------------------------------------------------------------------
+// Autonomy-first operations control plane (ADR-0018 §5). Reads need `read`.
+// The ONE mutation is the operator override, which needs `deploy` and is called
+// only from a server action (app/autonomy/actions.ts) with a form-minted
+// operation_id, exactly as the Phase 6 deployment mutations are.
+// ---------------------------------------------------------------------------
+
+/** An override holds the plan lock across a CMS write (publish) or a splice removal (block). */
+const OVERRIDE_TIMEOUT_MS = 60_000;
+
+/** `GET /autonomy` — decision, mode and block counts. */
+export function getAutonomySummary(): Promise<ApiResult<AutonomySummary>> {
+  return withServerClient("/autonomy", (client) => client.getAutonomySummary());
+}
+
+/**
+ * `GET /autonomy/mode` — the mode in force and whether anything can really be
+ * published. Deduplicated per request, because the layout banner and the
+ * operations screens both need it: the mode must be on every relevant screen
+ * (ADR-0018 §2) and that must not cost one API call per component.
+ *
+ * It does NOT redirect on a 401, so the sign-in screen still renders.
+ */
+export const getAutonomyMode = cache(
+  (): Promise<ApiResult<AutonomyHealth>> =>
+    withServerClient("/autonomy/mode", (client) => client.getAutonomyMode(), {
+      redirectOnUnauthenticated: false,
+    }),
+);
+
+/** `GET /autonomy/decisions`. */
+export function listAutonomyDecisions(
+  query: ListAutonomyDecisionsQuery = {},
+): Promise<ApiResult<AutonomyDecisionList>> {
+  return withServerClient("/autonomy/decisions", (client) => client.listAutonomyDecisions(query));
+}
+
+/** `GET /autonomy/blocked`. */
+export function listBlockedActions(query: ListBlockedActionsQuery = {}): Promise<ApiResult<BlockedActionList>> {
+  return withServerClient("/autonomy/blocked", (client) => client.listBlockedActions(query));
+}
+
+/** `GET /autonomy/attempts`. */
+export function listPublishAttempts(query: ListPublishAttemptsQuery = {}): Promise<ApiResult<PublishAttemptList>> {
+  return withServerClient("/autonomy/attempts", (client) => client.listPublishAttempts(query));
+}
+
+/** `POST /autonomy/plans/{plan_id}/override`. */
+export function overrideAutonomyDecision(
+  planId: string,
+  body: OperatorOverrideRequest,
+): Promise<ApiResult<OperatorOverrideResponse>> {
+  return withServerClient("/autonomy/plans/{plan_id}/override", (client) =>
+    client.overrideAutonomyDecision(planId, body, { timeoutMs: OVERRIDE_TIMEOUT_MS }),
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Learning control plane (ADR-0016). Reads need `read`; advancing a proposal
+// needs `promote` and is a governed human action — `demonstration_mode` refuses
+// a promotion outright, which the UI surfaces rather than hides.
+// ---------------------------------------------------------------------------
+
+/** `GET /learning` — the corpus banner and the list counts. */
+export function getLearningOverview(): Promise<ApiResult<LearningOverview>> {
+  return withServerClient("/learning", (client) => client.getLearningOverview());
+}
+
+/** `GET /learning/proposals`. */
+export function listLearningProposals(
+  query: ListLearningProposalsQuery = {},
+): Promise<ApiResult<ProposalList>> {
+  return withServerClient("/learning/proposals", (client) => client.listLearningProposals(query));
+}
+
+/** `GET /learning/proposals/{proposal_id}`. */
+export function getLearningProposal(proposalId: string): Promise<ApiResult<ProposalDetail>> {
+  return withServerClient("/learning/proposals/{proposal_id}", (client) =>
+    client.getLearningProposal(proposalId),
+  );
+}
+
+/** `POST /learning/proposals/{proposal_id}/advance`. */
+export function advanceLearningProposal(
+  proposalId: string,
+  body: AdvanceProposalRequest,
+): Promise<ApiResult<AdvanceProposalResponse>> {
+  return withServerClient("/learning/proposals/{proposal_id}/advance", (client) =>
+    client.advanceLearningProposal(proposalId, body, { timeoutMs: MUTATION_TIMEOUT_MS }),
+  );
+}
+
+/** `GET /learning/skills`. */
+export function listSkills(query: ListSkillsQuery = {}): Promise<ApiResult<SkillList>> {
+  return withServerClient("/learning/skills", (client) => client.listSkills(query));
+}
+
+/** `GET /learning/skills/{name}`. */
+export function getSkill(name: string): Promise<ApiResult<SkillDetail>> {
+  return withServerClient("/learning/skills/{name}", (client) => client.getSkill(name));
+}
+
+/** `GET /learning/evaluations`. */
+export function listLearningEvaluations(
+  query: ListLearningEvaluationsQuery = {},
+): Promise<ApiResult<EvaluationList>> {
+  return withServerClient("/learning/evaluations", (client) => client.listLearningEvaluations(query));
+}
+
+/** `GET /learning/evaluations/{evaluation_id}`. */
+export function getLearningEvaluation(evaluationId: string): Promise<ApiResult<EvaluationDetail>> {
+  return withServerClient("/learning/evaluations/{evaluation_id}", (client) =>
+    client.getLearningEvaluation(evaluationId),
+  );
 }

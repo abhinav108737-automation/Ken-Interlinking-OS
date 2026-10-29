@@ -38,6 +38,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
+from ken_agents.critic import critic_outcome
 from ken_contracts.agents import (
     MAX_EXPLANATION_CHARS,
     MAX_REVIEW_NOTE_CHARS,
@@ -52,6 +53,7 @@ from ken_contracts.agents import (
     PlanRef,
     TriageDecision,
 )
+from ken_contracts.autonomy import CriticOutcome
 from ken_contracts.common import FrozenModel
 from ken_contracts.intelligence import PageAnalysis
 from ken_contracts.recommendations import LinkPlan
@@ -102,6 +104,14 @@ class PlanReview(FrozenModel):
     confidence: float = Field(ge=0.0, le=1.0, description="The plan's RAW confidence.")
     fallback_reason: FallbackReason | None = None
     model: str | None = Field(default=None, description="Set only when a model answered.")
+    guard: str | None = Field(
+        default=None, max_length=64, description="The deterministic guard that decided, if any."
+    )
+
+    @property
+    def outcome(self) -> CriticOutcome:
+        """The autonomy-level outcome: a pure function of the verdict (never more permissive)."""
+        return critic_outcome(self.verdict)
 
 
 class AgentState(BaseModel):

@@ -34,16 +34,16 @@ from ken_core.db.models.deployment import (
     ItemStage,
 )
 from tests.integration.conftest import (
-    AUTONOMY_FUNCTIONS,
-    AUTONOMY_TABLES,
-    AUTONOMY_TRIGGERS,
-    HEAD_REVISION,
     ANALYTICS_FUNCTIONS,
     ANALYTICS_TABLES,
     ANALYTICS_TRIGGERS,
+    AUTONOMY_FUNCTIONS,
+    AUTONOMY_TABLES,
+    AUTONOMY_TRIGGERS,
     DEPLOYMENT_FUNCTIONS,
     DEPLOYMENT_TABLES,
     DEPLOYMENT_TRIGGERS,
+    HEAD_REVISION,
     LEARNING_FUNCTIONS,
     LEARNING_TABLES,
     LEARNING_TRIGGERS,
@@ -471,17 +471,14 @@ def test_downgrade_to_0006_restores_exactly_the_review_schema(
     command.downgrade(alembic_config, "0006_review_control_plane")
     try:
         state = sync_db.run(_state)
-        assert (
-            state["tables"]
-            == head["tables"] - DEPLOYMENT_TABLES - ANALYTICS_TABLES - LEARNING_TABLES - AUTONOMY_TABLES
+        assert state["tables"] == head["tables"] - (
+            DEPLOYMENT_TABLES | ANALYTICS_TABLES | LEARNING_TABLES | AUTONOMY_TABLES
         )
-        assert (
-            state["functions"]
-            == head["functions"] - DEPLOYMENT_FUNCTIONS - ANALYTICS_FUNCTIONS - LEARNING_FUNCTIONS - AUTONOMY_FUNCTIONS
+        assert state["functions"] == head["functions"] - (
+            DEPLOYMENT_FUNCTIONS | ANALYTICS_FUNCTIONS | LEARNING_FUNCTIONS | AUTONOMY_FUNCTIONS
         )
-        assert (
-            state["triggers"]
-            == head["triggers"] - DEPLOYMENT_TRIGGERS - ANALYTICS_TRIGGERS - LEARNING_TRIGGERS - AUTONOMY_TRIGGERS
+        assert state["triggers"] == head["triggers"] - (
+            DEPLOYMENT_TRIGGERS | ANALYTICS_TRIGGERS | LEARNING_TRIGGERS | AUTONOMY_TRIGGERS
         )
         assert state["revision"] == "0006_review_control_plane"
         assert not sync_db.run(_txid)

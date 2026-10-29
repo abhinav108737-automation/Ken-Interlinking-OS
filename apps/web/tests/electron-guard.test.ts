@@ -13,6 +13,12 @@ const SAMPLE_PATHS = [
   "components/ElectronProbe.tsx",
   "lib/electron-probe.ts",
   "app/electron-probe/page.tsx",
+  // The operations control plane added these trees (ADR-0018). The guard globs
+  // already cover them, and these samples prove it rather than assuming it.
+  "components/autonomy/ElectronProbe.tsx",
+  "components/learning/ElectronProbe.tsx",
+  "app/autonomy/electron-probe/page.tsx",
+  "app/learning/electron-probe/page.tsx",
 ] as const;
 
 const FORBIDDEN: ReadonlyArray<readonly [string, string]> = [

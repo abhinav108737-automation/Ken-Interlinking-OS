@@ -10,6 +10,33 @@
 - **Start with a STAGING CMS.** Connecting to the production CMS needs the project owner's
   explicit approval first.
 
+## 0. What to prepare, in priority order
+
+Items 1 and 2 unblock us immediately and need no write access, so please start there. Nothing
+below requires the interlinking system to be finished first — the two sides can be built in
+parallel and joined at step 3.
+
+| # | What we need | Why it is first | Blocks |
+|---|---|---|---|
+| 1 | **A JSONL export of ~50 real pages** (section 3) | Lets us run ingest → analysis → recommendations on real Ken Research content instead of demo data. No API needed: it is a file. | Everything downstream. Most valuable single item. |
+| 2 | **Staging base URL + a READ-ONLY bearer token**, and `GET /internal/pages/{id}` working | Lets us read live page bodies and confirm our adapter talks to Django correctly. Read-only, so nothing can be changed. | Validation and dry runs |
+| 3 | **`validate` and `link-changes` endpoints on staging** (sections 1 and 2) | Lets us dry-run a real link insertion and see the exact diff. Still no live writes: `dry_run: true` must change nothing. | The first end-to-end test |
+| 4 | **`rollback` endpoint** | Required before any real write. We do not publish anything we cannot undo. | Enabling writes at all |
+| 5 | **A write token for staging** | Only after 1–4 pass the section 6 checklist, and only on staging. | The first real published link |
+| 6 | Production access | A separate decision by the project owner, after staging is proven. | — |
+
+### Safety posture they should know
+
+- **Writes are disabled by default on our side** (`KEN_CMS_WRITES_ENABLED=false`) and stay off
+  until the owner turns them on. A read-only token is genuinely all we need to begin.
+- **The first phase is manual approval.** Every link is reviewed by a person before it is
+  published, even though the engine can run unattended. Unattended publishing is a later,
+  separate decision.
+- **Nothing is published that cannot be undone.** If a rollback is not possible for a given
+  change, the system refuses to publish it at all. That is why item 4 is not optional.
+- Every change we send carries an idempotency key, the page version we built it against, and the
+  account that authorised it, so your audit log can always answer "who and when".
+
 ## 1. Four REST endpoints (required)
 
 All under a base URL we are given. JSON bodies. Bearer token auth.
@@ -83,13 +110,64 @@ URL is canonical.
 
 ## 5. What the backend team should send back
 
-1. Staging base URL and a **read-only** token first; a write token only when the owner approves.
-2. Confirmation of how `version` is produced.
-3. A JSONL export of a sample (about 50 pages) or the command to make one.
+1. A JSONL export of about 50 pages, or the management command that produces one.
+2. Staging base URL and a **read-only** token first; a write token only when the owner approves.
+3. Confirmation of how `version` is produced (revision id, content hash, `updated_at`?).
 4. Page ids vs URLs: are ids stable, and what is the id format?
-5. How the CMS reports published, draft and protected.
+5. How the CMS reports published, draft and protected, and which URL is canonical.
 6. Rate limits and a request-size limit, if any.
-7. Whether an edit goes live immediately or needs a publish step.
+7. Whether an edit goes live immediately or needs a separate publish step in Django.
+8. Whether the page body is stored as HTML, and whether anything rewrites it on save
+   (sanitisers, editors, template rendering). **This one matters:** we insert one `<a>` and
+   leave every other byte identical, so a saver that reformats the HTML would break
+   verification and rollback.
+
+## 6a. CONFIRMED 2026-10-29: the CMS has a draft/publish workflow
+
+The owner has confirmed two facts that change the integration. Both need answers before any
+write is enabled.
+
+**Fact 1 — an edit does not go live immediately.** Saving an edit produces a draft; a separate
+publish step makes it live.
+
+This breaks an assumption in our Phase 6 pipeline, which applies a change and then verifies it.
+With a draft/publish CMS there are two different things to verify, and the gap between them is
+a human action with no fixed duration:
+
+- the **draft body** we just wrote (verifiable immediately), and
+- the **live page** (only verifiable after someone publishes, which may be minutes or days).
+
+What we need to know:
+
+1. Does `POST /internal/pages/{id}/link-changes` write a **draft**, or publish directly?
+2. Is there a **publish endpoint** we can call, or must a person publish inside Django?
+3. Can `GET /internal/pages/{id}` return **both** the draft body and the live body, and say
+   which is which? We need to tell them apart.
+4. Does `version` change on save, on publish, or both?
+5. On **rollback of an unpublished draft** — does reverting the draft leave the live page
+   untouched, as we would expect?
+6. Is there a webhook or a flag we can poll to learn that a page was published?
+
+Until these are answered, our post-publish verification would either check a draft and report a
+link as live when it is not, or re-fetch the live URL and report a false failure. Neither is
+acceptable, so **verification timing is an open design item**, not a configuration setting.
+
+**Fact 2 — the owner expects the page to be rewritten with the proposed content on approval.**
+This needs clarification before build (see the note in the handover thread): inserting a link
+leaves every other byte identical, whereas rewriting page content is a different operation with
+its own ADR (ADR-0020) and its own approval rule. The endpoints in section 1 cover link
+insertion only.
+
+## 7. Questions we expect them to ask
+
+- *"Do you need write access on day one?"* No. Items 1 and 2 of section 0 are read-only.
+- *"Will this change page text?"* Not in this integration. It inserts links only. A separate
+  proposal (ADR-0020) would insert the single word "market" into an anchor, and it is not part
+  of this work.
+- *"What happens if someone edits the page after you planned a link?"* We send the version we
+  planned against; a mismatch must return 409 and change nothing. We then re-plan.
+- *"How many requests?"* Low. One read per page analysed, then one validate and one apply per
+  approved link. There is no polling loop.
 
 ## 6. Acceptance checklist (run against staging)
 

@@ -316,21 +316,20 @@ async def test_accept_and_uncertain_reach_the_queue_and_reject_stays_proposed(
         ],
         reviewed_at=T0,
     )
-    assert result.handed_off == (accept.id, uncertain.id)
+    assert result.handed_off == (accept.id,), "ADR-0019: only an accept is handed on"
     assert result.recorded == (accept.id, uncertain.id, third.id)
     assert dict(result.conflicts) == {}
 
-    assert await _status(sessionmaker, accept.id) == "awaiting_approval"
-    assert await _status(sessionmaker, uncertain.id) == "awaiting_approval"
+    assert await _status(sessionmaker, accept.id) == "policy_checked", "the autonomy engine's turn"
+    assert await _status(sessionmaker, uncertain.id) == "proposed"
     assert await _status(sessionmaker, third.id) == "proposed"
-    for plan, verdict in ((accept, "accept"), (uncertain, "uncertain")):
-        history = await _history(sessionmaker, plan.id)
-        assert history[0][:3] == (None, "proposed", ENGINE_ACTOR)
-        assert history[1:] == [
-            ("proposed", "critiqued", CRITIC_ACTOR, f"agent review: {verdict}"),
-            ("critiqued", "policy_checked", POLICY_GATE_ACTOR, f"agent review: {verdict}"),
-            ("policy_checked", "awaiting_approval", POLICY_GATE_ACTOR, f"agent review: {verdict}"),
-        ]
+    history = await _history(sessionmaker, accept.id)
+    assert history[0][:3] == (None, "proposed", ENGINE_ACTOR)
+    assert history[1:] == [
+        ("proposed", "critiqued", CRITIC_ACTOR, "agent review: accept"),
+        ("critiqued", "policy_checked", POLICY_GATE_ACTOR, "agent review: accept"),
+    ]
+    assert len(await _history(sessionmaker, uncertain.id)) == 1  # never transitioned
     assert len(await _history(sessionmaker, third.id)) == 1  # never transitioned
 
     found = await rows(
@@ -340,7 +339,7 @@ async def test_accept_and_uncertain_reach_the_queue_and_reject_stays_proposed(
     )
     assert [(r.plan_id, r.verdict, r.handed_off) for r in found] == [
         (accept.id, "accept", True),
-        (uncertain.id, "uncertain", True),
+        (uncertain.id, "uncertain", False),
         (third.id, "reject", False),
     ]
     assert {r.run_id for r in found} == {run.id}
@@ -382,7 +381,7 @@ async def test_a_plan_expired_before_the_hand_off_is_a_conflict_and_the_rest_com
     assert result.handed_off == (kept.id,)
     assert result.recorded == (kept.id,)
     assert await _status(sessionmaker, gone.id) == "expired"
-    assert await _status(sessionmaker, kept.id) == "awaiting_approval"
+    assert await _status(sessionmaker, kept.id) == "policy_checked"
     assert await _review_rows(sessionmaker) == [(kept.id, "accept", True)]
 
 
@@ -494,7 +493,7 @@ async def test_invariants_are_rechecked_inside_the_hand_off(
     result = await tools.hand_off(
         agent_run_id=run.id,
         reviews=[
-            PlanReviewInput(plan_id=blocked.id, verdict=V.UNCERTAIN),
+            PlanReviewInput(plan_id=blocked.id, verdict=V.ACCEPT),
             PlanReviewInput(plan_id=kept.id, verdict=V.ACCEPT),
         ],
         reviewed_at=T0,

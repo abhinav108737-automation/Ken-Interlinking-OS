@@ -137,8 +137,7 @@ class AutonomyDecisionRow(Base):
             _one_of("verification_profile", VerificationProfile), name="verification_profile_valid"
         ),
         CheckConstraint(
-            "would_have_decision IS NULL OR "
-            + _one_of("would_have_decision", AutonomyDecision),
+            "would_have_decision IS NULL OR " + _one_of("would_have_decision", AutonomyDecision),
             name="would_have_decision_valid",
         ),
         CheckConstraint("confidence >= 0 AND confidence <= 1", name="confidence_range"),
@@ -163,9 +162,7 @@ class AutonomyDecisionRow(Base):
             "(mode = 'shadow') = (would_have_decision IS NOT NULL)",
             name="counterfactual_iff_shadow",
         ),
-        CheckConstraint(
-            "mode <> 'shadow' OR decision = 'block'", name="shadow_never_publishes"
-        ),
+        CheckConstraint("mode <> 'shadow' OR decision = 'block'", name="shadow_never_publishes"),
         CheckConstraint(f"actor ~ '{ACTOR_PATTERN}'", name="actor_shape"),
         # An agent may neither decide a publish nor block one (ADR-0012 stands).
         CheckConstraint("actor NOT LIKE 'agent:%'", name="actor_is_not_an_agent"),
@@ -221,9 +218,7 @@ class PublishAttempt(Base):
     mode: Mapped[str] = mapped_column(Text, nullable=False)
     verification_profile: Mapped[str] = mapped_column(Text, nullable=False)
     succeeded: Mapped[bool] = mapped_column(Boolean, nullable=False)
-    rolled_back: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, server_default=text("false")
-    )
+    rolled_back: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
     failure_code: Mapped[str | None] = mapped_column(Text, nullable=True)
     cooldown_until: Mapped[datetime | None] = _ts(nullable=True)
     """While this is in the future nothing republishes the pair, whatever the decision says."""
@@ -245,8 +240,7 @@ class PublishAttempt(Base):
         CheckConstraint("decision <> 'block'", name="a_block_is_never_attempted"),
         CheckConstraint("succeeded OR failure_code IS NOT NULL", name="failure_has_a_code"),
         CheckConstraint(
-            f"failure_code IS NULL OR length(failure_code) BETWEEN 1 AND "
-            f"{MAX_FAILURE_CODE_CHARS}",
+            f"failure_code IS NULL OR length(failure_code) BETWEEN 1 AND {MAX_FAILURE_CODE_CHARS}",
             name="failure_code_bounded",
         ),
         CheckConstraint("NOT rolled_back OR NOT succeeded", name="rolled_back_is_not_success"),

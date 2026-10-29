@@ -1,0 +1,221 @@
+{
+  "scenario": "ranking-proposal-lifecycle",
+  "adr": "docs/adr/ADR-0016-learning.md (section 15 binding, 16.1, 17.1)",
+  "note": "A golden fixture. It pins the exact stage sequence of one ranking proposal and EVERY refusal met on the way, in order. A change here is a change to a safety mechanism and needs a reviewer. Nothing in this scenario is evidence about any site: the corpus is synthetic and demonstration mode is the default.",
+  "steps": [
+    {
+      "id": "promote-in-demonstration-mode",
+      "actor": "operator_admin",
+      "demonstration_mode": true,
+      "request": {
+        "to_status": "promoted"
+      },
+      "expect": {
+        "refused": "demonstration_mode",
+        "status_after": "proposed"
+      }
+    },
+    {
+      "id": "promote-from-proposed",
+      "actor": "operator_admin",
+      "demonstration_mode": false,
+      "request": {
+        "to_status": "promoted"
+      },
+      "expect": {
+        "refused": "transition_not_allowed",
+        "status_after": "proposed"
+      }
+    },
+    {
+      "id": "offline-test-without-a-run",
+      "actor": "system",
+      "request": {
+        "to_status": "offline_test"
+      },
+      "expect": {
+        "refused": "evaluation_missing",
+        "status_after": "proposed"
+      }
+    },
+    {
+      "id": "offline-test-after-a-passing-run",
+      "actor": "system",
+      "evaluation": {
+        "gate": "pass",
+        "fingerprint": "current"
+      },
+      "request": {
+        "to_status": "offline_test"
+      },
+      "expect": {
+        "advanced_to": "offline_test"
+      }
+    },
+    {
+      "id": "promote-without-shadow",
+      "actor": "operator_admin",
+      "demonstration_mode": false,
+      "request": {
+        "to_status": "promoted"
+      },
+      "expect": {
+        "refused": "required_stage_missing",
+        "status_after": "offline_test"
+      }
+    },
+    {
+      "id": "shadow",
+      "actor": "system",
+      "request": {
+        "to_status": "shadow"
+      },
+      "expect": {
+        "advanced_to": "shadow"
+      }
+    },
+    {
+      "id": "promote-below-the-shadow-floors",
+      "actor": "operator_admin",
+      "demonstration_mode": false,
+      "shadow_rows": {
+        "runs": 1,
+        "compared_pairs": 5
+      },
+      "request": {
+        "to_status": "promoted",
+        "evaluation": "latest"
+      },
+      "expect": {
+        "refused": "required_stage_missing",
+        "status_after": "shadow"
+      }
+    },
+    {
+      "id": "promote-by-a-reviewer",
+      "actor": "reviewer",
+      "demonstration_mode": false,
+      "shadow_rows": {
+        "runs": 2,
+        "compared_pairs": 10
+      },
+      "request": {
+        "to_status": "promoted",
+        "evaluation": "latest"
+      },
+      "expect": {
+        "refused": "permission_denied",
+        "status_after": "shadow"
+      }
+    },
+    {
+      "id": "promote-on-a-stale-run",
+      "actor": "operator_admin",
+      "demonstration_mode": false,
+      "evaluation": {
+        "gate": "pass",
+        "fingerprint": "current",
+        "age_days": 15
+      },
+      "request": {
+        "to_status": "promoted",
+        "evaluation": "latest"
+      },
+      "expect": {
+        "refused": "evaluation_too_old",
+        "status_after": "shadow"
+      },
+      "shadow_rows": {
+        "runs": 1,
+        "compared_pairs": 10
+      }
+    },
+    {
+      "id": "promote-on-a-failed-run",
+      "actor": "operator_admin",
+      "demonstration_mode": false,
+      "evaluation": {
+        "gate": "fail",
+        "fingerprint": "current"
+      },
+      "request": {
+        "to_status": "promoted",
+        "evaluation": "latest"
+      },
+      "expect": {
+        "refused": "evaluation_not_passed",
+        "status_after": "shadow"
+      }
+    },
+    {
+      "id": "promote-on-another-fingerprint",
+      "actor": "operator_admin",
+      "demonstration_mode": false,
+      "evaluation": {
+        "gate": "pass",
+        "fingerprint": "other"
+      },
+      "request": {
+        "to_status": "promoted",
+        "evaluation": "latest"
+      },
+      "expect": {
+        "refused": "fingerprint_mismatch",
+        "status_after": "shadow"
+      }
+    },
+    {
+      "id": "promote-in-demonstration-mode-with-everything-passing",
+      "actor": "operator_admin",
+      "demonstration_mode": true,
+      "evaluation": {
+        "gate": "pass",
+        "fingerprint": "current"
+      },
+      "request": {
+        "to_status": "promoted",
+        "evaluation": "latest"
+      },
+      "expect": {
+        "refused": "demonstration_mode",
+        "status_after": "shadow"
+      }
+    },
+    {
+      "id": "promote-with-demonstration-mode-off",
+      "actor": "operator_admin",
+      "demonstration_mode": false,
+      "evaluation": {
+        "gate": "pass",
+        "fingerprint": "current"
+      },
+      "request": {
+        "to_status": "promoted",
+        "evaluation": "latest"
+      },
+      "expect": {
+        "advanced_to": "promoted",
+        "event": "policy.promoted"
+      }
+    }
+  ],
+  "stage_sequence": [
+    "proposed",
+    "offline_test",
+    "shadow",
+    "promoted"
+  ],
+  "refusals": [
+    "demonstration_mode",
+    "transition_not_allowed",
+    "evaluation_missing",
+    "required_stage_missing",
+    "required_stage_missing",
+    "permission_denied",
+    "evaluation_too_old",
+    "evaluation_not_passed",
+    "fingerprint_mismatch",
+    "demonstration_mode"
+  ],
+  "promotions_with_demonstration_mode_on": 0
+}

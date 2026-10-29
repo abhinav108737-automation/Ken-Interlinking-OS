@@ -646,15 +646,14 @@ class Settings(BaseSettings):
     def _qdrant_is_local_outside_deployment(self) -> Settings:
         """Compose binds Qdrant on 127.0.0.1 only. A non-loopback host in local or ci is a
         mistake, not a feature: it would send embeddings off this machine."""
-        if self.environment in {"local", "ci"} and not is_loopback_host(
-            urlsplit(self.qdrant_url).hostname
-        ):
-            # The compose service name is how a container reaches it inside the network.
-            if urlsplit(self.qdrant_url).hostname != "qdrant":
-                raise ValueError(
-                    "KEN_QDRANT_URL must be loopback (or the 'qdrant' compose service) in a "
-                    "local or ci environment"
-                )
+        host = urlsplit(self.qdrant_url).hostname
+        # "qdrant" is the compose SERVICE NAME: that is how a container reaches it inside
+        # the network, so it is as local as loopback.
+        if self.environment in {"local", "ci"} and not is_loopback_host(host) and host != "qdrant":
+            raise ValueError(
+                "KEN_QDRANT_URL must be loopback (or the 'qdrant' compose service) in a "
+                "local or ci environment"
+            )
         return self
 
     @field_validator("ga4_timezone")

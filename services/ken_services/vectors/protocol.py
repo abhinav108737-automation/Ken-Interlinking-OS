@@ -122,8 +122,9 @@ class DriftReport:
 class VectorIndexer(Protocol):
     """``make qdrant-index``: incremental, idempotent indexing from PostgreSQL."""
 
-    async def index(self, *, page_ids: Sequence[uuid.UUID] | None = None, force: bool = False)\
-        -> IndexReport:
+    async def index(
+        self, *, page_ids: Sequence[uuid.UUID] | None = None, force: bool = False
+    ) -> IndexReport:
         """Index the current-version embeddings of ``page_ids`` (or every page).
 
         ``force`` re-sends points whose content hash already matches, which changes nothing

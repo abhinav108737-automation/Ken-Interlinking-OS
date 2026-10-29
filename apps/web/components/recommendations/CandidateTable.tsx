@@ -9,7 +9,7 @@ import { StatusBadge } from "../StatusBadge";
 import { pageHref } from "../inventory/PageInventoryTable";
 import { CELL, EmptyRow, HeaderRow, NUM_CELL, ROW, TableFrame } from "../inventory/Table";
 
-const COLUMNS = ["Target page", "Channels", "Total score", "Outcome"];
+const COLUMNS = ["Target page", "Channels", "Graph position", "Total score", "Outcome"];
 
 const KEPT: StatusPresentation = {
   label: "Kept",
@@ -25,7 +25,12 @@ const REJECTED: StatusPresentation = {
   known: true,
 };
 
-/** Retrieved candidates, kept or rejected, with the first rejection rule (ADR-0011 §3). */
+/**
+ * Retrieved candidates, kept or rejected, with the first rejection rule
+ * (ADR-0011 §3) and the per-channel attribution ADR-0018 added: each channel's
+ * raw and normalised score and its rank within that channel. The per-signal
+ * numbers are always visible, never collapsed into the total alone.
+ */
 export function CandidateTable({
   candidates,
   total,
@@ -54,17 +59,44 @@ export function CandidateTable({
               </th>
               <td className={CELL}>
                 <ul className="space-y-0.5 text-xs">
-                  {candidate.channels.map((channel) => (
-                    <li key={channel}>
-                      {describeRetrievalChannel(channel)}
-                      {candidate.channel_scores[channel] !== undefined && (
-                        <span className="ml-1 tabular-nums text-slate-700">
-                          {formatScore(candidate.channel_scores[channel])}
-                        </span>
-                      )}
-                    </li>
-                  ))}
+                  {candidate.channels.map((channel) => {
+                    const attribution = candidate.attribution.find((item) => item.channel === channel);
+                    return (
+                      <li key={channel}>
+                        {describeRetrievalChannel(channel)}
+                        {candidate.channel_scores[channel] !== undefined && (
+                          <span className="ml-1 tabular-nums text-slate-700">
+                            {formatScore(candidate.channel_scores[channel])}
+                          </span>
+                        )}
+                        {attribution !== undefined && (
+                          <span className="block text-slate-700">
+                            raw <span className="tabular-nums">{formatScore(attribution.raw)}</span> · normalised{" "}
+                            <span className="tabular-nums">{formatScore(attribution.normalised)}</span> · rank{" "}
+                            <span className="tabular-nums">{attribution.rank_in_channel}</span>
+                          </span>
+                        )}
+                      </li>
+                    );
+                  })}
                 </ul>
+              </td>
+              <td className={CELL}>
+                {candidate.graph_signals === null ? (
+                  <span className="text-xs text-slate-600">Not computed</span>
+                ) : (
+                  <span className="block text-xs text-slate-700">
+                    {candidate.graph_signals.is_orphan
+                      ? "Orphan"
+                      : candidate.graph_signals.is_nearly_orphan
+                        ? "Nearly orphan"
+                        : "Linked"}
+                    {" · in "}
+                    <span className="tabular-nums">{candidate.graph_signals.in_degree}</span>
+                    {" / out "}
+                    <span className="tabular-nums">{candidate.graph_signals.out_degree}</span>
+                  </span>
+                )}
               </td>
               <td className={NUM_CELL}>{formatScore(candidate.total_score)}</td>
               <td className={CELL}>

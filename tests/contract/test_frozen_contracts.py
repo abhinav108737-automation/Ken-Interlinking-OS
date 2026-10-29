@@ -17,6 +17,7 @@ from ken_contracts import (
     agents,
     analytics,
     auth,
+    autonomy,
     cms,
     common,
     controlplane,
@@ -30,6 +31,7 @@ from ken_contracts import (
     model,
     recommendations,
     review,
+    vectors,
 )
 from ken_contracts.common import AsyncClosable, ContractModel
 
@@ -37,6 +39,7 @@ CONTRACT_MODULES = [
     agents,
     analytics,
     auth,
+    autonomy,
     cms,
     common,
     controlplane,
@@ -50,6 +53,7 @@ CONTRACT_MODULES = [
     model,
     recommendations,
     review,
+    vectors,
 ]
 
 

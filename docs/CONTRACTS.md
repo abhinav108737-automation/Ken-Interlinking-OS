@@ -28,6 +28,8 @@ convention, not a freeze.
 | `agents.py` | Phase 4. Agent run/step/review views, nodes, outcomes, triage vocabulary, LLM boundary models (`PlannerSelection`, `CriticAssessment`), tool allowlist, actors, `AgentPolicy`, `AgentReader` |
 | `recommendations.py` | Phase 3. `LinkPlan` / `LinkCandidate` views, `CandidateRejection`, `LinkPlanStatus` + `ALLOWED_TRANSITIONS` / `TRANSITION_AUTHORITY`, `ACTOR_PATTERN`, `RecommendationPolicy` / `RankingPolicy`, `PlacementLocator`, `FreshnessCheck`, `ExperimentGuard`, `RecommendationReader` |
 | `review.py` | Phase 5. Review requests (approve / reject / edit anchor / replace target / bulk), `FeedbackReason` + `REASONS_BY_ACTION`, results, `ReviewActionView`, `TargetOption`, typed review errors, `ReviewService` / `ReviewReader` |
+| `vectors.py` | Phase 9 (ADR-0017). `VectorStore` protocol, `VectorPoint` / `VectorQuery` / `VectorFilters` / `VectorHit`, `CollectionInfo`, `UpsertResult`, `RebuildReport`, the deterministic `point_id` and `cosine_similarity` helpers, vector-store errors |
+| `autonomy.py` | Phase 9 (ADR-0018). `AutonomyDecision`, `AutonomyMode`, `RiskTier`, `BlockCode` (closed), `CriticOutcome`, `VerificationProfile`, `AutonomyEvaluation`, `RetryBudgetState`, the API read models, operator override request/response, `AutonomyEngine` / `AutonomyReader` |
 | `inventory.py` | Phase 1. `ContentSourceProvider` + `CMSInventoryReader` protocols, `SourceDocument` / `SourceIssue`, `SiteScope`, `CrawlConfig`, `NormalizedPage`, the JSONL export format, inventory event payloads, API read models, `InventoryReader` (the API's only route to persistence) |
 
 ## Rules
@@ -507,3 +509,85 @@ Design: [ADR-0016](adr/ADR-0016-learning.md) (**§15 amendments are binding and 
 - **Known limitation, stated plainly.** Every guard above is a trigger, so they defend against
   application bugs, not against a DB superuser (`session_replication_role = replica` disables all
   of them). No `SECURITY DEFINER` function exists in this schema, and a test asserts it.
+
+### 21. The vector layer (Phase 9)
+
+Design: [ADR-0017](adr/ADR-0017-qdrant-vector-architecture.md). **It supersedes ADR-0003 and
+ADR-0010's choice of pgvector and overrides CLAUDE.md #5.** Module: `vectors.py`; the service
+interfaces are `services/ken_services/vectors/protocol.py`; the stores are
+`ken_core/providers/vectors/` behind `build_vector_store(settings)`; schema is migration
+`0010_qdrant_and_autonomy`.
+
+- **PostgreSQL is the source of truth, including the embedding VALUES.** The collection is a
+  derived, rebuildable index: nothing is stored only there, so losing it costs a reindex and
+  never data. `VectorRebuilder.rebuild` exists to prove it, and a test drops and refills.
+- **pgvector is removed, not bypassed.** `page_embeddings.embedding` is a `real[]` (float4 —
+  exactly what the extension stored, so the conversion is lossless) with
+  `array_length(embedding, 1) = dimensions` in place of `vector_dims`. No distance operator,
+  no distance helper, no extension import, and no `CREATE EXTENSION vector` in any migration:
+  `tests/unit/test_vector_extension_removed.py` asserts all four over the source tree.
+  Migration 0003 was AMENDED to stop creating it, and 0010 converts a column an earlier run of
+  0003 left behind — guarded by the column's current type, so a fresh and an existing database
+  end at the same schema.
+- **`point_id` is deterministic** (`uuid5` over page version, chunk, model, version), which is
+  what makes indexing idempotent. Every implementation must use the contract helper rather than
+  minting an id.
+- **`cosine_similarity` returns `None`, never `0.0`,** for a zero vector, a non-finite
+  component or mismatched lengths. "No answer" is not "unrelated".
+- **Freshness is decided in PostgreSQL.** A store holds derived points and cannot know a page's
+  current version, so it returns `stale=False` and the retrieval layer re-checks every hit
+  against `pages.current_version` and the stored `content_hash`. A stale hit may never place a
+  link — it is the deterministic block `BlockCode.STALE_VECTOR`.
+- **The default is `KEN_VECTOR_STORE=memory`**, an exact-cosine in-process store, so the test
+  suite and CI need no container. `qdrant` is the local service on 127.0.0.1:6333/6334
+  (`qdrant/qdrant:v1.19.1`, Apache-2.0), and selecting it never silently degrades to memory.
+- **Readiness.** The `pgvector` check became `qdrant` (`CheckKind.VECTOR_STORE`), required by
+  `KEN_REQUIRE_QDRANT` (default true). A reachable store with no collection yet is `ok` with
+  `collection_present: false`; unreachable or broken is `unavailable`. Index DRIFT is
+  `make qdrant-verify`'s job, not readiness's. `KEN_REQUIRE_PGVECTOR` is gone.
+
+### 22. Autonomy-first publishing (Phase 9)
+
+Design: [ADR-0018](adr/ADR-0018-autonomy-first-publishing.md). **It supersedes the
+human-approval workflow ADR-0013 §1 made the normal path.** Module: `autonomy.py`; the service
+interfaces are `services/ken_services/autonomy/protocol.py`; schema is migration
+`0010_qdrant_and_autonomy`.
+
+- **There is no normal human approval step.** The normal path is `proposed → critiqued →
+  policy_checked → autonomy_decided → validated → deployed → verified → measured →
+  learning_captured`. `awaiting_approval` / `approved` stay reachable for a `guarded`-mode
+  deferral and for an operator exception, and are no longer on the normal path.
+- **Deterministic blocks are computed without any model call, and first.** `BlockCode` is a
+  closed set of 15 codes; `DETERMINISTIC_BLOCK_CODES == frozenset(BlockCode)` is asserted, so
+  adding a non-deterministic "block" is an explicit decision rather than an accident. The
+  evaluator's `evaluate` is deliberately SYNCHRONOUS: a function with no I/O cannot smuggle in
+  an inference call. A model may lower confidence or raise a tier; it can never clear a block.
+- **The dangerous combinations are unrepresentable, in the contract AND in the database.** A
+  fired block forces `block`; a publish requires `rollback_available`; a `shadow` row can never
+  be a publish and must carry its counterfactual; the strict profile is exactly the
+  extra-verification decision; the actor is never an `agent:`; a `user:` decision must record a
+  reason. Each is both a Pydantic validator and a CHECK.
+- **`shadow` is the default mode**, so installing this product changes nothing on a real site.
+  `autonomous` is refused unless `KEN_AUTONOMY_AUTONOMOUS_ACKNOWLEDGED=true`, and ANY publishing
+  mode is refused against a write-enabled `http` CMS unless `KEN_AUTONOMY_ALLOW_PRODUCTION=true`
+  (ADR-0018 §2 names `autonomous`; `guarded` is included because it also publishes without a
+  human). The process refuses to BOOT rather than publish by surprise. `KEN_AUTO_APPROVE_ENABLED`
+  is RETIRED, not reused, and its validator still refuses `true`.
+- **`autonomy_decisions` is append-only** and carries `txid` plus a DEFERRED guard requiring the
+  matching `link_plan_transitions` row in the SAME transaction (the 0007 / 0009 pattern). A
+  shadow decision must NOT move the plan.
+- **The retry budget is per (source, target), not per plan** (`publish_attempts`, append-only).
+  A UNIQUE index on (source, target, attempt) makes the budget unspendable twice by a race, and
+  `blocked` is deliberately NOT an open status so a doomed pair does not hold its target's
+  diversity budget for ever.
+- **The API is GET-only except ONE write route.** `/autonomy`, `/autonomy/mode`,
+  `/autonomy/decisions`, `/autonomy/blocked` and `/autonomy/attempts` are `read`;
+  `POST /autonomy/plans/{plan_id}/override` reuses `deploy` — an override publishes or withdraws
+  one link, exactly what `deploy` already grants, so no permission was invented. Running autonomy
+  is CLI-only (`make autonomy`, `make autonomy-shadow`).
+- **Graph signals are explicit.** `page_graph_metrics` and `GraphSignals` report every signal
+  separately (degrees, PageRank, hub/authority, depth, orphan / nearly-orphan / bridge,
+  component, cluster, recipe version) — there is no opaque composite score, and
+  `CandidateAttribution` records per channel what each contributed, raw and normalised.
+  `RetrievalChannel` gains `ANALYTICS` and `ORPHAN_RECOVERY`, both OFF by default; analytics may
+  surface and may block, never alone justify (ADR-0016 §16.7).

@@ -131,10 +131,14 @@ async def test_batch_reviews_and_hands_off_every_proposed_plan(
     steps = await rows(sessionmaker, "SELECT run_id, seq FROM agent_steps ORDER BY run_id, seq")
     assert len(steps) == len(runs) * len(AgentNode)
     reviewed = await scalar(sessionmaker, "SELECT count(*) FROM agent_run_plans")
+    handed_on = await scalar(
+        sessionmaker, "SELECT count(*) FROM link_plans WHERE status='policy_checked'"
+    )
     awaiting = await scalar(
         sessionmaker, "SELECT count(*) FROM link_plans WHERE status='awaiting_approval'"
     )
-    assert reviewed == awaiting == detail.counters["plans_handed_off"]
+    assert awaiting == 0, "the approval state is exceptional now (ADR-0018 / ADR-0019)"
+    assert reviewed == handed_on == detail.counters["plans_handed_off"]
     assert reviewed <= proposed
     transitions = await rows(
         sessionmaker,
@@ -144,7 +148,6 @@ async def test_batch_reviews_and_hands_off_every_proposed_plan(
     assert {(t.to_status, t.actor) for t in transitions} == {
         ("critiqued", "agent:critic@graph-v1"),
         ("policy_checked", "agent:policy-gate@graph-v1"),
-        ("awaiting_approval", "agent:policy-gate@graph-v1"),
     }
     approved = "SELECT count(*) FROM link_plans WHERE status='approved'"
     assert await scalar(sessionmaker, approved) == 0

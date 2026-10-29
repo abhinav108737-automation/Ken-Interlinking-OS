@@ -38,9 +38,12 @@ type Schemas = components["schemas"];
 
 // Every value of each contract enum, spelled out so that this test (as well as
 // the Record types in lib/recommendations.ts) notices a contract change.
+// ADR-0018 §3 adds `autonomy_decided` and `blocked` and makes the approval
+// pair EXCEPTIONAL rather than the normal path.
 const STATUSES: Schemas["LinkPlanStatus"][] = [
-  "proposed", "critiqued", "policy_checked", "awaiting_approval", "approved", "rejected", "superseded",
-  "validated", "deployed", "verified", "failed", "rolled_back", "expired", "measured", "learning_captured",
+  "proposed", "critiqued", "policy_checked", "autonomy_decided", "blocked", "awaiting_approval", "approved",
+  "rejected", "superseded", "validated", "deployed", "verified", "failed", "rolled_back", "expired", "measured",
+  "learning_captured",
 ];
 const REASONS: Schemas["ReasonCode"][] = [
   "semantically_similar", "lexical_overlap", "same_market", "parent_market", "submarket", "related_market",
@@ -61,15 +64,22 @@ describe("enum labels", () => {
     const labels = STATUSES.map((status) => describeLinkPlanStatus(status));
     expect(labels.every((p) => p.known && !p.label.startsWith("Unknown"))).toBe(true);
     expect(new Set(labels.map((p) => p.label)).size).toBe(STATUSES.length);
-    // The lifecycle states a reviewer must never confuse.
+    // The lifecycle states an operator must never confuse (ADR-0018 §3).
     expect(describeLinkPlanStatus("proposed").label).toBe("Proposed");
-    expect(describeLinkPlanStatus("awaiting_approval").label).toBe("Awaiting approval");
-    expect(describeLinkPlanStatus("approved").label).toBe("Approved");
-    expect(describeLinkPlanStatus("deployed").label).toBe("Deployed");
+    expect(describeLinkPlanStatus("autonomy_decided").label).toBe("Autonomy decided");
+    expect(describeLinkPlanStatus("blocked")).toMatchObject({ label: "Blocked", tone: "critical" });
+    expect(describeLinkPlanStatus("deployed").label).toBe("Deployed (verification pending)");
     expect(describeLinkPlanStatus("verified").label).toBe("Verified");
     expect(describeLinkPlanStatus("failed")).toMatchObject({ label: "Failed", tone: "critical" });
     expect(describeLinkPlanStatus("rolled_back").label).toBe("Rolled back");
+    // The approval pair is reachable but is no longer the normal path, and both
+    // its label and its description have to say so.
+    expect(describeLinkPlanStatus("awaiting_approval").label).toBe("Awaiting approval (exception)");
+    expect(describeLinkPlanStatus("approved").label).toBe("Approved (exception)");
+    expect(describeLinkPlanStatus("awaiting_approval").description).toMatch(/not the normal path/i);
     expect(describeLinkPlanStatus("approved").description).toMatch(/not deployed/i);
+    // A blocked plan must never read as something that merely needs a decision.
+    expect(describeLinkPlanStatus("blocked").description).toMatch(/never published/i);
   });
 
   it("label every reason and rejection code, channel, anchor source and opportunity kind", () => {
@@ -78,7 +88,7 @@ describe("enum labels", () => {
     expect([...OPPORTUNITY_KINDS]).toEqual(["orphan", "underlinked", "link_capacity"]);
     for (const code of REASONS) expect(describeReasonCode(code)).not.toMatch(/^Unknown/);
     for (const code of REJECTIONS) expect(describeCandidateRejection(code)).not.toMatch(/^Unknown/);
-    for (const channel of ["semantic", "lexical", "taxonomy", "graph"]) {
+    for (const channel of ["semantic", "lexical", "taxonomy", "graph", "analytics", "orphan_recovery"]) {
       expect(describeRetrievalChannel(channel)).not.toMatch(/^Unknown/);
     }
     for (const source of ["target_topic", "target_title", "target_keyword", "edited"]) {
@@ -199,13 +209,16 @@ describe("helpers", () => {
 });
 
 describe("query parsing", () => {
-  it("defaults the status filter to awaiting_approval (the inbox) and accepts all or a contract status", () => {
-    expect(parseStatusFilter({})).toBe("awaiting_approval");
+  // ADR-0018 §5: the screen is a MONITORING list, not an approval inbox, so the
+  // default is every status and never `awaiting_approval`.
+  it("defaults the status filter to every status and accepts a contract status", () => {
+    expect(parseStatusFilter({})).toBe(ALL_STATUSES);
     expect(parseStatusFilter({ status: "proposed" })).toBe("proposed");
     expect(parseStatusFilter({ status: "all" })).toBe(ALL_STATUSES);
-    expect(parseStatusFilter({ status: "approved" })).toBe("approved");
+    expect(parseStatusFilter({ status: "blocked" })).toBe("blocked");
+    expect(parseStatusFilter({ status: "autonomy_decided" })).toBe("autonomy_decided");
     expect(parseStatusFilter({ status: ["verified", "x"] })).toBe("verified");
-    expect(parseStatusFilter({ status: "approved; drop" })).toBe("awaiting_approval");
+    expect(parseStatusFilter({ status: "approved; drop" })).toBe(ALL_STATUSES);
   });
 
   it("accepts a minimum score only within [0, 1]", () => {

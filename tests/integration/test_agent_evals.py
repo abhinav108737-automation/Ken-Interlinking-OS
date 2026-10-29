@@ -139,9 +139,12 @@ async def _check_run(
             reasons = rule_reasons(want.verdict)
         if reasons is not None:
             eq(f"reasons {want.target}", review.reasons, reasons)
-        if want.fallback is not None and not review.explanation.startswith(
+        expected_prefix = (
             "Deterministic rule: raw confidence"
-        ):
+            if want.fallback is FallbackReason.MODEL_DISABLED
+            else "Deterministic fallback ("
+        )
+        if want.fallback is not None and not review.explanation.startswith(expected_prefix):
             out.append(f"{tag}: rule explanation for {want.target} is {review.explanation!r}")
         if want.explanation_contains and want.explanation_contains not in review.explanation:
             out.append(f"{tag}: explanation of {want.target} lacks {want.explanation_contains!r}")
@@ -250,11 +253,7 @@ async def _final_statuses(
         if target not in case.targets:
             continue
         want = (
-            "expired"
-            if target in expired
-            else "awaiting_approval"
-            if target in handed
-            else "proposed"
+            "expired" if target in expired else "policy_checked" if target in handed else "proposed"
         )
         if plan.status != want:
             out.append(f"{case.id}: {target} is {plan.status}, expected {want}")
@@ -397,10 +396,17 @@ async def test_model_disabled_equals_the_deterministic_rule(
     for result in results:
         case = cases[by_id[result.source_page_id]]
         chosen = case.engine_plans[: policy.max_plans_per_run]
-        want = [
-            (p.target, rule_verdict(p.confidence, ds.threshold), FallbackReason.MODEL_DISABLED)
-            for p in chosen
-        ]
+        want = []
+        seen_anchors: set[str] = set()  # the cannibalisation guard, restated independently
+        for p in chosen:
+            verdict = rule_verdict(p.confidence, ds.threshold)
+            anchor = " ".join(p.anchor.casefold().split())
+            if verdict is CriticVerdict.ACCEPT:
+                if anchor in seen_anchors:
+                    verdict = CriticVerdict.UNCERTAIN
+                else:
+                    seen_anchors.add(anchor)
+            want.append((p.target, verdict, FallbackReason.MODEL_DISABLED))
         targets = {
             p.id: _short(p.target_url)
             for p in await flow.source_plans(sessionmaker, url(case.source))
@@ -409,14 +415,18 @@ async def test_model_disabled_equals_the_deterministic_rule(
             (targets[r.plan_id], r.verdict, r.fallback_reason) for r in result.state.critic_result
         ]
         accepted = any(v is CriticVerdict.ACCEPT for _t, v, _f in want)
-        outcome = "recommend" if accepted else "needs_human_review"
+        outcome, status = (
+            ("recommend", "awaiting_approval") if accepted else ("no_action", "completed")
+        )
         if got != want:
             mismatches.append(f"{case.source}: reviews {got} != rule {want}")
-        if (result.outcome.value, result.status.value) != (outcome, "awaiting_approval"):
+        if (result.outcome.value, result.status.value) != (outcome, status):
             mismatches.append(f"{case.source}: {result.outcome} != rule {outcome}")
         if result.fallbacks != 0:  # model_disabled is not a model problem
             mismatches.append(f"{case.source}: fallbacks {result.fallbacks}")
-        if sorted(targets[i] for i in result.state.link_plans) != sorted(t for t, _v, _f in want):
+        if sorted(targets[i] for i in result.state.link_plans) != sorted(
+            t for t, v, _f in want if v is CriticVerdict.ACCEPT
+        ):
             mismatches.append(f"{case.source}: handed off {result.state.link_plans}")
     gates = await flow.gate_violations(sessionmaker, tools, results, expired_by_hook=frozenset())
     print(
@@ -469,6 +479,13 @@ async def test_hard_gates_fire_on_bad_records(sessionmaker: flow.SM, tmp_path: P
     assert len(handed) >= 2
     proposed = await flow.rows(sessionmaker, "SELECT id FROM link_plans WHERE status='proposed'")
     async with sessionmaker() as session, session.begin():
+        await transition(  # the exceptional approval ladder: policy_checked -> awaiting_approval
+            session,
+            plan_id=handed[0],
+            to_status=LinkPlanStatus.AWAITING_APPROVAL,
+            actor="agent:policy-gate@graph-v1",
+            note="self-test",
+        )
         await transition(
             session,
             plan_id=handed[0],

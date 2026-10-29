@@ -4,8 +4,9 @@ import type { ReactNode } from "react";
 
 import { logoutAction } from "@/app/auth/actions";
 import { PrimaryNav } from "@/components/PrimaryNav";
+import { AutonomyModeBanner } from "@/components/autonomy/AutonomyModeBanner";
 import { SessionHeader } from "@/components/auth/SessionHeader";
-import { getSessionUser, isUnauthenticatedError } from "@/lib/api";
+import { getAutonomyMode, getSessionUser, isUnauthenticatedError } from "@/lib/api";
 import { permissionsOf } from "@/lib/auth";
 import { navLinksFor } from "@/lib/nav";
 
@@ -28,6 +29,13 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   // Signed out: no nav. API unreachable: the nav still shows (System status helps then).
   const signedOut = !me.ok && isUnauthenticatedError(me.error);
   const links = navLinksFor(permissionsOf(user));
+  // ADR-0018 §2: the autonomy mode must be visible on EVERY relevant screen,
+  // because in `shadow` nothing is really published and a reader must never
+  // mistake a counterfactual for an action taken. Putting it in the layout is
+  // the only way no screen can forget it. It is deduplicated per request
+  // (`cache`), so a screen that also reads the mode costs no second call, and
+  // it never redirects on a 401, so the sign-in screen still renders.
+  const mode = signedOut || user === null ? null : await getAutonomyMode();
   return (
     <html lang="en">
       <body className="min-h-screen bg-white font-sans text-slate-900 antialiased">
@@ -52,6 +60,11 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
             </div>
           )}
         </header>
+        {mode !== null && mode.ok && (
+          <div className="mx-auto max-w-6xl px-4 pt-4">
+            <AutonomyModeBanner health={mode.data} compact />
+          </div>
+        )}
         <main id="main" tabIndex={-1} className="mx-auto max-w-6xl px-4 py-8 focus:outline-none">
           {children}
         </main>

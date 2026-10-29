@@ -1,0 +1,38 @@
+# Graph policy v1 -- internal link-graph metrics (final-completion directive section 5).
+#
+# DATA, NOT CODE: the recipe every `page_graph_metrics` row is computed with. The
+# `metrics_version` stored on each row is derived from the algorithm version in code plus THIS
+# file's `version`, so changing anything here means graph.v2.yaml and a new metrics_version --
+# never an in-place edit once released -- and two versions are never compared.
+#
+# Everything is deterministic: sorted node order, fixed iteration counts and tolerances, no
+# randomness. There is no Neo4j and no learned model; a graph-learning experiment may only sit
+# behind ken_services.graph.experiments and cannot replace this baseline without benchmark
+# evidence.
+policy: graph
+version: 1
+status: active
+source: authored   # an engineering default, not Ken-supplied data
+
+pagerank:
+  damping: 0.85
+  tolerance: 1.0e-10
+  max_iterations: 200
+
+hits:
+  tolerance: 1.0e-10
+  max_iterations: 200
+
+# A page is NEARLY orphaned when it has at most this many distinct inbound linking pages
+# (so every orphan is nearly orphaned too, as the schema requires).
+nearly_orphan_max_inbound: 1
+
+# URL-path regexes of the crawl entry page(s). Crawl depth = clicks from these; no entry page
+# found means crawl_depth is NULL everywhere (and is reported), never guessed.
+entry_path_patterns:
+  - "^/$"
+
+# Topical clusters: pages sharing their most specific market (fresh analysis), else their
+# industry. Ordinals: largest cluster first, ties by cluster key.
+clusters:
+  key: market_then_industry

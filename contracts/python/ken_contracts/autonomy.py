@@ -32,7 +32,7 @@ operator deliberately moves to ``guarded`` or ``autonomous`` AND acknowledges it
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import Final, Protocol, runtime_checkable
+from typing import Final, Literal, Protocol, runtime_checkable
 from uuid import UUID
 
 from pydantic import AwareDatetime, Field, model_validator
@@ -43,23 +43,43 @@ from ken_contracts.errors import ListResponse
 from ken_contracts.recommendations import ACTOR_PATTERN, LinkPlanStatus
 
 __all__ = [
+    "AUTONOMOUS_CONFIDENCE_FLOOR_MIN",
+    "COOLDOWN_FLOOR_S",
     "DETERMINISTIC_BLOCK_CODES",
+    "FAILED_ATTEMPTS_FOR_HIGH_CEILING",
+    "GUARDED_CONFIDENCE_FLOOR_MIN",
+    "HUB_INBOUND_LINKS_CEILING",
     "MAX_OVERRIDE_REASON_CHARS",
+    "POSITIVE_OUTCOME_RATE_FLOOR_MIN",
+    "PUBLISH_ATTEMPTS_CEILING",
+    "REDIRECT_HOPS_CEILING",
+    "REQUIRED_COMMERCIAL_PAGE_TYPES",
+    "SENSITIVE_ANCHOR_CHARS_CEILING",
+    "SUBJECT_AUTONOMY_DECISION",
     "AutonomyDecision",
     "AutonomyDecisionView",
     "AutonomyEngine",
+    "AutonomyError",
     "AutonomyEvaluation",
     "AutonomyHealth",
+    "AutonomyMode",
+    "AutonomyPolicy",
     "AutonomyReader",
     "AutonomySummary",
     "BlockCode",
+    "BlockPolicy",
     "BlockedActionView",
+    "ConfidencePolicy",
     "CriticOutcome",
     "OperatorOverrideRequest",
     "OperatorOverrideResponse",
     "OverrideAction",
+    "OverrideRefusedError",
+    "PlanNotEvaluatedError",
     "PublishAttemptView",
     "RetryBudgetState",
+    "RetryPolicy",
+    "RiskPolicy",
     "RiskTier",
     "VerificationProfile",
 ]
@@ -267,6 +287,26 @@ class AutonomyEvaluation(FrozenModel):
             raise ValueError("auto_publish_with_extra_verification requires the strict profile")
         return self
 
+    @property
+    def deferred(self) -> bool:
+        """A DEFERRAL: ``BLOCK`` with no fired code, taken outside shadow, not by a critic's
+        rejection. Explicit rather than an unwritten convention.
+
+        There is no separate "deferred" state in the operational vocabulary (proposed,
+        blocked, auto-published, verification-pending, verified, rolled-back, failed): a
+        deferral is a BLOCKED plan whose block list is empty because no deterministic rule
+        fired -- the mode, risk tier, confidence or calibration declined to publish it
+        unattended. An operator can still publish-override it. Shadow rows are excluded
+        (every shadow decision is ``BLOCK`` by definition and nothing was deferred), as is a
+        critic rejection (a refusal, not a postponement).
+        """
+        return (
+            self.decision is AutonomyDecision.BLOCK
+            and not self.blocks
+            and self.mode is not AutonomyMode.SHADOW
+            and self.critic_outcome is not CriticOutcome.REJECT
+        )
+
 
 def _block_order(code: BlockCode) -> int:
     return list(BlockCode).index(code)
@@ -336,6 +376,15 @@ class BlockedActionView(FrozenModel):
     overridden: bool = Field(
         default=False, description="An operator has already acted on this block."
     )
+    reason: str | None = Field(
+        default=None,
+        max_length=500,
+        description=(
+            "Why the plan is blocked, in words, as recorded when it was blocked: either the "
+            "deterministic codes that fired, or -- for a DEFERRAL, whose block list is empty -- "
+            "'deferred' with the risk tier, confidence and calibration facts that declined it."
+        ),
+    )
 
 
 class AutonomyHealth(FrozenModel):
@@ -400,6 +449,141 @@ class OperatorOverrideResponse(FrozenModel):
     )
     refusal: str | None = Field(default=None, max_length=200)
     occurred_at: AwareDatetime
+
+
+# --------------------------------------------------------------------------- #
+# The autonomy policy (policies/autonomy/autonomy.v<N>.yaml)
+# --------------------------------------------------------------------------- #
+# DATA, not code: every threshold that decides whether the system may publish without a human
+# lives in a versioned document, so a change is a reviewed file and a new version -- never an
+# in-place edit, and never a number only a code change can alter. The directive makes autonomy
+# *policy-governed*; this is that policy.
+#
+# THE ONE RULE THAT MAKES A HUMAN-EDITABLE SAFETY DOCUMENT SAFE: it may only make the system
+# MORE conservative than the floor below, never less. Each ``*_MIN`` / ``*_CEILING`` constant
+# is the least cautious value a policy file may hold; a file beyond it is a ValidationError at
+# load (the ``LearningPolicy`` pattern, ADR-0016 15.2c). The floors are deliberately not
+# chosen to make any particular corpus publish: if ``guarded`` publishes nothing on a given
+# corpus, that is the honest outcome.
+GUARDED_CONFIDENCE_FLOOR_MIN: Final = 0.75
+"""``guarded`` publishes only HIGH-confidence actions. Below three-in-four, 'high' is a
+stretch of the word."""
+AUTONOMOUS_CONFIDENCE_FLOOR_MIN: Final = 0.50
+"""Even ``autonomous`` refuses a plan the engine itself believes less than a coin flip."""
+POSITIVE_OUTCOME_RATE_FLOOR_MIN: Final = 0.50
+"""A decision class whose measured outcomes are mostly non-positive has its confidence
+capped. BEHAVIOURAL, so one-directional: a high rate never raises anything (ADR-0015 s12)."""
+PUBLISH_ATTEMPTS_CEILING: Final = 5
+"""No pair gets more than five publish attempts, whatever a file says."""
+COOLDOWN_FLOOR_S: Final = 600.0
+"""A failed pair always waits at least ten minutes before it is touched again."""
+HUB_INBOUND_LINKS_CEILING: Final = 50
+SENSITIVE_ANCHOR_CHARS_CEILING: Final = 80
+FAILED_ATTEMPTS_FOR_HIGH_CEILING: Final = 2
+REDIRECT_HOPS_CEILING: Final = 1
+REQUIRED_COMMERCIAL_PAGE_TYPES: Final[frozenset[str]] = frozenset(
+    {"product", "pricing", "service", "offer", "checkout", "contact", "lead_form"}
+)
+"""Page types whose purpose is a transaction. A file may ADD types and may not remove one: a
+mistake on a commercial page costs revenue, so it is never ``low`` risk."""
+
+
+class ConfidencePolicy(FrozenModel):
+    guarded_min_confidence: float = Field(
+        ge=GUARDED_CONFIDENCE_FLOOR_MIN,
+        le=1.0,
+        description="``guarded`` mode defers any plan whose calibrated confidence is below this.",
+    )
+    autonomous_min_confidence: float = Field(
+        ge=AUTONOMOUS_CONFIDENCE_FLOOR_MIN,
+        le=1.0,
+        description="``autonomous`` mode still refuses a plan below this.",
+    )
+    min_positive_outcome_rate: float = Field(
+        ge=POSITIVE_OUTCOME_RATE_FLOOR_MIN,
+        le=1.0,
+        description="A class whose measured positive-outcome rate is below this has its "
+        "confidence capped at that rate. Behavioural: it can lower a confidence, never raise.",
+    )
+
+    @model_validator(mode="after")
+    def _ordered(self) -> ConfidencePolicy:
+        if self.guarded_min_confidence < self.autonomous_min_confidence:
+            raise ValueError(
+                "guarded_min_confidence must be at least autonomous_min_confidence: "
+                "guarded is the stricter mode"
+            )
+        return self
+
+
+class RetryPolicy(FrozenModel):
+    max_attempts: int = Field(
+        ge=1,
+        le=PUBLISH_ATTEMPTS_CEILING,
+        description="Publish attempts per (source, target) pair, ever.",
+    )
+    cooldown_s: float = Field(
+        ge=COOLDOWN_FLOOR_S,
+        le=30 * 86400.0,
+        description="The wait after a failed publish or an automatic rollback.",
+    )
+
+
+class RiskPolicy(FrozenModel):
+    hub_inbound_links: int = Field(
+        ge=1,
+        le=HUB_INBOUND_LINKS_CEILING,
+        description="A destination with at least this many inbound internal links is a hub.",
+    )
+    sensitive_anchor_chars: int = Field(
+        ge=10,
+        le=SENSITIVE_ANCHOR_CHARS_CEILING,
+        description="An anchor longer than this spans too much of the sentence.",
+    )
+    failed_attempts_for_high: int = Field(
+        ge=1,
+        le=FAILED_ATTEMPTS_FOR_HIGH_CEILING,
+        description="This many FAILED publishes of a pair make it high risk.",
+    )
+    commercial_page_types: tuple[str, ...] = Field(
+        min_length=1,
+        description="Page types that are never low risk. May add to the required set, not "
+        "remove from it.",
+    )
+
+    @model_validator(mode="after")
+    def _superset(self) -> RiskPolicy:
+        if len(set(self.commercial_page_types)) != len(self.commercial_page_types):
+            raise ValueError("commercial_page_types must be unique")
+        missing = REQUIRED_COMMERCIAL_PAGE_TYPES - set(self.commercial_page_types)
+        if missing:
+            raise ValueError(
+                "commercial_page_types cannot drop a required type; missing "
+                + ", ".join(sorted(missing))
+            )
+        return self
+
+
+class BlockPolicy(FrozenModel):
+    max_redirect_hops: int = Field(
+        ge=0,
+        le=REDIRECT_HOPS_CEILING,
+        description="A destination behind more redirect hops than this is UNSUPPORTED_REDIRECT.",
+    )
+
+
+class AutonomyPolicy(FrozenModel):
+    """``policies/autonomy/autonomy.v<N>.yaml``. Validated on load; served read-only by
+    ``/settings/policies``; its ``version`` is recorded on every ``autonomy_decisions`` row."""
+
+    policy: Literal["autonomy"]
+    version: int = Field(ge=1)
+    status: str = Field(min_length=1, max_length=64)
+    source: str = Field(min_length=1, max_length=500)
+    confidence: ConfidencePolicy
+    retry: RetryPolicy
+    risk: RiskPolicy
+    blocks: BlockPolicy
 
 
 # --------------------------------------------------------------------------- #

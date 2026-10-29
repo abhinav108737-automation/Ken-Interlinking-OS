@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from typing import Any, Final
 
 from ken_agents import prompts
+from ken_agents.critic import guard_for
 from ken_agents.llm import RoleModel
 from ken_agents.recording import StepScratch
 from ken_agents.state import (
@@ -46,6 +47,7 @@ from ken_contracts.agents import (
     PlannerSelection,
     TriageDecision,
 )
+from ken_contracts.autonomy import CriticOutcome
 from ken_contracts.recommendations import LinkPlan
 from ken_services.agents.protocol import PlanReviewInput
 
@@ -191,24 +193,69 @@ async def plan(state: AgentState, ctx: NodeContext, step: StepScratch) -> PlanUp
 def deterministic_review(
     plan_: LinkPlan, ref: str, threshold: float, reason: FallbackReason
 ) -> PlanReview:
-    """The rule: ``accept`` at or above the RAW confidence threshold, else ``uncertain``."""
+    """The deterministic critic, and the degraded mode of a failed model.
+
+    * ``MODEL_DISABLED`` (policy says no model): ``accept`` at or above the RAW confidence
+      threshold, else ``uncertain``. This is the configured rule, not a failure.
+    * ANY model problem (unavailable, timeout, schema violation): ``uncertain``, always. A
+      model that cannot be heard never produces an accept, however confident the engine was;
+      ``uncertain`` maps to NO_ACTION (:func:`~ken_agents.critic.critic_outcome`).
+    """
     reasons: tuple[CriticReason, ...]
-    if plan_.confidence >= threshold:
-        verdict, reasons, cmp = CriticVerdict.ACCEPT, (), ">="
+    if reason is FallbackReason.MODEL_DISABLED and plan_.confidence >= threshold:
+        verdict, reasons = CriticVerdict.ACCEPT, ()
+        text = f"Deterministic rule: raw confidence {plan_.confidence:.2f} >= {threshold:.2f}."
+    elif reason is FallbackReason.MODEL_DISABLED:
+        verdict, reasons = CriticVerdict.UNCERTAIN, (CriticReason.LOW_CONFIDENCE,)
+        text = f"Deterministic rule: raw confidence {plan_.confidence:.2f} < {threshold:.2f}."
     else:
-        verdict, reasons, cmp = CriticVerdict.UNCERTAIN, (CriticReason.LOW_CONFIDENCE,), "<"
+        verdict, reasons = CriticVerdict.UNCERTAIN, (CriticReason.LOW_CONFIDENCE,)
+        text = f"Deterministic fallback ({reason.value}): not accepted without a model answer."
     return PlanReview(
         plan_id=plan_.id,
         ref=ref,
         verdict=verdict,
         reasons=reasons,
-        explanation=(
-            f"Deterministic rule: raw confidence {plan_.confidence:.2f} {cmp} {threshold:.2f}."
-        ),
+        explanation=text,
         confidence=plan_.confidence,
         fallback_reason=reason,
         model=None,
     )
+
+
+def _apply_guards(reviews: list[PlanReview], chosen: Sequence[LinkPlan]) -> list[PlanReview]:
+    """Deterministic guards, AFTER the model or the rule, best-ranked first.
+
+    A guard only moves a review toward reject / uncertain (= NO_ACTION); it never upgrades,
+    and a model's accept cannot survive one. Only still-accepted better-ranked candidates
+    shadow a later one."""
+    surviving: list[LinkPlan] = []
+    out: list[PlanReview] = []
+    for review, plan_ in zip(reviews, chosen, strict=True):
+        finding = (
+            guard_for(plan_, surviving) if review.verdict is not CriticVerdict.REJECT else None
+        )
+        if finding is None:
+            out.append(review)
+        else:
+            verdict = (
+                CriticVerdict.REJECT
+                if finding.outcome is CriticOutcome.REJECT
+                else CriticVerdict.UNCERTAIN
+            )
+            out.append(
+                review.model_copy(
+                    update={
+                        "verdict": verdict,
+                        "reasons": tuple(dict.fromkeys((finding.reason, *review.reasons)))[:4],
+                        "explanation": _clip(finding.explanation),
+                        "guard": finding.guard.value,
+                    }
+                )
+            )
+        if out[-1].verdict is CriticVerdict.ACCEPT:
+            surviving.append(plan_)
+    return out
 
 
 async def critique(state: AgentState, ctx: NodeContext, step: StepScratch) -> CritiqueUpdate:
@@ -247,7 +294,7 @@ async def critique(state: AgentState, ctx: NodeContext, step: StepScratch) -> Cr
                 reviews = []
                 for ref, plan_ in refs.items():
                     critique_ = by_ref.get(ref)
-                    if critique_ is None:  # omitted: the deterministic rule, recorded
+                    if critique_ is None:  # omitted: degraded, recorded, never an accept
                         step.fallback(FallbackReason.SCHEMA_VIOLATION)
                         reviews.append(
                             deterministic_review(
@@ -267,12 +314,15 @@ async def critique(state: AgentState, ctx: NodeContext, step: StepScratch) -> Cr
                             model=answer.model,
                         )
                     )
+    reviews = _apply_guards(reviews, chosen)
     output["reviews"] = [
         {
             "plan_id": str(r.plan_id),
             "verdict": r.verdict.value,
+            "outcome": r.outcome.value,
             "reasons": [x.value for x in r.reasons],
             "fallback_reason": r.fallback_reason.value if r.fallback_reason else None,
+            "guard": r.guard,
         }
         for r in reviews
     ]
@@ -373,7 +423,7 @@ def risk_level(state: AgentState, threshold: float) -> RiskLevel | None:
     if state.invariant_problems or state.conflicts:
         return RiskLevel.HIGH
     if any(
-        r.verdict is not CriticVerdict.ACCEPT or r.confidence < threshold
+        r.outcome is not CriticOutcome.ACCEPT or r.confidence < threshold
         for r in state.critic_result
     ):
         return RiskLevel.MEDIUM
@@ -393,8 +443,6 @@ async def finalize(state: AgentState, ctx: NodeContext, step: StepScratch) -> Fi
         outcome, status = AgentOutcome.NO_ACTION, AgentRunStatus.COMPLETED
     elif any(r.verdict is CriticVerdict.ACCEPT and r.plan_id in handed for r in reviews):
         outcome, status = AgentOutcome.RECOMMEND, AgentRunStatus.AWAITING_APPROVAL
-    elif handed:
-        outcome, status = AgentOutcome.NEEDS_HUMAN_REVIEW, AgentRunStatus.AWAITING_APPROVAL
     elif state.invariant_problems or state.conflicts:
         outcome, status = AgentOutcome.NEEDS_HUMAN_REVIEW, AgentRunStatus.COMPLETED
         if state.conflicts:  # ADR-0012 section 8: nothing handed off after a conflict

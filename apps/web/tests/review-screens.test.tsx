@@ -16,6 +16,7 @@ import { linkPerformanceDetail } from "./fixtures/analytics";
 import { list } from "./fixtures/inventory";
 import { ANCHOR, PLAN_ID, linkPlan, linkPlanDetail, recommendationSummary } from "./fixtures/recommendations";
 import { NEW_PLAN_ID, dashboardSummary, eventRecord, policiesView, principal, reviewAction, targetOption } from "./fixtures/review";
+import { autonomyHealth, autonomySummary } from "./fixtures/autonomy";
 
 const api = vi.hoisted(() => ({
   // Phase 7: the plan detail screen's performance panel.
@@ -25,6 +26,10 @@ const api = vi.hoisted(() => ({
   getSessionUser: vi.fn(),
   requireSessionUser: vi.fn(),
   getDashboard: vi.fn(),
+  // ADR-0018: the dashboard, the layout banner and the recommendations list
+  // all read the autonomy mode.
+  getAutonomyMode: vi.fn(),
+  getAutonomySummary: vi.fn(),
   listLinkPlans: vi.fn(),
   getRecommendationSummary: vi.fn(),
   getLinkPlan: vi.fn(),
@@ -68,6 +73,8 @@ beforeEach(() => {
   api.listAgentPlanReviews.mockResolvedValue(ok([]));
   api.listPlanReviewActions.mockResolvedValue(ok([]));
   api.listPlanTargetOptions.mockResolvedValue(ok([targetOption()]));
+  api.getAutonomyMode.mockResolvedValue(ok(autonomyHealth()));
+  api.getAutonomySummary.mockResolvedValue(ok(autonomySummary()));
 });
 
 async function renderPage(element: Promise<React.ReactElement>) {
@@ -114,7 +121,9 @@ describe("/recommendations/[planId] by role", () => {
     expect(history).toHaveTextContent("Over-linking");
     expect(history).toHaveTextContent("<b>not bold</b>");
     expect(container.querySelector("b")).toBeNull();
-    expect(screen.getByRole("note")).toHaveTextContent("no review action applies");
+    expect(
+      screen.getAllByRole("note").some((note) => note.textContent?.includes("no review action applies") === true),
+    ).toBe(true);
     expect(api.listPlanTargetOptions).not.toHaveBeenCalled();
   });
 
@@ -129,46 +138,110 @@ describe("/recommendations/[planId] by role", () => {
   });
 });
 
-describe("/recommendations inbox by role", () => {
-  it("reviewer: bulk form and checkboxes for plans awaiting approval", async () => {
+// ADR-0018 §5: the screen is a monitoring list. Bulk review survives only as an
+// operator EXCEPTION action and must be labelled as one.
+describe("/recommendations by role", () => {
+  it("reviewer: bulk review survives as an exception action, clearly marked", async () => {
     api.listLinkPlans.mockResolvedValue(ok(list([linkPlan({ status: "awaiting_approval" })])));
     await renderPage(RecommendationsPage({ searchParams: Promise.resolve({}) }));
-    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Recommendation inbox");
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Recommendations");
+    expect(screen.getByRole("heading", { level: 1 })).not.toHaveTextContent("inbox");
+    expect(screen.getByText(/Approve, reject and edit are operator exception actions/)).toBeInTheDocument();
+    expect(screen.getByText(/not part of the normal workflow/)).toBeInTheDocument();
     expect(screen.getByRole("form", { name: "Bulk review" })).toBeInTheDocument();
     expect(screen.getByRole("checkbox", { name: `Select “${ANCHOR}” for bulk review` })).toBeInTheDocument();
   });
 
-  it("viewer: read-only inbox", async () => {
+  it("viewer: no exception controls, and the missing permission is named", async () => {
     as("viewer");
     api.listLinkPlans.mockResolvedValue(ok(list([linkPlan({ status: "awaiting_approval" })])));
     await renderPage(RecommendationsPage({ searchParams: Promise.resolve({}) }));
     expect(screen.queryByRole("form", { name: "Bulk review" })).toBeNull();
     expect(screen.queryByRole("checkbox")).toBeNull();
-    expect(screen.getByText(/can read recommendations but not review them/)).toBeInTheDocument();
+    expect(screen.getByText(/needs the review permission, which your role does not have/)).toBeInTheDocument();
+  });
+
+  it("the autonomy mode is on the screen, and shadow says nothing is published", async () => {
+    api.listLinkPlans.mockResolvedValue(ok(list([linkPlan()])));
+    await renderPage(RecommendationsPage({ searchParams: Promise.resolve({}) }));
+    const banner = screen.getByRole("note", { name: "Autonomy mode" });
+    expect(banner).toHaveTextContent("Shadow — nothing is published");
+    expect(banner).toHaveTextContent("Publishing disabled");
   });
 });
 
+// ADR-0018 §5: the dashboard is organised around the operational states, not
+// around an approval queue. Approval appears once, as an exception.
 describe("dashboard", () => {
-  it("shows counts, the awaiting-approval call to action, AUTO_APPROVE disabled and recent reviews", async () => {
+  it("leads with the autonomy mode and the operational states, not an approval queue", async () => {
     api.getDashboard.mockResolvedValue(ok(dashboardSummary()));
     await renderPage(DashboardPage());
-    expect(screen.getByText("recommendations are awaiting approval.").previousElementSibling).toHaveTextContent("7");
-    expect(screen.getByRole("link", { name: "Review the inbox" })).toHaveAttribute("href", "/recommendations");
-    expect(screen.getByText("AUTO_APPROVE:").parentElement).toHaveTextContent("Disabled");
-    expect(screen.getByText("Live pages").nextElementSibling).toHaveTextContent("118");
-    expect(screen.getByRole("table", { name: /Latest review actions/ })).toHaveTextContent("Rejected");
-    expect(within(screen.getByRole("table", { name: /Plans by status/ })).getByRole("link", { name: "Approved" })).toHaveAttribute(
+    // The mode, and in shadow the fact that nothing is published.
+    const banners = screen.getAllByRole("note", { name: "Autonomy mode" });
+    expect(banners[0]).toHaveTextContent("Shadow — nothing is published");
+    expect(banners.some((banner) => banner.textContent?.includes("counterfactual") === true)).toBe(true);
+    // The seven primary operational states, each with its own labelled row.
+    const states = screen.getByRole("table", { name: /Link plans by operational state/ });
+    for (const label of [
+      "Proposed",
+      "Blocked",
+      "Auto-published",
+      "Verification pending",
+      "Verified",
+      "Rolled back",
+      "Failed",
+    ]) {
+      expect(states).toHaveTextContent(label);
+    }
+    // Blocked plans are an investigation call to action, not an approval one.
+    expect(screen.getByRole("link", { name: "Investigate blocked actions" })).toHaveAttribute(
       "href",
-      "/recommendations?status=approved",
+      "/autonomy/blocked",
     );
+    expect(screen.queryByRole("link", { name: "Review the inbox" })).toBeNull();
+    // Approval survives only under "Operator exceptions".
+    const exceptions = screen.getByRole("heading", { level: 2, name: "Operator exceptions" }).closest("section")!;
+    expect(exceptions).toHaveTextContent("Approval is not part of the normal workflow");
+    expect(within(exceptions).getByRole("link", { name: "Handle exceptions" })).toHaveAttribute(
+      "href",
+      "/recommendations?status=awaiting_approval",
+    );
+    expect(within(exceptions).getByText("plans are deferred to an operator.").previousElementSibling).toHaveTextContent(
+      "7",
+    );
+    // Autonomy counts, and the content counts, still render.
+    expect(screen.getByRole("link", { name: "4" })).toHaveAttribute("href", "/autonomy/attempts");
+    expect(screen.getByText("Live pages").nextElementSibling).toHaveTextContent("118");
+    expect(screen.getByRole("table", { name: /Latest operator actions on exceptions/ })).toHaveTextContent("Rejected");
     expect(screen.getByText("No batch job has run yet.")).toBeInTheDocument();
+  });
+
+  it("a shadow decision count is labelled as a counterfactual", async () => {
+    api.getDashboard.mockResolvedValue(ok(dashboardSummary()));
+    await renderPage(DashboardPage());
+    const byMode = screen.getByRole("table", { name: /Decisions by mode/ });
+    expect(byMode).toHaveTextContent("Shadow (counterfactual — nothing published)");
   });
 
   it("viewer gets a view link, and errors render", async () => {
     as("viewer");
     api.getDashboard.mockResolvedValue(fail({ kind: "network", path: "/dashboard" }));
     await renderPage(DashboardPage());
-    expect(screen.getByRole("alert")).toHaveTextContent("Dashboard unavailable");
+    const alerts = screen.getAllByRole("alert");
+    expect(alerts.some((alert) => alert.textContent?.includes("Dashboard unavailable") === true)).toBe(true);
+  });
+
+  it("renders with whatever came back when the autonomy calls fail", async () => {
+    api.getDashboard.mockResolvedValue(ok(dashboardSummary()));
+    api.getAutonomySummary.mockResolvedValue(fail({ kind: "network", path: "/autonomy" }));
+    api.getAutonomyMode.mockResolvedValue(fail({ kind: "network", path: "/autonomy/mode" }));
+    await renderPage(DashboardPage());
+    const alerts = screen.getAllByRole("alert");
+    expect(alerts.some((alert) => alert.textContent?.includes("Autonomy summary unavailable") === true)).toBe(true);
+    // The operational states still render: one failed call never blanks the page.
+    expect(screen.getByRole("table", { name: /Link plans by operational state/ })).toBeInTheDocument();
+    // And no mode banner is invented when the mode is unknown.
+    expect(screen.queryByRole("note", { name: "Autonomy mode" })).toBeNull();
   });
 });
 
@@ -212,12 +285,22 @@ describe("audit and settings by role", () => {
     expect(api.listEvents).toHaveBeenLastCalledWith(expect.objectContaining({ event_name: null }));
   });
 
-  it("operator_admin: the active policies and AUTO_APPROVE disabled", async () => {
+  // ADR-0018 §2 RETIRED the AUTO_APPROVE flag rather than reusing it, and the
+  // policy screen has to say so rather than presenting it as the publishing
+  // switch it no longer is.
+  it("operator_admin: the active policies, the retired flag and the autonomy mode", async () => {
     as("operator_admin");
     api.getPolicies.mockResolvedValue(ok(policiesView()));
     await renderPage(PoliciesPage());
     expect(screen.getByRole("heading", { name: "Ranking policy" })).toBeInTheDocument();
-    expect(screen.getByText("AUTO_APPROVE:").parentElement).toHaveTextContent("Disabled");
+    const flag = screen.getByText("AUTO_APPROVE (retired flag):").parentElement!;
+    expect(flag).toHaveTextContent("Disabled");
+    expect(flag).toHaveTextContent("the flag is retired");
+    expect(flag).toHaveTextContent("governed by the autonomy mode");
+    // The screen names what DOES govern publishing, and the mode is on it.
+    expect(screen.getByRole("note", { name: "Autonomy mode" })).toHaveTextContent("Shadow");
+    expect(screen.getByRole("link", { name: "autonomy mode" })).toHaveAttribute("href", "/autonomy");
+    expect(screen.getByRole("link", { name: "learning" })).toHaveAttribute("href", "/learning");
     expect(screen.getByRole("link", { name: "system status" })).toHaveAttribute("href", "/system");
   });
 

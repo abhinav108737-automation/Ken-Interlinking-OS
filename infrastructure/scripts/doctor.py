@@ -243,8 +243,7 @@ def check_vector_store() -> list[Row]:
             Row(
                 "FAIL" if settings.require_qdrant else "WARN",
                 "qdrant",
-                f"unreachable ({type(exc).__name__}) at the configured URL — run: "
-                "make qdrant-up",
+                f"unreachable ({type(exc).__name__}) at the configured URL — run: make qdrant-up",
             )
         ]
     if not reachable:
@@ -264,13 +263,9 @@ def check_vector_store() -> list[Row]:
         )
         if info.status_code == 200:
             result = info.json().get("result", {})
-            rows.append(
-                Row("OK", "qdrant collection", f"points={result.get('points_count')}")
-            )
+            rows.append(Row("OK", "qdrant collection", f"points={result.get('points_count')}"))
         else:
-            rows.append(
-                Row("WARN", "qdrant collection", "absent — run: make qdrant-index")
-            )
+            rows.append(Row("WARN", "qdrant collection", "absent — run: make qdrant-index"))
     except Exception as exc:  # pragma: no cover - best effort only
         rows.append(Row("WARN", "qdrant collection", f"unknown ({type(exc).__name__})"))
     return rows

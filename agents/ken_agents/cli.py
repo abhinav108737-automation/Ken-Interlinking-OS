@@ -8,8 +8,8 @@ Agent runs start here, never over HTTP (ADR-0012 section 11)::
   plans (at most ``max_sources_per_batch``);
 * ``--source PAGE_ID``: trigger ``manual``, only these sources (repeatable; UUIDs).
 
-Agents REVIEW the deterministic engine's ``proposed`` plans and hand the worthwhile ones to
-the human queue (``awaiting_approval``). Nothing is approved or published. Remote tracing
+Agents REVIEW the deterministic engine's ``proposed`` plans and hand the accepted ones on to
+the autonomy engine (``policy_checked``, ADR-0019). Nothing is approved or published. Remote tracing
 must be off (ADR-0012 section 9), or nothing runs.
 
 Prints one JSON line (job run id, status, counters) when the batch finished. Exit codes:

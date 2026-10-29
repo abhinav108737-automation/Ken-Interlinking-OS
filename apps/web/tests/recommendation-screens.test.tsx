@@ -24,6 +24,7 @@ import {
   transition,
 } from "./fixtures/recommendations";
 import { principal } from "./fixtures/review";
+import { autonomyHealth } from "./fixtures/autonomy";
 
 const api = vi.hoisted(() => ({
   // Phase 7: the plan detail screen's performance panel.
@@ -35,6 +36,8 @@ const api = vi.hoisted(() => ({
   listLinkCandidates: vi.fn(),
   listOpportunities: vi.fn(),
   getRecommendationSummary: vi.fn(),
+  // ADR-0018: the recommendations list carries the autonomy-mode banner.
+  getAutonomyMode: vi.fn(),
   // The plan detail screen's agent review panel (Phase 4).
   listAgentPlanReviews: vi.fn(),
   // Phase 5: the session user, review history and replacement targets.
@@ -88,6 +91,7 @@ beforeEach(() => {
   api.requireSessionUser.mockResolvedValue(ok(principal("viewer")));
   api.listPlanReviewActions.mockResolvedValue(ok([]));
   api.listPlanTargetOptions.mockResolvedValue(ok([]));
+  api.getAutonomyMode.mockResolvedValue(ok(autonomyHealth()));
 });
 
 async function renderPage(element: Promise<React.ReactElement>) {
@@ -103,18 +107,20 @@ function expectNoInjectedMarkup(container: HTMLElement) {
 }
 
 describe("/recommendations", () => {
-  it("defaults to plans awaiting approval and renders the table with a raw-confidence label", async () => {
+  // ADR-0018 §5: a monitoring list, so the default is EVERY status and the
+  // request must not narrow to the approval queue.
+  it("defaults to every status and renders the table with a raw-confidence label", async () => {
     api.listLinkPlans.mockResolvedValue(ok(list([linkPlan()], { total: 120, has_more: true })));
     await renderPage(RecommendationsPage({ searchParams: Promise.resolve({}) }));
     expect(api.listLinkPlans).toHaveBeenCalledWith({
-      status: "awaiting_approval",
+      status: null,
       min_score: null,
       source_page_id: null,
       target_page_id: null,
       limit: 50,
       offset: 0,
     });
-    const table = screen.getByRole("table", { name: /recommendations: awaiting approval/i });
+    const table = screen.getByRole("table", { name: /recommendations \(every status\)/i });
     const row = within(table).getAllByRole("row")[1]!;
     expect(within(row).getByRole("link", { name: `${ANCHOR} — view recommendation` })).toHaveAttribute(
       "href",
@@ -167,14 +173,24 @@ describe("/recommendations", () => {
       limit: 50,
       offset: 50,
     });
-    expect(screen.getByRole("table", { name: /any status/i })).toBeInTheDocument();
+    expect(screen.getByRole("table", { name: /every status/i })).toBeInTheDocument();
     expect(screen.getByLabelText("Status")).toHaveValue("all");
     expect(screen.getByLabelText("Minimum score")).toHaveValue(0.4);
-    const prev = screen.getByRole("link", { name: /previous/i }).getAttribute("href")!;
-    expect(new URL(prev, "http://x").searchParams.get("status")).toBe("all");
-    expect(new URL(prev, "http://x").searchParams.get("min_score")).toBe("0.4");
-    expect(new URL(prev, "http://x").searchParams.get("source_page_id")).toBe(PAGE_ID);
+    const prev = new URL(screen.getByRole("link", { name: /previous/i }).getAttribute("href")!, "http://x");
+    // `all` is now the DEFAULT, so it is omitted rather than repeated; the
+    // other filters must still survive the page change.
+    expect(prev.searchParams.get("status")).toBeNull();
+    expect(prev.searchParams.get("min_score")).toBe("0.4");
+    expect(prev.searchParams.get("source_page_id")).toBe(PAGE_ID);
     expect(screen.getByRole("link", { name: "Clear filters" })).toHaveAttribute("href", "/recommendations");
+  });
+
+  it("carries a non-default status across pages", async () => {
+    api.listLinkPlans.mockResolvedValue(ok(list([linkPlan()], { total: 80, offset: 50, has_more: true })));
+    await renderPage(RecommendationsPage({ searchParams: Promise.resolve({ status: "blocked", offset: "50" }) }));
+    expect(api.listLinkPlans).toHaveBeenCalledWith(expect.objectContaining({ status: "blocked" }));
+    const prev = new URL(screen.getByRole("link", { name: /previous/i }).getAttribute("href")!, "http://x");
+    expect(prev.searchParams.get("status")).toBe("blocked");
   });
 
   it("ignores invalid filters, says so, and does not send them", async () => {
@@ -183,7 +199,7 @@ describe("/recommendations", () => {
       RecommendationsPage({ searchParams: Promise.resolve({ min_score: "2", source_page_id: "../x", status: "bogus" }) }),
     );
     expect(api.listLinkPlans).toHaveBeenCalledWith(
-      expect.objectContaining({ status: "awaiting_approval", min_score: null, source_page_id: null }),
+      expect.objectContaining({ status: null, min_score: null, source_page_id: null }),
     );
     const alert = screen.getByRole("alert");
     expect(alert).toHaveTextContent("Minimum score must be a number from 0 to 1.");
@@ -199,12 +215,12 @@ describe("/recommendations", () => {
     );
   });
 
-  it("explains filtering when plans exist in other statuses", async () => {
+  it("says the filters excluded everything when plans exist elsewhere", async () => {
     api.listLinkPlans.mockResolvedValue(ok(list([])));
-    await renderPage(RecommendationsPage({ searchParams: Promise.resolve({}) }));
-    expect(screen.getByRole("status")).toHaveTextContent(
-      "No recommendations match these filters (only plans awaiting approval are shown by default).",
-    );
+    await renderPage(RecommendationsPage({ searchParams: Promise.resolve({ status: "blocked" }) }));
+    expect(screen.getByRole("status")).toHaveTextContent("No recommendations match these filters.");
+    // The old wording named the approval queue as the default; it no longer is.
+    expect(screen.getByRole("status")).not.toHaveTextContent("awaiting approval");
   });
 
   it("renders the dashboard summary with counts, links and policy versions", async () => {
@@ -217,10 +233,10 @@ describe("/recommendations", () => {
     const byStatus = within(overview).getByRole("table", { name: /plans by status/i });
     expect(within(byStatus).getAllByRole("rowheader").map((h) => h.firstChild?.textContent)).toEqual([
       "Proposed",
-      "Approved",
+      "Approved (exception)",
       "Rejected",
     ]);
-    expect(within(byStatus).getByRole("link", { name: "Approved" })).toHaveAttribute(
+    expect(within(byStatus).getByRole("link", { name: "Approved (exception)" })).toHaveAttribute(
       "href",
       "/recommendations?status=approved",
     );
@@ -296,7 +312,9 @@ describe("/recommendations/[planId]", () => {
     expect(after.textContent?.endsWith("tail…")).toBe(true);
     const block = screen.getByRole("region", { name: "Source block text" });
     expect(block.querySelector("mark")).toBeNull();
-    expect(screen.getByRole("note")).toHaveTextContent("do not select the anchor text");
+    expect(
+      screen.getAllByRole("note").some((note) => note.textContent?.includes("do not select the anchor text") === true),
+    ).toBe(true);
   });
 
   it("never injects HTML from anchor, preview, block or note text", async () => {
@@ -403,7 +421,7 @@ describe("/recommendations/[planId]", () => {
     );
     await renderDetail();
     const header = screen.getByRole("heading", { level: 1 }).parentElement!;
-    expect(within(header).getByText("Awaiting approval")).toBeInTheDocument();
+    expect(within(header).getByText("Awaiting approval (exception)")).toBeInTheDocument();
     expect(within(header).getByRole("link", { name: OLD_PLAN_ID })).toHaveAttribute(
       "href",
       `/recommendations/${OLD_PLAN_ID}`,
@@ -506,7 +524,17 @@ describe("/recommendations/candidates", () => {
     });
     const rows = within(screen.getByRole("table", { name: /candidates/i })).getAllByRole("row").slice(1);
     expect(rows[0]).toHaveTextContent("Kept");
-    expect(rows[0]).toHaveTextContent("Semantic (embeddings)0.810");
+    expect(rows[0]).toHaveTextContent("Semantic (vector index)0.810");
+    // ADR-0018 per-channel attribution: the per-signal numbers stay visible
+    // rather than collapsing into the total alone.
+    expect(rows[0]).toHaveTextContent("raw 0.810");
+    expect(rows[0]).toHaveTextContent("normalised 0.810");
+    expect(rows[0]).toHaveTextContent("rank 1");
+    expect(rows[0]).toHaveTextContent("Lexical (full text)0.420");
+    expect(rows[0]).toHaveTextContent("rank 4");
+    // And the destination's graph position, which is why an orphan is worth linking.
+    expect(rows[0]).toHaveTextContent("Nearly orphan");
+    expect(rows[0]).toHaveTextContent("in 1 / out 7");
     expect(within(rows[0]!).getByRole("link", { name: "View plan" })).toHaveAttribute("href", `/recommendations/${PLAN_ID}`);
     expect(rows[1]).toHaveTextContent("Rejected");
     expect(rows[1]).toHaveTextContent("Source already links to the target");
@@ -551,7 +579,7 @@ describe("/inventory/pages/[pageId] recommendation sections", () => {
       "Status",
       "Created",
     ]);
-    expect(within(from).getByText("Approved")).toBeInTheDocument();
+    expect(within(from).getByText("Approved (exception)")).toBeInTheDocument();
     expect(within(from).getByText("raw")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "View all 14 recommendations from this page" })).toHaveAttribute(
       "href",

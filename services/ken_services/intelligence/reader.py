@@ -526,9 +526,7 @@ class SqlIntelligenceReader:
                 return empty
             source = (
                 await session.execute(
-                    select(
-                        PageEmbedding.dimensions, PageEmbedding.embedding
-                    ).where(
+                    select(PageEmbedding.dimensions, PageEmbedding.embedding).where(
                         PageEmbedding.page_id == page.id,
                         PageEmbedding.page_version == page.current_version,
                         self._fresh_embedding(identity.model),

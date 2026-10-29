@@ -5,7 +5,8 @@ import { ApiErrorNotice } from "@/components/ApiErrorNotice";
 import { StatusBadge } from "@/components/StatusBadge";
 import { PolicyDocumentView } from "@/components/audit/PolicyDocumentView";
 import { NotPermitted } from "@/components/auth/NotPermitted";
-import { getPolicies, requireSessionUser } from "@/lib/api";
+import { AutonomyModeBanner } from "@/components/autonomy/AutonomyModeBanner";
+import { getAutonomyMode, getPolicies, requireSessionUser } from "@/lib/api";
 import { can, permissionsOf } from "@/lib/auth";
 import { describeAutoApprove } from "@/lib/status";
 
@@ -16,13 +17,23 @@ export const metadata: Metadata = {
 };
 
 export default async function PoliciesPage() {
-  const me = await requireSessionUser();
+  const [me, mode] = await Promise.all([requireSessionUser(), getAutonomyMode()]);
   const header = (
-    <header className="space-y-2">
+    <header className="space-y-3">
       <h1 className="text-2xl font-semibold">Settings: active policies</h1>
+      <AutonomyModeBanner health={mode.ok ? mode.data : null} compact />
       <p className="max-w-prose text-slate-800">
-        The four policy documents the engine and agents run with, as validated by the API. Read-only: policies change
-        only through a reviewed change to the repository, never from this console. See also{" "}
+        The policy documents the engine and agents run with, as validated by the API. Read-only: policies change only
+        through a reviewed change to the repository, never from this console. Whether anything is published is governed
+        by these documents and the{" "}
+        <Link href="/autonomy" className="text-blue-800 underline underline-offset-4">
+          autonomy mode
+        </Link>
+        , not by a human approving each link. Proposed changes and their evaluations are under{" "}
+        <Link href="/learning" className="text-blue-800 underline underline-offset-4">
+          learning
+        </Link>
+        . See also{" "}
         <Link href="/system" className="text-blue-800 underline underline-offset-4">
           system status
         </Link>
@@ -55,7 +66,7 @@ export default async function PoliciesPage() {
       ) : (
         <>
           <p className="flex flex-wrap items-center gap-2 text-sm">
-            <span className="font-medium">AUTO_APPROVE:</span>
+            <span className="font-medium">AUTO_APPROVE (retired flag):</span>
             <StatusBadge presentation={describeAutoApprove(result.data.auto_approve_enabled)} />
             <span className="text-slate-700">{describeAutoApprove(result.data.auto_approve_enabled).description}</span>
           </p>

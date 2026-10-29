@@ -111,7 +111,15 @@ def test_the_prompt_payload_builder_touches_no_behavioural_field() -> None:
     steer the model's choice either (ADR-0016 16.7)."""
     tree = ast.parse((PACKAGE / "prompt.py").read_text(encoding="utf-8"))
     attributes = {node.attr for node in ast.walk(tree) if isinstance(node, ast.Attribute)}
-    for field in ("link_totals", "positive_outcome_rate", "positive_outcomes", "behavioural_flags"):
+    for field in (
+        "link_totals",
+        "positive_outcome_rate",
+        "positive_outcomes",
+        "behavioural_flags",
+        "autonomy",
+        "blocked_rate",
+        "rolled_back_rate",
+    ):
         assert field not in attributes, field
 
 
@@ -166,3 +174,10 @@ def test_the_reflect_line_prints_counts_and_ids_only() -> None:
         "deduplicated": 1,
         "counters": {"model_calls": 1, "proposals_created": 1},
     }
+
+
+def test_the_aggregate_never_reads_an_operator_override_reason() -> None:
+    """``autonomy_decisions.override_reason`` is operator free text (ADR-0018 s5). Only enum
+    codes and booleans may leave the database."""
+    for statement in _sql(PACKAGE / "aggregate.py"):
+        assert "override_reason" not in statement

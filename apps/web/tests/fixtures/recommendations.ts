@@ -1,5 +1,6 @@
 import type {
   CandidateView,
+  GraphSignals,
   LinkPlan,
   LinkPlanDetail,
   OpportunityView,
@@ -88,11 +89,34 @@ export function transition(overrides: Partial<PlanTransitionView> = {}): PlanTra
   };
 }
 
+/** The target's link-graph position (ADR-0018 adds it to the plan detail, read at request time). */
+export function graphSignals(overrides: Partial<GraphSignals> = {}): GraphSignals {
+  return {
+    page_id: OTHER_PAGE_ID,
+    page_version: 5,
+    in_degree: 1,
+    out_degree: 7,
+    internal_pagerank: 0.0042,
+    authority_score: 0.21,
+    hub_score: 0.33,
+    cluster_id: 3,
+    component_id: 0,
+    crawl_depth: 2,
+    is_orphan: false,
+    is_nearly_orphan: true,
+    is_bridge: false,
+    metrics_version: "graph-alg1",
+    computed_at: "2026-10-15T08:00:00Z",
+    ...overrides,
+  };
+}
+
 export function linkPlanDetail(overrides: Partial<LinkPlanDetail> = {}): LinkPlanDetail {
   return {
     ...linkPlan(),
     source_title: "Widgets market report",
     source_block_text: BLOCK_TEXT,
+    target_graph_signals: graphSignals(),
     transitions: [transition()],
     ...overrides,
   };
@@ -106,6 +130,11 @@ export function candidate(overrides: Partial<CandidateView> = {}): CandidateView
     target_url: "https://www.example.com/reports/lithium-ion-battery-market",
     channels: ["semantic", "lexical"],
     channel_scores: { semantic: 0.81, lexical: 0.42 },
+    attribution: [
+      { channel: "semantic", raw: 0.81, normalised: 0.81, rank_in_channel: 1, evidence: { content_hash: "b".repeat(64) } },
+      { channel: "lexical", raw: 7, normalised: 0.42, rank_in_channel: 4, evidence: { hits: 7 } },
+    ],
+    graph_signals: graphSignals(),
     total_score: 0.63,
     rejection: null,
     plan_id: PLAN_ID,

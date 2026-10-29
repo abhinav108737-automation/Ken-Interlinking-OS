@@ -50,7 +50,23 @@ from ken_services.agents.protocol import (
 NOW = datetime(2026, 10, 14, 9, 0, tzinfo=UTC)
 SOURCE_ID = uuid.UUID("22222222-2222-4222-8222-222222222222")
 SOURCE_URL = "https://site.test/reports/ev"
+ANCHORS = (
+    "lithium-ion batteries",
+    "charging networks",
+    "solid-state cells",
+    "fast chargers",
+    "battery recycling",
+    "grid storage",
+    "rare-earth magnets",
+    "cell manufacturing",
+    "range anxiety",
+    "fleet electrification",
+)
 BLOCK = "Vehicle makers depend on imported lithium-ion batteries today."
+
+
+def block_text(anchor: str) -> str:
+    return f"Vehicle makers depend on imported {anchor} today."
 
 
 class Clock:
@@ -128,35 +144,40 @@ def make_plan(
     source_id: uuid.UUID = SOURCE_ID,
     title: str | None = None,
     preview_before: str | None = None,
+    anchor_text: str | None = None,
+    target_id: uuid.UUID | None = None,
+    block_id: str | None = None,
 ) -> LinkPlan:
-    start = BLOCK.index("lithium-ion batteries")
-    end = start + len("lithium-ion batteries")
+    anchor = anchor_text or ANCHORS[i % len(ANCHORS)]
+    block = block_text(anchor)
+    start = block.index(anchor)
+    end = start + len(anchor)
     return LinkPlan(
         id=uuid.UUID(int=0xA0000000_0000_4000_8000_000000000000 + i),
         run_id=None,
         source_page_id=source_id,
         source_page_version=2,
         source_url=SOURCE_URL,
-        target_page_id=uuid.UUID(int=0xB0000000_0000_4000_8000_000000000000 + i),
+        target_page_id=target_id or uuid.UUID(int=0xB0000000_0000_4000_8000_000000000000 + i),
         target_page_version=1,
         target_url=f"https://site.test/reports/target-{i}",
         target_title=title or f"Target Market {i}",
         relationship_type="supply_chain_upstream",
         channels=(RetrievalChannel.SEMANTIC,),
-        anchor_text="lithium-ion batteries",
+        anchor_text=anchor,
         anchor_source="target_topic",
         locator=PlacementLocator(
-            block_id="b2",
+            block_id=block_id or f"b{2 + i}",
             block_kind="p",
             occurrence_index=0,
             start=start,
             end=end,
-            context_hash=sha256(BLOCK.encode()).hexdigest(),
+            context_hash=sha256(block.encode()).hexdigest(),
         ),
         preview=PlacementPreview(
-            before=preview_before if preview_before is not None else BLOCK[:start],
-            anchor="lithium-ion batteries",
-            after=BLOCK[end:],
+            before=preview_before if preview_before is not None else block[:start],
+            anchor=anchor,
+            after=block[end:],
         ),
         score=ScoreBreakdown(
             components=(
@@ -272,8 +293,8 @@ class FakeBackend:
                 continue
             recorded.append(review.plan_id)
             self.reviewed.add(review.plan_id)
-            if review.verdict in (CriticVerdict.ACCEPT, CriticVerdict.UNCERTAIN):
-                self.status[review.plan_id] = "awaiting_approval"
+            if review.verdict is CriticVerdict.ACCEPT:
+                self.status[review.plan_id] = "policy_checked"
                 handed.append(review.plan_id)
         return HandOffResult(
             handed_off=tuple(handed), recorded=tuple(recorded), conflicts=conflicts

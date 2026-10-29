@@ -60,7 +60,8 @@ describe("approveAction", () => {
     await approveAction(IDLE, form({ ...BASE }));
     expect(first).toMatchObject({ status: "success" });
     if (first.status !== "success") throw new Error("unreachable");
-    expect(first.message).toMatch(/Approved\. Status: Approved\. Nothing is deployed/);
+    // The status label now names the approval pair as an exception (ADR-0018 §3).
+    expect(first.message).toMatch(/Approved\. Status: Approved \(exception\)\. Nothing is deployed/);
     const [planId, body] = api.approvePlan.mock.calls[0]!;
     expect(planId).toBe(PLAN_ID);
     expect(body).toEqual({ operation_id: expect.stringMatching(UUID), expected_status: "awaiting_approval", reasons: ["good_as_is"], note: "Fine." });

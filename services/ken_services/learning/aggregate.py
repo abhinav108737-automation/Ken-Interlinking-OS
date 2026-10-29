@@ -86,6 +86,7 @@ __all__ = [
     "UNKNOWN_VERSION",
     "AggregateReport",
     "ClassAggregate",
+    "ClassAutonomy",
     "aggregate_report",
     "aggregate_streams",
     "build_evidence",
@@ -199,6 +200,40 @@ _LINK_TOTALS_SQL: Final = text(
     """
 ).bindparams(bindparam("plans", expanding=True))
 
+_AUTONOMY_SQL: Final = text(
+    """
+    SELECT DISTINCT ON (d.plan_id)
+        d.plan_id                  AS plan_id,
+        d.decision                 AS decision,
+        d.mode                     AS mode,
+        d.would_have_decision      AS would_have_decision,
+        p.relationship_type        AS relationship_type,
+        p.anchor_source            AS anchor_source,
+        p.channels                 AS channels,
+        EXISTS (
+            SELECT 1 FROM publish_attempts a
+            WHERE a.plan_id = d.plan_id
+              AND a.occurred_at < :stop
+              AND (a.succeeded OR a.rolled_back)
+        )                          AS published,
+        EXISTS (
+            SELECT 1 FROM publish_attempts a
+            WHERE a.plan_id = d.plan_id
+              AND a.occurred_at < :stop
+              AND a.rolled_back
+        )                          AS rolled_back
+    FROM autonomy_decisions d
+    JOIN link_plans p ON p.id = d.plan_id
+    WHERE d.evaluated_at >= :start AND d.evaluated_at < :stop
+    ORDER BY d.plan_id, d.evaluated_at DESC, d.id DESC
+    """
+)
+"""The LATEST autonomy decision of each plan evaluated in the window, with whether the plan
+was ever published or rolled back by an autonomous attempt.
+
+``override_reason`` is deliberately NOT selected: it is operator free text. Only enum codes and
+two booleans leave the database (ADR-0016 15.2e)."""
+
 _SEARCH_SQL: Final = text(
     """
     SELECT COALESCE(SUM(m.impressions), 0) AS impressions,
@@ -272,6 +307,60 @@ class ClassAggregate:
 
 
 @dataclass(frozen=True, slots=True)
+class ClassAutonomy:
+    """What the autonomy engine did with one decision class (ADR-0018). OBSERVATION ONLY.
+
+    The frozen ``DecisionClassObservation`` has no field for these, so they ride on the
+    report, are logged for a human, and reach no option, no prompt and no stored evidence row.
+    A behavioural or autonomy-outcome figure may only ever BLOCK a gate through
+    :class:`~ken_services.learning.protocol.BlockOnly`; nothing here can pass one, and nothing
+    in this package reads these fields to decide anything.
+
+    Counts are over the LATEST decision of each plan evaluated in the window:
+
+    * ``blocked`` -- an effective block (mode other than ``shadow``);
+    * ``shadow_would_block`` / ``shadow_would_publish`` -- a ``shadow`` counterfactual
+      (``decision`` is always ``block`` in shadow, so it is NOT counted as a real block);
+    * ``deferred`` -- a non-shadow publish decision that no autonomous attempt has acted on;
+    * ``auto_published`` -- an autonomous attempt published it (``publish_attempts.succeeded``
+      or ``rolled_back``); ``rolled_back`` -- such an attempt was rolled back.
+
+    ``deferred`` is derived, because the schema has no deferral row; it is a lower bound on
+    "waiting for an operator or the retry budget".
+    """
+
+    decision_class: DecisionClass
+    decided: int
+    blocked: int
+    deferred: int
+    auto_published: int
+    rolled_back: int
+    shadow_would_publish: int
+    shadow_would_block: int
+
+    def _rate(self, count: int) -> float | None:
+        return None if self.decided == 0 else count / self.decided
+
+    @property
+    def blocked_rate(self) -> float | None:
+        return self._rate(self.blocked)
+
+    @property
+    def deferred_rate(self) -> float | None:
+        return self._rate(self.deferred)
+
+    @property
+    def auto_published_rate(self) -> float | None:
+        return self._rate(self.auto_published)
+
+    @property
+    def rolled_back_rate(self) -> float | None:
+        """Share of DECIDED plans, not of published ones, so it is comparable across classes
+        and never divides by a number the reader cannot see."""
+        return self._rate(self.rolled_back)
+
+
+@dataclass(frozen=True, slots=True)
 class AggregateReport:
     """Everything one reflection pass computed. The superset of what evidence can carry."""
 
@@ -285,6 +374,8 @@ class AggregateReport:
     engine_version: str
     analysis_version: str
     policy_versions: dict[str, str]
+    autonomy: tuple[ClassAutonomy, ...] = ()
+    """Informational autonomy outcomes per class. See :class:`ClassAutonomy`."""
 
     @property
     def observations(self) -> tuple[DecisionClassObservation, ...]:
@@ -403,6 +494,8 @@ async def aggregate_report(
         aggregates = aggregates[:MAX_OBSERVATIONS]
         aggregates.sort(key=lambda row: row.decision_class.canonical)
 
+    autonomy = await _autonomy(session, start=start, stop=stop)
+
     report = AggregateReport(
         window=window,
         rows=tuple(aggregates),
@@ -414,6 +507,7 @@ async def aggregate_report(
         engine_version=_modal(facts.engine_version for facts in per_plan.values()),
         analysis_version=_modal(facts.analysis_version for facts in per_plan.values()),
         policy_versions=policy_versions(settings),
+        autonomy=autonomy,
     )
     logger.info(
         "reflection_aggregate",
@@ -426,6 +520,10 @@ async def aggregate_report(
         replacement_pairs=sum(row.distinct_replacement_pairs for row in report.rows),
         search_impressions=search_impressions,
         search_clicks=search_clicks,
+        autonomy_decided=sum(row.decided for row in autonomy),
+        autonomy_blocked=sum(row.blocked for row in autonomy),
+        autonomy_auto_published=sum(row.auto_published for row in autonomy),
+        autonomy_rolled_back=sum(row.rolled_back for row in autonomy),
     )
     return report
 
@@ -537,6 +635,45 @@ def _modal(values: Any) -> str:
 class _Measurement:
     positive: bool
     flags: tuple[ConfounderFlag, ...]
+
+
+async def _autonomy(
+    session: AsyncSession, *, start: datetime, stop: datetime
+) -> tuple[ClassAutonomy, ...]:
+    """Per-class autonomy outcomes (informational). A plan with no channel is skipped, as in
+    the editorial aggregate, because it cannot be keyed."""
+    result = await session.execute(_AUTONOMY_SQL, {"start": start, "stop": stop})
+    grouped: dict[str, list[Mapping[str, Any]]] = {}
+    for row in result.mappings().all():
+        try:
+            klass = decision_class_of(row=dict(row))
+        except ValueError:
+            continue
+        grouped.setdefault(klass.canonical, []).append(dict(row))
+    out: list[ClassAutonomy] = []
+    for canonical in sorted(grouped):
+        rows = grouped[canonical]
+        shadow = [row for row in rows if row["mode"] == "shadow"]
+        live = [row for row in rows if row["mode"] != "shadow"]
+        out.append(
+            ClassAutonomy(
+                decision_class=DecisionClass.parse(canonical),
+                decided=len(rows),
+                blocked=sum(1 for row in live if row["decision"] == "block"),
+                deferred=sum(
+                    1 for row in live if row["decision"] != "block" and not row["published"]
+                ),
+                auto_published=sum(1 for row in live if row["published"]),
+                rolled_back=sum(1 for row in live if row["rolled_back"]),
+                shadow_would_publish=sum(
+                    1 for row in shadow if row["would_have_decision"] != "block"
+                ),
+                shadow_would_block=sum(
+                    1 for row in shadow if row["would_have_decision"] == "block"
+                ),
+            )
+        )
+    return tuple(out)
 
 
 async def _reasons(

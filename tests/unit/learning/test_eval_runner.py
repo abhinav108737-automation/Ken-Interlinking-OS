@@ -517,3 +517,119 @@ async def test_by_decision_class_is_keyed_canonically(
         assert row.positive_outcome_rate is None
         assert row.calibrated_confidence is None
     assert CLASS in report.metrics.by_decision_class
+
+
+# --------------------------------------------------------------------------- #
+# The autonomous-path suites are bound to the PRODUCTION code
+# --------------------------------------------------------------------------- #
+async def _only(settings: Settings, policy: LearningPolicy, suite: EvalSuite) -> EvaluationReport:
+    ds._clear_caches()
+    return await _run(settings, policy, suite)
+
+
+async def test_a_regressed_block_evaluator_turns_autonomy_classification_red(
+    monkeypatch: pytest.MonkeyPatch, settings: Settings, policy: LearningPolicy
+) -> None:
+    """Break the PRODUCTION block evaluator -- stop reporting protected pages -- and the
+    suite must fail AND record a must_not hit (a protected plan would publish)."""
+    from ken_contracts.autonomy import BlockCode
+    from ken_services.autonomy.blocks import evaluate_blocks
+    from ken_services.learning import scorers
+
+    def forgetful(facts: object) -> tuple[BlockCode, ...]:
+        return tuple(c for c in evaluate_blocks(facts) if c is not BlockCode.PROTECTED_PAGE)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(scorers, "evaluate_blocks", forgetful)
+    report = await _only(settings, policy, EvalSuite.AUTONOMY_CLASSIFICATION)
+    failed = {item.case_id for item in report.outcomes if not item.passed}
+    assert "au-protected-page-blocks-in-every-mode" in failed
+    assert "au-a-recorded-model-accept-cannot-clear-a-protected-page" in failed
+    assert report.gate_result is GateResult.FAIL
+
+
+async def test_a_permissive_decision_function_turns_autonomy_classification_red(
+    monkeypatch: pytest.MonkeyPatch, settings: Settings, policy: LearningPolicy
+) -> None:
+    """Make the shared decision function publish whatever it is given. The engine's own
+    contract (a fired block forces BLOCK) refuses the resulting evaluation, which the runner
+    reports as a failing case rather than crashing the run."""
+    from ken_contracts.autonomy import AutonomyDecision
+    from ken_services.autonomy import engine
+
+    monkeypatch.setattr(engine, "decision_for", lambda **_: AutonomyDecision.AUTO_PUBLISH)
+    report = await _only(settings, policy, EvalSuite.AUTONOMY_CLASSIFICATION)
+    row = report.metrics.by_suite[0]
+    assert row.failed > 0
+    assert any(item.decision == "contract_violation" for item in report.outcomes)
+    assert report.gate_result is GateResult.FAIL
+
+
+async def test_a_gate_that_always_allows_turns_the_retry_budget_cases_red(
+    monkeypatch: pytest.MonkeyPatch, settings: Settings, policy: LearningPolicy
+) -> None:
+    from ken_services.autonomy.budget import DatabaseRetryBudgetGate
+    from ken_services.autonomy.protocol import BudgetVerdict
+
+    def allow_everything(self: object, state: object) -> BudgetVerdict:
+        return BudgetVerdict(allowed=True, state=state)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(DatabaseRetryBudgetGate, "verdict", allow_everything)
+    report = await _only(settings, policy, EvalSuite.ROLLBACK_CORRECTNESS)
+    failed = {item.case_id for item in report.outcomes if not item.passed}
+    assert {
+        "rc-exhausted-budget-refuses-the-publish",
+        "rc-cooling-down-pair-is-refused-even-with-attempts-left",
+        "rc-repeated-unsafe-retries-stop-at-the-budget",
+    } <= failed
+    assert report.gate_result is GateResult.FAIL
+
+
+async def test_a_rollback_that_does_not_remove_the_link_turns_the_restore_cases_red(
+    monkeypatch: pytest.MonkeyPatch, settings: Settings, policy: LearningPolicy
+) -> None:
+    """Make the PRODUCTION inverse splice report success while leaving the page alone -- the
+    worst rollback bug there is. Byte-identity is what catches it."""
+    from ken_services.deployment.mutation import HtmlMutator
+    from ken_services.deployment.protocol import MutationResult
+
+    def pretend(self: object, html: str, removals: object) -> MutationResult:
+        return MutationResult(html=html, applied=tuple(r.plan_id for r in removals))  # type: ignore[attr-defined]
+
+    monkeypatch.setattr(HtmlMutator, "remove_links", pretend)
+    report = await _only(settings, policy, EvalSuite.ROLLBACK_CORRECTNESS)
+    failed = {item.case_id for item in report.outcomes if not item.passed}
+    assert "rc-rollback-after-an-unrelated-later-edit-is-an-inverse-splice" in failed
+    assert report.gate_result is GateResult.FAIL
+
+
+def test_the_risk_tier_is_monotone_and_no_signal_can_lower_it() -> None:
+    """RiskSignals has no field a good outcome could set, and every combination of its
+    signals gives a tier at least as high as the same combination with one fewer signal. This
+    is the structural half of 'a behavioural signal can only block, never justify a publish'."""
+    import dataclasses
+    import itertools
+
+    from ken_contracts.autonomy import RiskTier
+    from ken_services.autonomy.risk import RISK_ORDER, RiskSignals, tier_from_signals
+
+    names = [field.name for field in dataclasses.fields(RiskSignals)]
+    assert set(names) == {
+        "commercial_page",
+        "hub_destination",
+        "protection_nearby",
+        "sensitive_anchor",
+        "prior_failure",
+        "measured_rollback",
+        "stale_target_version",
+        "uncalibrated",
+    }
+    rank = {tier: RISK_ORDER.index(tier) for tier in RiskTier}
+    for combo in itertools.product([False, True], repeat=len(names)):
+        base = tier_from_signals(RiskSignals(**dict(zip(names, combo, strict=True))))
+        for index, flag in enumerate(combo):
+            if flag:
+                continue
+            raised = list(combo)
+            raised[index] = True
+            more = tier_from_signals(RiskSignals(**dict(zip(names, raised, strict=True))))
+            assert rank[more] >= rank[base], (names[index], combo)
