@@ -83,6 +83,11 @@ class FeedbackReason(StrEnum):
     BETTER_DESTINATION_EXISTS = "better_destination_exists"
     MISLEADING_ANCHOR = "misleading_anchor"
     UNNATURAL_ANCHOR = "unnatural_anchor"
+    ANCHOR_TOO_GENERIC = "anchor_too_generic"
+    """The anchor is accurate but too general to say what the target covers (for example
+    "electric vehicles" pointing at one country's market page). Added 2026-10-29 (ADR-0021)
+    because four rejections for exactly this were filed as ``other`` with a free-text note,
+    which the learning step cannot read. A structured code is what lets feedback count."""
     WRONG_PLACEMENT = "wrong_placement"
     OVER_LINKING = "over_linking"
     DUPLICATE_OF_EXISTING_LINK = "duplicate_of_existing_link"
@@ -108,6 +113,7 @@ ANCHOR_REASONS: Final = frozenset(
     {
         FeedbackReason.MISLEADING_ANCHOR,
         FeedbackReason.UNNATURAL_ANCHOR,
+        FeedbackReason.ANCHOR_TOO_GENERIC,
         FeedbackReason.WRONG_PLACEMENT,
         FeedbackReason.OVER_LINKING,
         FeedbackReason.OTHER,

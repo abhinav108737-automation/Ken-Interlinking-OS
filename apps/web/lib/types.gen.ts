@@ -3029,7 +3029,7 @@ export interface components {
          * @description Structured editorial reasons (PRD 7.9). Required for reject and edits.
          * @enum {string}
          */
-        FeedbackReason: "good_as_is" | "irrelevant_destination" | "better_destination_exists" | "misleading_anchor" | "unnatural_anchor" | "wrong_placement" | "over_linking" | "duplicate_of_existing_link" | "outdated_or_changed_content" | "sensitive_or_protected" | "reader_journey_mismatch" | "other";
+        FeedbackReason: "good_as_is" | "irrelevant_destination" | "better_destination_exists" | "misleading_anchor" | "unnatural_anchor" | "anchor_too_generic" | "wrong_placement" | "over_linking" | "duplicate_of_existing_link" | "outdated_or_changed_content" | "sensitive_or_protected" | "reader_journey_mismatch" | "other";
         /** GateReason */
         GateReason: {
             code: components["schemas"]["GateReasonCode"];

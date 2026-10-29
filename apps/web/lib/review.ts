@@ -68,6 +68,7 @@ export const REASONS_BY_ACTION: Readonly<Record<ReviewAction, readonly FeedbackR
     "better_destination_exists",
     "misleading_anchor",
     "unnatural_anchor",
+    "anchor_too_generic",
     "wrong_placement",
     "over_linking",
     "duplicate_of_existing_link",
@@ -76,7 +77,14 @@ export const REASONS_BY_ACTION: Readonly<Record<ReviewAction, readonly FeedbackR
     "reader_journey_mismatch",
     "other",
   ],
-  edit_anchor: ["misleading_anchor", "unnatural_anchor", "wrong_placement", "over_linking", "other"],
+  edit_anchor: [
+    "misleading_anchor",
+    "unnatural_anchor",
+    "anchor_too_generic",
+    "wrong_placement",
+    "over_linking",
+    "other",
+  ],
   replace_target: [
     "irrelevant_destination",
     "better_destination_exists",
@@ -114,6 +122,10 @@ const FEEDBACK_REASON: Readonly<Record<FeedbackReason, { readonly label: string;
   },
   misleading_anchor: { label: "Misleading anchor", description: "The anchor promises something the target does not deliver." },
   unnatural_anchor: { label: "Unnatural anchor", description: "The anchor text reads awkwardly as a link." },
+  anchor_too_generic: {
+    label: "Anchor too generic",
+    description: "The anchor is accurate but too general to say what the target covers. A more specific phrase would be better.",
+  },
   wrong_placement: { label: "Wrong placement", description: "The link belongs elsewhere in the page." },
   over_linking: { label: "Over-linking", description: "The page or paragraph already has enough links." },
   duplicate_of_existing_link: {

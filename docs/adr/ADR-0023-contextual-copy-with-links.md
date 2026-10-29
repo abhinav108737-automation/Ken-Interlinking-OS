@@ -192,9 +192,14 @@ and a shadow pass before anything reaches a draft. This is a full phase; it is *
 3. **No editorial-team sign-off.** The owner wants wording generated autonomously by agents and a
    model, with a small editorial process only as a fallback if needed. Recorded in section 5 as
    manual approval now and earned autonomy later.
-4. **A larger free local model is permitted** for drafting. `qwen3:8b-q4_K_M` was requested on
-   2026-10-29; whether it downloaded and how it performs is recorded in the commit history, not
-   assumed here. It is self-hosted and free, so the no-paid-API rule is unaffected.
+4. **A larger free local model is permitted** for drafting. `qwen3:8b-q4_K_M` (4.87 GB) was
+   downloaded and loaded on 2026-10-29. It is self-hosted and free, so the no-paid-API rule is
+   unaffected. A first, single-sample drafting test (one 30-word context sentence from two given
+   facts) found `qwen3:4b` emitting its reasoning text instead of the sentence, 95 words against
+   a 30-word limit, so it would fail validation and fall back to a plain link. `qwen3:8b` produced
+   one 13-word sentence that used only the supplied facts. **One sample is an anecdote, not an
+   evaluation**: the real comparison is the evaluation fixtures in section 3's consequences,
+   which do not exist yet. No role in `.env` was switched.
 5. **`operator_admin` stays the only approver** for plans with a copy edit, for now.
 
 ## Still open

@@ -4113,6 +4113,7 @@
           "better_destination_exists",
           "misleading_anchor",
           "unnatural_anchor",
+          "anchor_too_generic",
           "wrong_placement",
           "over_linking",
           "duplicate_of_existing_link",

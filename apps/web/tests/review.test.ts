@@ -82,7 +82,7 @@ describe("REASONS_BY_ACTION", () => {
     expect([...REASONS_BY_ACTION.approve].sort()).toEqual(["good_as_is", "other"]);
     expect([...REASONS_BY_ACTION.reject].sort()).toEqual(all.filter((r) => r !== "good_as_is").sort());
     expect([...REASONS_BY_ACTION.edit_anchor].sort()).toEqual(
-      ["misleading_anchor", "unnatural_anchor", "wrong_placement", "over_linking", "other"].sort(),
+      ["misleading_anchor", "unnatural_anchor", "anchor_too_generic", "wrong_placement", "over_linking", "other"].sort(),
     );
     expect([...REASONS_BY_ACTION.replace_target].sort()).toEqual(
       [
