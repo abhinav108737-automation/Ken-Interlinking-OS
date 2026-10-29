@@ -1,0 +1,23 @@
+{
+  "mcpServers": {
+    "playwright": {
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "@playwright/mcp@0.0.83",
+        "--browser",
+        "chromium",
+        "--headless",
+        "--isolated",
+        "--viewport-size",
+        "1440x900",
+        "--allowed-origins",
+        "https://www.kenresearch.com;http://127.0.0.1:3000;http://127.0.0.1:8000",
+        "--output-dir",
+        "C:\\Projects\\browser-output"
+      ]
+    }
+  }
+}

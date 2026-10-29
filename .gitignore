@@ -57,3 +57,13 @@ evals/results/
 keys/
 *-service-account*.json
 
+
+# Playwright MCP (ADR-0024): named screenshots resolve against the working directory, so keep
+# stray captures and browser logs out of git. Unnamed ones go to C:\Projects\browser-output.
+/*.png
+/*.jpeg
+/*.jpg
+/.playwright-mcp/
+
+# Real-site exports and crawl output (public content, but large and regenerable)
+/data/
