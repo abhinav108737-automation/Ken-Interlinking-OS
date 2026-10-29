@@ -11,7 +11,9 @@ function sourceFiles(relative: string): string[] {
   return readdirSync(join(WEB_ROOT, relative)).flatMap((entry) => {
     const path = join(relative, entry);
     if (statSync(join(WEB_ROOT, path)).isDirectory()) return sourceFiles(path);
-    return /\.tsx?$/.test(entry) ? [path] : [];
+    // POSIX separators: `join` yields backslashes on Windows and every expectation
+    // below is written with "/". `read` accepts either.
+    return /\.tsx?$/.test(entry) ? [path.split("\\").join("/")] : [];
   });
 }
 

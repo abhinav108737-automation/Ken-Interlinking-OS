@@ -16,6 +16,7 @@ What the review made binding (ADR-0015 §12.3, §12.9.4) is asserted here:
 from __future__ import annotations
 
 import json
+import sys
 import uuid
 from datetime import date
 from pathlib import Path
@@ -45,6 +46,21 @@ from ken_core.providers.analytics.gsc import (
 )
 from ken_services.analytics.urls import InventoryUrlResolver
 from tests.conftest import make_settings
+
+# WINDOWS: every test here builds a token file and expects the provider to accept it, and the
+# provider accepts one ONLY at mode 0600 (ken_core/providers/analytics/base.py read_token).
+# Windows has no POSIX permission bits -- os.chmod only toggles the read-only flag and the file
+# still reports group/other bits -- so the provider refuses with TOKEN_FILE_INVALID before any
+# request is built. That refusal is the control working, not a bug, and it is NOT weakened to
+# make these tests run: the consequence is that the Google importers cannot be used on Windows.
+# Calling Google is off by default and is an ASK action, so nothing else depends on this.
+pytestmark = pytest.mark.skipif(
+    sys.platform == "win32",
+    reason=(
+        "the token file must be mode 0600, which Windows cannot express; the provider "
+        "correctly refuses, so these tests cannot exercise it on this platform"
+    ),
+)
 
 TOKEN = "ya29.a0-SECRET-TOKEN-VALUE"
 PROPERTY = "456789"

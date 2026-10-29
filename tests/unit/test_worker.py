@@ -5,6 +5,7 @@ from __future__ import annotations
 import ast
 import asyncio
 import inspect
+import sys
 import time
 from typing import Any
 
@@ -247,6 +248,15 @@ async def test_shutdown_closes_providers_and_disposes_engine() -> None:
     assert (model.closed, cms.closed, engine.disposed) == (1, 1, 1)
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason=(
+        "asyncio has no signal-handler API on Windows: add_signal_handler and "
+        "remove_signal_handler both raise NotImplementedError. The worker already degrades "
+        "correctly there -- _install_signal_handlers catches it and installs none -- so there "
+        "is nothing to assert about installation and removal on this platform."
+    ),
+)
 async def test_signal_handlers_are_installed_and_removed() -> None:
     import signal
 

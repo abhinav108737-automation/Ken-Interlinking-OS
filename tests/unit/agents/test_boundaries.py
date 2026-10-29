@@ -264,11 +264,14 @@ async def test_a_full_graph_run_spawns_nothing_connects_nowhere_writes_no_file()
 def test_the_audit_hook_would_catch_a_subprocess() -> None:
     """The runtime check is not vacuous: a real spawn attempt is recorded."""
     import subprocess
+    import sys
 
     _AUDIT["events"] = []
     _AUDIT["on"] = True
     try:
-        subprocess.run(["/usr/bin/true"], check=False)
+        # `sys.executable` rather than a hard-coded /usr/bin/true: the point is that a REAL
+        # spawn is audited, and the interpreter running this test exists on every platform.
+        subprocess.run([sys.executable, "-c", ""], check=False)
     finally:
         _AUDIT["on"] = False
     events = _AUDIT["events"]

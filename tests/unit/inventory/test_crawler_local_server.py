@@ -158,7 +158,10 @@ async def test_network_errors() -> None:
     assert by_code[IssueCode.NETWORK_ERROR].url == site.url("/drop")
     unavailable = by_code[IssueCode.ROBOTS_UNAVAILABLE]
     assert unavailable.url == f"http://127.0.0.1:{port}/robots.txt"
-    assert "network_error" in unavailable.message
+    # Either cause is correct: a closed port answers with a refusal on Linux and macOS, and
+    # Windows can instead let the connect attempt run out. What must hold is that the cause is
+    # NAMED and that the origin is then treated as disallowed, which the next assertion pins.
+    assert "network_error" in unavailable.message or "timeout" in unavailable.message
     assert by_code[IssueCode.ROBOTS_DISALLOWED].url == f"http://127.0.0.1:{port}/x"
     assert len([r for r in records if isinstance(r, SourceDocument)]) == 2
 

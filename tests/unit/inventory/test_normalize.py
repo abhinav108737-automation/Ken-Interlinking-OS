@@ -407,7 +407,10 @@ def test_document_without_body_ignores_head() -> None:
         "<\x00>&#xFFFFFFFF;<!DOCTYPE",
         "",
         "plain text, no tags at all",
-        "<div>" * 3000 + "deep" + "</div>" * 3000,
+        # A short id, because the value is ~36 kB: pytest puts the test id in
+        # PYTEST_CURRENT_TEST, and Windows refuses an environment variable longer than
+        # 32767 characters, erroring the case at setup before the parser is reached.
+        pytest.param("<div>" * 3000 + "deep" + "</div>" * 3000, id="3000-nested-divs"),
     ],
 )
 def test_malformed_html_never_raises(html: str) -> None:
