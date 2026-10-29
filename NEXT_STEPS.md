@@ -2,8 +2,8 @@
 
 **Current state (2026-10-29):** Phases 7 (Analytics) and 8 (Learning) have passed their gates; see
 [PHASE_8_REPORT.md](PHASE_8_REPORT.md) (full suite green after fixing a Windows-only test defect; ruff and
-mypy clean). Phase 9 code (autonomy, Qdrant, ADR-0017/0018) was committed ahead of the Phase 8 gate and has
-no report of its own yet. **Real-site bootstrap (ADR-0025):** a 498-page rendered export of kenresearch.com
+mypy clean). Phase 9 (autonomy, Qdrant, ADR-0017/0018) is verified in [PHASE_9_REPORT.md](PHASE_9_REPORT.md): 336 tests pass,
+mode is `shadow`, nothing is published, and calibration is the missing piece. **Real-site bootstrap (ADR-0025):** a 498-page rendered export of kenresearch.com
 is imported into the separate database `ken_real500`, analysed with the *proposed* `taxonomy.v2.yaml`, and has
 126 link plans (10 sources reviewed by the local 8B critic). Earlier reports:
 [PHASE_7_REPORT.md](PHASE_7_REPORT.md), [PHASE_6_REPORT.md](PHASE_6_REPORT.md), [PHASE_5_REPORT.md](PHASE_5_REPORT.md), [PHASE_4_REPORT.md](PHASE_4_REPORT.md), [PHASE_3_REPORT.md](PHASE_3_REPORT.md), [PHASE_2_REPORT.md](PHASE_2_REPORT.md), [PHASE_1_REPORT.md](PHASE_1_REPORT.md), [PHASE_0_REPORT.md](PHASE_0_REPORT.md).
@@ -12,8 +12,8 @@ is imported into the separate database `ken_real500`, analysed with the *propose
 end-to-end local demo and a final report. Each phase has internal gates and a local commit plus
 tag. Execution stops only for ASK/BLOCK actions.
 
-**Next:** the owner reviews `taxonomy.v2.yaml` and the first real review queue; then Phase 9 needs its own
-verification and report. **Windows tip:** set `KEN_TEST_DATABASE_URL` with `127.0.0.1`, or the integration tests skip silently.
+**Next:** the owner reviews `taxonomy.v2.yaml` and the first real review queue (under ADR-0018 people are the
+control plane, not per-link approvers). **Windows tip:** set `KEN_TEST_DATABASE_URL` with `127.0.0.1`, or the integration tests skip silently.
 
 ## Needed from you before real production ingestion
 
@@ -38,7 +38,7 @@ any governing document, so none was guessed.
 | 12 | **Real CMS integration (ASK).** The CMS API base URL; its link-change contract, which must tell a version conflict (409) apart from a reused operation id (ADR-0014 §9); whether its sanitiser keeps `data-*` attributes; and **write credentials** stored outside source control. Then `KEN_CMS_PROVIDER=http`, `KEN_CMS_ALLOW_REMOTE=true` and `KEN_CMS_WRITES_ENABLED=true`, all with your approval. | Phase 6 runs only against the mock and the simulated CMS | **ASK** |
 | 13 | **Browser verification (amends TRD §2 / PRD §7.11).** **Decided 2026-10-29 (ADR-0024):** Playwright is adopted as **development tooling only** (MCP server for screenshots and page inspection). Deployment verification still parses the served HTML deterministically (ADR-0014 §6); a browser inside the product remains undecided. | Real pages stream content in hidden segments, so rendered inspection finds what a parser misses | decided (tooling); product use open |
 | 14 | **Real-template parity.** Run `make cms-sim-seed --export` on a sample of Ken's real HTML, or give us 10–20 real page bodies, to confirm that block hashes match between the inventory and the CMS body. Where parity breaks, the mutator refuses; it never guesses. | It proves deployment works on real templates | data |
-| 15 | **Real analytics: ENABLED 2026-10-29.** `KEN_ANALYTICS_GOOGLE_ENABLED=true` in the local `.env`; the service-account key (ADR-0022) is at `C:\Projects\keys\`, outside the repository. **Not yet exercised against the live APIs.** The Search Console query import (item 22) remains a separate approval. | GA4/GSC calls are external egress | enabled; unproven live |
+| 15 | **Real analytics: ENABLED and PROVEN LIVE 2026-10-29.** GA4 (property 307716462) and Search Console were read with the service-account key (ADR-0022); a one-week page import read about 35,000 rows from each into `ken_real500`. Most rows are unresolved until the full inventory exists (they name pages outside the 498-page sample). The Search Console **query** import (item 22) is still a separate approval. | GA4/GSC calls are external egress | enabled; verified |
 | 16 | **GA4 setup, only if you want link-level GA4 data.** Register the event-scoped custom dimension `ken_link_id` and forward the beacon's two events (`internal_link_impression`, `internal_link_click`). | GA4 only accrues custom-dimension data from registration onward, and high cardinality can produce `(other)` rows | action (you) |
 | 17 | **Beacon consent: approved in principle 2026-10-29.** No deployment was made (CMS writes are mock-only). The legal question (ePrivacy, GDPR, India's DPDP Act) is not settled by an approval; whoever deploys it must choose the consent-manager route. It reads `window.kenAnalyticsConsent` and honours GPC and DNT. | Serving it from the real site | approved; not deployed |
 | 18 | **Where production first-party collection lives.** Until you decide, the aggregated daily CSV (`ken_link_daily`) is the import contract and the collector stays loopback-only. | The local collector is a demo and a reference implementation, not a production service | decision |
