@@ -269,6 +269,7 @@ def test_the_generator_is_byte_repeatable_for_a_seed() -> None:
 def test_the_generator_never_depends_on_the_process_hash_seed() -> None:
     """The seed is hashed with sha512, so an explicit value is enough to reproduce a run."""
     import json
+    import os
     import subprocess
     import sys
 
@@ -288,7 +289,12 @@ def test_the_generator_never_depends_on_the_process_hash_seed() -> None:
             capture_output=True,
             text=True,
             check=True,
-            env={"PYTHONHASHSEED": seed, "PATH": "/usr/bin:/bin"},
+            # Windows cannot start asyncio (Winsock) without SYSTEMROOT; it is absent on POSIX.
+            env={
+                "PYTHONHASHSEED": seed,
+                "PATH": "/usr/bin:/bin",
+                **({"SYSTEMROOT": os.environ["SYSTEMROOT"]} if "SYSTEMROOT" in os.environ else {}),
+            },
         ).stdout
         for seed in ("0", "12345")
     ]
