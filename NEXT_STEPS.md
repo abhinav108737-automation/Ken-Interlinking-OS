@@ -1,18 +1,19 @@
 # Next Steps
 
-**Current state:** Phase 7 (Analytics) is **complete**; Phase 8 (Learning) is **in progress** —
-its contract freeze (W0: `ken_contracts/learning.py`, migration `0009_learning`, the learning
-policy, the frozen service interfaces and the API route signatures) has landed. See
-[PHASE_7_REPORT.md](PHASE_7_REPORT.md). The earlier phases are covered in
-[PHASE_6_REPORT.md](PHASE_6_REPORT.md), [PHASE_5_REPORT.md](PHASE_5_REPORT.md), [PHASE_4_REPORT.md](PHASE_4_REPORT.md), [PHASE_3_REPORT.md](PHASE_3_REPORT.md), [PHASE_2_REPORT.md](PHASE_2_REPORT.md), [PHASE_1_REPORT.md](PHASE_1_REPORT.md) and
-[PHASE_0_REPORT.md](PHASE_0_REPORT.md).
+**Current state (2026-10-29):** Phases 7 (Analytics) and 8 (Learning) have passed their gates; see
+[PHASE_8_REPORT.md](PHASE_8_REPORT.md) (full suite green after fixing a Windows-only test defect; ruff and
+mypy clean). Phase 9 code (autonomy, Qdrant, ADR-0017/0018) was committed ahead of the Phase 8 gate and has
+no report of its own yet. **Real-site bootstrap (ADR-0025):** a 498-page rendered export of kenresearch.com
+is imported into the separate database `ken_real500`, analysed with the *proposed* `taxonomy.v2.yaml`, and has
+126 link plans (10 sources reviewed by the local 8B critic). Earlier reports:
+[PHASE_7_REPORT.md](PHASE_7_REPORT.md), [PHASE_6_REPORT.md](PHASE_6_REPORT.md), [PHASE_5_REPORT.md](PHASE_5_REPORT.md), [PHASE_4_REPORT.md](PHASE_4_REPORT.md), [PHASE_3_REPORT.md](PHASE_3_REPORT.md), [PHASE_2_REPORT.md](PHASE_2_REPORT.md), [PHASE_1_REPORT.md](PHASE_1_REPORT.md), [PHASE_0_REPORT.md](PHASE_0_REPORT.md).
 
 **Execution mode:** the user has authorised autonomous, sequential execution of Phases 3–9, an
 end-to-end local demo and a final report. Each phase has internal gates and a local commit plus
 tag. Execution stops only for ASK/BLOCK actions.
 
-**Next phase:** Phase 8 (learning: eval datasets, offline eval runner, the skill lifecycle and the
-policy lifecycle, with no self-promotion), proceeding under that authorisation.
+**Next:** the owner reviews `taxonomy.v2.yaml` and the first real review queue; then Phase 9 needs its own
+verification and report. **Windows tip:** set `KEN_TEST_DATABASE_URL` with `127.0.0.1`, or the integration tests skip silently.
 
 ## Needed from you before real production ingestion
 
@@ -22,24 +23,24 @@ any governing document, so none was guessed.
 
 | # | What | Why | Permission level |
 |---|---|---|---|
-| 1 | **Which source is authoritative:** the public website, a CMS read API, or a CMS export | One authoritative source per site avoids version churn between sources (ADR-0009) | decision |
-| 2a | *If the public site:* the exact base URL (`KEN_CRAWL_BASE_URL`), any extra hosts (e.g. the `www.` variant, `KEN_CRAWL_ALLOWED_HOSTS`), and confirmation that crawling it is permitted | The crawler has no default site and refuses to start without one | **ASK** — crawling a domain needs your approval |
-| 2b | *If the public site:* acceptable politeness settings and timing: delay (default 1 s), concurrency (2), page cap (500), and any crawl window or a contact URL for the user-agent string | Load on the production site | decision |
+| 1 | **Authoritative source: DECIDED 2026-10-29 (ADR-0025).** A CMS export for now (the Playwright-rendered export of `www.kenresearch.com`); a CMS read API is also authoritative and will follow. | One authoritative source per site avoids version churn (ADR-0009) | decided |
+| 2a | *Public site crawl: APPROVED 2026-10-29* for `https://www.kenresearch.com/` (read-only, ≤ 500 pages). Done once, as a stratified sample of 498 of about 9,000 pages. A **full** inventory needs a fresh approval for the larger cap. | The crawler has no default site | done (sample); ASK for more |
+| 2b | Politeness used: 1 s between requests, one request at a time, `robots.txt` honoured. Crawl window and a contact URL for the user-agent are still open. | Load on the production site | decision |
 | 3a | *If a CMS read API:* its list and get endpoints, pagination, page-id stability, how drafts and publication state are exposed, and the field that holds the page template/type | `CMSContentSource` is complete; only a real `CMSInventoryReader` is missing | — |
 | 3b | *If a CMS read API:* **read-only, least-privilege** credentials (TRD §23) and where they are stored | Never in source control | **ASK** |
 | 4 | *If an export:* a sample export, so it can be mapped to the documented JSONL format (`docs/CONTRACTS.md`) or given its own adapter | Offline bootstrap with no load on the live site | — |
 | 5 | **Scope:** which sections are in scope (e.g. only `/industry-reports/…`), which are excluded, and which pages are **protected** (never to be modified later) | Phase 3 eligibility and Phase 6 safety depend on it | decision |
 | 6 | Is the site multilingual? | Language comes only from markup and headers (no detection library) | decision |
-| 7 | **Ken's real taxonomy**: markets/industries with aliases, geographies, a company/product gazetteer, page-type URL patterns, and protected-page rules | `policies/taxonomy/taxonomy.v1.yaml` is an illustrative seed. Classification quality on the real site depends on this. | data |
+| 7 | **Ken's real taxonomy.** `policies/taxonomy/taxonomy.v2.yaml` (**proposed**, derived from the site's HTML, ADR-0025) needs your review: 14 industries, 202 markets, 46 geographies, real page types. Still missing: a **company/product gazetteer** (entities are empty), market tags for articles/surveys/case studies (5–23 % today vs 72 % for reports), and protected-page rules beyond legal pages. Promote it by setting `KEN_TAXONOMY_PATH` and re-analysing. | Classification quality on the real site | decision + data |
 | 9 | **Self-describing anchors (ADR-0011 §9.1):** should a same-market, cross-country pair (India cold-chain report → UAE cold-chain report) be linkable on the plain market name ("cold chain")? Today: only when the block also names the target's country/region, or on an article → report hop. 45 eval pairs were relabelled ACCEPTABLE accordingly (rule R5). | Editorial policy; one policy switch either way | decision (orchestrator default in place) |
 | 11 | **Create your own accounts.** No user exists after install, and none was created for you: run `make user-create USERNAME=… ROLE=operator_admin`, then reviewers/viewers as needed. | The UI and API require a session from Phase 5 on | action (you) |
 | 10 | **Does a model critic's `reject` filter a plan out of the human queue, or only annotate it?** Today it filters: the plan stays `proposed`, with its reasons visible. The local qwen3 critic kept 23 % of plans out of the queue on the demo, including 1 of 20 GOOD plans (evals/agents/README.md). | Editorial trust in a local model; a one-line policy/graph change either way | decision (orchestrator default: filter) |
 | 12 | **Real CMS integration (ASK).** The CMS API base URL; its link-change contract, which must tell a version conflict (409) apart from a reused operation id (ADR-0014 §9); whether its sanitiser keeps `data-*` attributes; and **write credentials** stored outside source control. Then `KEN_CMS_PROVIDER=http`, `KEN_CMS_ALLOW_REMOTE=true` and `KEN_CMS_WRITES_ENABLED=true`, all with your approval. | Phase 6 runs only against the mock and the simulated CMS | **ASK** |
-| 13 | **Browser verification (amends TRD §2 / PRD §7.11).** Playwright was **not** adopted: verification parses the served HTML deterministically (ADR-0014 §6). Confirm the deferral, or ask for a headless-browser check for client-rendered pages. | It avoids a large browser download and process | decision |
+| 13 | **Browser verification (amends TRD §2 / PRD §7.11).** **Decided 2026-10-29 (ADR-0024):** Playwright is adopted as **development tooling only** (MCP server for screenshots and page inspection). Deployment verification still parses the served HTML deterministically (ADR-0014 §6); a browser inside the product remains undecided. | Real pages stream content in hidden segments, so rendered inspection finds what a parser misses | decided (tooling); product use open |
 | 14 | **Real-template parity.** Run `make cms-sim-seed --export` on a sample of Ken's real HTML, or give us 10–20 real page bodies, to confirm that block hashes match between the inventory and the CMS body. Where parity breaks, the mutator refuses; it never guesses. | It proves deployment works on real templates | data |
-| 15 | **Real analytics (ASK).** A GA4 property id and its time zone, a Search Console property (`sc-domain:` or a URL prefix), and a **read-only** OAuth token plus how it is refreshed. Then `KEN_ANALYTICS_GOOGLE_ENABLED=true`, with your approval. | GA4/GSC calls are external egress; they stay refused before any request until you enable them | **ASK** |
+| 15 | **Real analytics: ENABLED 2026-10-29.** `KEN_ANALYTICS_GOOGLE_ENABLED=true` in the local `.env`; the service-account key (ADR-0022) is at `C:\Projects\keys\`, outside the repository. **Not yet exercised against the live APIs.** The Search Console query import (item 22) remains a separate approval. | GA4/GSC calls are external egress | enabled; unproven live |
 | 16 | **GA4 setup, only if you want link-level GA4 data.** Register the event-scoped custom dimension `ken_link_id` and forward the beacon's two events (`internal_link_impression`, `internal_link_click`). | GA4 only accrues custom-dimension data from registration onward, and high cardinality can produce `(other)` rows | action (you) |
-| 17 | **Consent decision for the beacon (ASK / legal).** It sends behavioural events and sets no cookie, but ePrivacy, GDPR and India's DPDP Act may still treat it as analytics requiring consent. It reads `window.kenAnalyticsConsent` and honours GPC and DNT. Putting it (or the collector) on the real site is a live deployment. | Serving it from the real site needs your consent-manager choice | **ASK** |
+| 17 | **Beacon consent: approved in principle 2026-10-29.** No deployment was made (CMS writes are mock-only). The legal question (ePrivacy, GDPR, India's DPDP Act) is not settled by an approval; whoever deploys it must choose the consent-manager route. It reads `window.kenAnalyticsConsent` and honours GPC and DNT. | Serving it from the real site | approved; not deployed |
 | 18 | **Where production first-party collection lives.** Until you decide, the aggregated daily CSV (`ken_link_daily`) is the import contract and the collector stays loopback-only. | The local collector is a demo and a reference implementation, not a production service | decision |
 | 8 | **PRD v1.1 §17.1 wording:** "a genuine native degraded mode" now holds only for schema ≤ 0002 (pgvector is required from Phase 2, ADR-0010) | A product-document revision, for your approval | decision |
 
