@@ -1,0 +1,1386 @@
+# PROPOSED taxonomy v2 -- derived by evals/intelligence/derive_taxonomy.py.
+# DATA, NOT CODE. status: proposed => never loaded by default. Review, then promote
+# by pointing KEN_TAXONOMY_PATH at it and re-running analysis. Entities are EMPTY:
+# they need Ken's data. Page types come from the sitemap; markets from report slugs.
+
+policy: taxonomy
+version: 2
+status: proposed
+source: derived from 498 pages of the approved kenresearch.com crawl (2026-10-29); owner review required; entities
+  empty
+markets:
+- id: agriculture-food
+  label: Agriculture & Food
+- id: automotive-mobility
+  label: Automotive & Mobility
+- id: consumer-retail
+  label: Consumer & Retail
+- id: education-services
+  label: Education & Professional Services
+- id: energy-utilities
+  label: Energy & Utilities
+- id: financial-services
+  label: Financial Services
+- id: healthcare-life-sciences
+  label: Healthcare & Life Sciences
+- id: industrial-manufacturing
+  label: Industrial & Manufacturing
+- id: logistics-transport
+  label: Logistics & Transport
+- id: media-telecom
+  label: Media, Telecom & Entertainment
+- id: other-industries
+  label: Other Industries
+- id: real-estate-construction
+  label: Real Estate & Construction
+- id: technology-software
+  label: Technology & Software
+- id: 5g-infrastructure
+  label: 5g Infrastructure
+  parent: real-estate-construction
+  aliases:
+  - 5g infrastructure
+- id: advanced-composites
+  label: Advanced Composites
+  parent: industrial-manufacturing
+  aliases:
+  - advanced composites
+- id: africa-space-based-solar-energy
+  label: Africa Space Based Solar Energy
+  parent: energy-utilities
+  aliases:
+  - africa space based solar energy
+- id: agricultural-equipment-and-machinery-product-portfolio-dealer-network-company-performance-2025
+  label: Agricultural Equipment And Machinery Product Portfolio Dealer Network Company Performance 2025
+  parent: agriculture-food
+  aliases:
+  - agricultural equipment and machinery product portfolio dealer network company performance 2025
+- id: agricultural-equipment-financing
+  label: Agricultural Equipment Financing
+  parent: agriculture-food
+  aliases:
+  - agricultural equipment financing
+- id: ai-for-customer-service
+  label: AI For Customer Service
+  parent: technology-software
+  aliases:
+  - ai for customer service
+- id: ai-governance-in-elderly-care
+  label: AI Governance In Elderly Care
+  parent: technology-software
+  aliases:
+  - ai governance in elderly care
+- id: ai-sales-assistant-software
+  label: AI Sales Assistant Software
+  parent: technology-software
+  aliases:
+  - ai sales assistant software
+- id: airport-duty-free-liquor
+  label: Airport Duty Free Liquor
+  parent: logistics-transport
+  aliases:
+  - airport duty free liquor
+- id: animal-feed-manufacturing-review-2025
+  label: Animal Feed Manufacturing Review 2025
+  parent: industrial-manufacturing
+  aliases:
+  - animal feed manufacturing review 2025
+- id: aquaculture
+  label: Aquaculture
+  parent: agriculture-food
+  aliases:
+  - aquaculture
+- id: aseptic-sampling
+  label: Aseptic Sampling
+  parent: other-industries
+  aliases:
+  - aseptic sampling
+- id: atm-managed-services-cash-ops
+  label: Atm Managed Services Cash Ops
+  parent: financial-services
+  aliases:
+  - atm managed services cash ops
+- id: automated-parking-systems
+  label: Automated Parking Systems
+  parent: real-estate-construction
+  aliases:
+  - automated parking systems
+- id: automotive-aftermarket-parts-distribution-distributor-network-product-portfolio-market-share-2025
+  label: Automotive Aftermarket Parts Distribution Distributor Network Product Portfolio Market Share 2025
+  parent: automotive-mobility
+  aliases:
+  - automotive aftermarket parts distribution distributor network product portfolio market share 2025
+- id: automotive-batteries-manufacturing-and-distribution-manufacturing-capacity-distribution-network-mar
+  label: Automotive Batteries Manufacturing And Distribution Manufacturing Capacity Distribution Network Market
+    Share 2025
+  parent: automotive-mobility
+  aliases:
+  - automotive batteries manufacturing and distribution manufacturing capacity distribution network market share
+    2025
+- id: automotive-data-management
+  label: Automotive Data Management
+  parent: automotive-mobility
+  aliases:
+  - automotive data management
+- id: automotive-genuine-leather
+  label: Automotive Genuine Leather
+  parent: automotive-mobility
+  aliases:
+  - automotive genuine leather
+- id: automotive-lighting
+  label: Automotive Lighting
+  parent: automotive-mobility
+  aliases:
+  - automotive lighting
+- id: automotive-sensors
+  label: Automotive Sensors
+  parent: automotive-mobility
+  aliases:
+  - automotive sensors
+- id: automotive-telematics
+  label: Automotive Telematics
+  parent: automotive-mobility
+  aliases:
+  - automotive telematics
+- id: automotive-telematics-analytics-fleet-management
+  label: Automotive Telematics Analytics Fleet Management
+  parent: automotive-mobility
+  aliases:
+  - automotive telematics analytics fleet management
+- id: b2b-saas
+  label: B2b SAAS
+  parent: technology-software
+  aliases:
+  - b2b saas
+- id: baby-food-and-infant-nutrition
+  label: Baby Food And Infant Nutrition
+  parent: agriculture-food
+  aliases:
+  - baby food and infant nutrition
+- id: bacon
+  label: Bacon
+  parent: agriculture-food
+  aliases:
+  - bacon
+- id: battery-manufacturing-digital-thread
+  label: Battery Manufacturing Digital Thread
+  parent: energy-utilities
+  aliases:
+  - battery manufacturing digital thread
+- id: bio-based-coating
+  label: Bio Based Coating
+  parent: industrial-manufacturing
+  aliases:
+  - bio based coating
+- id: biosimilars
+  label: Biosimilars
+  parent: healthcare-life-sciences
+  aliases:
+  - biosimilars
+- id: blood-gas-poc-immunoassay-analyzer
+  label: Blood Gas Poc Immunoassay Analyzer
+  parent: energy-utilities
+  aliases:
+  - blood gas poc immunoassay analyzer
+- id: bnpl
+  label: BNPL
+  parent: financial-services
+  aliases:
+  - bnpl
+- id: bnpl-merchant-network-gmv-regulatory-compliance-2025
+  label: BNPL Merchant Network Gmv Regulatory Compliance 2025
+  parent: financial-services
+  aliases:
+  - bnpl merchant network gmv regulatory compliance 2025
+- id: breakfast-foods
+  label: Breakfast Foods
+  parent: agriculture-food
+  aliases:
+  - breakfast foods
+- id: broadband-services
+  label: Broadband Services
+  parent: media-telecom
+  aliases:
+  - broadband services
+- id: broadcasting-cable-tv
+  label: Broadcasting Cable Tv
+  parent: media-telecom
+  aliases:
+  - broadcasting cable tv
+- id: butter
+  label: Butter
+  parent: agriculture-food
+  aliases:
+  - butter
+- id: camera-lens
+  label: Camera Lens
+  parent: consumer-retail
+  aliases:
+  - camera lens
+- id: car-finance
+  label: Car Finance
+  parent: financial-services
+  aliases:
+  - car finance
+- id: car-rental-and-fleet-management-fleet-size-corporate-accounts-pricing-2025
+  label: Car Rental And Fleet Management Fleet Size Corporate Accounts Pricing 2025
+  parent: automotive-mobility
+  aliases:
+  - car rental and fleet management fleet size corporate accounts pricing 2025
+- id: car-rental-shared-mobility
+  label: Car Rental Shared Mobility
+  parent: automotive-mobility
+  aliases:
+  - car rental shared mobility
+- id: car-wash-auto-grooming-chains
+  label: Car Wash Auto Grooming Chains
+  parent: automotive-mobility
+  aliases:
+  - car wash auto grooming chains
+- id: car-washing-and-auto-detailing-service-network-pricing-customer-segments-2025
+  label: Car Washing And Auto Detailing Service Network Pricing Customer Segments 2025
+  parent: automotive-mobility
+  aliases:
+  - car washing and auto detailing service network pricing customer segments 2025
+- id: cashew
+  label: Cashew
+  parent: agriculture-food
+  aliases:
+  - cashew
+- id: chemicals
+  label: Chemicals
+  parent: industrial-manufacturing
+  aliases:
+  - chemicals
+- id: civil-explosives
+  label: Civil Explosives
+  parent: industrial-manufacturing
+  aliases:
+  - civil explosives
+- id: cloud-point-of-sale
+  label: Cloud Point Of Sale
+  parent: technology-software
+  aliases:
+  - cloud point of sale
+- id: cloud-saas-hyperscale-infra
+  label: Cloud SAAS Hyperscale Infra
+  parent: technology-software
+  aliases:
+  - cloud saas hyperscale infra
+- id: cns-therapeutics
+  label: Cns Therapeutics
+  parent: healthcare-life-sciences
+  aliases:
+  - cns therapeutics
+- id: coding-bootcamp
+  label: Coding Bootcamp
+  parent: education-services
+  aliases:
+  - coding bootcamp
+- id: cold-chain-packaging
+  label: Cold Chain Packaging
+  parent: logistics-transport
+  aliases:
+  - cold chain packaging
+- id: cold-storage
+  label: Cold Storage
+  parent: logistics-transport
+  aliases:
+  - cold storage
+- id: comic-book
+  label: Comic Book
+  parent: consumer-retail
+  aliases:
+  - comic book
+- id: commercial-truck
+  label: Commercial Truck
+  parent: automotive-mobility
+  aliases:
+  - commercial truck
+- id: corporate-catering-and-food-services-enterprise-accounts-service-models-pricing-2025
+  label: Corporate Catering And Food Services Enterprise Accounts Service Models Pricing 2025
+  parent: agriculture-food
+  aliases:
+  - corporate catering and food services enterprise accounts service models pricing 2025
+- id: cosmetics
+  label: Cosmetics
+  parent: consumer-retail
+  aliases:
+  - cosmetics
+- id: crams
+  label: Crams
+  parent: other-industries
+  aliases:
+  - crams
+- id: cryptocurrency
+  label: Cryptocurrency
+  parent: technology-software
+  aliases:
+  - cryptocurrency
+- id: customer-relationship-management
+  label: Customer Relationship Management
+  parent: technology-software
+  aliases:
+  - customer relationship management
+- id: cybersecurity-mdr-and-soc
+  label: Cybersecurity MDR And SOC
+  parent: technology-software
+  aliases:
+  - cybersecurity mdr and soc
+- id: cybersecurity-software
+  label: Cybersecurity Software
+  parent: technology-software
+  aliases:
+  - cybersecurity software
+- id: data-analytics-legal-services
+  label: Data Analytics Legal Services
+  parent: technology-software
+  aliases:
+  - data analytics legal services
+- id: daytime-running-lights
+  label: Daytime Running Lights
+  parent: consumer-retail
+  aliases:
+  - daytime running lights
+- id: decoupling-membrane
+  label: Decoupling Membrane
+  parent: industrial-manufacturing
+  aliases:
+  - decoupling membrane
+- id: digital-health-and-telemedicine
+  label: Digital Health And Telemedicine
+  parent: healthcare-life-sciences
+  aliases:
+  - digital health and telemedicine
+- id: digital-identity-in-ride-hailing
+  label: Digital Identity In Ride Hailing
+  parent: technology-software
+  aliases:
+  - digital identity in ride hailing
+- id: digital-payment-solutions-and-infrastructure-platform-capabilities-merchant-network-transaction-sha
+  label: Digital Payment Solutions And Infrastructure Platform Capabilities Merchant Network Transaction Share 2025
+  parent: financial-services
+  aliases:
+  - digital payment solutions and infrastructure platform capabilities merchant network transaction share 2025
+- id: digital-programmatic-advertising
+  label: Digital Programmatic Advertising
+  parent: technology-software
+  aliases:
+  - digital programmatic advertising
+- id: drug-delivery-devices
+  label: Drug Delivery Devices
+  parent: logistics-transport
+  aliases:
+  - drug delivery devices
+- id: dry-fruits
+  label: Dry Fruits
+  parent: agriculture-food
+  aliases:
+  - dry fruits
+- id: e-cigarette-and-heated-tobacco
+  label: E Cigarette And Heated Tobacco
+  parent: agriculture-food
+  aliases:
+  - e cigarette and heated tobacco
+- id: ecommerce
+  label: Ecommerce
+  parent: consumer-retail
+  aliases:
+  - ecommerce
+- id: edible-oil-manufacturing-and-refining-refining-capacity-product-portfolio-distribution-network-2025
+  label: Edible Oil Manufacturing And Refining Refining Capacity Product Portfolio Distribution Network 2025
+  parent: energy-utilities
+  aliases:
+  - edible oil manufacturing and refining refining capacity product portfolio distribution network 2025
+- id: electric-vehicle-charging-infrastructure-providers-charging-network-site-footprint-platform-capabil
+  label: Electric Vehicle Charging Infrastructure Providers Charging Network Site Footprint Platform Capabilities
+    2025
+  parent: automotive-mobility
+  aliases:
+  - electric vehicle charging infrastructure providers charging network site footprint platform capabilities 2025
+- id: emergency-medical-services
+  label: Emergency Medical Services
+  parent: healthcare-life-sciences
+  aliases:
+  - emergency medical services
+- id: energy-storage
+  label: Energy Storage
+  parent: energy-utilities
+  aliases:
+  - energy storage
+- id: esports
+  label: Esports
+  parent: media-telecom
+  aliases:
+  - esports
+- id: ev-charging-networks
+  label: EV Charging Networks
+  parent: automotive-mobility
+  aliases:
+  - ev charging networks
+- id: executive-education-and-leadership
+  label: Executive Education And Leadership
+  parent: education-services
+  aliases:
+  - executive education and leadership
+- id: feminine-hygiene
+  label: Feminine Hygiene
+  parent: healthcare-life-sciences
+  aliases:
+  - feminine hygiene
+- id: ferro-molybdenum
+  label: Ferro Molybdenum
+  parent: industrial-manufacturing
+  aliases:
+  - ferro molybdenum
+- id: fertilizer-distribution-and-trading-distributor-network-channel-coverage-product-portfolio-2025
+  label: Fertilizer Distribution And Trading Distributor Network Channel Coverage Product Portfolio 2025
+  parent: financial-services
+  aliases:
+  - fertilizer distribution and trading distributor network channel coverage product portfolio 2025
+- id: fertilizers
+  label: Fertilizers
+  parent: agriculture-food
+  aliases:
+  - fertilizers
+- id: fire-resistant-construction-boards
+  label: Fire Resistant Construction Boards
+  parent: real-estate-construction
+  aliases:
+  - fire resistant construction boards
+- id: flavored-water
+  label: Flavored Water
+  parent: agriculture-food
+  aliases:
+  - flavored water
+- id: flavors-and-fragrances
+  label: Flavors And Fragrances
+  parent: agriculture-food
+  aliases:
+  - flavors and fragrances
+- id: food-antioxidants
+  label: Food Antioxidants
+  parent: agriculture-food
+  aliases:
+  - food antioxidants
+- id: foodservice
+  label: Foodservice
+  parent: agriculture-food
+  aliases:
+  - foodservice
+- id: golf
+  label: Golf
+  parent: consumer-retail
+  aliases:
+  - golf
+- id: golf-gloves
+  label: Golf Gloves
+  parent: consumer-retail
+  aliases:
+  - golf gloves
+- id: green-hydrogen
+  label: Green Hydrogen
+  parent: energy-utilities
+  aliases:
+  - green hydrogen
+- id: hangover-cure-products
+  label: Hangover Cure Products
+  parent: consumer-retail
+  aliases:
+  - hangover cure products
+- id: healthcare-diagnostics-and-imaging
+  label: Healthcare Diagnostics And Imaging
+  parent: healthcare-life-sciences
+  aliases:
+  - healthcare diagnostics and imaging
+- id: home-health-and-hygiene-appliances
+  label: Home Health And Hygiene Appliances
+  parent: healthcare-life-sciences
+  aliases:
+  - home health and hygiene appliances
+- id: hotel-property-management-software
+  label: Hotel Property Management Software
+  parent: technology-software
+  aliases:
+  - hotel property management software
+- id: hr-technology
+  label: HR Technology
+  parent: education-services
+  aliases:
+  - hr technology
+- id: hybrid-vehicle
+  label: Hybrid Vehicle
+  parent: automotive-mobility
+  aliases:
+  - hybrid vehicle
+- id: hydrogen-compressors
+  label: Hydrogen Compressors
+  parent: energy-utilities
+  aliases:
+  - hydrogen compressors
+- id: hydrogen-generation
+  label: Hydrogen Generation
+  parent: energy-utilities
+  aliases:
+  - hydrogen generation
+- id: industrial-robotics
+  label: Industrial Robotics
+  parent: technology-software
+  aliases:
+  - industrial robotics
+- id: insurance-broking-and-advisory-insurer-partnerships-customer-segments-market-share-2025
+  label: Insurance Broking And Advisory Insurer Partnerships Customer Segments Market Share 2025
+  parent: financial-services
+  aliases:
+  - insurance broking and advisory insurer partnerships customer segments market share 2025
+- id: intelligent-automation-in-automotive-manufacturing
+  label: Intelligent Automation In Automotive Manufacturing
+  parent: automotive-mobility
+  aliases:
+  - intelligent automation in automotive manufacturing
+- id: ion-selective-electrode
+  label: Ion Selective Electrode
+  parent: industrial-manufacturing
+  aliases:
+  - ion selective electrode
+- id: iran-fertilizer-distribution-and-trading-distributor-network-channel-coverage-product-portfolio-202
+  label: Iran Fertilizer Distribution And Trading Distributor Network Channel Coverage Product Portfolio 2025
+  parent: financial-services
+  aliases:
+  - iran fertilizer distribution and trading distributor network channel coverage product portfolio 2025
+- id: iron-and-steel
+  label: Iron And Steel
+  parent: industrial-manufacturing
+  aliases:
+  - iron and steel
+- id: it-hardware
+  label: IT Hardware
+  parent: technology-software
+  aliases:
+  - it hardware
+- id: landscaping
+  label: Landscaping
+  parent: consumer-retail
+  aliases:
+  - landscaping
+- id: laundry-appliances
+  label: Laundry Appliances
+  parent: consumer-retail
+  aliases:
+  - laundry appliances
+- id: led-television
+  label: Led Television
+  parent: consumer-retail
+  aliases:
+  - led television
+- id: life-insurance
+  label: Life Insurance
+  parent: financial-services
+  aliases:
+  - life insurance
+- id: life-non-life-insurance
+  label: Life Non Life Insurance
+  parent: financial-services
+  aliases:
+  - life non life insurance
+- id: luxury-and-premium-car-dealerships-showroom-footprint-brand-portfolio-market-share-2025
+  label: Luxury And Premium Car Dealerships Showroom Footprint Brand Portfolio Market Share 2025
+  parent: automotive-mobility
+  aliases:
+  - luxury and premium car dealerships showroom footprint brand portfolio market share 2025
+- id: luxury-apparel-retail
+  label: Luxury Apparel Retail
+  parent: consumer-retail
+  aliases:
+  - luxury apparel retail
+- id: luxury-ev-leasing-and-subscription
+  label: Luxury EV Leasing And Subscription
+  parent: automotive-mobility
+  aliases:
+  - luxury ev leasing and subscription
+- id: mattress-and-bedding-products
+  label: Mattress And Bedding Products
+  parent: consumer-retail
+  aliases:
+  - mattress and bedding products
+- id: mea-cloud-infrastructure-services
+  label: Mea Cloud Infrastructure Services
+  parent: technology-software
+  aliases:
+  - mea cloud infrastructure services
+- id: medical-device
+  label: Medical Device
+  parent: healthcare-life-sciences
+  aliases:
+  - medical device
+- id: medical-devices
+  label: Medical Devices
+  parent: healthcare-life-sciences
+  aliases:
+  - medical devices
+- id: men-golf-clubs
+  label: Men Golf Clubs
+  parent: consumer-retail
+  aliases:
+  - men golf clubs
+- id: metal-matrix-composites
+  label: Metal Matrix Composites
+  parent: industrial-manufacturing
+  aliases:
+  - metal matrix composites
+- id: mobile-financial-services-and-neobanking-user-base-product-capabilities-digital-channels-2025
+  label: Mobile Financial Services And Neobanking User Base Product Capabilities Digital Channels 2025
+  parent: financial-services
+  aliases:
+  - mobile financial services and neobanking user base product capabilities digital channels 2025
+- id: mobile-money
+  label: Mobile Money
+  parent: financial-services
+  aliases:
+  - mobile money
+- id: mobile-payments-and-digital-wallets-user-base-merchant-network-transaction-share-2025
+  label: Mobile Payments And Digital Wallets User Base Merchant Network Transaction Share 2025
+  parent: financial-services
+  aliases:
+  - mobile payments and digital wallets user base merchant network transaction share 2025
+- id: multifunctional-furniture
+  label: Multifunctional Furniture
+  parent: consumer-retail
+  aliases:
+  - multifunctional furniture
+- id: myanmar-fertilizer-distribution-and-trading-distributor-network-channel-coverage-product-portfolio-
+  label: Myanmar Fertilizer Distribution And Trading Distributor Network Channel Coverage Product Portfolio 2025
+  parent: financial-services
+  aliases:
+  - myanmar fertilizer distribution and trading distributor network channel coverage product portfolio 2025
+- id: myanmar-poultry-production-and-processing-production-capacity-processing-capabilities-distribution-
+  label: Myanmar Poultry Production And Processing Production Capacity Processing Capabilities Distribution Network
+    2025
+  parent: agriculture-food
+  aliases:
+  - myanmar poultry production and processing production capacity processing capabilities distribution network 2025
+- id: natural-personal-care
+  label: Natural Personal Care
+  parent: consumer-retail
+  aliases:
+  - natural personal care
+- id: neobanks
+  label: Neobanks
+  parent: financial-services
+  aliases:
+  - neobanks
+- id: neuro-physiology-needles-and-electrodes
+  label: Neuro Physiology Needles And Electrodes
+  parent: healthcare-life-sciences
+  aliases:
+  - neuro physiology needles and electrodes
+- id: night-vision-devices
+  label: Night Vision Devices
+  parent: consumer-retail
+  aliases:
+  - night vision devices
+- id: non-invasive-aesthetic-treatment
+  label: Non Invasive Aesthetic Treatment
+  parent: healthcare-life-sciences
+  aliases:
+  - non invasive aesthetic treatment
+- id: nordics-broadband-services
+  label: Nordics Broadband Services
+  parent: media-telecom
+  aliases:
+  - nordics broadband services
+- id: nut-and-seeds
+  label: Nut And Seeds
+  parent: agriculture-food
+  aliases:
+  - nut and seeds
+- id: nutritional-dietary-supplements
+  label: Nutritional Dietary Supplements
+  parent: healthcare-life-sciences
+  aliases:
+  - nutritional dietary supplements
+- id: office-real-estate
+  label: Office Real Estate
+  parent: real-estate-construction
+  aliases:
+  - office real estate
+- id: online-education
+  label: Online Education
+  parent: education-services
+  aliases:
+  - online education
+- id: online-insurance-comparison-platforms
+  label: Online Insurance Comparison Platforms
+  parent: financial-services
+  aliases:
+  - online insurance comparison platforms
+- id: organic-waste-management
+  label: Organic Waste Management
+  parent: technology-software
+  aliases:
+  - organic waste management
+- id: ott-streaming
+  label: OTT Streaming
+  parent: media-telecom
+  aliases:
+  - ott streaming
+- id: parkinsons-disease-treatment
+  label: Parkinsons Disease Treatment
+  parent: healthcare-life-sciences
+  aliases:
+  - parkinsons disease treatment
+- id: payment-gateway-and-merchant-services-merchant-network-payment-capabilities-transaction-share-2025
+  label: Payment Gateway And Merchant Services Merchant Network Payment Capabilities Transaction Share 2025
+  parent: financial-services
+  aliases:
+  - payment gateway and merchant services merchant network payment capabilities transaction share 2025
+- id: pen-needles
+  label: Pen Needles
+  parent: healthcare-life-sciences
+  aliases:
+  - pen needles
+- id: polyester-fiber
+  label: Polyester Fiber
+  parent: industrial-manufacturing
+  aliases:
+  - polyester fiber
+- id: poultry-production-and-processing-production-capacity-processing-capabilities-distribution-network-
+  label: Poultry Production And Processing Production Capacity Processing Capabilities Distribution Network 2025
+  parent: agriculture-food
+  aliases:
+  - poultry production and processing production capacity processing capabilities distribution network 2025
+- id: prepaid-cards-and-gift-cards-issuer-landscape-distribution-channels-market-share-2025
+  label: Prepaid Cards And Gift Cards Issuer Landscape Distribution Channels Market Share 2025
+  parent: other-industries
+  aliases:
+  - prepaid cards and gift cards issuer landscape distribution channels market share 2025
+- id: prepared-meals
+  label: Prepared Meals
+  parent: other-industries
+  aliases:
+  - prepared meals
+- id: protective-textiles
+  label: Protective Textiles
+  parent: industrial-manufacturing
+  aliases:
+  - protective textiles
+- id: quick-service-restaurant
+  label: Quick Service Restaurant
+  parent: other-industries
+  aliases:
+  - quick service restaurant
+- id: ready-to-drink-rtd-coffee
+  label: Ready To Drink Rtd Coffee
+  parent: agriculture-food
+  aliases:
+  - ready to drink rtd coffee
+- id: recommendation-engine
+  label: Recommendation Engine
+  parent: other-industries
+  aliases:
+  - recommendation engine
+- id: remote-monitoring-in-car-rental
+  label: Remote Monitoring In Car Rental
+  parent: automotive-mobility
+  aliases:
+  - remote monitoring in car rental
+- id: renewable-energy
+  label: Renewable Energy
+  parent: energy-utilities
+  aliases:
+  - renewable energy
+- id: restaurant-point-of-sale-terminal
+  label: Restaurant Point Of Sale Terminal
+  parent: other-industries
+  aliases:
+  - restaurant point of sale terminal
+- id: retail-automation
+  label: Retail Automation
+  parent: consumer-retail
+  aliases:
+  - retail automation
+- id: retail-banking-and-consumer-finance-digital-channels-product-portfolio-market-share-2025
+  label: Retail Banking And Consumer Finance Digital Channels Product Portfolio Market Share 2025
+  parent: financial-services
+  aliases:
+  - retail banking and consumer finance digital channels product portfolio market share 2025
+- id: revenue-intelligence
+  label: Revenue Intelligence
+  parent: technology-software
+  aliases:
+  - revenue intelligence
+- id: rocket-and-missile
+  label: Rocket And Missile
+  parent: other-industries
+  aliases:
+  - rocket and missile
+- id: seed
+  label: Seed
+  parent: agriculture-food
+  aliases:
+  - seed
+- id: sierra-nevada-corporation
+  label: Sierra Nevada Corporation
+  parent: other-industries
+  aliases:
+  - sierra nevada corporation
+- id: silicon-carbide
+  label: Silicon Carbide
+  parent: other-industries
+  aliases:
+  - silicon carbide
+- id: skincare-products
+  label: Skincare Products
+  parent: other-industries
+  aliases:
+  - skincare products
+- id: small-modular-reactors
+  label: Small Modular Reactors
+  parent: other-industries
+  aliases:
+  - small modular reactors
+- id: smart-display
+  label: Smart Display
+  parent: other-industries
+  aliases:
+  - smart display
+- id: smart-farming-with-iot
+  label: Smart Farming With IOT
+  parent: agriculture-food
+  aliases:
+  - smart farming with iot
+- id: smart-glass
+  label: Smart Glass
+  parent: industrial-manufacturing
+  aliases:
+  - smart glass
+- id: smart-ports
+  label: Smart Ports
+  parent: logistics-transport
+  aliases:
+  - smart ports
+- id: smart-retail-pos-and-saas
+  label: Smart Retail POS And SAAS
+  parent: technology-software
+  aliases:
+  - smart retail pos and saas
+- id: social-commerce
+  label: Social Commerce
+  parent: other-industries
+  aliases:
+  - social commerce
+- id: solar-lighting
+  label: Solar Lighting
+  parent: energy-utilities
+  aliases:
+  - solar lighting
+- id: solar-pv
+  label: Solar Pv
+  parent: energy-utilities
+  aliases:
+  - solar pv
+- id: specialty-chemicals-manufacturing-export-revenue-rd-intensity-2025
+  label: Specialty Chemicals Manufacturing Export Revenue Rd Intensity 2025
+  parent: industrial-manufacturing
+  aliases:
+  - specialty chemicals manufacturing export revenue rd intensity 2025
+- id: structural-wood-screws
+  label: Structural Wood Screws
+  parent: other-industries
+  aliases:
+  - structural wood screws
+- id: student-information-system
+  label: Student Information System
+  parent: education-services
+  aliases:
+  - student information system
+- id: telecommunications-analytics
+  label: Telecommunications Analytics
+  parent: technology-software
+  aliases:
+  - telecommunications analytics
+- id: temperature-controlled-warehousing-and-distribution
+  label: Temperature Controlled Warehousing And Distribution
+  parent: logistics-transport
+  aliases:
+  - temperature controlled warehousing and distribution
+- id: tires
+  label: Tires
+  parent: other-industries
+  aliases:
+  - tires
+- id: toys
+  label: Toys
+  parent: consumer-retail
+  aliases:
+  - toys
+- id: trade-finance
+  label: Trade Finance
+  parent: financial-services
+  aliases:
+  - trade finance
+- id: train-tickets
+  label: Train Tickets
+  parent: other-industries
+  aliases:
+  - train tickets
+- id: ultra-pure-water
+  label: Ultra Pure Water
+  parent: agriculture-food
+  aliases:
+  - ultra pure water
+- id: unbleached-kraft-paper
+  label: Unbleached Kraft Paper
+  parent: industrial-manufacturing
+  aliases:
+  - unbleached kraft paper
+- id: used-car
+  label: Used Car
+  parent: automotive-mobility
+  aliases:
+  - used car
+- id: used-vehicle-marketplace-blockchain
+  label: Used Vehicle Marketplace Blockchain
+  parent: automotive-mobility
+  aliases:
+  - used vehicle marketplace blockchain
+- id: vegetable-seed
+  label: Vegetable Seed
+  parent: agriculture-food
+  aliases:
+  - vegetable seed
+- id: virtual-data-room
+  label: Virtual Data Room
+  parent: technology-software
+  aliases:
+  - virtual data room
+- id: warehousing-and-3pl-logistics-warehouse-footprint-storage-capacity-operator-performance-2025
+  label: Warehousing And 3PL Logistics Warehouse Footprint Storage Capacity Operator Performance 2025
+  parent: logistics-transport
+  aliases:
+  - warehousing and 3pl logistics warehouse footprint storage capacity operator performance 2025
+- id: washing-machine
+  label: Washing Machine
+  parent: consumer-retail
+  aliases:
+  - washing machine
+- id: wearable-devices
+  label: Wearable Devices
+  parent: other-industries
+  aliases:
+  - wearable devices
+- id: wi-fi-chipset
+  label: Wi Fi Chipset
+  parent: other-industries
+  aliases:
+  - wi fi chipset
+- id: wind-turbine-castings
+  label: Wind Turbine Castings
+  parent: energy-utilities
+  aliases:
+  - wind turbine castings
+- id: wireless-broadband
+  label: Wireless Broadband
+  parent: media-telecom
+  aliases:
+  - wireless broadband
+geographies:
+- id: africa
+  label: Africa
+  kind: region
+  parent: global
+  aliases:
+  - africa
+- id: asia-pacific
+  label: Asia Pacific
+  kind: region
+  parent: global
+  aliases:
+  - apac
+  - asia pacific
+  - asia-pacific
+- id: eastern-europe
+  label: Eastern Europe
+  kind: region
+  parent: europe
+  aliases:
+  - eastern europe
+- id: europe
+  label: Europe
+  kind: region
+  parent: global
+  aliases:
+  - europe
+- id: gcc
+  label: GCC
+  kind: region
+  parent: middle-east
+  aliases:
+  - gcc
+  - gulf cooperation council
+  - gulf region
+- id: global
+  label: Global
+  kind: global
+  aliases:
+  - global
+  - worldwide
+- id: latin-america
+  label: Latin America
+  kind: region
+  parent: global
+  aliases:
+  - latam
+  - latin america
+- id: mea
+  label: Middle East & Africa
+  kind: region
+  parent: global
+  aliases:
+  - mea
+  - middle east & africa
+- id: middle-east
+  label: Middle East
+  kind: region
+  parent: global
+  aliases:
+  - mena
+  - middle east
+- id: north-america
+  label: North America
+  kind: region
+  parent: global
+  aliases:
+  - north america
+- id: oceania
+  label: Oceania
+  kind: region
+  parent: global
+  aliases:
+  - oceania
+- id: south-asia
+  label: South Asia
+  kind: region
+  parent: asia-pacific
+  aliases:
+  - south asia
+- id: southeast-asia
+  label: Southeast Asia
+  kind: region
+  parent: asia-pacific
+  aliases:
+  - asean
+  - sea
+  - south east asia
+  - southeast asia
+- id: australia
+  label: Australia
+  kind: country
+  parent: oceania
+  aliases:
+  - australia
+  - australian
+- id: bahrain
+  label: Bahrain
+  kind: country
+  parent: gcc
+  aliases:
+  - bahrain
+- id: brazil
+  label: Brazil
+  kind: country
+  parent: latin-america
+  aliases:
+  - brazil
+- id: chile
+  label: Chile
+  kind: country
+  parent: latin-america
+  aliases:
+  - chile
+- id: china
+  label: China
+  kind: country
+  parent: asia-pacific
+  aliases:
+  - china
+  - chinese
+- id: egypt
+  label: Egypt
+  kind: country
+  parent: middle-east
+  aliases:
+  - egypt
+- id: france
+  label: France
+  kind: country
+  parent: europe
+  aliases:
+  - france
+- id: germany
+  label: Germany
+  kind: country
+  parent: europe
+  aliases:
+  - german
+  - germany
+- id: hong-kong
+  label: Hong Kong
+  kind: country
+  parent: asia-pacific
+  aliases:
+  - hong kong
+- id: india
+  label: India
+  kind: country
+  parent: south-asia
+  aliases:
+  - india
+  - indian
+- id: indonesia
+  label: Indonesia
+  kind: country
+  parent: southeast-asia
+  aliases:
+  - indonesia
+  - indonesian
+- id: italy
+  label: Italy
+  kind: country
+  parent: europe
+  aliases:
+  - italy
+- id: japan
+  label: Japan
+  kind: country
+  parent: asia-pacific
+  aliases:
+  - japan
+  - japanese
+- id: kuwait
+  label: Kuwait
+  kind: country
+  parent: gcc
+  aliases:
+  - kuwait
+- id: malaysia
+  label: Malaysia
+  kind: country
+  parent: southeast-asia
+  aliases:
+  - malaysia
+  - malaysian
+- id: mexico
+  label: Mexico
+  kind: country
+  parent: latin-america
+  aliases:
+  - mexico
+- id: netherlands
+  label: Netherlands
+  kind: country
+  parent: europe
+  aliases:
+  - netherlands
+- id: nigeria
+  label: Nigeria
+  kind: country
+  parent: africa
+  aliases:
+  - nigeria
+- id: oman
+  label: Oman
+  kind: country
+  parent: gcc
+  aliases:
+  - oman
+- id: philippines
+  label: Philippines
+  kind: country
+  parent: southeast-asia
+  aliases:
+  - philippine
+  - philippines
+- id: portugal
+  label: Portugal
+  kind: country
+  parent: europe
+  aliases:
+  - portugal
+- id: qatar
+  label: Qatar
+  kind: country
+  parent: gcc
+  aliases:
+  - qatar
+- id: saudi-arabia
+  label: Saudi Arabia
+  kind: country
+  parent: gcc
+  aliases:
+  - ksa
+  - saudi
+  - saudi arabia
+- id: singapore
+  label: Singapore
+  kind: country
+  parent: southeast-asia
+  aliases:
+  - singapore
+- id: south-africa
+  label: South Africa
+  kind: country
+  parent: africa
+  aliases:
+  - south africa
+- id: south-korea
+  label: South Korea
+  kind: country
+  parent: asia-pacific
+  aliases:
+  - korea
+  - south korea
+- id: spain
+  label: Spain
+  kind: country
+  parent: europe
+  aliases:
+  - spain
+- id: thailand
+  label: Thailand
+  kind: country
+  parent: southeast-asia
+  aliases:
+  - thai
+  - thailand
+- id: turkey
+  label: Turkey
+  kind: country
+  parent: middle-east
+  aliases:
+  - turkey
+  - turkiye
+- id: uae
+  label: United Arab Emirates
+  kind: country
+  parent: gcc
+  aliases:
+  - abu dhabi
+  - dubai
+  - uae
+  - united arab emirates
+- id: united-kingdom
+  label: United Kingdom
+  kind: country
+  parent: europe
+  aliases:
+  - britain
+  - uk
+  - united kingdom
+- id: united-states
+  label: United States
+  kind: country
+  parent: north-america
+  aliases:
+  - u.s.
+  - united states
+  - us
+  - usa
+- id: vietnam
+  label: Vietnam
+  kind: country
+  parent: southeast-asia
+  aliases:
+  - viet nam
+  - vietnam
+  - vietnamese
+entities: []
+page_types:
+- id: hub
+  label: Home / listing page
+  path_patterns:
+  - ^/$
+  - ^/(industry-reports|articles|case-studies|survey|pov|competition-benchmarking)/?$
+  intent: navigational
+  commercial_importance: 1
+  linkable_as_source: false
+- id: transactional
+  label: Contact / enquiry / purchase
+  path_patterns:
+  - ^/(contact-us|talk-to-us|book-a-discovery-call|sample-report|dossier360)(/|$)
+  intent: transactional
+  commercial_importance: 1
+  linkable_as_source: false
+  linkable_as_target: false
+- id: corporate
+  label: Corporate / legal
+  path_patterns:
+  - ^/(about-us|careers|expert-panel|privacy-policy|terms-and-conditions)(/|$)
+  intent: corporate
+  commercial_importance: 0
+  linkable_as_source: false
+  linkable_as_target: false
+- id: benchmark
+  label: Competition benchmarking
+  path_patterns:
+  - ^/competition-benchmarking/
+  intent: commercial_research
+  commercial_importance: 3
+- id: report
+  label: Market research report
+  path_patterns:
+  - ^/industry-reports/
+  - ^/[a-z0-9-]+-market/?$
+  intent: commercial_research
+  commercial_importance: 3
+- id: survey
+  label: Survey
+  path_patterns:
+  - ^/survey/
+  intent: commercial_research
+  commercial_importance: 2
+- id: case_study
+  label: Case study
+  path_patterns:
+  - ^/case-studies/
+  intent: informational
+  commercial_importance: 2
+- id: pov
+  label: Point of view
+  path_patterns:
+  - ^/pov/
+  intent: informational
+  commercial_importance: 2
+- id: insight
+  label: Article
+  path_patterns:
+  - ^/articles/
+  intent: informational
+  commercial_importance: 2
+- id: brand_comparison
+  label: Ken Research comparison page
+  path_patterns:
+  - ^/ken-research-vs-
+  intent: commercial_research
+  commercial_importance: 1
+- id: consulting
+  label: Consulting service page
+  path_patterns:
+  - ^/(consulting|procurement-research)(/|$)
+  intent: commercial_research
+  commercial_importance: 2
+- id: other
+  label: Other page
+  path_patterns:
+  - ^/
+  intent: informational
+  commercial_importance: 1
+default_page_type: other
+protections:
+- id: legal-pages
+  reason: Legal and policy pages are never modified.
+  path_patterns:
+  - ^/([a-z]{2}(-[a-z]{2})?/)?(privacy|privacy-policy|terms|terms-and-conditions|cookie-policy|legal|disclaimer)(\.(html?|php))?(/|$)
+eligibility:
+  min_words_source: 150
+  min_words_target: 100
