@@ -367,11 +367,26 @@ def _select_root(soup: BeautifulSoup) -> Tag:
     return soup
 
 
+_STREAMED_SEGMENT_ID: Final = re.compile(r"^S:[0-9a-z]+$")
+
+
+def _is_streamed_segment(tag: Tag) -> bool:
+    """A React/Next.js streaming segment: ``<div hidden id="S:2">``.
+
+    The server sends a Suspense boundary's real content inside a ``hidden`` div and the page's
+    own script moves it into place, so visitors and search engines see it. Treating ``hidden``
+    as boilerplate here made a whole article read as a dozen words.
+    """
+    return tag.name == "div" and bool(_STREAMED_SEGMENT_ID.match(_attr(tag, "id") or ""))
+
+
 def _is_boilerplate(tag: Tag) -> bool:
     name = tag.name
     if name in _REMOVED_TAGS or _has_role(tag, _REMOVED_ROLES):
         return True
-    if (_attr(tag, "aria-hidden") or "").strip().lower() == "true" or tag.has_attr("hidden"):
+    if (_attr(tag, "aria-hidden") or "").strip().lower() == "true":
+        return True
+    if tag.has_attr("hidden") and not _is_streamed_segment(tag):
         return True
     return name in {"header", "footer"} and tag.find_parent(["main", "article"]) is None
 

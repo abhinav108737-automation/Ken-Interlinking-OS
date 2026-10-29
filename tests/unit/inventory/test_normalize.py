@@ -353,6 +353,18 @@ def test_boilerplate_removed_without_main() -> None:
     assert page.body_text == "Body content"
 
 
+def test_streamed_segment_is_content_but_other_hidden_is_not() -> None:
+    # Next.js sends a Suspense boundary's content in <div hidden id="S:n">; a script reveals it.
+    html = """<body>
+      <template id="B:0"><p>Loading skeleton</p></template>
+      <div hidden id="S:0"><p>The real article text.</p></div>
+      <div hidden id="menu"><p>Collapsed menu</p></div>
+      <div hidden id="S:1" aria-hidden="true"><p>Explicitly hidden segment</p></div>
+      <span hidden id="S:2">Not a div</span>
+    </body>"""
+    assert _norm(html).body_text == "The real article text."
+
+
 def test_header_and_footer_inside_article_are_kept() -> None:
     html = """<body><header>Site header</header>
       <article><header><p>Article header</p></header><p>Body</p>
