@@ -111,6 +111,22 @@ GOOGLE_ANALYTICS_HOSTS: dict[str, str] = {
 """The ONLY non-loopback host each Google base URL may name (ADR-0015 s12.3)."""
 
 
+def _is_inside(path: str, root: Path) -> bool:
+    """Whether ``path`` is ``root`` or lies beneath it.
+
+    The file need not exist (settings are validated at start-up, before anything is read), so
+    this resolves symlinks only where they exist. A path that cannot be resolved at all is
+    reported as INSIDE: the caller is refusing a credential location, so when in doubt it
+    must refuse.
+    """
+    try:
+        candidate = Path(path).expanduser().resolve(strict=False)
+        base = root.resolve(strict=False)
+    except (OSError, RuntimeError):
+        return True
+    return candidate == base or base in candidate.parents
+
+
 def is_loopback_host(host: str | None) -> bool:
     """Whether ``host`` is a loopback IP literal or ``localhost`` (no DNS lookup)."""
     if not host:
@@ -353,6 +369,13 @@ class Settings(BaseSettings):
         default=None,
         description="File holding a read-only OAuth access token (mode 0600). Never logged, "
         "never in /meta, never in a job snapshot.",
+    )
+    analytics_google_credentials_file: str | None = Field(
+        default=None,
+        description="A Google service-account JSON key (ADR-0022). The provider mints its own "
+        "short-lived access token from it in memory, so no token is ever written to disk. The "
+        "file must be private to its owner and must live OUTSIDE the repository. Mutually "
+        "exclusive with the token file. Never logged, never in /meta, never in a snapshot.",
     )
     ga4_property_id: str | None = Field(default=None, pattern=r"^[0-9]{1,20}$")
     ga4_timezone: str = Field(
@@ -710,9 +733,23 @@ class Settings(BaseSettings):
                 raise ValueError(f"KEN_{env} must be https://{expected_host}")
             if parts.port not in {None, 443}:
                 raise ValueError(f"KEN_{env} must use the default https port")
-        if self.analytics_google_enabled and not self.analytics_google_token_file:
+        if self.analytics_google_token_file and self.analytics_google_credentials_file:
             raise ValueError(
-                "KEN_ANALYTICS_GOOGLE_ENABLED=true requires KEN_ANALYTICS_GOOGLE_TOKEN_FILE"
+                "set KEN_ANALYTICS_GOOGLE_TOKEN_FILE or KEN_ANALYTICS_GOOGLE_CREDENTIALS_FILE, "
+                "not both: two credential sources make it ambiguous which one is in use"
+            )
+        if self.analytics_google_credentials_file and _is_inside(
+            self.analytics_google_credentials_file, REPO_ROOT
+        ):
+            # A key inside the working tree is one `git add .` from being published, and the
+            # ignore rules are a second line of defence, not the first.
+            raise ValueError("KEN_ANALYTICS_GOOGLE_CREDENTIALS_FILE must be outside the repository")
+        if self.analytics_google_enabled and not (
+            self.analytics_google_token_file or self.analytics_google_credentials_file
+        ):
+            raise ValueError(
+                "KEN_ANALYTICS_GOOGLE_ENABLED=true requires KEN_ANALYTICS_GOOGLE_TOKEN_FILE "
+                "or KEN_ANALYTICS_GOOGLE_CREDENTIALS_FILE"
             )
         return self
 

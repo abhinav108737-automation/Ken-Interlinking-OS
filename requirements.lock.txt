@@ -5,11 +5,14 @@ anyio==4.15.1
 asyncpg==0.31.0
 beautifulsoup4==4.15.0
 certifi==2026.7.22
+cffi==2.1.1
 charset-normalizer==3.5.2
 click==8.5.0
 coverage==7.16.2
+cryptography==50.0.2
 distro==1.9.0
 fastapi==0.143.0
+google-auth==2.62.0
 greenlet==3.5.6
 grpcio==1.84.0
 h11==0.16.0
@@ -45,6 +48,9 @@ pathspec==1.1.1
 pluggy==1.6.0
 portalocker==3.2.0
 protobuf==7.36.2
+pyasn1==0.6.5
+pyasn1_modules==0.4.2
+pycparser==3.12
 pydantic==2.14.1
 pydantic-settings==2.15.0
 pydantic_core==2.50.1
@@ -68,6 +74,7 @@ tenacity==9.1.4
 truststore==0.10.5
 typing-inspection==0.4.4
 typing_extensions==4.16.0
+tzdata==2026.6 ; sys_platform == "win32"
 urllib3==2.8.0
 uuid_utils==0.17.1
 uvicorn==0.54.0

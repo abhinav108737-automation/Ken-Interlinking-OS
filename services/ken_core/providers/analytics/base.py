@@ -12,8 +12,11 @@ it back. The message is the code only: never a row, a URL, a file path or a toke
 * ``KEN_ANALYTICS_GOOGLE_ENABLED`` must be true;
 * the base URL must be ``https`` on the exact allowlisted host (``Settings`` already refuses
   anything else when egress is enabled; this is the second, independent check);
-* the OAuth access token is read from ``KEN_ANALYTICS_GOOGLE_TOKEN_FILE`` at the start of
-  EVERY import and the file must be a regular file with mode ``0600``;
+* the credential is EITHER a pre-made OAuth access token read from
+  ``KEN_ANALYTICS_GOOGLE_TOKEN_FILE`` at the start of EVERY import (a regular file, mode
+  ``0600``), OR a service-account key in ``KEN_ANALYTICS_GOOGLE_CREDENTIALS_FILE`` from which a
+  short-lived token is minted in memory (ADR-0022; on Windows "private" means the file's ACL
+  admits only its owner and SYSTEM);
 * ``follow_redirects=False`` and ``trust_env=False`` (no proxy, no netrc, no redirect to
   another host);
 * 429 and 5xx get a bounded 3-try backoff; 401/403 is the fixed code ``google_auth_failed``;
@@ -28,10 +31,13 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
-from typing import Any, Final, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, Final, Protocol, runtime_checkable
 from urllib.parse import urlsplit
 
 import httpx
+
+if TYPE_CHECKING:
+    from ken_core.providers.analytics.google_credentials import ServiceAccountTokenSource
 
 from ken_contracts.analytics import (
     MAX_SAMPLE_PATH_CHARS,
@@ -69,6 +75,11 @@ GOOGLE_RETRY_STATUSES: Final = frozenset({429, 500, 502, 503, 504})
 _BACKOFF_BASE_S: Final = 0.5
 _TOKEN_MODE_MASK: Final = 0o077
 """Any bit set here means the token file is readable by group or others."""
+_SCOPE_BY_HOST_SETTING: Final = {
+    # Least privilege: each provider's token can read ONE Google product, and only read it.
+    "analytics_ga4_base_url": "https://www.googleapis.com/auth/analytics.readonly",
+    "analytics_gsc_base_url": "https://www.googleapis.com/auth/webmasters.readonly",
+}
 
 
 class FetchErrorCode(StrEnum):
@@ -244,6 +255,7 @@ class GoogleEgress:
         self._transport = transport
         self._sleep = sleep
         self._client: httpx.AsyncClient | None = None
+        self._token_source: ServiceAccountTokenSource | None = None
         self._closed = False
 
     # ------------------------------------------------------------- gating
@@ -279,8 +291,33 @@ class GoogleEgress:
         if parts.port not in {None, 443}:
             raise AnalyticsFetchError(FetchErrorCode.INVALID_REQUEST)
 
-    def read_token(self) -> str | None:
+    async def access_token(self) -> str | None:
         """The access token for THIS import, or ``None`` for a loopback fixture.
+
+        With ``KEN_ANALYTICS_GOOGLE_CREDENTIALS_FILE`` set, a service-account key is held and a
+        short-lived token is minted in memory (ADR-0022): nothing is written to disk. Otherwise
+        the pre-made token file is read exactly as before (:meth:`read_token`).
+        """
+        if self._loopback_fixture():
+            return None
+        credentials = self._settings.analytics_google_credentials_file
+        if not credentials:
+            return self.read_token()
+        if self._token_source is None:
+            from ken_core.providers.analytics.google_credentials import (
+                ServiceAccountTokenSource,
+            )
+
+            self._token_source = ServiceAccountTokenSource(
+                path=Path(credentials),
+                scope=_SCOPE_BY_HOST_SETTING[self._host_setting],
+                timeout_s=self._settings.analytics_google_timeout_s,
+                transport=self._transport,
+            )
+        return await self._token_source.access_token()
+
+    def read_token(self) -> str | None:
+        """The pre-made access token for THIS import, or ``None`` for a loopback fixture.
 
         Refuses unless the path is a regular file whose mode is exactly ``0600``. The value
         is returned, never logged, and never stored on this object.

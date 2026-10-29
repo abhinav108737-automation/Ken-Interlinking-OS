@@ -139,7 +139,7 @@ class SearchConsoleAnalyticsProvider(BaseAnalyticsProvider):
             # Search Console has no link-level data: nothing to fetch, nothing sent.
             return AnalyticsBatch()
         path = self._path()
-        token = self._egress.read_token()
+        token = await self._egress.access_token()
         stats = StatsBuilder()
         page_rows: list[PageMetrics] = []
         start_row = 0

@@ -38,6 +38,16 @@ dependencies = [
   # grpcio and protobuf (Apache-2.0 / BSD-3), numpy and portalocker (BSD-3),
   # h2 / hpack / hyperframe (MIT).
   "qdrant-client==1.19.1",
+  # Analytics authentication (ADR-0022). Apache-2.0. Used ONLY to sign the service-account
+  # JWT (google.auth.crypt / google.auth.jwt): the token exchange itself goes through our own
+  # guarded httpx client, so every egress rule of ADR-0015 s12.3 still applies, and the
+  # google-auth HTTP transports are not used. Self-contained, no paid API. Its dependencies
+  # are all permissive: cryptography (Apache-2.0 OR BSD-3), cffi (MIT), pycparser (BSD-3),
+  # pyasn1 and pyasn1-modules (BSD-2).
+  "google-auth==2.62.0",
+  # Windows has no system time zone database, so ZoneInfo("Asia/Kolkata") -- the GA4
+  # property's zone -- raises without it and Settings refuses to start. BSD-3 / Apache-2.0.
+  "tzdata==2026.6; sys_platform == 'win32'",
 ]
 
 [project.optional-dependencies]

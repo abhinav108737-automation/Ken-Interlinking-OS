@@ -1,9 +1,9 @@
 # ADR-0022 — How the analytics importers authenticate to Google
 
-- **Status:** Proposed, 2026-10-29. **Nothing here is implemented.**
+- **Status:** Accepted and implemented, 2026-10-29. See "Owner answers and outcome" at the end.
 - **Decision owner:** the project owner.
-- **Amends if accepted:** ADR-0015 section 12.3 (the token is read from a file whose mode must
-  be exactly 0600).
+- **Amends:** ADR-0015 section 12.3 (the token is read from a file whose mode must be exactly
+  0600). That rule is kept for the token file; the credentials file has its own, equivalent one.
 - **Authority:** CLAUDE.md — a new dependency and a change to how a credential is handled are
   both ASK actions.
 
@@ -105,8 +105,32 @@ actually helped.
 - **Scope creep.** The grant is read-only on analytics and Search Console. It should stay that
   way; nothing in this project needs write access to either.
 
-## Open questions for the owner
+## Owner answers and outcome (2026-10-29)
 
-1. Accept Option A, with `google-auth` added as a dependency?
-2. Confirm the Windows DACL check as the equivalent of `0600` rather than a skip?
-3. Should the credentials path be required to sit outside the repository, enforced at startup?
+1. **`google-auth` as a dependency: accepted** (dictated; read as approval of Option A, because
+   the other two answers presuppose the key-file approach). Added as `google-auth==2.62.0`
+   (Apache-2.0, released 2026-10-12). Its dependencies are `cryptography`, `cffi`, `pycparser`,
+   `pyasn1` and `pyasn1-modules`, all permissive. `tzdata` is added for Windows only, because
+   `ZoneInfo("Asia/Kolkata")` raises without it and settings refuse to start.
+2. **Windows checks the file's ACL: accepted**, as the equivalent of `0600` and not a skip.
+   Implemented by reading the file's security descriptor from the OS and refusing unless only
+   its owner and `SYSTEM` are granted access. `Users`, `Authenticated Users`, `Everyone` and
+   `Administrators` are all refused.
+3. **The key lives at `C:\Projects\keys\`**, outside the repository. Startup now refuses a
+   credentials path inside the repository.
+
+**What was found along the way.** The key file had inherited permissions from `C:\Projects` that
+let `BUILTIN\Users` read it and `Authenticated Users` modify it, so any account on the machine
+could have read the key. The folder's inheritance was removed and access is now the owner and
+`SYSTEM` only. That is exactly the situation the Windows check exists to catch.
+
+**Verified.** 44 unit tests with a mocked network and a throwaway key (Google is never called by
+the test suite), including three deliberate breakages that the tests caught: logging the account
+email, following the key file's own token endpoint, and skipping the privacy check. Then once
+end to end through the project's own code with the real key: the file passed the ACL check, a
+token was minted in memory, and GA4 and Search Console both answered. Nothing was written to the
+database or to disk.
+
+**Still true.** Egress stays off by default and is switched on per run. Only the property id and
+the dates are ever sent. A service-account key does not expire; if it leaks it is valid until
+revoked, which is done in the Google Cloud console under that service account's **Keys** tab.
