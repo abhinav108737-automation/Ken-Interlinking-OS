@@ -7,7 +7,7 @@ dataset: core
 dataset_version: 1
 case_count: 12
 files:
-  core.v1.jsonl: cc06795e66936ad80508cfeb18cfcc48473c31f6c2f36f20182123b60db1134e
+  core.v1.jsonl: 8dbd3ca463e7184a8b07506efe82f09db17f894e8baac7b694d93c3fb5914941
 provenance: Synthetic plans over the synthetic article corpus, with recorded REASONING answers replayed by MockModelProvider (by role, never by model name). No production data.
 contains_production_data: false
 approval_ref: null
