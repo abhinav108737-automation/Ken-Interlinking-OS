@@ -261,9 +261,9 @@ exists (`.github/workflows/ci.yml`) but the repository has no remote.
 | Analytics | First-party counts are spoofable; outcomes are correlational only; retention is recorded but not enforced | PHASE_7_REPORT |
 | Autonomy | No calibration exists, so `guarded` mode would publish nothing on a fresh deployment | PHASE_9_REPORT |
 | Learning | Demonstration mode refuses all promotions; the learning corpus has no real human review actions yet | PHASE_8_REPORT |
-| Taxonomy | The real-site taxonomy is **proposed**, derived from URL structure, and needs owner review; the company / product list is empty | ADR-0025 |
-| Coverage | Markets are tagged mainly on reports and benchmarks (about 72 %), rarely on articles and surveys | ADR-0025 |
-| Scale | Similarity search is an exact scan per source (fine for thousands of pages; ANN needed at tens of thousands) | NEXT_STEPS |
+| Taxonomy | The real-site taxonomy is **proposed** (v3, 5,451 markets derived from URL slugs), needs owner review, and its tag rate measures coverage, not correctness; the company / product list is empty | ADR-0025, NEXT_STEPS 26 |
+| Inventory completeness | The sitemaps list about 9,000 pages, but analytics shows about 65,000 site paths with traffic; a sample suggests roughly 40,000 live pages are missing from the inventory | ADR-0025 addendum, NEXT_STEPS 24 |
+| Scale | Similarity search is an exact scan per source page in Python: measured 2.3 s per page at 8,858 pages (hours for a full run). An ANN or batched path is needed before full-site recommendation | NEXT_STEPS 25 |
 | CI | Authored, never executed | NEXT_STEPS |
 | Platform | Developed on macOS and Windows; some tests skip on Windows | PHASE_8_REPORT |
 
@@ -278,7 +278,7 @@ With the owner's written approval (2026-10-29), the public sitemaps of `www.kenr
 |---|---|---|
 | `ken_interlink` | Synthetic demo site (about 65 pages) | Development and tests; never mixed with real data |
 | `ken_real500` | 498 pages, Playwright-rendered | First real run: analysis, 126 link plans, shadow autonomy, live Google check |
-| `ken_full` | 8,858 pages, raw HTML from every non-disallowed sitemap URL | Full inventory (current analysis state: see NEXT_STEPS) |
+| `ken_full` | 8,858 pages, raw HTML from every non-disallowed sitemap URL (about 18 % of the live site, see §9) | Full sitemap inventory; analysed under taxonomy v3 without the semantic step |
 
 Nothing was written to the website. Google Analytics 4 and Search Console were read live (read-only, one
 week of data).

@@ -18,6 +18,7 @@ owner's decision (a ``KEN_TAXONOMY_PATH`` change plus re-analysis).
 from __future__ import annotations
 
 import collections
+import hashlib
 import json
 import re
 import sys
@@ -723,11 +724,32 @@ def _page_types() -> list[dict[str, Any]]:
     ]
 
 
-def derive(export: Path) -> dict[str, Any]:
-    rows = [
-        json.loads(line) for line in export.read_text(encoding="utf-8").splitlines() if line.strip()
-    ][1:]
+def _light_rows(export: Path) -> list[dict[str, Any]]:
+    """Stream the export, keeping only what derivation needs (the file can be gigabytes)."""
+    rows: list[dict[str, Any]] = []
+    with export.open(encoding="utf-8") as handle:
+        handle.readline()  # the header line
+        for line in handle:
+            if line.strip():
+                record = json.loads(line)
+                kind = record.get("metadata", {}).get("sitemap_kind", "")
+                rows.append({"url": record["url"], "metadata": {"sitemap_kind": kind}})
+    return rows
+
+
+def _unique_id(slug: str, used: set[str]) -> str:
+    """A taxonomy id of at most 99 characters that no other market or industry already uses."""
+    candidate = slug[:99]
+    if candidate in used:
+        candidate = f"{slug[:90]}-{hashlib.sha1(slug.encode()).hexdigest()[:8]}"  # noqa: S324
+    used.add(candidate)
+    return candidate
+
+
+def derive(export: Path, version: int = 2) -> dict[str, Any]:
+    rows = _light_rows(export)
     seen_geo: set[str] = set()
+    used_ids: set[str] = {iid for iid, _, _ in _INDUSTRIES} | {_FALLBACK_INDUSTRY[0]}
     markets: dict[str, dict[str, Any]] = {}
     industries: dict[str, str] = {}
     unmatched: list[str] = []
@@ -748,7 +770,7 @@ def derive(export: Path) -> dict[str, Any]:
         node = markets.setdefault(
             rest,
             {
-                "id": rest[:99],
+                "id": _unique_id(rest, used_ids),
                 "label": _label(rest),
                 "parent": iid,
                 "aliases": sorted({rest.replace("-", " "), _label(rest).lower()}),
@@ -779,7 +801,7 @@ def derive(export: Path) -> dict[str, Any]:
     market_nodes += sorted(markets.values(), key=lambda m: str(m["id"]))
     return {
         "policy": "taxonomy",
-        "version": 2,
+        "version": version,
         "status": "proposed",
         "source": f"derived from {len(rows)} pages of the approved kenresearch.com crawl "
         "(2026-10-29); "
@@ -805,7 +827,8 @@ def derive(export: Path) -> dict[str, Any]:
 
 def main() -> None:
     export, out = Path(sys.argv[1]), Path(sys.argv[2])
-    doc = derive(export)
+    version = int(sys.argv[3]) if len(sys.argv) > 3 else 2
+    doc = derive(export, version)
     stats = doc.pop("_stats")
     for node in doc["geographies"]:
         if node["parent"] is None:
@@ -817,7 +840,7 @@ def main() -> None:
         doc
     )  # the project's own validator: ids unique, references resolve
     header = (
-        "# PROPOSED taxonomy v2 -- derived by evals/intelligence/derive_taxonomy.py.\n"
+        f"# PROPOSED taxonomy v{version} -- derived by evals/intelligence/derive_taxonomy.py.\n"
         "# DATA, NOT CODE. status: proposed => never loaded by default. Review, then promote\n"
         "# by pointing KEN_TAXONOMY_PATH at it and re-running analysis. Entities are EMPTY:\n"
         "# they need Ken's data. Page types come from the sitemap; markets from report slugs.\n\n"

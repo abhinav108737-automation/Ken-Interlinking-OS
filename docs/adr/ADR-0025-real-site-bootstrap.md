@@ -52,3 +52,21 @@
   fetches the same URLs.
 - The `anchor` and country-pairing behaviour on real text differs from the synthetic corpus: see
   PHASE_8_REPORT.md for what the first real run showed.
+
+
+## Addendum, 2026-10-30 — what the full sitemap inventory showed
+
+1. **The sitemaps are incomplete.** All 8,965 non-disallowed sitemap URLs were fetched (8,858 pages stored;
+   107 redirects or 404s skipped) and imported without errors. Importing Search Console and GA4 against it,
+   about two thirds of the rows named pages that were not in the inventory. Normalised, the two sources report
+   **65,602 distinct site paths with traffic over about 12 weeks; 7,984 are in the inventory.** A random
+   sample of 80 of the other 57,618 gave 70 % live (200), 15 % redirects and 15 % 404, so roughly **40,000
+   live pages are missing** (`/industry-reports/`, root-level `-market` reports and `/custom-form` dominate).
+   The inventory therefore covers about 18 % of the live site. Crawling the rest is NEXT_STEPS item 24.
+2. **Similarity does not scale** past a few thousand pages in the current code (NEXT_STEPS item 25). The
+   analysis of the full inventory was run with `--no-embeddings` so that the semantic-relationship step,
+   which would take 6–11 hours in a single transaction, was skipped. Embeddings for all 8,858 pages exist.
+3. **Taxonomy v3** replaces the v2 proposal (v2 was derived from the 6 % sample, so it matched only 26 % of
+   reports on the full site). Taxonomy files are never edited in place, so v3 is a new file.
+4. **Operational note.** This machine suspended mid-run once; a request that should take seconds took 2.7
+   hours. Long jobs should run with the system kept awake (a per-process request, no power setting changed).
