@@ -28,7 +28,7 @@ never write to storage, call the CMS or promote anything. Everything runs on you
 - **Safe by construction.** Hard safety rules, protected pages, version locks, a verified splice (one `<a>` inserted, every other byte identical) and rollback for every change.
 - **Autonomy you control.** `shadow` (default) records what *would* happen; `guarded` and `autonomous` are opt-in and refused against a production CMS without extra acknowledgement.
 - **Local and private.** PostgreSQL, Qdrant and Ollama on loopback. Google Analytics and Search Console are optional and read-only.
-- **Auditable.** 25 architecture decision records, a frozen contract package, typed events, about 6,200 automated tests and evaluation datasets.
+- **Auditable.** 26 architecture decision records, a frozen contract package, typed events, about 6,200 automated tests and evaluation datasets.
 
 ## Quick start
 
@@ -131,7 +131,7 @@ More detail: [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md). The current evaluation 
 | **Vector index** | Qdrant v1.19.1, a **derived** index that can always be rebuilt from PostgreSQL ([ADR-0017](docs/adr/ADR-0017-qdrant-vector-architecture.md)) |
 | **Models** | Local only, through Ollama behind a provider abstraction: reasoning `qwen3:8b-q4_K_M`, fast `qwen3:4b`, embeddings `nomic-embed-text` |
 | **Paid APIs / SaaS** | None required. Google Analytics 4 and Search Console are optional, **read-only** and off unless enabled |
-| **Governance** | 25 architecture decision records ([docs/adr/](docs/adr/)), a frozen contract package, a 20-point constraint list ([CLAUDE.md](CLAUDE.md)) |
+| **Governance** | 26 architecture decision records ([docs/adr/](docs/adr/)), a frozen contract package, a 20-point constraint list ([CLAUDE.md](CLAUDE.md)) |
 | **Verification** | About 6,200 automated tests plus evaluation datasets; ruff and mypy clean (§8) |
 | **Licence** | Proprietary (`pyproject.toml`). Third-party licences are permissive; see §13 |
 
@@ -234,7 +234,7 @@ enforced and how an auditor can check it. "Evidence" is a pointer, not a claim o
 |---|---|---|---|
 | 1, 3 | No mandatory paid API; no OpenAI / Anthropic / Gemini / managed vector DB / paid SaaS | Dependency list; model provider is `ollama` or `mock`; Google is optional | `pyproject.toml` dependencies; `KEN_MODEL_PROVIDER`; [ADR-0004](docs/adr/ADR-0004.md) |
 | 2, 6 | Local / self-hosted inference; Ollama first | `ken_core/providers/model/` | Provider tests; `.env.example` |
-| 4, 5 | PostgreSQL is the record; vector layer is replaceable | Qdrant is derived and rebuildable (`make qdrant-rebuild`, `qdrant-verify`) | [ADR-0017](docs/adr/ADR-0017-qdrant-vector-architecture.md). *This replaced the original "pgvector first" choice; the decision is recorded, not silent* |
+| 4, 5 | PostgreSQL is the record; vector layer is replaceable | Qdrant is derived and rebuildable (`make qdrant-rebuild`, `qdrant-verify`) | [ADR-0017](docs/adr/ADR-0017-qdrant-vector-architecture.md); the semantic step searches through it ([ADR-0026](docs/adr/ADR-0026-similarity-through-the-vector-store.md)). *This replaced the original "pgvector first" choice; the decision is recorded, not silent* |
 | 7 | LangGraph supervisor | `ken_agents`, `StateGraph` only (no checkpointer, no tracing; tracing is refused at start-up) | [ADR-0012](docs/adr/ADR-0012-agent-orchestration.md) |
 | 8 | Deterministic code over LLM wherever possible | Candidate retrieval, scoring, eligibility, placement, safety and deployment are deterministic | [ADR-0011](docs/adr/ADR-0011-recommendation-engine.md) |
 | 9 | Every cross-boundary LLM output validated with Pydantic | `ken_contracts`; strict output schemas with a deterministic fallback | `tests/unit/learning/test_reflection_model_boundary.py` and the agent tests |
@@ -244,7 +244,7 @@ enforced and how an auditor can check it. "Evidence" is a pointer, not a claim o
 | 14 | Every endpoint has tests | `tests/unit/test_api_*.py`, `tests/integration/` | `make test` |
 | 15 | Every material agent capability has evaluation fixtures | `evals/datasets/` (12 datasets), `evals/suites/`, recorded model fixtures | [evals/README.md](evals/README.md) |
 | 16 | Agents may propose policies / skills, never self-promote | Promotion is a human control-plane action (`operator_admin` only); the database refuses a `*.promoted` event without a human actor; demonstration mode currently refuses every promotion | [ADR-0016](docs/adr/ADR-0016-learning.md) |
-| 17 | No silent architecture changes | Changes carry an ADR (25 so far) | `docs/adr/` |
+| 17 | No silent architecture changes | Changes carry an ADR (26 so far) | `docs/adr/` |
 | 18, 19 | Reference repos not cloned into source; licences checked | None vendored; two reference projects are licence hazards and are flagged | [docs/research/INTERLINKING_REFERENCE_REPOS.md](docs/research/INTERLINKING_REFERENCE_REPOS.md); [NEXT_STEPS.md](NEXT_STEPS.md) |
 | 20 | No secrets in source control | `.gitignore` (`keys/`, `*-service-account*.json`, `.env`); a test fails the build if a credential is tracked; credential files must live outside the repo | commit `b5287d2`; [ADR-0022](docs/adr/ADR-0022-google-analytics-authentication.md) |
 
@@ -349,8 +349,8 @@ Use `127.0.0.1`, not `localhost`: on Windows the integration tests **skip silent
 | Check | Result |
 |---|---|
 | `ruff check` | clean |
-| `mypy` (strict on `ken_agents`) | clean, 508 source files |
-| Full suite (excluding `tests/e2e`) | 6,187 passed, 37 skipped, **3 failed**; the 3 were then fixed or shown load-sensitive and re-run (`PHASE_8_REPORT.md` §4) |
+| `mypy` (strict on `ken_agents`) | clean, 509 source files |
+| Full suite (excluding `tests/e2e`) | 6,194 passed, 37 skipped, 0 failed, 1 transient setup timeout that passed on rerun. Earlier failures were root-caused and fixed (`PHASE_8_REPORT.md` §4) |
 | Phase 8 learning | 863 unit/contract + 174 integration passed |
 | Phase 9 autonomy | 336 passed |
 
@@ -372,7 +372,7 @@ exists (`.github/workflows/ci.yml`) but the repository has no remote.
 | Learning | Demonstration mode refuses all promotions; the learning corpus has no real human review actions yet | PHASE_8_REPORT |
 | Taxonomy | The real-site taxonomy is **proposed** (v3, 5,451 markets derived from URL slugs), needs owner review, and its tag rate measures coverage, not correctness; the company / product list is empty | ADR-0025, NEXT_STEPS 26 |
 | Inventory completeness | The sitemaps list about 9,000 pages, but analytics shows about 65,000 site paths with traffic; a sample suggests roughly 40,000 live pages are missing from the inventory | ADR-0025 addendum, NEXT_STEPS 24 |
-| Scale | Similarity search is an exact scan per source page in Python: measured 2.3 s per page at 8,858 pages (hours for a full run). An ANN or batched path is needed before full-site recommendation | NEXT_STEPS 25 |
+| Scale | The semantic step now searches through Qdrant (ADR-0026): the full 8,858-page run took 16 minutes. A full-scale recommendation run has not been measured yet | NEXT_STEPS 25 |
 | CI | Authored, never executed | NEXT_STEPS |
 | Platform | Developed on macOS and Windows; some tests skip on Windows | PHASE_8_REPORT |
 
@@ -387,7 +387,7 @@ With the owner's written approval (2026-10-29), the public sitemaps of `www.kenr
 |---|---|---|
 | `ken_interlink` | Synthetic demo site (about 65 pages) | Development and tests; never mixed with real data |
 | `ken_real500` | 498 pages, Playwright-rendered | First real run: analysis, 126 link plans, shadow autonomy, live Google check |
-| `ken_full` | 8,858 pages, raw HTML from every non-disallowed sitemap URL (about 18 % of the live site, see §9) | Full sitemap inventory; analysed under taxonomy v3 without the semantic step |
+| `ken_full` | 8,858 pages, raw HTML from every non-disallowed sitemap URL (about 18 % of the live site, see section 9) | Full sitemap inventory; analysed under taxonomy v3, 88,282 semantic edges through Qdrant |
 
 Nothing was written to the website. Google Analytics 4 and Search Console were read live (read-only, one
 week of data).
@@ -461,6 +461,6 @@ data/           Git-ignored local exports (real-site content)
 | [NEXT_STEPS.md](NEXT_STEPS.md) | Open decisions, limitations, approvals needed |
 | [docs/ARCHITECTURE_OVERVIEW.md](docs/ARCHITECTURE_OVERVIEW.md), [docs/CONTRACTS.md](docs/CONTRACTS.md) | Architecture and frozen contracts |
 | [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | Setup and daily workflow |
-| [docs/adr/](docs/adr/) | Decision records (ADR-0001 … ADR-0025) |
+| [docs/adr/](docs/adr/) | Decision records (ADR-0001 … ADR-0026) |
 | [docs/handover/](docs/handover/) | CMS and Google Analytics integration requirements |
 | [evals/README.md](evals/README.md) | Evaluation datasets and suites |

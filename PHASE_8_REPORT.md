@@ -47,9 +47,19 @@ The 37 skips are platform-specific: POSIX file modes (0600 token files), asyncio
    `127.0.0.1` fixes it. The default in the repository was **not** changed. Anyone running tests on
    Windows should set it, or the integration gate will pass vacuously.
 2. **Three failures in the full run.**
-   - `test_learning_experiments::…recommendation_pipeline` and `test_migrations::…round_trip` passed when
-     rerun alone. They ran while this session was also analysing and recommending against Postgres, so
-     treat them as **load-sensitive**, not as fixed. They passed again in the final run.
+   - **Correction (2026-10-30).** This report first called `test_learning_experiments::…recommendation_pipeline`
+     and `test_migrations::…round_trip` "load-sensitive". That was wrong: a second full run failed the same two,
+     and both are now root-caused and fixed.
+     - `test_migrations::…round_trip` inherited `job_runs` rows (kind `vector_index`) left by earlier tests; the
+       older revision's CHECK constraint refuses them, so the downgrade failed. It never emptied the tables first.
+       It now does. (Refusing to downgrade over rows it cannot represent is the right behaviour for real data.)
+     - `test_learning_experiments::…recommendation_pipeline` had a dead branch: when the random hold-out gave no
+       control page it tried to *activate* an all-treatment draft, which is always refused (both arms need
+       pages). It passed only on lucky runs. It now *ends* the draft (DRAFT to ENDED is allowed), and a new test
+       pins that behaviour.
+   - **A third flake, found while verifying:** `SqlExperimentGuard` compared `monotonic() - loaded_at > ttl`, so a
+     zero TTL could keep serving a stale map when Windows' coarse clock (about 15 ms) returned the same value
+     twice. It is now `>=`. This is a one-character product change; the real 30 s TTL is unaffected.
    - `test_analytics_aggregate_seed::…hash_seed` was a real, platform-specific test defect: it starts a
      subprocess with an almost empty environment, and Windows cannot start asyncio without `SYSTEMROOT`.
      The test now passes that variable through when it exists. No product code changed.
@@ -81,7 +91,7 @@ learn from. The earlier synthetic corpus (about 65 pages, scripted reviews) is p
 - `review_performance` (ADR-0012 §42) is carried to Phase 9 (item 23).
 - The Search Console query import is deferred; search-side learning has no data (item 22).
 - Google access is enabled (`KEN_ANALYTICS_GOOGLE_ENABLED=true`) but **not yet exercised** against the live APIs.
-- The full-suite integration tests are load-sensitive when other work shares the database container.
+- A database connection can time out (5 s) during a test's setup when the machine is busy; one such error appeared in the final full run and passed on rerun.
 - The sample is 6 % of the site; the proposed taxonomy tags markets mostly on reports and benchmarks.
 
 ## 7. Information still needed from you
