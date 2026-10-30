@@ -1,13 +1,121 @@
+<div align="center">
+
 # Ken Research Agentic Interlinking OS
 
-A self-hosted, local-first system that finds, proposes, (when permitted) publishes, verifies and measures
-**contextual internal links** across the Ken Research website, and learns from the outcome under strict human
-control.
+**A self-hosted, local-first system that finds, vets, publishes, verifies and measures contextual internal links, under strict human control.**
+
+![Status](https://img.shields.io/badge/phases-0%E2%80%939%20implemented-2ea44f)
+![Python](https://img.shields.io/badge/python-3.12-3776ab)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791)
+![Qdrant](https://img.shields.io/badge/vector%20index-Qdrant-dc382d)
+![Inference](https://img.shields.io/badge/inference-local%20(Ollama)-black)
+![Licence](https://img.shields.io/badge/licence-proprietary-lightgrey)
+
+</div>
+
+Ken Research publishes thousands of market reports, articles and surveys. This system reads that content, works
+out which pages should link to which, places each link on a natural phrase **already in the text**, and (only
+when policy and people allow it) publishes, verifies and measures the result. Models propose and critique; they
+never write to storage, call the CMS or promote anything. Everything runs on your own machine, with no paid API.
 
 > **For the technical team running the compliance audit.** This README describes the repository as of
 > **2026-10-30**. Every claim names the file, ADR, command or test where it can be checked; where something is
-> *not* yet true, it says so (§9, §12). Nothing here is connected to the production CMS, and **nothing is
-> published**.
+> *not* yet true, it says so (sections 9 and 11). **Nothing is connected to the production CMS, and nothing is published.**
+
+## Highlights
+
+- **Deterministic first.** Retrieval, scoring, eligibility, placement, safety checks and deployment are plain code. Models are optional reviewers behind a strict, validated schema.
+- **Safe by construction.** Hard safety rules, protected pages, version locks, a verified splice (one `<a>` inserted, every other byte identical) and rollback for every change.
+- **Autonomy you control.** `shadow` (default) records what *would* happen; `guarded` and `autonomous` are opt-in and refused against a production CMS without extra acknowledgement.
+- **Local and private.** PostgreSQL, Qdrant and Ollama on loopback. Google Analytics and Search Console are optional and read-only.
+- **Auditable.** 25 architecture decision records, a frozen contract package, typed events, about 6,200 automated tests and evaluation datasets.
+
+## Quick start
+
+### Windows 11 (PowerShell)
+
+Requires Python 3.12, Node 22/24+, Git, [Docker Desktop](https://www.docker.com/products/docker-desktop/) and [Ollama](https://ollama.com/download).
+`make` is not used on Windows; every command below is the plain equivalent.
+
+```powershell
+# 1. Get the code and install dependencies
+git clone https://github.com/abhinav108737-automation/Ken-Interlinking-OS.git
+cd Ken-Interlinking-OS
+py -3.12 -m venv .venv
+.venv\Scripts\python.exe -m pip install --upgrade pip
+.venv\Scripts\pip.exe install -e ".[dev]" -c requirements.lock.txt
+npm ci
+
+# 2. Configure (use 127.0.0.1, not localhost: Windows resolves localhost to IPv6 and the database will time out)
+Copy-Item .env.example .env
+(Get-Content .env) -replace 'localhost','127.0.0.1' | Set-Content .env
+
+# 3. Start PostgreSQL and Qdrant, then create the schema
+docker compose up -d postgres qdrant
+.venv\Scripts\alembic.exe upgrade head
+ollama pull nomic-embed-text
+
+# 4. Run the API (terminal 1)
+.venv\Scripts\uvicorn.exe ken_api.main:app --host 127.0.0.1 --port 8000
+
+# 5. Run the dashboard (terminal 2)
+cd apps\web
+$env:NEXT_TELEMETRY_DISABLED = "1"
+..\..\node_modules\.bin\next.cmd dev --hostname 127.0.0.1 --port 3000
+```
+
+> `npm run dev` does not work on Windows because its script uses POSIX `VAR=1 command` syntax; use the `next.cmd` line above.
+
+Create your account (you are asked for a password; no account exists until you do), then open
+**http://127.0.0.1:3000**:
+
+```powershell
+.venv\Scripts\python.exe -m ken_services.auth.cli user-create --username you --role operator_admin --display-name "Your Name"
+```
+
+Load the synthetic demo site and run the pipeline (nothing is published at any step):
+
+```powershell
+.venv\Scripts\python.exe -m ken_services.inventory.cli import-file tests\fixtures\demo\research_site.jsonl
+.venv\Scripts\python.exe -m ken_services.intelligence.cli analyze          # classify, embed, relate
+.venv\Scripts\python.exe -m ken_services.recommendations.cli recommend     # propose links
+.venv\Scripts\python.exe -m ken_agents.cli agents                          # local model reviews them
+```
+
+### macOS / Linux
+
+```bash
+colima start                       # or Docker Desktop
+make setup                         # venv, dependencies, .env
+make dev                           # PostgreSQL + Qdrant + migrations
+make dev-api                       # terminal 1: http://127.0.0.1:8000/ready
+make dev-web                       # terminal 2: http://127.0.0.1:3000
+make ingest-file FILE=tests/fixtures/demo/research_site.jsonl
+make analyze && make recommend && make agents
+make user-create USERNAME=you ROLE=operator_admin
+make verify                        # the full quality gate
+```
+
+### What you can open
+
+| URL | What it shows |
+|---|---|
+| `http://127.0.0.1:3000/inventory` | Every page, its versions and the links it already contains |
+| `http://127.0.0.1:3000/intelligence` | Page type, market, geography, relationships, eligibility |
+| `http://127.0.0.1:3000/recommendations` | Proposed link plans with rationale, score breakdown and before/after preview |
+| `http://127.0.0.1:3000/agents` | Every agent run, step and model call |
+| `http://127.0.0.1:3000/jobs` | Job runs and their counters |
+| `http://127.0.0.1:8000/docs` | Interactive API reference |
+
+More detail: [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md). The current evaluation of the engine's output is in
+[docs/evaluation/](docs/evaluation/INTERLINK_BASELINE_2026-10-30.md).
+
+## Contents
+
+1. [At a glance](#1-at-a-glance) · 2. [How to read this repository](#2-how-to-read-this-repository) · 3. [Architecture](#3-architecture) · 4. [Runtime topology](#4-runtime-topology)
+5. [Control framework](#5-control-framework-constraint--enforcement--evidence) · 6. [Data handling and privacy](#6-data-handling-and-privacy) · 7. [Security posture](#7-security-posture)
+8. [Verification](#8-verification-how-to-reproduce) · 9. [Known limitations](#9-known-limitations-stated-openly) · 10. [Data holdings](#10-data-holdings-and-the-real-site-bootstrap-adr-0025)
+11. [What the implementing team must provide](#11-what-the-implementing-team-must-provide-to-move-beyond-local) · 12. [Repository layout](#12-repository-layout) · 13. [Licensing](#13-licensing-and-provenance) · 14. [Documentation index](#14-documentation-index)
 
 ---
 
@@ -59,24 +167,19 @@ Models propose and critique. They never write to storage, call the CMS, or promo
 
 ### 3.2 Components
 
-```
- Next.js UI (apps/web) ──server-side fetch──▶ FastAPI Control API (apps/api/ken_api)
-                                                │
-                    ┌───────────────────────────┼───────────────────────────────┐
-                    ▼                           ▼                               ▼
-          Deterministic services        LangGraph agents                 Learning / eval
-          (services/ken_services)       (agents/ken_agents)              (ken_services/learning)
-          inventory · intelligence      REVIEW plans only; no            reflect → propose → offline eval
-          recommendations · deployment  create / approve / publish       → shadow → human promotion
-          analytics · autonomy
-                    │                           │
-                    ▼                           ▼
-        ken_core: settings · db · providers (model, CMS, vector) · repositories
-                    │
-   ┌────────────────┼───────────────────┬────────────────────────┐
-   ▼                ▼                   ▼                        ▼
-PostgreSQL     Qdrant (derived)    Ollama (local)       CMSProvider: mock / simulator
-(record)       vector index        models               (real HTTP adapter disabled)
+```mermaid
+flowchart TD
+    UI["Next.js UI<br/>apps/web"] -->|server-side fetch| API["FastAPI Control API<br/>apps/api / ken_api"]
+    API --> SVC["Deterministic services<br/>inventory, intelligence, recommendations,<br/>deployment, analytics, autonomy"]
+    API --> AG["LangGraph agents<br/>review plans only"]
+    API --> LRN["Learning and evaluation<br/>reflect, propose, offline eval, shadow, human promotion"]
+    SVC --> CORE["ken_core<br/>settings, db, providers, repositories"]
+    AG --> CORE
+    LRN --> CORE
+    CORE --> PG[("PostgreSQL 16<br/>system of record")]
+    CORE --> QD[("Qdrant<br/>derived vector index")]
+    CORE --> OL["Ollama<br/>local models"]
+    CORE --> CMS["CMSProvider<br/>mock / simulator<br/>real HTTP adapter disabled"]
 ```
 
 | Layer | Package | Rule |
@@ -219,16 +322,22 @@ Python **3.12**, Node `^22.22.2 || ^24.15.0 || >=26`, Docker (Colima or Docker D
 
 ### 8.2 Run
 
+Follow the [Quick start](#quick-start). To run the quality gate:
+
 ```bash
-make setup         # .venv, pip install -e ".[dev]", npm ci, .env from .env.example
-make dev           # PostgreSQL + Qdrant containers, migrations
-make dev-api       # http://127.0.0.1:8000/ready
-make dev-web       # http://127.0.0.1:3000
-make verify        # the full quality gate: lint, types, tests, web tests, compose config, migrate, doctor
+make verify        # macOS / Linux: lint, types, tests, web tests, compose config, migrate, doctor
 ```
 
-On **Windows**, `make` is not installed: run the Makefile targets through `.venv\Scripts\python.exe -m …`.
-Set `KEN_TEST_DATABASE_URL` with `127.0.0.1` (not `localhost`), or the integration tests **skip silently**.
+```powershell
+# Windows
+$env:KEN_TEST_DATABASE_URL = "postgresql+asyncpg://ken:ken@127.0.0.1:5433/ken_interlink_test"
+.venv\Scripts\ruff.exe check services contracts agents apps evals tests
+.venv\Scripts\mypy.exe
+.venv\Scripts\python.exe -m pytest tests -q
+```
+
+Use `127.0.0.1`, not `localhost`: on Windows the integration tests **skip silently** otherwise. The
+`ken_interlink_test` database is created by the container's init script on first start.
 
 ### 8.3 Test layers
 
