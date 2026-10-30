@@ -81,6 +81,7 @@ from ken_contracts.intelligence import (
 from ken_contracts.inventory import RunStatus
 from ken_contracts.jobs import JobKind, JobRunDetail
 from ken_contracts.model import ModelProvider
+from ken_contracts.vectors import VectorStore
 from ken_core.config import Settings
 from ken_core.db.repositories import intelligence as repo
 from ken_core.logging import get_logger
@@ -102,6 +103,7 @@ from ken_services.intelligence.relationships import (
 )
 from ken_services.intelligence.taxonomy import load_taxonomy
 from ken_services.jobs.runner import JobContext, run_job, utc_now
+from ken_services.vectors.retrieval import PostgresSemanticRetriever
 
 __all__ = [
     "ANALYSIS_COUNTERS",
@@ -132,6 +134,8 @@ POLICY_ACTOR: Final = "policy"
 
 _SEMANTIC: Final = RelationshipType.SEMANTIC_SIMILAR.value
 _MATERIALISED: Final = frozenset(kind.value for kind in MATERIALISED_RELATIONSHIP_TYPES)
+_STORE_SEARCH_CAP: Final = 500
+"""The most neighbours one vector-store search returns (``MAX_SEARCH_LIMIT``, ADR-0017)."""
 
 KeysFn = Callable[[PageAnalysis, TaxonomyPolicy], tuple[frozenset[str], frozenset[str]]]
 
@@ -274,6 +278,7 @@ class _Analysis:
         force: bool,
         embeddings: bool,
         page_ids: Sequence[uuid.UUID] | None,
+        vector_store: VectorStore | None = None,
     ) -> None:
         self.job = job
         self.settings = settings
@@ -285,6 +290,10 @@ class _Analysis:
         self.page_ids = page_ids
         self.av = analysis_version(taxonomy.version)
         self.fingerprint = current_recipe_fingerprint(settings)
+        # ADR-0026: a vector store makes the semantic step sub-linear per page. None (the
+        # default, ``KEN_VECTOR_STORE=memory``) keeps the exact scan over PostgreSQL.
+        self._store = vector_store
+        self._retriever: PostgresSemanticRetriever | None = None
 
     def _error(self, event: str, exc: BaseException, **fields: Any) -> None:
         logger.error(event, run_id=str(self.job.run_id), error_class=type(exc).__name__, **fields)
@@ -527,6 +536,48 @@ class _Analysis:
         return out
 
     async def _semantic_edges(self, identity: EmbeddingIdentity, changed: set[uuid.UUID]) -> None:
+        """Semantic edges, through the vector store when one is configured (ADR-0026)."""
+        from ken_core.providers.vectors.factory import build_vector_store
+
+        store = self._store
+        owned = False
+        if store is None and self.settings.vector_store == "qdrant":
+            store = build_vector_store(self.settings)
+            owned = True
+        try:
+            if store is not None:
+                try:
+                    await self._attach_store(store, identity)
+                except Exception as exc:  # isolated: taxonomy edges are already written
+                    self._error("semantic_index_failed", exc)
+                    return
+            await self._semantic_edges_exact_or_store(identity, changed)
+        finally:
+            self._retriever = None
+            if owned and store is not None:
+                await store.aclose()
+
+    async def _attach_store(self, store: VectorStore, identity: EmbeddingIdentity) -> None:
+        """Bring the derived index up to date with PostgreSQL, then search through it."""
+        from ken_contracts.intelligence import EMBEDDING_RECIPE_VERSION as RECIPE
+        from ken_services.vectors.identity import VectorIdentity
+        from ken_services.vectors.index import PostgresVectorIndexer
+        from ken_services.vectors.retrieval import PostgresSemanticRetriever
+
+        vid = VectorIdentity(
+            model=identity.model, recipe_version=RECIPE, recipe_fingerprint=self.fingerprint
+        )
+        sessionmaker = self.job.sessionmaker
+        await PostgresVectorIndexer(
+            sessionmaker=sessionmaker, store=store, settings=self.settings, identity=vid
+        ).index()
+        self._retriever = PostgresSemanticRetriever(
+            sessionmaker=sessionmaker, store=store, identity=vid
+        )
+
+    async def _semantic_edges_exact_or_store(
+        self, identity: EmbeddingIdentity, changed: set[uuid.UUID]
+    ) -> None:
         top_k = self.settings.similarity_top_k
         min_score = self.settings.similarity_min_score
         try:
@@ -556,7 +607,12 @@ class _Analysis:
                 for page_id in sorted(changed & candidates.keys()):
                     entry = candidates[page_id]
                     for other, _version, score in await self._nearest(
-                        session, identity, entry, limit=None, min_score=min_score
+                        session,
+                        identity,
+                        entry,
+                        limit=None,
+                        min_score=min_score,
+                        allowed=candidates,
                     ):
                         if other in recompute:
                             continue
@@ -571,7 +627,12 @@ class _Analysis:
                 for page_id in sorted(recompute & candidates.keys()):
                     entry = candidates[page_id]
                     for target, version, score in await self._nearest(
-                        session, identity, entry, limit=top_k, min_score=None
+                        session,
+                        identity,
+                        entry,
+                        limit=top_k,
+                        min_score=None,
+                        allowed=candidates,
                     ):
                         candidate = self.toolkit.semantic_relationship(score, min_score=min_score)
                         if candidate is None:
@@ -612,7 +673,12 @@ class _Analysis:
         *,
         limit: int | None,
         min_score: float | None,
+        allowed: Mapping[uuid.UUID, Any] | None = None,
     ) -> list[tuple[uuid.UUID, int, float]]:
+        if self._retriever is not None:
+            return await self._nearest_from_store(
+                entry, limit=limit, min_score=min_score, allowed=allowed
+            )
         return await repo.nearest_candidates(
             session,
             source_embedding_id=entry.embedding_id,
@@ -625,6 +691,35 @@ class _Analysis:
             limit=limit,
             min_score=min_score,
         )
+
+    async def _nearest_from_store(
+        self,
+        entry: repo.EmbeddedPage,
+        *,
+        limit: int | None,
+        min_score: float | None,
+        allowed: Mapping[uuid.UUID, Any] | None,
+    ) -> list[tuple[uuid.UUID, int, float]]:
+        """The same answer as :func:`repo.nearest_candidates`, from the vector store.
+
+        Best first, ties by page id (so a run is reproducible), self excluded, stale hits
+        dropped by the retriever, and only pages that are valid candidates for this analysis
+        version (``allowed``). With ``limit=None`` the store's search cap
+        (``_STORE_SEARCH_CAP``) bounds the answer: that only matters to the incremental
+        "whose top-k does this page enter" probe, and a full recompute is unaffected.
+        """
+        assert self._retriever is not None  # noqa: S101 - guarded by the caller
+        cap = _STORE_SEARCH_CAP if limit is None else min(_STORE_SEARCH_CAP, limit * 2)
+        hits = await self._retriever.similar_to_page(
+            page_id=entry.page_id, limit=cap, score_threshold=min_score
+        )
+        rows = [
+            (hit.page_id, int(hit.page_version_id.rsplit(":", 1)[1]), hit.score)
+            for hit in hits
+            if allowed is None or hit.page_id in allowed
+        ]
+        rows.sort(key=lambda r: (-r[2], str(r[0])))
+        return rows if limit is None else rows[:limit]
 
 
 def _snapshot(
@@ -677,6 +772,7 @@ async def run_analysis(
     analyzer: Callable[..., PageAnalysis] | None = None,
     taxonomy: TaxonomyPolicy | None = None,
     toolkit: AnalysisToolkit | None = None,
+    vector_store: VectorStore | None = None,
     clock: Callable[[], datetime] = utc_now,
 ) -> JobRunDetail:
     """Run one analysis job and return the finished run (see the module docstring).
@@ -712,6 +808,7 @@ async def run_analysis(
             force=force,
             embeddings=embeddings,
             page_ids=ids,
+            vector_store=vector_store,
         ).run()
 
     return await run_job(
