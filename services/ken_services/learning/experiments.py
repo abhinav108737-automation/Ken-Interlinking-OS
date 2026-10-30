@@ -123,7 +123,9 @@ class SqlExperimentGuard:
 
     async def locked(self, *, source_page_id: uuid.UUID, target_page_id: uuid.UUID) -> bool:
         del source_page_id  # a later kind may withhold OUTBOUND links; today only the target counts
-        if self._controls is None or self._monotonic() - self._loaded_at > self._ttl:
+        # ">=": a zero TTL must always refresh. A coarse clock (Windows ticks about every 15 ms)
+        # can return the same value twice, and "0.0 > 0.0" would keep serving a stale map.
+        if self._controls is None or self._monotonic() - self._loaded_at >= self._ttl:
             await self.refresh()
         if self._controls is None:
             return True  # never loaded: fail closed

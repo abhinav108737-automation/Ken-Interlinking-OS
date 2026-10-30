@@ -333,6 +333,27 @@ async def test_a_page_belongs_to_one_live_experiment(sessionmaker: SM) -> None:
     assert raised.value.refusal is ExperimentRefusal.PAGE_ALREADY_IN_A_LIVE_EXPERIMENT
 
 
+async def test_ending_a_draft_frees_its_pages_for_the_next_experiment(sessionmaker: SM) -> None:
+    service, _ = await _holdout(sessionmaker)
+    admin = await operator(sessionmaker, "otto2")
+    seeded = await seed_proposal(sessionmaker)
+    await service.create(
+        principal=admin,
+        key="ab-three",
+        description="x",
+        kind=ExperimentKind.POLICY_AB,
+        candidate_id=seeded.candidate_id,
+    )
+    # The draft hold-out holds every page, so the second experiment cannot be assigned...
+    with pytest.raises(ExperimentRefusedError):
+        await service.assign(key="ab-three", actor=SYSTEM)
+    # ...until the draft is ended. DRAFT -> ENDED is allowed and needs no control arm, unlike
+    # activation (an all-treatment draft can never be activated: both arms need pages).
+    await service.end(principal=admin, key="hold-out-one")
+    counts = await service.assign(key="ab-three", actor=SYSTEM)
+    assert sum(counts.values()) > 0
+
+
 def test_a_holdout_withholds_about_its_fraction_of_pages_never_most_of_them() -> None:
     """The cap bounds the WITHHELD (control) arm. Hashing the fraction as the TREATMENT share
     would have locked 90 % of pages at fraction 0.10."""
@@ -469,7 +490,8 @@ async def test_the_real_guard_blocks_a_pair_in_the_recommendation_pipeline(
         if ExperimentArm.CONTROL in arms.values():
             chosen = (service, key, arms)
             break
-        await service.activate(principal=admin, key=key)  # an all-treatment draft; free the pages
+        # An all-treatment draft has no control arm, so it can never be activated (both arms need
+        # pages); ending the draft is what frees its pages for the next attempt.
         await service.end(principal=admin, key=key)
     assert chosen is not None, "no key produced a control page in 40 tries"
     service, key, arms = chosen

@@ -14,7 +14,7 @@ from sqlalchemy.dialects.postgresql import base as postgresql_base
 import ken_core.db.models  # noqa: F401 -- registers every model
 from ken_core.db.base import Base
 from ken_core.db.types import Xid8
-from tests.integration.conftest import SyncDb
+from tests.integration.conftest import TRUNCATE_ALL, SyncDb
 
 pytestmark = pytest.mark.integration
 
@@ -83,6 +83,11 @@ def test_upgrade_downgrade_upgrade_round_trip(alembic_config: Config, sync_db: S
     command.upgrade(alembic_config, "head")
     assert _tables(sync_db) >= APP_TABLES
     assert _revision(sync_db) == head
+
+    # This test is about the schema. Rows left by earlier tests (job_runs of a kind that the
+    # older revision's CHECK does not allow, such as vector_index) would make the downgrade
+    # refuse, which is the right behaviour for real data and the wrong input for this test.
+    sync_db.run(lambda connection: connection.execute(text(TRUNCATE_ALL)))
 
     command.downgrade(alembic_config, "base")
     assert not APP_TABLES & _tables(sync_db)
