@@ -81,7 +81,7 @@ import math
 import re
 import uuid
 from collections import Counter, defaultdict
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Any, Final
@@ -125,7 +125,13 @@ from ken_services.intelligence.embeddings import current_recipe_fingerprint, emb
 from ken_services.intelligence.taxonomy import load_taxonomy
 from ken_services.inventory.hashing import sha256_hex
 from ken_services.inventory.normalize import ContentBlock, extract_blocks
-from ken_services.jobs.runner import JobContext, JobTransaction, run_job, utc_now
+from ken_services.jobs.runner import (
+    JobContext,
+    JobFailedError,
+    JobTransaction,
+    run_job,
+    utc_now,
+)
 from ken_services.recommendations.channels import (
     EmbeddingKey,
     RetrievedCandidate,
@@ -186,6 +192,17 @@ logger = get_logger("ken_services.recommendations.pipeline")
 
 EMITTED_BY: Final = "ken-recommend"
 """``emitted_by`` of every ``link.proposed`` event."""
+NO_PAGE_AT_ANALYSIS_VERSION: Final = "no page in the corpus carries this run's analysis_version"
+"""``failure_reason`` when the corpus is analysed, but under a DIFFERENT version (item 28).
+
+Eligibility requires ``analysis_version`` to match, and that string is derived from the loaded
+taxonomy. Point the engine at taxonomy v1 while the corpus was analysed under v3 and every page
+is refused as ``stale_analysis``: before this guard the job still exited ``succeeded``, and the
+only signal was a rejection counter. One full-corpus run was wasted that way on 2026-10-31.
+
+Fixed text, as :class:`JobFailedError` requires -- never the versions themselves, which a
+``config_snapshot`` already records.
+"""
 RECOMMENDATION_COUNTERS: Final = (
     "sources_considered",
     "sources_skipped_ineligible",
@@ -200,6 +217,28 @@ RECOMMENDATION_COUNTERS: Final = (
 _R = CandidateRejection
 MAX_TARGET_TITLE_CHARS: Final = 300
 """A plan copies at most this much of the target title (QA: ingestion does not cap it)."""
+
+
+def analysis_version_absent(facts: Iterable[repo.PageFacts], *, analysis_version: str) -> bool:
+    """Is the corpus analysed, but NOT ONE page at ``analysis_version`` (item 28)?
+
+    The condition is narrow on purpose. A corpus that has never been analysed is a legitimate
+    state -- a fresh install, or the inventory running ahead of analysis -- and a run where
+    pages do match but are ineligible for their own reasons is a real result worth recording.
+    Only "there are analyses, and none of them is ours" means the run is configured to produce
+    nothing, which is the signature of a misconfigured ``KEN_TAXONOMY_PATH``.
+
+    ``PageFacts.analysis`` only PREFERS this version -- it falls back to the newest analysis of
+    any version -- so the version has to be compared explicitly rather than tested for None. A
+    corpus re-crawled but not re-analysed answers true here too, and should: the run would
+    produce nothing either way, and an operator wants to hear that in seconds, not in hours.
+    """
+    present = tuple(facts)
+    if any(
+        f.analysis is not None and f.analysis.analysis_version == analysis_version for f in present
+    ):
+        return False
+    return any(f.has_any_analysis for f in present)
 
 
 def _any_occurrence(phrases: Sequence[Any], blocks: Sequence[ContentBlock]) -> bool:
@@ -348,10 +387,24 @@ class _Recommend:
         path = urlsplit(url).path or "/"
         return any(re.search(pattern, path) for pattern in self.policy.excluded_target_paths)
 
+    def _require_matching_analysis(self, world: _World) -> None:
+        """Fail a run that can only produce nothing (item 28)."""
+        if not analysis_version_absent(world.facts.values(), analysis_version=self.av):
+            return
+        logger.error(
+            "recommendation_analysis_version_absent",
+            run_id=str(self.job.run_id),
+            analysis_version=self.av,
+            taxonomy_version=self.taxonomy.version,
+            pages=len(world.facts),
+        )
+        raise JobFailedError(NO_PAGE_AT_ANALYSIS_VERSION)
+
     # ------------------------------------------------------------------ run
     async def run(self) -> RunStatus:
         job = self.job
         world = await self._world()
+        self._require_matching_analysis(world)
         async with job.sessionmaker() as session:
             self.per_target.update(await repo.open_plan_target_counts(session))
 

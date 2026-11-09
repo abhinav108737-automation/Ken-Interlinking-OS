@@ -345,7 +345,10 @@ def test_taxonomy_policy_file_validates() -> None:
     path = Path(__file__).resolve().parents[2] / "policies" / "taxonomy" / "taxonomy.v1.yaml"
     policy = intelligence.TaxonomyPolicy.model_validate(yaml.safe_load(path.read_text()))
     assert policy.version == 1
-    assert intelligence.analysis_version(policy.version) == "tax1-alg1"
+    # The literal moves with ANALYSIS_ALGORITHM_VERSION, and is spelled out rather than
+    # interpolated on purpose: bumping it invalidates every stored analysis, so it should
+    # cost a deliberate edit here. alg2 (2026-11-02) made a self-declared global page global.
+    assert intelligence.analysis_version(policy.version) == "tax1-alg2"
 
 
 def test_taxonomy_rejects_dangling_references() -> None:
