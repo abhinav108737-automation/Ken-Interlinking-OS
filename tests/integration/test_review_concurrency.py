@@ -34,8 +34,8 @@ pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("migrated")]
 
 S = LinkPlanStatus
 LI_BLOCK = (
-    "Vehicle makers depend on imported lithium-ion batteries, and local cell plants are "
-    "planned to cut that dependence over the coming decade."
+    "Vehicle makers buy cells from the lithium-ion batteries market, and local cell plants "
+    "are planned to cut that dependence over the coming decade."
 )
 BLOCKED_FOR = 0.4
 
@@ -180,7 +180,9 @@ async def test_edit_and_recommend_together_keep_the_invariants(
     service = review_service(sessionmaker)
     edit, run = await asyncio.gather(
         service.edit_anchor(
-            plan_id=plan.id, request=_edit(plan, "imported lithium-ion batteries"), principal=alice
+            plan_id=plan.id,
+            request=_edit(plan, "cells from the lithium-ion batteries market"),
+            principal=alice,
         ),
         recommend(sessionmaker, source_page_ids=[plan.source_page_id]),
         return_exceptions=True,

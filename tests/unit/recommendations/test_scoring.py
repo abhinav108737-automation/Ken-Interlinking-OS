@@ -295,9 +295,13 @@ def test_historical_is_always_zero() -> None:
         (["southeast-asia"], ["southeast-asia"], 0.5, "same_region", C.REGIONAL_CONTEXT),
         (["india"], [], 0.3, "global_target", None),
         ([], [], 0.3, "global_target", None),
-        (["india"], ["vietnam"], 0.0, None, None),
+        # Two countries of one region: the gate allows the pair only when the source names
+        # the target's geography, and the component reports the shared region either way.
+        (["india"], ["vietnam"], 0.5, "same_region", C.REGIONAL_CONTEXT),
+        # A global source reaching into one country: the weakest allowed affinity.
+        ([], ["india"], 0.3, "global_target", None),
         (["india"], ["europe"], 0.0, None, None),
-        ([], ["india"], 0.0, None, None),
+        (["india"], ["germany"], 0.0, None, None),
     ],
 )
 def test_geography_component(
@@ -317,14 +321,21 @@ def test_geography_component(
     assert geo_codes == ({code} if code else set())
 
 
-def test_geography_best_condition_wins_and_missing_keys_score_zero() -> None:
+def test_only_the_primary_geography_decides_the_component() -> None:
+    """The condition follows the PRIMARY geography of each page, not every listed one: the
+    target below is an India page that also mentions South Asia, so the pair is
+    ``same_country`` and the (higher) regional score never applies."""
     source, target = analysis(geographies=["india"]), analysis(geographies=["india", "south-asia"])
     scores = {"same_country": 0.2, "region_contains_source": 0.9}
     assert geography_match(source, target, taxonomy=taxonomy(), scores=scores) == (
-        0.9,
-        "region_contains_source",
+        0.2,
+        "same_country",
     )
-    assert geography_match(source, target, taxonomy=taxonomy(), scores={}) == (0.0, None)
+    # The CONDITION is structural; a key the policy does not score is simply worth 0.
+    assert geography_match(source, target, taxonomy=taxonomy(), scores={}) == (
+        0.0,
+        "same_country",
+    )
 
 
 # --------------------------------------------------------------------------- #

@@ -102,7 +102,7 @@ async def test_plans_list_detail_candidates_and_summary_over_a_real_run(
     assert all(c.plan_id is not None and c.rejection is None for c in kept.items)
     assert all(c.plan_id is None and c.rejection is not None for c in rejected.items)
     assert kept.page.total + rejected.page.total == candidates.page.total
-    assert {c.rejection for c in rejected.items} >= {CandidateRejection.NO_NATURAL_ANCHOR}
+    assert {c.rejection for c in rejected.items} >= {CandidateRejection.MARKET_UNRELATED}
     ev_candidates = await reader.list_candidates(limit=200, offset=0, source_page_id=ids[EV])
     assert ev_candidates.items and {c.source_page_id for c in ev_candidates.items} == {ids[EV]}
     assert all(c.target_url.startswith("https://site.test/") for c in ev_candidates.items)

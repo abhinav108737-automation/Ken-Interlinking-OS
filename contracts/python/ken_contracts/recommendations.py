@@ -90,7 +90,20 @@ class CandidateRejection(StrEnum):
     TARGET_EXCLUDED = "target_excluded"
     """The target's URL path matches ``excluded_target_paths`` (e.g. the home page)."""
     PAGE_TYPE_INCOMPATIBLE = "page_type_incompatible"
+    GEOGRAPHY_MISMATCH = "geography_mismatch"
+    """The GEOGRAPHY GATE refused the pair: the target's PRIMARY geography is not the
+    source's, is not a container of it, is not global, and (for the conditional rows of the
+    gate) the source page text does not name it. A geography mismatch is a refusal, never a
+    score penalty (``ken_services.recommendations.gates.geography_gate``)."""
+    MARKET_UNRELATED = "market_unrelated"
+    """The MARKET GATE refused the pair: the two markets are neither the same, nor in a
+    taxonomy parent/child relation, nor in a declared supply-chain or complementary relation.
+    Word overlap alone never relates two markets."""
     BELOW_MIN_RELEVANCE = "below_min_relevance"
+    NO_MARKET_KEYWORD_ANCHOR = "no_market_keyword_anchor"
+    """The anchor must be the TARGET's own market keyword (its specific market phrase plus
+    "market"), and the source page text does not contain it verbatim. Nothing is rewritten
+    here: the pair is simply not proposed."""
     NO_NATURAL_ANCHOR = "no_natural_anchor"
     BELOW_MIN_SCORE = "below_min_score"
     LINK_DENSITY_EXCEEDED = "link_density_exceeded"
@@ -112,11 +125,29 @@ class ReasonCode(StrEnum):
     INDUSTRY_ADJACENCY = "industry_adjacency"
     SAME_GEOGRAPHY = "same_geography"
     REGIONAL_CONTEXT = "regional_context"
+    GLOBAL_TARGET = "global_target"
+    """The target carries no specific geography, so it serves every source geography."""
+    CROSS_GEOGRAPHY_SUPPORTED = "cross_geography_supported"
+    """The target's geography is NOT the source's, and the source page text names it: the
+    only condition under which the geography gate allows a cross-geography link."""
     HIGH_COMMERCIAL_VALUE = "high_commercial_value"
     UNDERLINKED_TARGET = "underlinked_target"
     ORPHAN_TARGET = "orphan_target"
     ANCHOR_MATCHES_TARGET_TOPIC = "anchor_matches_target_topic"
     ANCHOR_MATCHES_TARGET_TITLE = "anchor_matches_target_title"
+    ANCHOR_IS_TARGET_MARKET_KEYWORD = "anchor_is_target_market_keyword"
+    """The anchor is the target's own market phrase plus "market" ("cosmetics market"),
+    derived from the target's identity (canonical URL slug / title), not from the broad
+    ``market_id`` analysis assigned."""
+    ANCHOR_NAMES_TARGET_GEOGRAPHY = "anchor_names_target_geography"
+    """The anchor also names the target's geography ("India cosmetics market"): required
+    whenever the target's geography differs from the source's."""
+    REGIONAL_SIBLING_MARKET = "regional_sibling_market"
+    """The SAME market in a different geography -- "India EV market" from "Germany EV
+    market". Distinct from ``CROSS_GEOGRAPHY_SUPPORTED``, which requires the source text to
+    name the target's geography; a regional sibling needs no mention, because the anchor
+    itself must name it (ADR-0027 §1 amendment, owner decision 2026-11-01). The owner's
+    first priority: a reader researching one market wants the same market elsewhere."""
 
 
 class LinkPlanStatus(StrEnum):

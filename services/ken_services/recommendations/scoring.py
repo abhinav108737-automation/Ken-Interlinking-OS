@@ -9,7 +9,10 @@ taxonomy       max weight (``RELATIONSHIP_WEIGHTS``) over the MARKET-STRUCTURE r
                the two geography types, which feed ``geography``); computed live
 intent         ``intent_compatibility[source intent][target intent]`` (missing = 0)
 graph          complementarity: ``1 / (1 + links from the source into the target's market)``
-geography      the best applicable ``geography_scores`` key (see :func:`geography_match`)
+geography      the PRIMARY-geography condition's ``geography_scores`` value
+               (:func:`geography_match`). Geography is a GATE
+               (:func:`~ken_services.recommendations.gates.geography_gate`): a mismatch
+               REFUSES the pair, so this component only reports how close the match is
 commercial     target ``commercial_importance / 3``
 underlinked    ``max(0, 1 - inbound / underlinked_inbound_threshold)``
 historical     0 until Phase 8 provides calibrated outcome evidence
@@ -42,7 +45,10 @@ Reason codes are derived from the components (never free text), deduplicated and
 
 Channel and anchor codes (``lexical_overlap``, ``anchor_matches_target_*``) are not score
 components; add them with :func:`merge_reason_codes`, :func:`channel_reason_codes` and
-:func:`anchor_reason_code`.
+:func:`anchor_reason_code`. The geography GATE's own codes (``global_target``,
+``cross_geography_supported``) come from
+:attr:`~ken_services.recommendations.gates.GeographyVerdict.reason_codes`, which the pipeline
+merges in: a gate decision is not a score component either.
 
 ``ScoredPair.relationship_type`` is the strongest market-structure relationship (highest
 weight, then :class:`RelationshipType` order); else ``semantic_similar`` when ``semantic > 0``;
@@ -55,7 +61,7 @@ from __future__ import annotations
 import math
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
-from typing import Final, Literal
+from typing import Final, Literal, cast
 
 from ken_contracts.intelligence import PageAnalysis, RelationshipType, TaxonomyPolicy
 from ken_contracts.recommendations import (
@@ -70,8 +76,8 @@ from ken_contracts.recommendations import (
     ScoreComponent,
 )
 from ken_services.intelligence.relationships import RELATIONSHIP_WEIGHTS, taxonomy_relationships
-from ken_services.intelligence.taxonomy import taxonomy_index
 from ken_services.recommendations.filters import intent_compatibility
+from ken_services.recommendations.gates import GEOGRAPHY_SCORE_KEYS, geography_relation
 
 __all__ = [
     "GEOGRAPHY_KEYS",
@@ -115,7 +121,9 @@ GEOGRAPHY_KEYS: Final[tuple[GeographyKey, ...]] = (
     "same_region",
     "global_target",
 )
-"""``geography_scores`` keys, in precedence order (ties go to the earlier key)."""
+"""Every ``geography_scores`` key, strongest first. Exactly one applies to a pair: the key of
+the gate's structural decision (``gates.GEOGRAPHY_SCORE_KEYS``), so there is no contest
+between keys to resolve any more."""
 
 _RELATIONSHIP_CODES: Final[Mapping[RelationshipType, ReasonCode]] = {
     RelationshipType.SAME_MARKET: ReasonCode.SAME_MARKET,
@@ -193,39 +201,29 @@ def geography_match(
     taxonomy: TaxonomyPolicy,
     scores: Mapping[str, float],
 ) -> tuple[float, GeographyKey | None]:
-    """The best applicable geography condition and its score (``(0.0, None)`` if none).
+    """The geography condition of the pair and its score (``(0.0, None)`` if none).
 
-    * ``same_country``: the pages share a listed country;
-    * ``region_contains_source``: a target region contains a source country (taxonomy tree);
-    * ``same_region``: the pages share a listed region;
-    * ``global_target``: the target lists no region or country (Phase 2 never lists
-      ``global`` itself, so "no geography" is how a global page looks) or lists ``global``.
+    The condition is the GATE's structural decision
+    (:func:`~ken_services.recommendations.gates.geography_relation`) mapped to a
+    ``geography_scores`` key, so the component can never disagree with the gate that decided
+    whether the pair may exist at all:
 
-    The highest score wins; ties go to the earlier key. A key missing from ``scores`` is 0.
+    * ``same_country``: the two PRIMARY geographies are the same country;
+    * ``region_contains_source``: the target's primary geography is a region containing the
+      source's (taxonomy tree);
+    * ``same_region``: the same region, the source's region containing the target's
+      geography, or two geographies sharing a (non-global) region;
+    * ``global_target``: the target has no specific geography -- and a global SOURCE reaching
+      into one geography, the weakest allowed affinity.
+
+    Only the primary geography counts: a country merely mentioned in passing is not a
+    geography match. A key missing from ``scores`` is 0.
     """
-    index = taxonomy_index(taxonomy)
-    s_countries = {g.geo_id for g in source.geographies if g.kind == "country"}
-    t_countries = {g.geo_id for g in target.geographies if g.kind == "country"}
-    s_regions = {g.geo_id for g in source.geographies if g.kind == "region"}
-    t_regions = {g.geo_id for g in target.geographies if g.kind == "region"}
-    holds: dict[GeographyKey, bool] = {
-        "same_country": bool(s_countries & t_countries),
-        "region_contains_source": any(
-            region in t_regions
-            for country in s_countries
-            if index.has_geography(country)
-            for region in index.geography_ancestors(country)
-        ),
-        "same_region": bool(s_regions & t_regions),
-        "global_target": not (t_countries or t_regions)
-        or any(g.kind == "global" for g in target.geographies),
-    }
-    best: tuple[float, GeographyKey | None] = (0.0, None)
-    for key in GEOGRAPHY_KEYS:
-        value = _clamp(scores.get(key, 0.0))
-        if holds[key] and value > best[0]:
-            best = (value, key)
-    return best
+    decision = geography_relation(source, target, taxonomy=taxonomy)
+    if decision is None:
+        return (0.0, None)
+    key = cast("GeographyKey", GEOGRAPHY_SCORE_KEYS[decision])
+    return (_clamp(scores.get(key, 0.0)), key)
 
 
 def merge_reason_codes(*groups: Iterable[ReasonCode]) -> tuple[ReasonCode, ...]:

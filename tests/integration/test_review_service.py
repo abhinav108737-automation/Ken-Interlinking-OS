@@ -78,8 +78,8 @@ pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("migrated")]
 
 S = LinkPlanStatus
 LI_BLOCK = (
-    "Vehicle makers depend on imported lithium-ion batteries, and local cell plants are "
-    "planned to cut that dependence over the coming decade."
+    "Vehicle makers buy cells from the lithium-ion batteries market, and local cell plants "
+    "are planned to cut that dependence over the coming decade."
 )
 
 
@@ -152,7 +152,7 @@ async def _transitions(sessionmaker: SM, plan_id: uuid.UUID) -> list[tuple[Any, 
 @pytest.fixture
 async def plans(sessionmaker: SM, tmp_path: Path) -> dict[tuple[str, str], Any]:
     found = await seeded(sessionmaker, tmp_path)
-    assert found[(EV, LI)].anchor_text == "lithium-ion batteries"
+    assert found[(EV, LI)].anchor_text == "lithium-ion batteries market"
     return found
 
 
@@ -300,7 +300,9 @@ async def test_a_stale_plan_cannot_be_approved_or_edited(
     assert "context_changed" in info.value.extra or "block_missing" in info.value.extra  # type: ignore[attr-defined]
     with pytest.raises(PlanStaleError):
         await service.edit_anchor(
-            plan_id=plan.id, request=_edit(plan, "imported lithium-ion batteries"), principal=alice
+            plan_id=plan.id,
+            request=_edit(plan, "cells from the lithium-ion batteries market"),
+            principal=alice,
         )
     assert await _counts(sessionmaker) == before
     # Rejecting a stale plan is always possible (it only removes it from the queue).
@@ -345,7 +347,9 @@ async def test_a_page_protected_after_proposal_blocks_approval(
     assert "protected" in info.value.extra  # type: ignore[attr-defined]
     with pytest.raises(PlanNotReviewableError):
         await service.edit_anchor(
-            plan_id=plan.id, request=_edit(plan, "imported lithium-ion batteries"), principal=alice
+            plan_id=plan.id,
+            request=_edit(plan, "cells from the lithium-ion batteries market"),
+            principal=alice,
         )
     assert await _counts(sessionmaker) == before
 
@@ -387,7 +391,7 @@ async def test_edit_anchor_supersedes_with_a_fresh_verbatim_plan(
     sessionmaker: SM, plans: Any, alice: Any
 ) -> None:
     old = plans[(EV, LI)]
-    request = _edit(old, "imported lithium-ion batteries")
+    request = _edit(old, "cells from the lithium-ion batteries market")
     result = await review_service(sessionmaker).edit_anchor(
         plan_id=old.id, request=request, principal=alice
     )
@@ -396,14 +400,14 @@ async def test_edit_anchor_supersedes_with_a_fresh_verbatim_plan(
     assert await status_of(sessionmaker, old.id) is S.SUPERSEDED
     async with sessionmaker() as session:
         new = rec_repo.plan_from_row(await rec_repo.lock_plan(session, plan_id=result.new_plan_id))  # type: ignore[arg-type]
-    assert new.anchor_text == "imported lithium-ion batteries"
+    assert new.anchor_text == "cells from the lithium-ion batteries market"
     assert new.anchor_source == "edited" and new.supersedes == old.id and new.run_id is None
     assert (new.locator.start, new.locator.end) == (request.start, request.end)
     assert new.locator.context_hash == old.context_hash == sha256_hex(LI_BLOCK)
     assert new.locator.occurrence_index == 0
     assert new.target_page_id == old.target_page_id
     assert new.preview.anchor == new.anchor_text
-    assert new.preview.before.endswith("depend on ")
+    assert new.preview.before.endswith("Vehicle makers buy ")
     # Scoring: the pair's relevance, placement quality of an edited anchor.
     assert new.score.relevance == pytest.approx(
         old.total_score / old.score["factors"]["placement_quality"]
@@ -411,7 +415,7 @@ async def test_edit_anchor_supersedes_with_a_fresh_verbatim_plan(
     assert new.score.factors == {"placement_quality": EDITED_PLACEMENT_QUALITY}
     assert new.confidence == new.score.total and new.calibration_version is None
     assert "anchor_matches_target_topic" not in new.reason_codes
-    assert '"imported lithium-ion batteries"' in new.rationale
+    assert '"cells from the lithium-ion batteries market"' in new.rationale
     history = await _transitions(sessionmaker, new.id)
     assert history[0][:3] == (None, "proposed", REVIEW_SERVICE_ACTOR)
     assert "user:alice" in history[0][3] and str(old.id) in history[0][3]
@@ -443,7 +447,7 @@ async def test_edit_anchor_supersedes_with_a_fresh_verbatim_plan(
 
 async def test_edit_and_approve_in_one_step(sessionmaker: SM, plans: Any, alice: Any) -> None:
     old = plans[(EV, LI)]
-    request = _edit(old, "imported lithium-ion batteries", approve=True)
+    request = _edit(old, "cells from the lithium-ion batteries market", approve=True)
     result = await review_service(sessionmaker).edit_anchor(
         plan_id=old.id, request=request, principal=alice
     )
@@ -462,7 +466,7 @@ async def test_an_approved_plan_can_be_edited_without_a_reject(
     await service.approve(plan_id=old.id, request=_approve(), principal=alice)
     result = await service.edit_anchor(
         plan_id=old.id,
-        request=_edit(old, "imported lithium-ion batteries", S.APPROVED),
+        request=_edit(old, "cells from the lithium-ion batteries market", S.APPROVED),
         principal=alice,
     )
     assert result.status is S.SUPERSEDED
@@ -476,16 +480,16 @@ async def test_an_approved_plan_can_be_edited_without_a_reject(
     [
         ({"start": 0, "end": len(LI_BLOCK) + 5}, "span_out_of_block"),
         (
-            {"start": LI_BLOCK.index("imported") + 2, "end": LI_BLOCK.index(" lithium")},
+            {"start": LI_BLOCK.index("cells") + 2, "end": LI_BLOCK.index(" from")},
             "span_not_word_aligned",
         ),
         (
-            {"start": LI_BLOCK.index("imported") - 1, "end": LI_BLOCK.index(" lithium")},
+            {"start": LI_BLOCK.index("cells") - 1, "end": LI_BLOCK.index(" from")},
             "span_not_word_aligned",
         ),
-        ({"start": LI_BLOCK.index("imported"), "end": LI_BLOCK.index(" lithium")}, "anchor_rule"),
+        ({"start": LI_BLOCK.index("cells"), "end": LI_BLOCK.index(" from")}, "anchor_rule"),
         (
-            dict(zip(("start", "end"), _span("lithium-ion batteries"), strict=True)),
+            dict(zip(("start", "end"), _span("lithium-ion batteries market"), strict=True)),
             "span_unchanged",
         ),
     ],
@@ -498,7 +502,7 @@ async def test_edit_span_validation(
     with pytest.raises(InvalidEditError) as info:
         await review_service(sessionmaker).edit_anchor(
             plan_id=old.id,
-            request=_edit(old, "imported lithium-ion batteries", **overrides),
+            request=_edit(old, "cells from the lithium-ion batteries market", **overrides),
             principal=alice,
         )
     assert info.value.code == "validation_failed"
@@ -511,7 +515,9 @@ async def test_an_outdated_block_hash_is_a_409(sessionmaker: SM, plans: Any, ali
     with pytest.raises(PlanNotReviewableError) as info:
         await review_service(sessionmaker).edit_anchor(
             plan_id=old.id,
-            request=_edit(old, "imported lithium-ion batteries", context_hash=sha256_hex("other")),
+            request=_edit(
+                old, "cells from the lithium-ion batteries market", context_hash=sha256_hex("other")
+            ),
             principal=alice,
         )
     assert info.value.reason == "context_hash_mismatch"  # type: ignore[attr-defined]
@@ -761,7 +767,9 @@ async def test_review_rows_round_trip_through_the_contract(
     old = plans[(EV, LI)]
     service = review_service(sessionmaker)
     edited = await service.edit_anchor(
-        plan_id=old.id, request=_edit(old, "imported lithium-ion batteries"), principal=alice
+        plan_id=old.id,
+        request=_edit(old, "cells from the lithium-ion batteries market"),
+        principal=alice,
     )
     assert edited.new_plan_id is not None
     await service.approve(

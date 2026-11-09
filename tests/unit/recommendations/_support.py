@@ -28,12 +28,18 @@ REPO_ROOT: Final = Path(__file__).resolve().parents[3]
 RECOMMENDATION_V1: Final = REPO_ROOT / "policies" / "recommendation" / "recommendation.v1.yaml"
 RANKING_V1: Final = REPO_ROOT / "policies" / "ranking" / "ranking_weights.v1.yaml"
 TAXONOMY_V1: Final = REPO_ROOT / "policies" / "taxonomy" / "taxonomy.v1.yaml"
+TAXONOMY_V3: Final = REPO_ROOT / "policies" / "taxonomy" / "taxonomy.v3.yaml"
 
 SOLAR: Final = AnchorPhrase(text="solar power", source="target_topic", rank=0)
 
 
 def taxonomy() -> TaxonomyPolicy:
     return load_taxonomy(TAXONOMY_V1)
+
+
+def taxonomy_v3() -> TaxonomyPolicy:
+    """The LIVE taxonomy (every sitemap slug): what the owner's rejected plans ran on."""
+    return load_taxonomy(TAXONOMY_V3)
 
 
 def taxonomy_with(**market_aliases: Sequence[str]) -> TaxonomyPolicy:
@@ -84,9 +90,16 @@ def analysis(
     geographies: Sequence[str] = (),
     keywords: Sequence[str] = (),
     salient: Sequence[tuple[str, float]] = (),
+    geography_scores: Sequence[float] = (),
+    tax: TaxonomyPolicy | None = None,
 ) -> PageAnalysis:
-    """A v1-taxonomy analysis; ``industry_id`` defaults to the root of ``market_id``."""
-    tax = taxonomy()
+    """A v1-taxonomy analysis; ``industry_id`` defaults to the root of ``market_id``.
+
+    ``geographies`` are listed in the given order; ``geography_scores`` (optional, same
+    length) sets each mention's score, so a test can make one geography the PRIMARY one and
+    another an incidental mention. Without it every mention scores 1.
+    """
+    tax = tax if tax is not None else taxonomy()
     index = taxonomy_index(tax)
     if industry_id is None and market_id is not None and index.has_market(market_id):
         industry_id = index.market_root(market_id)
@@ -113,9 +126,9 @@ def analysis(
                 geo_id=geo,
                 label=index.geography(geo).label,
                 kind=index.geography(geo).kind,
-                score=1,
+                score=geography_scores[n] if n < len(geography_scores) else 1,
             )
-            for geo in geographies
+            for n, geo in enumerate(geographies)
         ),
         keywords=tuple(keywords),
         salient_blocks=tuple(

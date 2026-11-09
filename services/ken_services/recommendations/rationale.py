@@ -62,11 +62,16 @@ REASON_TEXT: Final[Mapping[ReasonCode, str]] = {
     ReasonCode.INDUSTRY_ADJACENCY: "the industries are adjacent",
     ReasonCode.SAME_GEOGRAPHY: "both pages cover the same country",
     ReasonCode.REGIONAL_CONTEXT: "the target adds regional context",
+    ReasonCode.GLOBAL_TARGET: "the target covers no single geography",
+    ReasonCode.CROSS_GEOGRAPHY_SUPPORTED: "the source page names the target's geography",
     ReasonCode.HIGH_COMMERCIAL_VALUE: "the target is a high-value commercial page",
     ReasonCode.UNDERLINKED_TARGET: "the target has few internal links",
     ReasonCode.ORPHAN_TARGET: "no page links to the target yet",
     ReasonCode.ANCHOR_MATCHES_TARGET_TOPIC: "the anchor names the target's topic",
     ReasonCode.ANCHOR_MATCHES_TARGET_TITLE: "the anchor matches the target's title",
+    ReasonCode.ANCHOR_IS_TARGET_MARKET_KEYWORD: "the anchor is the target's market keyword",
+    ReasonCode.ANCHOR_NAMES_TARGET_GEOGRAPHY: "the anchor names the target's geography",
+    ReasonCode.REGIONAL_SIBLING_MARKET: "the target is the same market in another geography",
 }
 _ORDER: Final = {code: n for n, code in enumerate(ReasonCode)}
 
