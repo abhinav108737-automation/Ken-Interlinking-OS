@@ -480,6 +480,11 @@ AUTONOMY_TABLES = frozenset(
         "publish_attempts",
     }
 )
+MODULE_TABLES = frozenset({"page_modules", "page_module_items"})
+"""Migration 0012: what a downgrade below 0012 removes. Named here, like the sets above, so
+that adding a table touches one line instead of every "a downgrade removes exactly these"
+test -- which is how the two that did break were found."""
+
 AUTONOMY_FUNCTIONS = frozenset({"ken_autonomy_decision_guard"})
 AUTONOMY_TRIGGERS = frozenset(
     {

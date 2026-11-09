@@ -36,6 +36,7 @@ from tests.integration.conftest import (
     HEAD_REVISION,
     LEARNING_TABLES,
     LEARNING_TRIGGERS,
+    MODULE_TABLES,
     SyncDb,
 )
 
@@ -718,6 +719,7 @@ def test_downgrade_to_0004_restores_exactly_the_recommendations_schema(
             - ANALYTICS_TABLES
             - LEARNING_TABLES
             - AUTONOMY_TABLES
+            - MODULE_TABLES
         )
         assert state["functions"] == {"ken_reject_mutation", "ken_link_plan_content_guard"}
         assert state["triggers"] == (

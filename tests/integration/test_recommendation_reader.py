@@ -209,9 +209,7 @@ async def test_modules_are_listed_with_their_items_in_rank_order(
         # Every item is the same market somewhere else: the module's coherence gate.
         assert all(item.target_page_id != module.page_id for item in module.items)
     # Ordered by canonical URL, so a reviewer reads the queue in a stable order.
-    assert [m.canonical_url for m in listed.items] == sorted(
-        m.canonical_url for m in listed.items
-    )
+    assert [m.canonical_url for m in listed.items] == sorted(m.canonical_url for m in listed.items)
 
     one = await reader.list_modules(limit=10, offset=0, page_id=listed.items[0].page_id)
     assert one.page.total == 1 and one.items[0].page_id == listed.items[0].page_id

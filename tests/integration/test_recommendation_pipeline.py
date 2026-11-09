@@ -49,9 +49,9 @@ from tests.integration.recommendation_support import (
     EV,
     GERMANY_EV,
     GLOBAL_EV,
-    SITE,
     LI,
     SETTINGS,
+    SITE,
     SM,
     SOLAR,
     STORAGE,
@@ -61,11 +61,11 @@ from tests.integration.recommendation_support import (
     page_ids,
     provider,
     recommend,
-    sibling_records,
     record,
     rows,
     scalar,
     seed_corpus,
+    sibling_records,
 )
 
 pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("migrated")]

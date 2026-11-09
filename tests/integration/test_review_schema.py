@@ -42,6 +42,7 @@ from tests.integration.conftest import (
     LEARNING_FUNCTIONS,
     LEARNING_TABLES,
     LEARNING_TRIGGERS,
+    MODULE_TABLES,
     SyncDb,
 )
 
@@ -567,6 +568,7 @@ def test_downgrade_to_0005_restores_exactly_the_agents_schema(
             - ANALYTICS_TABLES
             - LEARNING_TABLES
             - AUTONOMY_TABLES
+            - MODULE_TABLES
         )
         assert state["functions"] == (
             head["functions"]

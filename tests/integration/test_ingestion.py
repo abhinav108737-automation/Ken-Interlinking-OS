@@ -611,9 +611,17 @@ async def test_concurrent_run_is_refused_by_the_advisory_lock(
 
     detail = await ingest(sessionmaker, make_page("/a"))
     assert detail.status is RunStatus.SUCCEEDED
-    # The lock is released after the run.
+    # The lock is released after the run. Scoped to THIS database: pg_locks is cluster-wide,
+    # so an unrelated job holding a lock in another database on the same server failed this
+    # assertion (seen 2026-11-09 during a four-hour corpus run) and said nothing true about
+    # ingestion.
     async with async_engine.connect() as probe:
-        held = await probe.scalar(text("SELECT count(*) FROM pg_locks WHERE locktype = 'advisory'"))
+        held = await probe.scalar(
+            text(
+                "SELECT count(*) FROM pg_locks WHERE locktype = 'advisory' "
+                "AND database = (SELECT oid FROM pg_database WHERE datname = current_database())"
+            )
+        )
     assert held == 0
 
 
