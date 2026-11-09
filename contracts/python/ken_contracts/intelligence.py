@@ -50,8 +50,15 @@ from pydantic import AwareDatetime, Field, field_validator, model_validator
 from ken_contracts.common import FrozenModel
 from ken_contracts.errors import ListResponse
 
-ANALYSIS_ALGORITHM_VERSION: Final = 1
-"""Version of the deterministic analysis code. Bump on any behaviour change."""
+ANALYSIS_ALGORITHM_VERSION: Final = 2
+"""Version of the deterministic analysis code. Bump on any behaviour change.
+
+v2 (2026-11-01): a page that DECLARES itself global in its title or URL slug now carries the
+global node as its top geography mention. Until v1 the mention list held only ``region`` and
+``country`` nodes, so a global page had no global mention and its primary geography became
+whichever place it discussed most: 1,103 pages of the 8,858-page inventory were labelled with
+a specific place ("/global-oat-milk-market" as Asia Pacific). Every stored v1 analysis is
+stale under this version and the corpus must be re-analysed; that is the point of the bump."""
 
 EMBEDDING_RECIPE_VERSION: Final = 1
 """Version of the text recipe that is embedded per page. Bump on any change."""

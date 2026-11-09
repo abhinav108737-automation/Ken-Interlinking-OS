@@ -5,6 +5,7 @@ from __future__ import annotations
 import math
 import uuid
 from datetime import UTC, datetime
+from typing import Final
 
 import pytest
 
@@ -13,6 +14,7 @@ from ken_contracts.intelligence import (
     EntityType,
     Intent,
     PageAnalysis,
+    analysis_version,
 )
 from ken_contracts.inventory import SourceDocument, SourceType
 from ken_services.intelligence.analyze import (
@@ -25,6 +27,7 @@ from ken_services.intelligence.taxonomy import taxonomy_index
 from ken_services.intelligence.text import ELLIPSIS, fold, tokens
 from ken_services.inventory.normalize import normalize_document
 from ken_services.inventory.urls import build_scope
+from ken_services.recommendations.gates import primary_geography
 from tests.support.fixture_site import FixtureSite
 from tests.unit.intelligence._support import item, mini, v1
 
@@ -148,6 +151,129 @@ def test_geographies_listed_without_global_or_ancestors() -> None:
 def test_geographies_v1_no_auto_ancestors() -> None:
     result = analyze_page(item(body_text="Demand in India and the UAE."), taxonomy=v1())
     assert [g.geo_id for g in result.geographies] == ["india", "uae"]
+
+
+# --------------------------------------------------------------------------- #
+# A page that declares itself global (ANALYSIS_ALGORITHM_VERSION 2)
+# --------------------------------------------------------------------------- #
+BODY_ABOUT_INDIA: Final = (
+    "India leads the market. India again, and India once more. Indian demand is strong. "
+    "Growth in India outpaces every other country discussed here."
+)
+
+
+def test_a_global_slug_makes_the_page_global_however_much_it_discusses_one_country() -> None:
+    """The defect behind NEXT_STEPS item 33: 1,103 pages whose slug said "global" were
+    labelled with a specific place, because the mention list held only region and country
+    nodes and the most-discussed country won."""
+    result = analyze_page(
+        item(
+            url="https://site.test/industry-reports/global-oat-milk-market",
+            body_text=BODY_ABOUT_INDIA,
+        ),
+        taxonomy=v1(),
+    )
+    assert result.geographies[0].geo_id == "global"
+    assert result.geographies[0].kind == "global"
+    # India is still recorded; it simply no longer leads.
+    assert "india" in [g.geo_id for g in result.geographies]
+    assert primary_geography(result, taxonomy=v1()) is None
+
+
+def test_a_global_title_is_enough_on_its_own() -> None:
+    result = analyze_page(
+        item(
+            url="https://site.test/reports/x",
+            title="Global Methanol Market",
+            body_text=BODY_ABOUT_INDIA,
+        ),
+        taxonomy=v1(),
+    )
+    assert result.geographies[0].geo_id == "global"
+    assert primary_geography(result, taxonomy=v1()) is None
+
+
+def test_the_body_alone_never_makes_a_page_global() -> None:
+    """ "global demand rose" must not turn a Germany report into a worldwide one."""
+    result = analyze_page(
+        item(
+            url="https://site.test/industry-reports/germany-furniture-market",
+            title="Germany Furniture Market",
+            body_text="Global demand rose worldwide. Germany leads Europe in furniture.",
+        ),
+        taxonomy=v1(),
+    )
+    assert result.geographies[0].geo_id != "global"
+    node = primary_geography(result, taxonomy=v1())
+    assert node is not None and node.id == "germany"
+
+
+def test_a_country_page_is_unaffected() -> None:
+    result = analyze_page(
+        item(url="https://site.test/industry-reports/india-ev-market", body_text=BODY_ABOUT_INDIA),
+        taxonomy=v1(),
+    )
+    node = primary_geography(result, taxonomy=v1())
+    assert node is not None and node.id == "india"
+
+
+def test_a_country_page_whose_title_merely_mentions_the_world_stays_a_country_page() -> None:
+    """The opposite over-trigger, measured on the corpus: "India Coffee Exports Competitive
+    Gap Analysis" is an India page even though its copy discusses global competitors."""
+    result = analyze_page(
+        item(
+            url="https://site.test/articles/india-coffee-exports-competitive-gap-analysis",
+            title="India Coffee Exports: Competitive Gap vs Global Peers",
+            body_text=BODY_ABOUT_INDIA,
+        ),
+        taxonomy=v1(),
+    )
+    node = primary_geography(result, taxonomy=v1())
+    assert node is not None and node.id == "india"
+
+
+def test_the_leading_geography_wins_when_both_are_named() -> None:
+    """A global report that forecasts named regions is still global: "global" leads."""
+    result = analyze_page(
+        item(
+            url="https://site.test/articles/global-personal-lines-market-forecast-india-uae",
+            body_text=BODY_ABOUT_INDIA,
+        ),
+        taxonomy=v1(),
+    )
+    assert primary_geography(result, taxonomy=v1()) is None
+
+    # ... and the mirror image: the country leads, so the page is that country's.
+    mirrored = analyze_page(
+        item(
+            url="https://site.test/articles/india-opportunity-in-the-global-market",
+            body_text=BODY_ABOUT_INDIA,
+        ),
+        taxonomy=v1(),
+    )
+    node = primary_geography(mirrored, taxonomy=v1())
+    assert node is not None and node.id == "india"
+
+
+def test_the_slug_outranks_the_title_for_the_qualifier() -> None:
+    """The slug is the stable identity; a title may open with an editorial hook."""
+    result = analyze_page(
+        item(
+            url="https://site.test/industry-reports/india-ev-market",
+            title="Global Shifts Reshaping Electric Mobility",
+            body_text=BODY_ABOUT_INDIA,
+        ),
+        taxonomy=v1(),
+    )
+    node = primary_geography(result, taxonomy=v1())
+    assert node is not None and node.id == "india"
+
+
+def test_the_algorithm_version_was_bumped_for_this_change() -> None:
+    """A behaviour change that is not versioned leaves stored analyses silently
+    disagreeing with the code that reads them."""
+    assert ANALYSIS_ALGORITHM_VERSION >= 2
+    assert analysis_version(3) == "tax3-alg2"
 
 
 def test_entities_counted_and_sorted() -> None:

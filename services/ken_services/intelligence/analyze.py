@@ -194,7 +194,62 @@ def _market_and_industry(
 # --------------------------------------------------------------------------- #
 # Geographies and entities
 # --------------------------------------------------------------------------- #
-def _geographies(index: TaxonomyIndex, scores: Mapping[str, float]) -> list[GeographyMention]:
+def _declared_global(
+    index: TaxonomyIndex, taxonomy: TaxonomyPolicy, item: AnalysisInput, fields: _Fields
+) -> str | None:
+    """The global node's id when the page DECLARES itself global, else ``None``.
+
+    A page is global because its own identity says so -- "Global Methanol Market",
+    ``/global-oat-milk-market`` -- not because the body happens to use the word. Only the
+    title and the URL slug are read, and the body deliberately is not: "global demand rose"
+    must not turn a Germany report into a worldwide one.
+
+    Why this exists: :func:`_geographies` lists only ``region`` and ``country`` nodes, so a
+    global page carried no global mention at all, and its primary geography became whichever
+    place it discussed most. Measured on the 8,858-page inventory, **1,103 pages whose slug
+    says "global" were labelled with a specific place** -- ``/global-oat-milk-market`` as
+    Asia Pacific, ``/global-trade-management-market`` as North America. That made a page
+    link to a regional report under its own name ("The Global [[Methanol Market]]" to an
+    Asia Pacific report) and mislabelled global reports inside related-report modules.
+    """
+    node = next((g for g in taxonomy.geographies if g.kind == "global"), None)
+    if node is None:  # a taxonomy need not declare one
+        return None
+    slug = fold(_collapse_slug(_path_of(item.url)))
+    for text in (slug, fields.title):
+        qualifier = _leading_geography(index, text)
+        if qualifier is not None:
+            return node.id if qualifier == node.id else None
+    return None
+
+
+def _leading_geography(index: TaxonomyIndex, folded: str) -> str | None:
+    """The FIRST geography named in ``folded``, or ``None`` if it names none.
+
+    Ken's identities put the geography qualifier first -- "/global-oat-milk-market",
+    "/india-ev-market", "Global Methanol Market" -- so the earliest mention is the one the
+    page is about and any later one is detail. Presence alone is not enough: measured on the
+    corpus, a bare "does it say global" test moved 11 pages that also name a specific place,
+    and about eight of those were wrong in the opposite direction -- "India Coffee Exports
+    Competitive Gap Analysis" and "APAC Biosimilars Market, Global Biopharma" are an India
+    page and an APAC page whose titles merely mention the world.
+
+    The slug is consulted before the title because it is the stable identity; the title is
+    editorial and may open with a hook rather than a place.
+    """
+    matches = sorted(index.geography_matcher.matches(folded), key=lambda m: (m.start, m.end))
+    return matches[0].node_id if matches else None
+
+
+def _collapse_slug(path: str) -> str:
+    """A URL path as words, so phrase matching can read it ("/global-oat-milk-market" ->
+    "global oat milk market")."""
+    return " ".join(part for part in re.split(r"[/\-_]+", path) if part)
+
+
+def _geographies(
+    index: TaxonomyIndex, scores: Mapping[str, float], *, declared_global: str | None = None
+) -> list[GeographyMention]:
     listed = [
         geo_id
         for geo_id, score in scores.items()
@@ -202,7 +257,15 @@ def _geographies(index: TaxonomyIndex, scores: Mapping[str, float]) -> list[Geog
     ]
     listed.sort(key=lambda geo_id: (-scores[geo_id], geo_id))
     out: list[GeographyMention] = []
-    for geo_id in listed[:MAX_GEOGRAPHIES]:
+    if declared_global is not None:
+        # First, and scored above every specific place, so that `primary_geography` reads
+        # this page as global however much it discusses one country.
+        node = index.geography(declared_global)
+        top = max(scores.values(), default=0.0)
+        out.append(
+            GeographyMention(geo_id=node.id, label=node.label, kind=node.kind, score=top + 1.0)
+        )
+    for geo_id in listed[: MAX_GEOGRAPHIES - len(out)]:
         node = index.geography(geo_id)
         out.append(
             GeographyMention(geo_id=geo_id, label=node.label, kind=node.kind, score=scores[geo_id])
@@ -320,7 +383,13 @@ def analyze_page(item: AnalysisInput, *, taxonomy: TaxonomyPolicy) -> PageAnalys
         industry_id=industry_id,
         market_id=market_id,
         topics=tuple(all_topics[:MAX_TOPICS]),
-        geographies=tuple(_geographies(index, geo_scores)),
+        geographies=tuple(
+            _geographies(
+                index,
+                geo_scores,
+                declared_global=_declared_global(index, taxonomy, item, fields),
+            )
+        ),
         entities=tuple(_entities(index, fields)),
         keywords=keywords,
         summary=_summary(item),
