@@ -1,0 +1,18 @@
+# interlink-quality eval dataset -- the project owner's editorial rules of 2026-10-30.
+#
+# Re-run `.venv/Scripts/python.exe evals/datasets/rehash.py --write` after editing a case file:
+# the runner verifies every sha256 below and refuses a dataset that has drifted.
+#
+# NOT YET LOADABLE. `ken_contracts.learning.EvalSuite` has no `interlink-quality` member, so
+# `load_suite_dataset` and `available_suites` cannot see this directory and `make eval` ignores
+# it. Every case conforms to `EvalCase` in every other field; adding one enum member wires the
+# whole dataset up. contracts/ was out of scope for the agent that wrote this -- see README.md.
+suite: interlink-quality
+dataset: core
+dataset_version: 1
+case_count: 26
+files:
+  core.v1.jsonl: 7a680acee3bd6e14e0e0cc3a30eafc940829558ec887cd8f77133f6854ebbc3c
+provenance: Real production pages, titles, URLs, link plans and verbatim body text from ken_real500 (the 10-plan interlinking baseline) and ken_full (8,858 pages), read read-only on 2026-10-30. Labels are the project owner's editorial verdicts of 2026-10-30 plus the authoring agent's, on a sample of 26 cases. Not a statistically meaningful benchmark.
+contains_production_data: true
+approval_ref: "owner-directive 2026-10-30: build this dataset from the real baseline (docs/evaluation/INTERLINK_BASELINE_2026-10-30.md)"
