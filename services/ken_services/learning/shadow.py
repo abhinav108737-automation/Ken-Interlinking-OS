@@ -15,12 +15,20 @@ assertion over every table the production pipeline writes.
 **How the comparison is made.** The production plan set is read from the run's own
 ``link_candidates`` rows (kept rows carry ``plan_id``; their ``id`` order is the order the
 engine selected them in). The candidate plan set is produced by a faithful re-statement of the
-pipeline's per-source selection (pair filter -> score -> relevance floor -> placement -> final
-score -> caps) using the CANDIDATE policy, over the live state with THIS run's own plans
+pipeline's per-source selection (pair filter -> GEOGRAPHY and MARKET gates -> score ->
+relevance floor -> market-keyword anchor -> placement -> final score -> caps) using the
+CANDIDATE policy, over the live state with THIS run's own plans
 excluded from occupancy, spans, per-source and per-target counts -- otherwise every production
 pair would be a ``duplicate_recommendation`` and the candidate could only ever add. A test
 proves the restatement is faithful: shadowing the baseline policy against itself reports a
 zero diff. If the pipeline's selection changes, that test fails here first.
+
+**It drifted once, which is the reason for the warning above.** Until 2026-11-09 this
+restatement ran the pre-ADR-0027 anchor path (``placement.anchor_phrases``) and applied neither
+the geography gate nor the market gate, so it proposed pairs production refuses and every one
+was a false diff. It now calls the same functions the pipeline calls. A RESTATEMENT IS A
+LIABILITY: the only durable fix is for the engine's selection to be one callable both paths
+use, and that refactor is not done -- the loop below is still a parallel copy.
 
 **It is not a gate.** A shadow row is always ``gate_result = inconclusive``. Promotion needs a
 ``pass`` on an ``offline`` run, so a shadow row can never be the evidence of a promotion; what
@@ -69,7 +77,21 @@ from ken_services.inventory.hashing import sha256_hex
 from ken_services.inventory.normalize import extract_blocks
 from ken_services.recommendations.channels import EmbeddingKey, cosine_to, retrieve
 from ken_services.recommendations.filters import PairState, pair_rejection
-from ken_services.recommendations.placement import anchor_phrases, find_placement, market_phrases
+from ken_services.recommendations.gates import (
+    geography_gate,
+    geography_terms,
+    market_gate,
+)
+from ken_services.recommendations.placement import (
+    MARKET_WORD,
+    corpus_title_phrases,
+    find_placement,
+    market_core,
+    market_keyword_anchors,
+    market_keyword_phrases,
+    market_phrases,
+    phrase_occurrences,
+)
 from ken_services.recommendations.policy import load_recommendation_policy, resolve_ranking_policy
 from ken_services.recommendations.scoring import PairFeatures, score_pair, with_placement
 from ken_services.recommendations.validity import page_eligibility
@@ -329,6 +351,7 @@ async def _candidate_selection(
         pid: (f.analysis.market_id if f.analysis is not None else None) for pid, f in facts.items()
     }
     markets = market_phrases(taxonomy)
+    titles = corpus_title_phrases(f.title for f in facts.values())
     selection = policy.selection
 
     def by_url(pid: uuid.UUID) -> tuple[str, str]:
@@ -351,6 +374,14 @@ async def _candidate_selection(
         compared_sources += 1
         body = await repo.version_body(session, page_id=source.id, version=source.current_version)
         blocks = tuple(extract_blocks(body or ""))
+        source_text = "\n".join(block.text for block in blocks)
+        _own = market_keyword_phrases(
+            target_url=source.canonical_url, target_title=source.title, taxonomy=taxonomy
+        )
+        source_own_phrases = (*_own, *(f"{phrase} {MARKET_WORD}" for phrase in _own))
+        source_core = market_core(
+            target_url=source.canonical_url, target_title=source.title, taxonomy=taxonomy
+        )
         retrieved = await retrieve(
             session,
             source_page_id=source.id,
@@ -408,8 +439,34 @@ async def _candidate_selection(
                 target_intent=None if target.analysis is None else _intent(target.analysis.intent),
                 target_path_excluded=_path_excluded(policy, target.canonical_url),
             )
-            if pair_rejection(state, policy=policy) is None:
-                survivors.append((candidate, target))
+            if pair_rejection(state, policy=policy) is not None:
+                continue
+            target_analysis = target.analysis
+            if target_analysis is None:
+                continue
+            # The SAME hard gates the engine applies (ADR-0027 s1/s2). Without them the
+            # shadow proposes links production refuses, and every one is a false diff.
+            target_core = market_core(
+                target_url=target.canonical_url, target_title=target.title, taxonomy=taxonomy
+            )
+            verdict = geography_gate(
+                source_analysis,
+                target_analysis,
+                taxonomy=taxonomy,
+                source_text=source_text,
+                same_market_core=source_core is not None and source_core == target_core,
+            )
+            if verdict is None:
+                continue
+            if not market_gate(
+                source_analysis,
+                target_analysis,
+                taxonomy=taxonomy,
+                semantic_similarity=candidate.signals.get("semantic_similarity"),
+                sibling_floor=settings.similarity_min_score,
+            ):
+                continue
+            survivors.append((candidate, target, verdict))
         if not survivors:
             continue
         cosines: Mapping[uuid.UUID, float] = {}
@@ -417,7 +474,7 @@ async def _candidate_selection(
             cosines = await cosine_to(
                 session,
                 source_page_id=source.id,
-                target_page_ids=[t.id for _, t in survivors],
+                target_page_ids=[t.id for _, t, _ in survivors],
                 key=embedding,
             )
         source_markets = Counter(
@@ -426,7 +483,7 @@ async def _candidate_selection(
             if link.target_page_id is not None and link.target_page_id != source.id
         )
         ranked = []
-        for candidate, target in survivors:
+        for candidate, target, verdict in survivors:
             target_analysis = target.analysis
             if target_analysis is None:
                 continue
@@ -446,20 +503,31 @@ async def _candidate_selection(
             )
             if scored.breakdown.relevance < selection.min_relevance:
                 continue
-            ranked.append((candidate, target, target_analysis, scored))
+            ranked.append((candidate, target, target_analysis, scored, verdict))
         ranked.sort(key=lambda r: (-r[3].breakdown.relevance, r[1].canonical_url, r[1].id))
 
         salience = {b.block_id: float(b.score) for b in source_analysis.salient_blocks}
         selected = len(open_plans)
         rank = 0
-        for _candidate, target, target_analysis, scored in ranked:
-            phrases = anchor_phrases(
-                target=target_analysis,
+        for _candidate, target, _target_analysis, scored, verdict in ranked:
+            phrases = market_keyword_anchors(
+                target_url=target.canonical_url,
                 target_title=target.title,
                 taxonomy=taxonomy,
                 policy=policy,
-                source=source_analysis,
+                geography_terms=(
+                    ()
+                    if verdict.target_geography is None
+                    else geography_terms(verdict.target_geography)
+                ),
+                require_geography=verdict.anchor_must_name_target_geography,
             )
+            if not phrases or not any(
+                phrase_occurrences(phrase.text, block.text)
+                for phrase in phrases
+                for block in blocks
+            ):
+                continue
             placement = find_placement(
                 blocks=blocks,
                 phrases=phrases,
@@ -468,7 +536,7 @@ async def _candidate_selection(
                 taken_spans=frozenset(taken),
                 salience=salience,
                 policy=policy,
-                enclosing_phrases=markets,
+                enclosing_phrases=(*markets, *source_own_phrases, *titles),
             )
             if placement is None:
                 continue
