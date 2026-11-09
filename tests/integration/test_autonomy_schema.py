@@ -41,6 +41,7 @@ from tests.integration.conftest import (
     AUTONOMY_TABLES,
     AUTONOMY_TRIGGERS,
     HEAD_REVISION,
+    MODULE_TABLES,
     SyncDb,
 )
 from tests.integration.test_review_schema import SOURCE, TARGET, _seed, _state
@@ -768,7 +769,7 @@ def test_downgrade_to_0009_restores_exactly_the_learning_schema(
     command.downgrade(alembic_config, "0009_learning")
     try:
         state = sync_db.run(_state)
-        assert state["tables"] == head["tables"] - AUTONOMY_TABLES
+        assert state["tables"] == head["tables"] - AUTONOMY_TABLES - MODULE_TABLES
         assert state["functions"] == head["functions"] - AUTONOMY_FUNCTIONS
         assert state["triggers"] == head["triggers"] - AUTONOMY_TRIGGERS
         assert state["revision"] == "0009_learning"
