@@ -30,7 +30,11 @@ POPULATED = tuple(suite for suite in EvalSuite if suite not in DEFERRED_SUITES)
 
 CONTROL_DECISIONS: dict[EvalSuite, frozenset[str]] = {
     EvalSuite.DESTINATION_SELECTION: frozenset({"select:india-ev-report"}),
-    EvalSuite.ANCHOR_SELECTION: frozenset({"anchor:electric vehicle@b1"}),
+    # ADR-0027 §3: the anchor carries the word "market". The pre-ADR-0027 control decision
+    # was the bare "anchor:electric vehicle@b1", which the engine must now never produce.
+    EvalSuite.ANCHOR_SELECTION: frozenset(
+        {"anchor:India electric vehicle market@b1", "anchor:electric vehicle market@b1"}
+    ),
     EvalSuite.RELATIONSHIP_DETECTION: frozenset({"relationship:same_market"}),
     EvalSuite.CRITIC: frozenset({"verdict:accept"}),
     EvalSuite.NO_ACTION: frozenset({"triage:optimize", "plans:2"}),

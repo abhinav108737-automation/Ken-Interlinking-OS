@@ -4,10 +4,10 @@
 # the runner verifies every sha256 below and refuses a dataset that has drifted.
 suite: anchor-selection
 dataset: core
-dataset_version: 1
+dataset_version: 2
 case_count: 14
 files:
-  core.v1.jsonl: 4ba651f35663cfcc51abbfb5e46de0e5be850defba57d67c74bf2ef22c641763
-provenance: Synthetic article and report bodies parsed by the production normaliser; placement rules from the committed recommendation policy. No production data.
+  core.v2.jsonl: 10cfeead06b037e4b5cbf4f2619ab18557597529ce8d9bd06d8657e872d26a60
+provenance: Synthetic article and report bodies parsed by the production normaliser; placement rules from the committed recommendation policy. No production data. v2 (2026-10-31) re-derives every expectation under ADR-0027 and supersedes v1, whose bare-fragment anchors the owner rejected on 2026-10-30; v1 is not kept alongside because it asserts a policy the engine must never satisfy. See ADR-0027 for the two cases rewritten from the superseded rule R5.
 contains_production_data: false
 approval_ref: null

@@ -12,9 +12,13 @@ Suite                        The production code it drives
 ``destination-selection``    ``filters.pair_rejection`` then ``scoring.score_pair`` under the
                              committed recommendation and ranking policies; the top-ranked
                              eligible destination is the decision.
-``anchor-selection``         ``placement.anchor_phrases`` + ``placement.find_placement`` over
-                             blocks parsed from the fixture's HTML by the production
-                             normaliser, so a fabricated anchor is structurally impossible.
+``anchor-selection``         ``gates.geography_gate`` -> ``placement.market_keyword_anchors``
+                             -> ``placement.find_placement`` over blocks parsed from the
+                             fixture's HTML by the production normaliser, so a fabricated
+                             anchor is structurally impossible. This is the ADR-0027 §3 path
+                             the pipeline itself takes; until 2026-10-31 the suite drove the
+                             pre-ADR-0027 ``anchor_phrases`` instead and so had stopped
+                             gating real anchor behaviour.
 ``relationship-detection``   ``relationships.taxonomy_relationships`` over the live taxonomy.
 ``critic``                   the REAL ``ken_agents.nodes.critique`` node, with the recorded
                              ``CriticAssessment`` replayed through ``MockModelProvider``.
@@ -153,11 +157,17 @@ from ken_services.learning.fixtures import (
 from ken_services.learning.protocol import code_only_violations
 from ken_services.recommendations.filters import PairState, pair_rejection
 from ken_services.recommendations.freshness import check_plan_freshness
-from ken_services.recommendations.placement import anchor_phrases, find_placement, market_phrases
+from ken_services.recommendations.gates import geography_gate, geography_terms
+from ken_services.recommendations.placement import (
+    find_placement,
+    market_keyword_anchors,
+    market_phrases,
+)
 from ken_services.recommendations.scoring import PairFeatures, score_pair
 from ken_services.recommendations.validity import plan_invalidity
 
 __all__ = [
+    "DECISION_GEOGRAPHY_REFUSED",
     "DECISION_NO_PLACEMENT",
     "SCORERS",
     "CaseOutcome",
@@ -167,6 +177,10 @@ __all__ = [
 ]
 
 DECISION_NO_PLACEMENT: Final = "no_placement"
+DECISION_GEOGRAPHY_REFUSED: Final = "geography_refused"
+"""ADR-0027 §1 refused the pair. Distinct from ``no_placement``, which means the pair was
+allowed and no anchor could be placed: collapsing them would let a geography regression
+hide as an anchor failure."""
 DECISION_NO_CANDIDATE: Final = "no_eligible_candidate"
 _EPOCH: Final = datetime(2026, 1, 1, tzinfo=UTC)
 
@@ -394,12 +408,31 @@ def _score_anchor_selection(case: EvalCase, ctx: ScoringContext) -> CaseOutcome:
     source = pages[str(require(extra, "source"))]
     target = pages[str(require(extra, "target"))]
     blocks = source.blocks()
-    phrases = anchor_phrases(
-        target=target.analysis,
+    # ADR-0027 §3: the anchor is the TARGET's market keyword. This must be the same
+    # generator the pipeline uses, or the suite stops gating the engine -- it drifted to
+    # the pre-ADR-0027 ``anchor_phrases`` (taxonomy aliases) and silently stopped
+    # measuring real anchor behaviour.
+    verdict = geography_gate(
+        source.analysis,
+        target.analysis,
+        taxonomy=ctx.taxonomy,
+        source_text=" ".join(b.text for b in blocks),
+    )
+    if verdict is None:
+        # ADR-0027 §1 refused the pair outright (different regions, or a conditional row
+        # the source text does not establish). The pipeline rejects it as
+        # ``geography_mismatch`` and never reaches placement, so neither does this suite;
+        # reporting ``no_placement`` here would blame the anchor for a geography refusal.
+        return _verdict(case, decision=DECISION_GEOGRAPHY_REFUSED, detail="geography_gate=refuse")
+    phrases = market_keyword_anchors(
+        target_url=target.canonical_url,
         target_title=target.title,
         taxonomy=ctx.taxonomy,
         policy=ctx.recommendation,
-        source=source.analysis,
+        geography_terms=(
+            () if verdict.target_geography is None else geography_terms(verdict.target_geography)
+        ),
+        require_geography=verdict.anchor_must_name_target_geography,
     )
     placement = find_placement(
         blocks=blocks,
