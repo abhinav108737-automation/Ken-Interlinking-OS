@@ -55,11 +55,13 @@ import {
   type ListLinkCandidatesQuery,
   type ListLinkPlansQuery,
   type ListOpportunitiesQuery,
+  type ListPageModulesQuery,
   type ListPageRelationshipsQuery,
   type ListSimilarPagesQuery,
   type ListTaxonomyNodePagesQuery,
   type MetaResponse,
   type OpportunityList,
+  type PageModuleList,
   type PageDetail,
   type PageIntelligenceView,
   type PageList,
@@ -200,6 +202,9 @@ export type {
   OpportunityView,
   PageDetail,
   PageInfo,
+  PageModuleItemView,
+  PageModuleList,
+  PageModuleView,
   PageIntelligenceView,
   PageRelationshipView,
   PageList,
@@ -665,6 +670,14 @@ export function listOpportunities(
   options: RequestOptions = {},
 ): Promise<ApiResult<OpportunityList>> {
   return withServerClient("/recommendations/opportunities", (client) => client.listOpportunities(query, options));
+}
+
+/** `GET /recommendations/modules` — related-report modules, items in render order. Contract: 200, 422. */
+export function listPageModules(
+  query: ListPageModulesQuery = {},
+  options: RequestOptions = {},
+): Promise<ApiResult<PageModuleList>> {
+  return withServerClient("/recommendations/modules", (client) => client.listPageModules(query, options));
 }
 
 /** `GET /recommendations/summary` — dashboard counts. Contract: 200 only. */

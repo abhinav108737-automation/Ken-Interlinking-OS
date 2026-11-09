@@ -48,13 +48,16 @@ const STATUSES: Schemas["LinkPlanStatus"][] = [
 const REASONS: Schemas["ReasonCode"][] = [
   "semantically_similar", "lexical_overlap", "same_market", "parent_market", "submarket", "related_market",
   "supply_chain", "complementary_market", "industry_adjacency", "same_geography", "regional_context",
+  "global_target", "cross_geography_supported",
   "high_commercial_value", "underlinked_target", "orphan_target", "anchor_matches_target_topic",
-  "anchor_matches_target_title",
+  "anchor_matches_target_title", "anchor_is_target_market_keyword", "anchor_names_target_geography",
+  "regional_sibling_market",
 ];
 const REJECTIONS: Schemas["CandidateRejection"][] = [
   "self_link", "source_protected", "target_protected", "experiment_locked", "source_ineligible",
   "target_ineligible", "already_linked", "duplicate_recommendation", "previously_rejected", "target_excluded",
-  "page_type_incompatible", "below_min_relevance", "no_natural_anchor", "below_min_score",
+  "page_type_incompatible", "geography_mismatch", "market_unrelated", "below_min_relevance",
+  "no_market_keyword_anchor", "no_natural_anchor", "below_min_score",
   "link_density_exceeded", "per_source_limit", "diversity_limit",
 ];
 

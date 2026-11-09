@@ -25,6 +25,7 @@ import {
   CANDIDATES_PATH,
   DEFAULT_STATUS_FILTER,
   LINK_PLAN_STATUSES,
+  MODULES_PATH,
   OPPORTUNITIES_PATH,
   RECOMMENDATIONS_PATH,
   describeLinkPlanStatus,
@@ -132,6 +133,9 @@ export default async function RecommendationsPage({ searchParams }: { readonly s
           </Link>
           <Link href={CANDIDATES_PATH} className="text-blue-800 underline underline-offset-4">
             Candidates (kept and rejected)
+          </Link>
+          <Link href={MODULES_PATH} className="text-blue-800 underline underline-offset-4">
+            Related-report modules
           </Link>
         </p>
       </header>

@@ -199,11 +199,16 @@ const REASON_CODE_LABEL: Readonly<Record<ReasonCode, string>> = {
   industry_adjacency: "Adjacent industry",
   same_geography: "Same geography",
   regional_context: "Regional context",
+  global_target: "Target covers the market globally",
+  cross_geography_supported: "The source text names the target's geography",
   high_commercial_value: "High commercial value target",
   underlinked_target: "Target is under-linked",
   orphan_target: "Target has no inbound links",
   anchor_matches_target_topic: "Anchor matches the target's topic",
   anchor_matches_target_title: "Anchor matches the target's title",
+  anchor_is_target_market_keyword: "Anchor is the target's own market keyword",
+  anchor_names_target_geography: "Anchor names the target's geography",
+  regional_sibling_market: "Same market, another geography",
 };
 
 const CANDIDATE_REJECTION_LABEL: Readonly<Record<CandidateRejection, string>> = {
@@ -218,7 +223,10 @@ const CANDIDATE_REJECTION_LABEL: Readonly<Record<CandidateRejection, string>> = 
   previously_rejected: "Rejected by a reviewer recently (cool-down)",
   target_excluded: "Target path is never a link target (e.g. the home page)",
   page_type_incompatible: "Page types or intents are incompatible",
+  geography_mismatch: "The target's geography does not serve this reader",
+  market_unrelated: "No declared relation between the two markets",
   below_min_relevance: "Relevance below the policy minimum",
+  no_market_keyword_anchor: "The source text does not contain the target's market keyword",
   no_natural_anchor: "No natural anchor text in the source",
   below_min_score: "Final score below the policy minimum",
   link_density_exceeded: "Source link density limit reached",
@@ -439,6 +447,7 @@ export function describeActor(actor: string): ActorPresentation {
 export const RECOMMENDATIONS_PATH = "/recommendations";
 export const OPPORTUNITIES_PATH = "/recommendations/opportunities";
 export const CANDIDATES_PATH = "/recommendations/candidates";
+export const MODULES_PATH = "/recommendations/modules";
 
 export function planHref(planId: string): string {
   return `${RECOMMENDATIONS_PATH}/${encodeURIComponent(planId)}`;

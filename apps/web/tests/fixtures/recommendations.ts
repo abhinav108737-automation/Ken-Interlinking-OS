@@ -4,6 +4,7 @@ import type {
   LinkPlan,
   LinkPlanDetail,
   OpportunityView,
+  PageModuleView,
   PlanTransitionView,
   RecommendationSummary,
 } from "@/lib/api-client";
@@ -11,6 +12,8 @@ import type {
 import { OTHER_PAGE_ID, PAGE_ID } from "./inventory";
 
 export const PLAN_ID = "44444444-4444-4444-8444-444444444444";
+/** A module's second item: a page neither the plan nor the inventory fixtures use. */
+export const THIRD_PAGE_ID = "66666666-6666-4666-8666-666666666666";
 export const OLD_PLAN_ID = "55555555-5555-4555-8555-555555555555";
 export const REC_RUN_ID = "66666666-6666-4666-8666-666666666666";
 
@@ -151,6 +154,39 @@ export function opportunity(overrides: Partial<OpportunityView> = {}): Opportuni
     score: 0.9,
     evidence: { inbound_links: 0, commercial_importance: 3 },
     run_id: REC_RUN_ID,
+    computed_at: "2026-10-14T08:00:00Z",
+    ...overrides,
+  };
+}
+
+export function pageModule(overrides: Partial<PageModuleView> = {}): PageModuleView {
+  return {
+    page_id: PAGE_ID,
+    canonical_url: "https://www.example.com/reports/india-electric-vehicle-market",
+    title: "India electric vehicle market",
+    kind: "regional_sibling",
+    market_core: "electric vehicle",
+    geography_label: "India",
+    items: [
+      {
+        rank: 1,
+        target_page_id: OTHER_PAGE_ID,
+        target_url: "https://www.example.com/reports/asia-pacific-electric-vehicle-market",
+        target_title: "Asia Pacific electric vehicle market",
+        geography_label: "Asia Pacific",
+        reason_codes: ["regional_sibling_market", "regional_context"],
+      },
+      {
+        rank: 2,
+        target_page_id: THIRD_PAGE_ID,
+        target_url: "https://www.example.com/reports/global-electric-vehicle-market",
+        target_title: null,
+        geography_label: null,
+        reason_codes: ["regional_sibling_market", "global_target", "orphan_target"],
+      },
+    ],
+    run_id: REC_RUN_ID,
+    analysis_version: "tax3-alg2",
     computed_at: "2026-10-14T08:00:00Z",
     ...overrides,
   };

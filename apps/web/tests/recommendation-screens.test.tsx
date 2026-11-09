@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import PageDetailPage from "@/app/inventory/pages/[pageId]/page";
 import RecommendationDetailPage from "@/app/recommendations/[planId]/page";
 import CandidatesPage from "@/app/recommendations/candidates/page";
+import ModulesPage from "@/app/recommendations/modules/page";
 import OpportunitiesPage from "@/app/recommendations/opportunities/page";
 import RecommendationsPage from "@/app/recommendations/page";
 import type { ApiError, ApiResult } from "@/lib/api-client";
@@ -20,6 +21,7 @@ import {
   linkPlan,
   linkPlanDetail,
   opportunity,
+  pageModule,
   recommendationSummary,
   transition,
 } from "./fixtures/recommendations";
@@ -35,6 +37,7 @@ const api = vi.hoisted(() => ({
   getLinkPlan: vi.fn(),
   listLinkCandidates: vi.fn(),
   listOpportunities: vi.fn(),
+  listPageModules: vi.fn(),
   getRecommendationSummary: vi.fn(),
   // ADR-0018: the recommendations list carries the autonomy-mode banner.
   getAutonomyMode: vi.fn(),
@@ -504,6 +507,37 @@ describe("/recommendations/opportunities", () => {
     await renderPage(OpportunitiesPage({ searchParams: Promise.resolve({}) }));
     expect(screen.getByRole("alert")).toHaveTextContent("API unreachable: Under-linked pages unavailable");
     expect(screen.getByRole("table", { name: /orphan pages/i })).toBeInTheDocument();
+  });
+});
+
+describe("/recommendations/modules", () => {
+  it("lists each module's items in rank order, with geography and reasons", async () => {
+    api.listPageModules.mockResolvedValue(ok(list([pageModule()])));
+    await renderPage(ModulesPage({ searchParams: Promise.resolve({}) }));
+    expect(api.listPageModules.mock.calls.map(([query]) => query)).toEqual([{ limit: 50, offset: 0 }]);
+    const table = screen.getByRole("table", { name: /related-report modules/i });
+    const items = within(table).getAllByRole("listitem");
+    expect(items).toHaveLength(2);
+    expect(within(items[0]!).getByRole("link", { name: "Asia Pacific electric vehicle market" })).toHaveAttribute(
+      "href",
+      `/inventory/pages/${OTHER_PAGE_ID}`,
+    );
+    expect(items[0]).toHaveTextContent("Asia Pacific");
+    expect(items[0]).toHaveTextContent("Same market, another geography");
+    // A global target has no geography label and falls back to its URL for link text.
+    expect(within(items[1]!).getByRole("link", { name: /global-electric-vehicle-market/ })).toBeInTheDocument();
+    expect(items[1]).toHaveTextContent("Target covers the market globally");
+    expect(table).toHaveTextContent("tax3-alg2");
+  });
+
+  it("says what to run when nothing is proposed, and reports an API failure", async () => {
+    api.listPageModules.mockResolvedValue(ok(list([])));
+    await renderPage(ModulesPage({ searchParams: Promise.resolve({}) }));
+    expect(screen.getByRole("table", { name: /related-report modules/i })).toHaveTextContent("make modules");
+
+    api.listPageModules.mockResolvedValue(fail({ kind: "network", path: "/recommendations/modules" }));
+    await renderPage(ModulesPage({ searchParams: Promise.resolve({}) }));
+    expect(screen.getByRole("alert")).toHaveTextContent("Related-report modules unavailable");
   });
 });
 

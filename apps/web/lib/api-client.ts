@@ -127,15 +127,20 @@ export type CandidateRejection = Schemas["CandidateRejection"];
 export type CandidateView = Schemas["CandidateView"];
 export type OpportunityKind = Schemas["OpportunityKind"];
 export type OpportunityView = Schemas["OpportunityView"];
+export type ModuleKind = Schemas["ModuleKind"];
+export type PageModuleView = Schemas["PageModuleView"];
+export type PageModuleItemView = Schemas["PageModuleItemView"];
 export type RecommendationSummary = Schemas["RecommendationSummary"];
 
 export type LinkPlanList = Schemas["ListResponse_LinkPlan_"];
 export type CandidateList = Schemas["ListResponse_CandidateView_"];
 export type OpportunityList = Schemas["ListResponse_OpportunityView_"];
+export type PageModuleList = Schemas["ListResponse_PageModuleView_"];
 
 export type ListLinkPlansQuery = NonNullable<operations["listLinkPlans"]["parameters"]["query"]>;
 export type ListLinkCandidatesQuery = NonNullable<operations["listLinkCandidates"]["parameters"]["query"]>;
 export type ListOpportunitiesQuery = NonNullable<operations["listOpportunities"]["parameters"]["query"]>;
+export type ListPageModulesQuery = NonNullable<operations["listPageModules"]["parameters"]["query"]>;
 
 // Phase 4 agent orchestration (ADR-0012 section 11). Read-only: runs start from the CLI.
 export type AgentRunStatus = Schemas["AgentRunStatus"];
@@ -570,6 +575,8 @@ export interface ApiClient {
     query?: ListOpportunitiesQuery,
     options?: RequestOptions,
   ): Promise<ApiResult<OpportunityList>>;
+  /** `GET /recommendations/modules` — related-report modules, items in render order. Contract: 200, 422. */
+  listPageModules(query?: ListPageModulesQuery, options?: RequestOptions): Promise<ApiResult<PageModuleList>>;
   /** `GET /recommendations/summary` — dashboard counts. Contract: 200 only. */
   getRecommendationSummary(options?: RequestOptions): Promise<ApiResult<RecommendationSummary>>;
 
@@ -1441,6 +1448,35 @@ export function isOpportunityView(value: unknown): value is OpportunityView {
   );
 }
 
+export function isPageModuleItemView(value: unknown): value is PageModuleItemView {
+  return (
+    isObject(value) &&
+    typeof value["rank"] === "number" &&
+    typeof value["target_page_id"] === "string" &&
+    typeof value["target_url"] === "string" &&
+    isNullableString(value["target_title"]) &&
+    isNullableString(value["geography_label"]) &&
+    isStringArray(value["reason_codes"])
+  );
+}
+
+export function isPageModuleView(value: unknown): value is PageModuleView {
+  return (
+    isObject(value) &&
+    typeof value["page_id"] === "string" &&
+    typeof value["canonical_url"] === "string" &&
+    isNullableString(value["title"]) &&
+    typeof value["kind"] === "string" &&
+    typeof value["market_core"] === "string" &&
+    isNullableString(value["geography_label"]) &&
+    Array.isArray(value["items"]) &&
+    value["items"].every(isPageModuleItemView) &&
+    typeof value["run_id"] === "string" &&
+    typeof value["analysis_version"] === "string" &&
+    typeof value["computed_at"] === "string"
+  );
+}
+
 export function isRecommendationSummary(value: unknown): value is RecommendationSummary {
   return (
     isObject(value) &&
@@ -1458,6 +1494,8 @@ export const isLinkPlanList = (value: unknown): value is LinkPlanList => isListR
 export const isCandidateList = (value: unknown): value is CandidateList => isListResponse(value, isCandidateView);
 export const isOpportunityList = (value: unknown): value is OpportunityList =>
   isListResponse(value, isOpportunityView);
+export const isPageModuleList = (value: unknown): value is PageModuleList =>
+  isListResponse(value, isPageModuleView);
 
 // --- Agent guards (Phase 4) ---------------------------------------------------
 // Same policy: every field the agent screens read is checked, including nested
@@ -2916,6 +2954,16 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
         "/recommendations/opportunities",
         "/recommendations/opportunities",
         isOpportunityList,
+        query,
+        callOptions,
+        [422],
+      ),
+
+    listPageModules: (query, callOptions = {}) =>
+      inventory(
+        "/recommendations/modules",
+        "/recommendations/modules",
+        isPageModuleList,
         query,
         callOptions,
         [422],

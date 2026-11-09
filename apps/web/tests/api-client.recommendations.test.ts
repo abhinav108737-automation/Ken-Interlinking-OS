@@ -13,6 +13,7 @@ import {
   isMissingResourceError,
   isNotFoundError,
   isOpportunityView,
+  isPageModuleView,
   isPlacementLocator,
   isPlacementPreview,
   isRecommendationSummary,
@@ -27,6 +28,7 @@ import {
   linkPlan,
   linkPlanDetail,
   opportunity,
+  pageModule,
   recommendationSummary,
 } from "./fixtures/recommendations";
 
@@ -91,6 +93,14 @@ const OPERATIONS: ReadonlyArray<{
     call: (c) => c.listOpportunities(),
     body: list([opportunity()]),
     expectedPath: "/prefix/recommendations/opportunities",
+  },
+  {
+    name: "listPageModules",
+    template: "/recommendations/modules",
+    declared: [422],
+    call: (c) => c.listPageModules(),
+    body: list([pageModule()]),
+    expectedPath: "/prefix/recommendations/modules",
   },
   {
     name: "getRecommendationSummary",
@@ -160,6 +170,7 @@ describe("query construction", () => {
     await client.listLinkCandidates({ run_id: REC_RUN_ID, source_page_id: PAGE_ID, rejected: false });
     await client.listLinkCandidates({ rejected: true, limit: 5 });
     await client.listOpportunities({ kind: "link_capacity", offset: 50 });
+    await client.listPageModules({ kind: "regional_sibling", page_id: PAGE_ID });
     expect(requestedUrl(0).search).toBe(
       `?status=awaiting_approval&min_score=0.5&source_page_id=${PAGE_ID}&target_page_id=${OTHER_PAGE_ID}&limit=20&offset=40`,
     );
@@ -167,6 +178,7 @@ describe("query construction", () => {
     expect(requestedUrl(2).search).toBe(`?run_id=${REC_RUN_ID}&source_page_id=${PAGE_ID}&rejected=false`);
     expect(requestedUrl(3).search).toBe("?rejected=true&limit=5");
     expect(requestedUrl(4).search).toBe("?kind=link_capacity&offset=50");
+    expect(requestedUrl(5).search).toBe(`?kind=regional_sibling&page_id=${PAGE_ID}`);
   });
 
   it.each(["", ".", "..", "%2e%2e", "a/b", "a?b", "a#b", "a b", "x".repeat(65)])(
@@ -187,6 +199,8 @@ describe("recommendation guards", () => {
     expect(isLinkPlanDetail(linkPlanDetail({ source_title: null, transitions: [] }))).toBe(true);
     expect(isCandidateView(candidate({ rejection: "self_link", plan_id: null, total_score: null }))).toBe(true);
     expect(isOpportunityView(opportunity())).toBe(true);
+    expect(isPageModuleView(pageModule())).toBe(true);
+    expect(isPageModuleView(pageModule({ title: null, geography_label: null, items: [] }))).toBe(true);
     expect(isRecommendationSummary(recommendationSummary({ last_run_id: null }))).toBe(true);
   });
 
@@ -224,6 +238,9 @@ describe("recommendation guards", () => {
     expect(isLinkPlanDetail(linkPlanDetail({ transitions: [{ id: 1 }] as never }))).toBe(false);
     expect(isCandidateView({ ...candidate(), channel_scores: { semantic: "1" } })).toBe(false);
     expect(isOpportunityView({ ...opportunity(), evidence: [] })).toBe(false);
+    // A module is its items: one malformed item makes the whole module untrusted.
+    expect(isPageModuleView({ ...pageModule(), items: [{ rank: 1 }] })).toBe(false);
+    expect(isPageModuleView({ ...pageModule(), market_core: null })).toBe(false);
     expect(isRecommendationSummary({ ...recommendationSummary(), plans_by_status: { proposed: "1" } })).toBe(false);
   });
 });
