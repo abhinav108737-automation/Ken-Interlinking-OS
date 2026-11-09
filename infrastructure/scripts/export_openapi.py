@@ -20,7 +20,11 @@ TARGET = Path(__file__).resolve().parents[2] / "contracts" / "openapi" / "openap
 
 def main() -> None:
     document = create_app(Settings(_env_file=None)).openapi()
-    TARGET.write_text(json.dumps(document, indent=2, sort_keys=True) + "\n")
+    # newline="\n" explicitly: Path.write_text translates "\n" to "\r\n" on Windows, so a
+    # regeneration there rewrote all 17,716 lines and buried the real change in the diff.
+    TARGET.write_text(
+        json.dumps(document, indent=2, sort_keys=True) + "\n", encoding="utf-8", newline="\n"
+    )
     print(f"wrote {TARGET.relative_to(TARGET.parents[2])}")
 
 
