@@ -1,6 +1,18 @@
 """The ADR-0011 section 5 placement: natural anchors only, never fabricated.
 
-**Anchor phrases** (:func:`anchor_phrases`) for a target T, in rank order:
+**Market-keyword anchors** (:func:`market_keyword_anchors`) are what the ENGINE proposes. The
+anchor must be the TARGET's own market keyword -- its specific market phrase plus the word
+"market" ("cosmetics market", "contract logistics market") -- derived from the target's
+identity (:func:`market_keyword_phrases`: its title core, else its canonical URL slug with
+geography prefixes and a trailing "-market" removed) and NEVER from the broad ``market_id``
+analysis assigned, which generalises to parents such as "food" and produced anchors like
+"food market" pointing at a vending-machine report. A bare noun ("cosmetics", "seed") is not a
+rankable anchor and is no longer proposed. When the target's geography differs from the
+source's, the anchor must also name it ("India cosmetics market"), so a cross-geography link
+reads as one. The phrase must still occur VERBATIM in the source text (below): no sentence is
+ever rewritten here, so a pair whose anchor is absent is simply not proposed.
+
+**Topic / title / keyword phrases** (:func:`anchor_phrases`) for a target T, in rank order:
 
 * rank 0, ``target_topic``: the label and aliases of T's ``market_id`` node;
 * ranks 1..k, ``target_topic``: the label and aliases of T's other CONFIDENT top topics at
@@ -36,12 +48,15 @@ non-empty block of an allowed kind: the opening paragraph; headings never count)
 from __future__ import annotations
 
 import bisect
+import html
 import itertools
 import re
 import unicodedata
-from collections.abc import Collection, Mapping, Sequence
+from collections.abc import Collection, Iterable, Mapping, Sequence
 from dataclasses import dataclass
+from functools import lru_cache
 from typing import Final, Literal
+from urllib.parse import unquote, urlsplit
 
 from ken_contracts.intelligence import Intent, PageAnalysis, TaxonomyPolicy
 from ken_contracts.recommendations import (
@@ -58,7 +73,10 @@ from ken_services.inventory.normalize import ContentBlock
 
 __all__ = [
     "ANCHOR_MAX_CHARS",
+    "MARKET_WORD",
+    "MAX_LABEL_WORDS",
     "MAX_SECONDARY_TOPICS",
+    "MIN_TITLE_GUARD_WORDS",
     "OPENING_BLOCK_PENALTY",
     "PLACEMENT_QUALITY",
     "PREVIEW_CHARS",
@@ -67,11 +85,17 @@ __all__ = [
     "PlacementCandidate",
     "anchor_phrases",
     "anchor_rule_ok",
+    "block_is_prose",
+    "corpus_title_phrases",
     "find_placement",
     "keyword_bigrams",
+    "market_core",
+    "market_keyword_anchors",
+    "market_keyword_phrases",
     "market_phrases",
     "phrase_occurrences",
     "preview_for",
+    "slug_text",
     "span_is_safe",
     "title_core",
 ]
@@ -134,7 +158,18 @@ def _collapse(text: str) -> str:
     return " ".join(unicodedata.normalize("NFC", text).split())
 
 
+@lru_cache(maxsize=1 << 17)
 def _phrase_pattern(phrase: str) -> re.Pattern[str]:
+    """The whole-phrase matcher for ``phrase``. Pure, so memoised.
+
+    The cache is load-bearing, not a micro-optimisation. The fragment guard passes every
+    market label and alias, and each one again with "market" appended, as
+    ``enclosing_phrases``: 21,776 distinct patterns on taxonomy v3. ``re`` keeps its own
+    cache of only 512, so without this every call recompiled the lot. Measured over ten
+    report sources: 219,678 calls, 11.4 s of a 50.9 s run, and one ``find_placement`` call
+    alone cost 7.7 s. The phrases come from a fixed taxonomy, so the cache is bounded in
+    practice; the maxsize is a guard, not an expected limit.
+    """
     body = " ".join(re.escape(word) for word in _collapse(phrase).split(" "))
     return re.compile(rf"(?<![{_BOUNDARY}]){body}(?![{_BOUNDARY}])", re.IGNORECASE)
 
@@ -217,7 +252,10 @@ def title_core(title: str | None, *, taxonomy: TaxonomyPolicy) -> str | None:
     """
     if not title:
         return None
-    text = _collapse(title)
+    # Titles reach us with HTML entities intact ("Mobile Financial Services &amp;
+    # Neobanking"), and an anchor must be the words a reader sees, never "&amp;". Unescaping
+    # first also lets TITLE_SEPARATORS and the trailing-"&" rule below see a real "&".
+    text = _collapse(html.unescape(title))
     cuts = [text.find(sep) for sep in TITLE_SEPARATORS if text.find(sep) > 0]
     if cuts:
         text = text[: min(cuts)]
@@ -403,14 +441,234 @@ def _within_any(key: str, phrases: Collection[str]) -> bool:
     return False
 
 
-def market_phrases(taxonomy: TaxonomyPolicy) -> tuple[str, ...]:
-    """Every market label and alias (collapsed): the phrases an anchor must not be a
-    strict fragment of (:func:`find_placement` ``enclosing_phrases``)."""
-    return tuple(
-        sorted(
-            {_collapse(p) for m in taxonomy.markets for p in (m.label, *m.aliases) if _collapse(p)}
-        )
+# --------------------------------------------------------------------------- #
+# Market-keyword anchors (what the engine proposes)
+# --------------------------------------------------------------------------- #
+def slug_text(url: str | None) -> str | None:
+    """The last meaningful path segment of ``url`` as words ("india-cosmetics-market" ->
+    "india cosmetics market"), or ``None``.
+
+    Segments are walked from the end, skipping any without a letter (report ids, years), so a
+    trailing numeric id does not hide the slug.
+    """
+    if not url:
+        return None
+    try:
+        path = urlsplit(url).path
+    except ValueError:  # pragma: no cover - a stored canonical URL always parses
+        return None
+    for segment in reversed([s for s in path.split("/") if s]):
+        text = _collapse(re.sub(r"[-_]+", " ", unquote(segment)))
+        if any(char.isalpha() for char in text):
+            return text
+    return None
+
+
+def market_keyword_phrases(
+    *, target_url: str | None, target_title: str | None, taxonomy: TaxonomyPolicy
+) -> tuple[str, ...]:
+    """The target's own specific market phrase(s), WITHOUT the word "market".
+
+    Derived from the target's identity, best first: its title core, then its URL slug
+    (:func:`title_core` does the work on both -- it cuts before "market" / "report" /
+    "outlook", drops a leading geography and trims trailing years and connectors). The title
+    comes first because it keeps real spelling and hyphenation ("Lithium-ion Batteries"),
+    which the slug flattens; the slug rescues a noisy editorial title. Deduplicated
+    case-insensitively, first spelling wins.
+    """
+    geo = _geography_phrases(taxonomy)
+    out: list[str] = []
+    seen: set[str] = set()
+    for raw in (target_title, slug_text(target_url)):
+        core = title_core(raw, taxonomy=taxonomy)
+        if core is None:
+            continue
+        key = fold(core)
+        # A core that is only a geography ("/india-market") names no market: a single-word
+        # leading geography is deliberately never stripped to nothing by ``title_core``.
+        if key and key not in seen and key not in geo:
+            seen.add(key)
+            out.append(core)
+    return tuple(out)
+
+
+def market_core(
+    *, target_url: str | None, target_title: str | None, taxonomy: TaxonomyPolicy
+) -> str | None:
+    """The page's market identity, folded for comparison, or ``None``.
+
+    Two pages whose cores are equal are the SAME market in (usually) different geographies:
+    "/germany-ev-market" and "/india-ev-market" both fold to ``ev``. This is the signal
+    behind ``GeographyDecision.REGIONAL_SIBLING`` (ADR-0027 §1 amendment).
+
+    It is deliberately derived from the page's own identity rather than from the taxonomy's
+    ``market_id`` or its relationship edges: taxonomy v3 declares no market relationships at
+    all (NEXT_STEPS item 27), and ``market_id`` is a broad parent that would make
+    "food market" equal to a vending-machine report. Measured on the 8,858-page inventory,
+    this grouping finds 962 market cores spanning more than one geography, covering 3,186
+    pages.
+    """
+    phrases = market_keyword_phrases(
+        target_url=target_url, target_title=target_title, taxonomy=taxonomy
     )
+    return fold(phrases[0]) if phrases else None
+
+
+MARKET_WORD: Final = "market"
+"""Every engine anchor ends in this word: an anchor must read as a market, not as a noun."""
+
+
+def _with_market_word(phrase: str) -> str | None:
+    """``phrase`` plus "market", or ``None`` when the phrase carries no market of its own
+    (a title that is nothing but "Market" would yield the anchor "market")."""
+    if fold(phrase) == MARKET_WORD:
+        return None
+    return f"{phrase} {MARKET_WORD}"
+
+
+def market_keyword_anchors(
+    *,
+    target_url: str | None,
+    target_title: str | None,
+    taxonomy: TaxonomyPolicy,
+    policy: RecommendationPolicy,
+    geography_terms: Sequence[str] = (),
+    require_geography: bool = False,
+) -> tuple[AnchorPhrase, ...]:
+    """The target's market-keyword anchors, in rank order (module docstring). Pure.
+
+    ``geography_terms`` name the target's geography (label and longer aliases, longest first).
+    Geography-qualified anchors ("India cosmetics market") rank FIRST because they are the more
+    specific link text; with ``require_geography`` they are the only ones offered, which is how
+    the engine refuses to label a cross-geography link as a local one. Every phrase passes the
+    usual anchor rules (:func:`anchor_rule_ok`), so an overlong editorial phrase is dropped
+    rather than truncated.
+    """
+    phrases = market_keyword_phrases(
+        target_url=target_url, target_title=target_title, taxonomy=taxonomy
+    )
+    groups: list[tuple[int, str]] = []
+    for phrase in phrases:
+        core = _with_market_word(phrase)
+        if core is None:
+            continue
+        groups.extend((0, f"{term} {core}") for term in geography_terms if _collapse(term))
+        if not require_geography:
+            groups.append((1, core))
+    geo = _geography_phrases(taxonomy)
+    seen: set[str] = set()
+    out: list[AnchorPhrase] = []
+    for rank, text in sorted(groups, key=lambda item: item[0]):
+        candidate = _collapse(text)
+        key = fold(candidate)
+        if not candidate or key in seen or key in geo:
+            continue
+        if not anchor_rule_ok(candidate, "target_topic", policy=policy.placement):
+            continue
+        seen.add(key)
+        out.append(AnchorPhrase(text=candidate, source="target_topic", rank=rank))
+    return tuple(out)
+
+
+_SENTENCE_END: Final = frozenset(".!?")
+"""Sentence-terminal punctuation.
+
+ASCII only, deliberately. Whether the site is multilingual is still an open question
+(NEXT_STEPS item 6) and every page in the 8,858-page inventory is English, so CJK and other
+scripts' terminators would be speculative. If a non-Latin language is ever ingested, this
+set and :func:`block_is_prose` are where it lands: a page whose sentences end in U+3002
+would read as one long label, and the length arm of the test is what keeps that from
+silently refusing every block."""
+
+MAX_LABEL_WORDS: Final = 25
+"""A block longer than this is treated as prose even with no sentence punctuation.
+
+Ken's longest cross-sell titles run to about 16 words ("Indonesia Payments Market Size,
+Share & Forecast, By Payment Method, Customer Segment & Distribution Channel"), so the
+bound sits above them with room to spare, while no real title approaches 25."""
+
+
+def block_is_prose(text: str) -> bool:
+    """Does this block read as a sentence, rather than as a label or a title?
+
+    An inline contextual anchor belongs only in prose. Ken's report pages end with a
+    cross-sell list of other reports, one title per list item -- "Thailand Residential
+    Furniture Market", "KSA Modular Kitchen Furniture Market" -- and the engine was
+    anchoring on the tail of those titles, so a France report linked to a Germany report
+    through text naming Thailand. 185 of 1,028 plans (18%) on the full corpus run were this.
+
+    Two conditions, and a block need satisfy only one: it carries sentence-terminal
+    punctuation, or it is longer than :data:`MAX_LABEL_WORDS`. Punctuation alone was too
+    blunt -- it rejected long unpunctuated paragraphs, which are not titles -- and length
+    alone would admit every short label.
+
+    The test is intrinsic to the block, deliberately NOT a comparison against known page
+    titles: those cross-sell entries link to pages OUTSIDE the inventory (the sitemaps cover
+    about 18% of the live site), so their titles are simply not available to compare
+    against. That is why the corpus-title guard (:func:`corpus_title_phrases`) could not
+    catch them, and this can.
+
+    A list item is still prose when it is written as one ("Fleet managers cite the electric
+    vehicle market as their main planning input."), so this does not exclude ``li`` as a
+    kind -- that is the policy's job (``block_kinds``).
+
+    Erring toward refusal is deliberate: a missed link costs a link, while an anchor in
+    another report's title misleads the reader, which is the failure the owner rejected.
+    """
+    if any(char in _SENTENCE_END for char in text):
+        return True
+    return len(text.split()) > MAX_LABEL_WORDS
+
+
+MIN_TITLE_GUARD_WORDS: Final = 3
+"""A title shorter than this is not used as a fragment guard. A two-word title
+("Coffee Market") is often exactly the right anchor, and guarding on it would block the
+anchor wherever the title happens to appear."""
+
+
+def corpus_title_phrases(titles: Iterable[str | None]) -> tuple[str, ...]:
+    """Page titles usable as ``find_placement`` ``enclosing_phrases``, deduplicated.
+
+    Ken's reports end in a cross-sell list of other reports, one title per list item. Those
+    titles are not taxonomy market labels, so :func:`market_phrases` misses them and the
+    engine anchored on their tail -- "Thailand Residential [[Furniture Market]]" pointing at
+    a Germany furniture report (185 of 1,028 plans, 18%, on the full corpus run).
+
+    Titles are unescaped (they arrive with ``&amp;`` intact) and cut at the first
+    :data:`TITLE_SEPARATORS` match, so "X Market: Outlook to 2030" guards on "X Market"
+    rather than on the whole editorial string, which would rarely occur verbatim.
+
+    Only titles of :data:`MIN_TITLE_GUARD_WORDS` words or more are returned: the guard
+    blocks an anchor that is a STRICT fragment of one of these, and a short title is usually
+    the legitimate anchor itself.
+    """
+    out: set[str] = set()
+    for raw in titles:
+        if not raw:
+            continue
+        text = _collapse(html.unescape(raw))
+        cuts = [text.find(sep) for sep in TITLE_SEPARATORS if text.find(sep) > 0]
+        if cuts:
+            text = text[: min(cuts)]
+        text = _collapse(text)
+        if len(text.split(" ")) >= MIN_TITLE_GUARD_WORDS:
+            out.add(text)
+    return tuple(sorted(out))
+
+
+def market_phrases(taxonomy: TaxonomyPolicy) -> tuple[str, ...]:
+    """Every market label and alias, and each one followed by "market" (collapsed): the
+    phrases an anchor must not be a strict fragment of (:func:`find_placement`
+    ``enclosing_phrases``).
+
+    The ``"<label> market"`` forms matter as much as the bare labels. An anchor like
+    "Esports Market" is NOT strictly inside the bare label "cloud gaming and esports" -- it
+    overlaps the tail and runs past it -- so without the suffixed form the fragment guard
+    misses it and the engine links a slice of a longer market name ("The India Cloud Gaming
+    and [[Esports Market]] is projected to ..."), which misreads the sentence.
+    """
+    bare = {_collapse(p) for m in taxonomy.markets for p in (m.label, *m.aliases) if _collapse(p)}
+    return tuple(sorted(bare | {f"{p} {MARKET_WORD}" for p in bare}))
 
 
 def _is_fragment(
@@ -496,6 +754,10 @@ def find_placement(
 ) -> PlacementCandidate | None:
     """The best natural placement of any phrase in the source blocks, or ``None``.
 
+    Only blocks that read as prose are considered (:func:`block_is_prose`): a cross-sell
+    list entry is another report's title, not a sentence, and an inline anchor in one
+    misreads it.
+
     ``enclosing_phrases`` (with the phrases themselves): a match strictly inside an
     occurrence of a longer one of these is a FRAGMENT and never an anchor.
 
@@ -520,6 +782,8 @@ def find_placement(
 
     best: tuple[tuple[int, int, float, int, int, int], PlacementCandidate] | None = None
     for order, block in enumerate(blocks):
+        if not block_is_prose(block.text):
+            continue  # a title or label, not a sentence: never host an inline anchor
         if block.kind not in kinds or not block.text:
             continue
         if rules.skip_first_block and block.block_id == opening:

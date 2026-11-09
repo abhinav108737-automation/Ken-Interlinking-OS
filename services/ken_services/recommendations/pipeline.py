@@ -19,8 +19,13 @@ One run, through the generic job runner (advisory lock, counters, ``job.complete
         if the source is eligible (as_source):
             retrieve (channels) -> candidates
             pair stage (PairState -> pair_rejection), in retrieval order
+            GATES (refuse, never down-score; ``gates``): geography_gate ->
+                geography_mismatch, market_gate -> market_unrelated
             score (score_pair) -> below_min_relevance
             in rank order (relevance desc, target canonical URL, target id):
+                anchor = the TARGET's market keyword (``market_keyword_anchors``), named
+                    with the target's geography when it differs from the source's
+                    -> no_market_keyword_anchor when the source text lacks it verbatim
                 place (find_placement) -> no_natural_anchor
                 final score (with_placement) -> below_min_score
                 caps: link_density_exceeded, per_source_limit, diversity_limit
@@ -106,13 +111,16 @@ from ken_contracts.recommendations import (
     OpportunityKind,
     PlanFreshness,
     RankingPolicy,
+    ReasonCode,
     RecommendationPolicy,
     ScoreBreakdown,
 )
+from ken_contracts.vectors import VectorStore
 from ken_core.config import REPO_ROOT, Settings
 from ken_core.db.repositories import recommendations as repo
 from ken_core.db.repositories.events import append_event
 from ken_core.logging import get_logger
+from ken_core.providers.vectors.factory import build_vector_store
 from ken_services.intelligence.embeddings import current_recipe_fingerprint, embedding_identity
 from ken_services.intelligence.taxonomy import load_taxonomy
 from ken_services.inventory.hashing import sha256_hex
@@ -126,11 +134,22 @@ from ken_services.recommendations.channels import (
 )
 from ken_services.recommendations.filters import NoExperiments, PairState, pair_rejection
 from ken_services.recommendations.freshness import check_plan_freshness
+from ken_services.recommendations.gates import (
+    GeographyVerdict,
+    geography_gate,
+    geography_terms,
+    market_gate,
+)
 from ken_services.recommendations.placement import (
+    MARKET_WORD,
     PlacementCandidate,
-    anchor_phrases,
+    corpus_title_phrases,
     find_placement,
+    market_core,
+    market_keyword_anchors,
+    market_keyword_phrases,
     market_phrases,
+    phrase_occurrences,
 )
 from ken_services.recommendations.policy import (
     load_recommendation_policy,
@@ -183,6 +202,20 @@ MAX_TARGET_TITLE_CHARS: Final = 300
 """A plan copies at most this much of the target title (QA: ingestion does not cap it)."""
 
 
+def _any_occurrence(phrases: Sequence[Any], blocks: Sequence[ContentBlock]) -> bool:
+    """Does any anchor phrase occur, whole-phrase, in any block of the source version?
+
+    Separates "the source text does not contain the target's market keyword"
+    (``no_market_keyword_anchor``) from "it does, but no occurrence is placeable"
+    (``no_natural_anchor``), so the counters say which problem a pair has.
+    """
+    return any(
+        phrase_occurrences(getattr(phrase, "text", ""), block.text)
+        for phrase in phrases
+        for block in blocks
+    )
+
+
 def _bounded_title(title: str | None) -> str | None:
     if title is None or len(title) <= MAX_TARGET_TITLE_CHARS:
         return title
@@ -197,9 +230,11 @@ class RecommendationToolkit:
     """The pure functions the job calls. Tests inject fakes where their logic matters."""
 
     pair_rejection: Callable[..., CandidateRejection | None] = pair_rejection
+    geography_gate: Callable[..., GeographyVerdict | None] = geography_gate
+    market_gate: Callable[..., Sequence[Any]] = market_gate
     score_pair: Callable[..., ScoredPair] = score_pair
     with_placement: Callable[[ScoreBreakdown, float], ScoreBreakdown] = with_placement
-    anchor_phrases: Callable[..., Sequence[Any]] = anchor_phrases
+    market_keyword_anchors: Callable[..., Sequence[Any]] = market_keyword_anchors
     find_placement: Callable[..., PlacementCandidate | None] = find_placement
     check_plan_freshness: Callable[..., Any] = check_plan_freshness
     render_rationale: Callable[..., str] = render_rationale
@@ -219,6 +254,17 @@ class _World:
     eligibility: dict[uuid.UUID, LinkEligibility]
     inbound: dict[uuid.UUID, int]
     av: str
+    titles: tuple[str, ...] = ()
+    """Every page title in the inventory, as a fragment guard for
+    :func:`find_placement` ``enclosing_phrases``.
+
+    Ken's report pages end with a cross-sell list of OTHER reports, one title per ``li``
+    ("Thailand Residential Furniture Market"). Those titles are not taxonomy market labels,
+    so ``market_phrases`` does not cover them, and the engine was anchoring on their tail:
+    "Thailand Residential [[Furniture Market]]" pointing at a Germany furniture report.
+    Measured over the 1,028-plan corpus run, 185 plans (18%) were this. It is the same
+    strict-fragment rule already in force, applied to a wider phrase set, so no new
+    mechanism is introduced."""
 
 
 @dataclass(slots=True)
@@ -227,6 +273,8 @@ class _Ranked:
     target: repo.PageFacts
     target_analysis: PageAnalysis
     scored: ScoredPair
+    geography: GeographyVerdict
+    """Which row of the geography gate let this pair through (and what the anchor must say)."""
 
 
 @dataclass(slots=True)
@@ -254,9 +302,14 @@ class _Recommend:
         guard: ExperimentGuard,
         toolkit: RecommendationToolkit,
         source_page_ids: Sequence[uuid.UUID] | None,
+        vector_store: VectorStore | None = None,
     ) -> None:
         self.job = job
         self.settings = settings
+        # ADR-0026: the shared index, built ONCE per run. None makes `retrieve` rebuild an
+        # exact in-process index from PostgreSQL for EVERY source -- O(pages) per source,
+        # about 2.3 s per page at 8,858 pages.
+        self.vector_store = vector_store
         self.policy = policy
         self.ranking = ranking
         self.taxonomy = taxonomy
@@ -288,6 +341,7 @@ class _Recommend:
             eligibility={pid: self._eligibility(f) for pid, f in facts.items()},
             inbound=inbound,
             av=self.av,
+            titles=corpus_title_phrases(f.title for f in facts.values()),
         )
 
     def _target_path_excluded(self, url: str) -> bool:
@@ -458,6 +512,7 @@ class _Recommend:
             keywords=() if source_analysis is None else source_analysis.keywords,
             industry_id=None if source_analysis is None else source_analysis.industry_id,
             analysis_version=self.av,
+            vector_store=self.vector_store,
         )
 
         # Occupancy: open plans (after expiry) and plans whose link is on the page.
@@ -513,8 +568,29 @@ class _Recommend:
                 )
             )
 
-        # ---- pair stage + relevance
-        survivors: list[tuple[RetrievedCandidate, repo.PageFacts]] = []
+        # ---- pair stage + GATES + relevance
+        # The gates read the source page's own text (every block, not only the placeable
+        # ones): naming a geography in a heading or a list item is still naming it.
+        source_text = "\n".join(block.text for block in blocks)
+        # The SOURCE's own market name, as a fragment guard. A report mostly writes about
+        # itself ("The India Cloud Gaming and Esports Market is projected to ..."), so without
+        # this a slice of its own name becomes the anchor for a DIFFERENT report, which
+        # misreads the sentence. `market_phrases` covers markets the taxonomy knows; this
+        # covers the page's own identity whether or not the taxonomy lists it.
+        _own = market_keyword_phrases(
+            target_url=source.canonical_url, target_title=source.title, taxonomy=self.taxonomy
+        )
+        source_own_phrases: tuple[str, ...] = (
+            *_own,
+            *(f"{phrase} {MARKET_WORD}" for phrase in _own),
+        )
+        # ADR-0027 §1 amendment: the same market in another region is the owner's FIRST
+        # priority ("Germany EV market" -> "India EV market"), so a cross-region pair is
+        # allowed when the market cores match. Computed once per source.
+        source_core = market_core(
+            target_url=source.canonical_url, target_title=source.title, taxonomy=self.taxonomy
+        )
+        survivors: list[tuple[RetrievedCandidate, repo.PageFacts, GeographyVerdict]] = []
         for candidate in retrieved:
             target = world.facts.get(candidate.target_page_id)
             if target is None:  # pragma: no cover - retrieval reads the same pages
@@ -541,7 +617,39 @@ class _Recommend:
             if rejection is not None:
                 record(candidate, target.current_version, rejection=rejection, total=None)
                 continue
-            survivors.append((candidate, target))
+            target_analysis = target.analysis
+            if source_analysis is None or target_analysis is None:  # pragma: no cover
+                continue  # the pair stage already rejected both cases
+            # Hard gates, before any scoring: a wrong geography or an unrelated market is
+            # REFUSED, never carried by the rest of the score.
+            target_core = market_core(
+                target_url=target.canonical_url,
+                target_title=target.title,
+                taxonomy=self.taxonomy,
+            )
+            verdict = self.tools.geography_gate(
+                source_analysis,
+                target_analysis,
+                taxonomy=self.taxonomy,
+                source_text=source_text,
+                same_market_core=source_core is not None and source_core == target_core,
+            )
+            if verdict is None:
+                record(candidate, target.current_version, rejection=_R.GEOGRAPHY_MISMATCH,
+                       total=None)  # fmt: skip
+                continue
+            if not self.tools.market_gate(
+                source_analysis,
+                target_analysis,
+                taxonomy=self.taxonomy,
+                # Siblings need the embeddings to agree as well (ADR-0027 amendment).
+                semantic_similarity=candidate.signals.get("semantic_similarity"),
+                sibling_floor=self.settings.similarity_min_score,
+            ):
+                record(candidate, target.current_version, rejection=_R.MARKET_UNRELATED,
+                       total=None)  # fmt: skip
+                continue
+            survivors.append((candidate, target, verdict))
 
         if not survivors:
             return outcome
@@ -552,7 +660,7 @@ class _Recommend:
             cosines = await cosine_to(
                 session,
                 source_page_id=source.id,
-                target_page_ids=[t.id for _, t in survivors],
+                target_page_ids=[t.id for _, t, _ in survivors],
                 key=self.embedding,
             )
         source_markets = Counter(
@@ -561,7 +669,7 @@ class _Recommend:
             if link.target_page_id is not None and link.target_page_id != source.id
         )
         ranked: list[_Ranked] = []
-        for candidate, target in survivors:
+        for candidate, target, verdict in survivors:
             target_analysis = target.analysis
             if target_analysis is None:  # pragma: no cover - an eligible target has one
                 raise LookupError("eligible target without analysis")
@@ -591,6 +699,7 @@ class _Recommend:
                     target=target,
                     target_analysis=target_analysis,
                     scored=scored,
+                    geography=verdict,
                 )
             )
         # Ties break on the target's canonical URL, never a random UUID (determinism).
@@ -605,13 +714,25 @@ class _Recommend:
         for item in ranked:
             candidate, target, scored = item.candidate, item.target, item.scored
             relevance = scored.breakdown.relevance
-            phrases = self.tools.anchor_phrases(
-                target=item.target_analysis,
+            verdict = item.geography
+            phrases = self.tools.market_keyword_anchors(
+                target_url=target.canonical_url,
                 target_title=target.title,
                 taxonomy=self.taxonomy,
                 policy=self.policy,
-                source=source_analysis,
+                geography_terms=(
+                    ()
+                    if verdict.target_geography is None
+                    else geography_terms(verdict.target_geography)
+                ),
+                require_geography=verdict.anchor_must_name_target_geography,
             )
+            if not phrases or not _any_occurrence(phrases, blocks):
+                # The target's market keyword is not in the source text. A later phase may
+                # rewrite the sentence; this one proposes nothing.
+                record(candidate, target.current_version, rejection=_R.NO_MARKET_KEYWORD_ANCHOR,
+                       total=relevance)  # fmt: skip
+                continue
             placement = self.tools.find_placement(
                 blocks=blocks,
                 phrases=phrases,
@@ -620,7 +741,11 @@ class _Recommend:
                 taken_spans=frozenset(taken),
                 salience=salience,
                 policy=self.policy,
-                enclosing_phrases=self.market_phrases,
+                enclosing_phrases=(
+                    *self.market_phrases,
+                    *source_own_phrases,
+                    *world.titles,
+                ),
             )
             if placement is None:
                 record(candidate, target.current_version, rejection=_R.NO_NATURAL_ANCHOR,
@@ -678,10 +803,17 @@ class _Recommend:
         now: datetime,
     ) -> LinkPlan:
         scored, target = item.scored, item.target
+        geography = item.geography.target_geography
+        names_geography = geography is not None and any(
+            phrase_occurrences(term, placement.anchor_text) for term in geography_terms(geography)
+        )
         reason_codes = merge_reason_codes(
             scored.reason_codes,
+            item.geography.reason_codes,
             channel_reason_codes(item.candidate.channels),
             anchor_reason_code(placement.anchor_source),
+            (ReasonCode.ANCHOR_IS_TARGET_MARKET_KEYWORD,),
+            (ReasonCode.ANCHOR_NAMES_TARGET_GEOGRAPHY,) if names_geography else (),
         )
         return LinkPlan(
             id=uuid.uuid4(),
@@ -883,6 +1015,7 @@ async def run_recommendations(
     taxonomy: TaxonomyPolicy | None = None,
     model_provider: ModelProvider | None = None,
     toolkit: RecommendationToolkit | None = None,
+    vector_store: VectorStore | None = None,
 ) -> JobRunDetail:
     """Run one recommendation job and return the finished run (module docstring).
 
@@ -905,6 +1038,13 @@ async def run_recommendations(
     guard: ExperimentGuard = experiment_guard if experiment_guard is not None else NoExperiments()
     ids = None if source_page_ids is None else list(dict.fromkeys(source_page_ids))
     embedding = await _embedding_key(model_provider, settings)
+    # ADR-0026: one shared index per run. Built here when the deployment configures a real
+    # store and the caller supplied none; closed in `finally` because we own it then.
+    store = vector_store
+    owned = False
+    if store is None and settings.vector_store != "memory":
+        store = build_vector_store(settings)
+        owned = True
 
     async def body(job: JobContext) -> RunStatus:
         return await _Recommend(
@@ -917,21 +1057,26 @@ async def run_recommendations(
             guard=guard,
             toolkit=tools,
             source_page_ids=ids,
+            vector_store=store,
         ).run()
 
-    return await run_job(
-        kind=JobKind.RECOMMENDATION,
-        sessionmaker=sessionmaker,
-        triggered_by=triggered_by,
-        body=body,
-        config_snapshot=_snapshot(
-            settings=settings,
-            policy=policy,
-            ranking=resolved_ranking,
-            taxonomy=tax,
-            embedding=embedding,
-            source_page_ids=ids,
-        ),
-        counter_names=RECOMMENDATION_COUNTERS,
-        clock=clock,
-    )
+    try:
+        return await run_job(
+            kind=JobKind.RECOMMENDATION,
+            sessionmaker=sessionmaker,
+            triggered_by=triggered_by,
+            body=body,
+            config_snapshot=_snapshot(
+                settings=settings,
+                policy=policy,
+                ranking=resolved_ranking,
+                taxonomy=tax,
+                embedding=embedding,
+                source_page_ids=ids,
+            ),
+            counter_names=RECOMMENDATION_COUNTERS,
+            clock=clock,
+        )
+    finally:
+        if owned and store is not None:
+            await store.aclose()

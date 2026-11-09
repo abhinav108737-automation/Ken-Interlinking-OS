@@ -75,12 +75,12 @@ EV_FILLER = (
 EV_MARKET_PARAS = (
     _p(*EV_FILLER),
     _p(
-        "Vehicle makers depend on imported lithium-ion batteries, and local cell plants are "
-        "planned to cut that dependence over the coming decade."
+        "Vehicle makers buy cells from the lithium-ion batteries market, and local cell plants "
+        "are planned to cut that dependence over the coming decade."
     ),
     _p(
-        "Public charging infrastructure remains thin outside large cities, which slows "
-        "adoption among private buyers in smaller towns."
+        "The EV charging market remains thin outside large cities, which slows adoption "
+        "among private buyers in smaller towns and keeps charging infrastructure scarce."
     ),
     _p(*EV_FILLER[::-1]),
     _p("The electric vehicle market in India is expected to grow strongly through 2030."),
@@ -93,12 +93,12 @@ LI_PARAS = (
         "Cell makers are investing in lithium-ion batteries for both mobility and grid uses.",
     ),
     _p(
-        "Demand from electric vehicles is the largest driver of cell orders, followed by "
-        "consumer electronics and industrial equipment."
+        "Demand from the electric vehicles market is the largest driver of cell orders, "
+        "followed by consumer electronics and industrial equipment."
     ),
     _p(
-        "Utilities are also buying cells for energy storage projects that balance the grid "
-        "during peak hours."
+        "Utilities are also buying cells for the energy storage market, whose projects "
+        "balance the grid during peak hours."
     ),
     _p(
         "Battery cell prices have fallen sharply, and lithium-ion battery makers expect "
@@ -114,8 +114,8 @@ CHARGING_PARAS = (
         "Charging infrastructure operators are signing long term site agreements.",
     ),
     _p(
-        "Growth in electric vehicles on the road makes each new charging station more "
-        "profitable as utilisation rises."
+        "Growth in the electric vehicles market puts more cars on the road and makes each "
+        "new charging station more profitable as utilisation rises."
     ),
     _p(
         "Charge points at offices and apartment blocks are the fastest growing segment of "
@@ -132,12 +132,12 @@ STORAGE_PARAS = (
         "Grid storage is becoming central to integrating variable supply.",
     ),
     _p(
-        "Most projects use lithium-ion batteries, although alternative chemistries are being "
-        "tested at pilot scale by state utilities."
+        "Most projects buy from the lithium-ion batteries market, although alternative "
+        "chemistries are being tested at pilot scale by state utilities."
     ),
     _p(
-        "Pairing storage with solar power plants lets developers shift daytime output into "
-        "the evening peak and sell it at higher prices."
+        "Developers pairing storage with plants from the solar power market shift daytime "
+        "output into the evening peak and sell it at higher prices."
     ),
     _p(
         "Battery energy storage tenders now attract strong bids, and energy storage is a "
@@ -153,8 +153,8 @@ SOLAR_PARAS = (
         "Solar energy tariffs remain among the lowest in the world.",
     ),
     _p(
-        "Developers increasingly add energy storage to new parks so that solar output can be "
-        "delivered after sunset."
+        "Developers increasingly turn to the energy storage market for new parks so that "
+        "solar output can be delivered after sunset."
     ),
     _p(
         "Module supply chains are shifting towards domestic manufacturing of solar panels "

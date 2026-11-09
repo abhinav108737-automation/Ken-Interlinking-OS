@@ -25,6 +25,7 @@ from ken_contracts.recommendations import (
     CandidateRejection,
     LinkPlanEvent,
     LinkPlanStatus,
+    ReasonCode,
     RecommendationPolicy,
     RetrievalChannel,
 )
@@ -115,14 +116,22 @@ async def test_first_run_creates_natural_explainable_plans(
     assert c["plans_created"] == await scalar(sessionmaker, "SELECT count(*) FROM link_plans") > 0
 
     plans = await _plans(sessionmaker)
-    # Natural mentions that exist in the source text become anchors, verbatim.
-    assert plans[(EV, LI)].anchor_text == "lithium-ion batteries"
-    assert plans[(EV, CHARGING)].anchor_text == "charging infrastructure"
-    assert plans[(STORAGE, SOLAR)].anchor_text == "solar power"
-    # The EV report never mentions solar: nothing is fabricated.
+    # The anchor is the TARGET's own market keyword, verbatim from the source text -- never a
+    # bare noun ("lithium-ion batteries") and never the broad market_id.
+    assert plans[(EV, LI)].anchor_text == "lithium-ion batteries market"
+    assert plans[(EV, CHARGING)].anchor_text == "EV charging market"
+    assert plans[(STORAGE, SOLAR)].anchor_text == "solar power market"
+    # Every page here is an India report, so no anchor needs a geography label.
+    assert all(
+        ReasonCode.ANCHOR_IS_TARGET_MARKET_KEYWORD.value in plan.reason_codes
+        and ReasonCode.SAME_GEOGRAPHY.value in plan.reason_codes
+        and ReasonCode.ANCHOR_NAMES_TARGET_GEOGRAPHY.value not in plan.reason_codes
+        for plan in plans.values()
+    )
+    # Vehicles and solar power are unrelated markets: the gate refuses the pair outright.
     assert (EV, SOLAR) not in plans
     cands = await _candidates(sessionmaker, detail.id)
-    assert cands[(EV, SOLAR)].rejection == CandidateRejection.NO_NATURAL_ANCHOR.value
+    assert cands[(EV, SOLAR)].rejection == CandidateRejection.MARKET_UNRELATED.value
 
     identity = await embedding_identity(provider())
     ids = await page_ids(sessionmaker)
@@ -251,8 +260,8 @@ async def test_source_change_expires_stale_plans_and_keeps_rebasable_ones(
         _p("This edition adds the latest registration data for every state of the country."),
         EV_MARKET_PARAS[0],
         _p(
-            "Vehicle makers still import most of their Li-ion batteries, although local cell "
-            "plants are planned for the coming decade."
+            "Vehicle makers still import most of their cells, although the lithium-ion "
+            "batteries market at home is expected to grow through the coming decade."
         ),
         *EV_MARKET_PARAS[2:],
     ]
@@ -284,7 +293,8 @@ async def test_source_change_expires_stale_plans_and_keeps_rebasable_ones(
     regenerated = after[(EV, LI)]
     assert regenerated.id != li_plan.id
     assert regenerated.source_page_version == 2
-    assert regenerated.anchor_text == "Li-ion batteries"
+    assert regenerated.anchor_text == "lithium-ion batteries market"
+    assert regenerated.start_offset != li_plan.start_offset
 
 
 # --------------------------------------------------------------------------- #

@@ -12,6 +12,7 @@ from ken_services.inventory.hashing import sha256_hex
 from ken_services.inventory.normalize import ContentBlock
 from ken_services.recommendations.placement import (
     ANCHOR_MAX_CHARS,
+    MAX_LABEL_WORDS,
     MAX_SECONDARY_TOPICS,
     PREVIEW_CHARS,
     AnchorPhrase,
@@ -19,11 +20,16 @@ from ken_services.recommendations.placement import (
     PlacementCandidate,
     anchor_phrases,
     anchor_rule_ok,
+    block_is_prose,
+    corpus_title_phrases,
     find_placement,
     keyword_bigrams,
+    market_keyword_anchors,
+    market_keyword_phrases,
     market_phrases,
     phrase_occurrences,
     preview_for,
+    slug_text,
     span_is_safe,
     title_core,
 )
@@ -34,6 +40,7 @@ from tests.unit.recommendations._support import (
     policy,
     policy_with,
     taxonomy,
+    taxonomy_v3,
     taxonomy_with,
 )
 
@@ -356,7 +363,9 @@ def test_allowed_inline_formatting_inside_one_run_is_fine() -> None:
     found = _place("<p>Our view: <strong>solar power</strong> wins.</p><ul><li>x</li></ul>")
     assert found is not None
     assert found.anchor_text == "solar power"
-    found = _place("<ul><li>Solar power in a list item</li></ul>")
+    # Punctuated, so `block_is_prose` admits it: a list item is placeable when it is
+    # written as a sentence, which is what this test is about.
+    found = _place("<ul><li>Solar power wins in a list item.</li></ul>")
     assert found is not None
     assert found.locator.block_kind == "li"
 
@@ -375,7 +384,7 @@ def test_a_span_across_two_runs_is_rejected(body: str) -> None:
 
 
 def test_block_kinds_come_from_policy() -> None:
-    body = "<div>solar power in a div</div>"
+    body = "<div>solar power in a div, which is a sentence.</div>"
     assert _place(body, rules=policy_with(placement={"block_kinds": ["div"]})) is not None
 
 
@@ -772,3 +781,262 @@ def test_the_commercial_hop_still_needs_a_distinctive_geography_when_there_is_on
     )
     cold = next(p for p in phrases if p.text.casefold() == "cold chain")
     assert any(term.casefold() == "uae" for term in cold.context_terms)
+
+
+# --------------------------------------------------------------------------- #
+# Market-keyword anchors: the target's own market phrase plus "market"
+# --------------------------------------------------------------------------- #
+KEN = "https://www.kenresearch.com"
+
+
+@pytest.mark.parametrize(
+    ("url", "title", "expected"),
+    [
+        # The real shapes of the site: <geography>-<market>-market.
+        (
+            f"{KEN}/industry-reports/india-cosmetics-market",
+            "India Cosmetics Market Share, Companies & Trends Report 2025-2032",
+            ("Cosmetics",),
+        ),
+        (
+            f"{KEN}/saudi-arabia-contract-logistics-market",
+            "Saudi Arabia Contract Logistics Market Outlook to 2030",
+            ("Contract Logistics",),
+        ),
+        (
+            f"{KEN}/industry-reports/north-america-nut-and-seeds-market",
+            "North America Nut and Seeds Market Size USD 16.80 Billion, Forecast To 2030",
+            ("Nut and Seeds",),
+        ),
+        # Title only, slug only, neither.
+        (f"{KEN}/asia-pacific-vegetable-seed-market", None, ("vegetable seed",)),
+        (None, "Indonesia Natural Personal Care Market Share", ("Natural Personal Care",)),
+        (None, None, ()),
+        # A trailing report id never hides the slug.
+        (f"{KEN}/industry-reports/india-cosmetics-market/120045", None, ("cosmetics",)),
+        # The title keeps real hyphenation that the slug flattens: both are offered.
+        (
+            f"{KEN}/india-lithium-ion-batteries-market",
+            "India Lithium-ion Batteries Market Report",
+            ("Lithium-ion Batteries", "lithium ion batteries"),
+        ),
+    ],
+)  # fmt: skip
+def test_market_keyword_phrases_come_from_the_targets_identity(
+    url: str | None, title: str | None, expected: tuple[str, ...]
+) -> None:
+    found = market_keyword_phrases(target_url=url, target_title=title, taxonomy=taxonomy_v3())
+    assert found == expected
+
+
+def test_the_anchor_is_the_market_phrase_plus_the_word_market() -> None:
+    anchors = market_keyword_anchors(
+        target_url=f"{KEN}/industry-reports/india-cosmetics-market",
+        target_title="India Cosmetics Market Share, Companies & Trends Report 2025-2032",
+        taxonomy=taxonomy_v3(),
+        policy=policy(),
+    )
+    assert [(p.text, p.source, p.rank) for p in anchors] == [
+        ("Cosmetics market", "target_topic", 1)
+    ]
+
+
+def test_the_anchor_never_comes_from_the_broad_market_id() -> None:
+    """``market_id`` generalises ("food"), which produced "food market" anchors pointing at a
+    vending-machine report. The derivation cannot see ``market_id`` at all."""
+    anchors = market_keyword_anchors(
+        target_url=f"{KEN}/industry-reports/india-vending-machine-market",
+        target_title="India Vending Machine Market Outlook to 2030",
+        taxonomy=taxonomy_v3(),
+        policy=policy(),
+    )
+    texts = [p.text for p in anchors]
+    assert "Vending Machine market" in texts
+    assert all("food" not in text.casefold() for text in texts)
+
+
+def test_a_geography_qualified_anchor_ranks_first_and_can_be_required() -> None:
+    kwargs: dict[str, object] = {
+        "target_url": f"{KEN}/industry-reports/india-cosmetics-market",
+        "target_title": "India Cosmetics Market Share, Companies & Trends Report",
+        "taxonomy": taxonomy_v3(),
+        "policy": policy(),
+        "geography_terms": ("India", "indian"),
+    }
+    optional = market_keyword_anchors(**kwargs)  # type: ignore[arg-type]
+    assert [p.text for p in optional][:2] == ["India Cosmetics market", "indian Cosmetics market"]
+    assert "Cosmetics market" in [p.text for p in optional]
+    assert {p.rank for p in optional} == {0, 1}
+
+    required = market_keyword_anchors(require_geography=True, **kwargs)  # type: ignore[arg-type]
+    assert all(p.text.casefold().startswith(("india ", "indian ")) for p in required)
+    assert all(p.rank == 0 for p in required)
+
+
+def test_market_keyword_anchors_obey_the_anchor_rules() -> None:
+    """A noisy editorial title is dropped rather than truncated; the slug rescues the pair."""
+    anchors = market_keyword_anchors(
+        target_url=f"{KEN}/case-studies/catering-market-entry-strategy-ksa-data-assessment",
+        target_title="How a Global Food Leader Found Many Opportunities in KSA Catering Market",
+        taxonomy=taxonomy_v3(),
+        policy=policy(),
+    )
+    assert [p.text for p in anchors] == ["catering market"]
+
+
+def test_a_target_with_no_market_phrase_of_its_own_gets_no_anchor() -> None:
+    """ "market market" is never an anchor, and neither is a bare geography slug."""
+    tax = taxonomy_v3()
+    assert (
+        market_keyword_anchors(
+            target_url=None, target_title="Market", taxonomy=tax, policy=policy()
+        )
+        == ()
+    )
+    assert (
+        market_keyword_anchors(
+            target_url=f"{KEN}/india-market", target_title=None, taxonomy=tax, policy=policy()
+        )
+        == ()
+    )
+
+
+def test_slug_text_reads_the_last_segment_with_letters() -> None:
+    assert slug_text(f"{KEN}/industry-reports/india-cosmetics-market") == "india cosmetics market"
+    assert slug_text(f"{KEN}/india-cosmetics-market/2025") == "india cosmetics market"
+    assert slug_text(f"{KEN}/") is None
+    assert slug_text(None) is None
+
+
+# --------------------------------------------------------------------------- #
+# The "<market> market" fragment guard (owner's 2026-10-30 review)
+# --------------------------------------------------------------------------- #
+def test_market_phrases_include_the_suffixed_forms() -> None:
+    """Without "<label> market" the guard misses an anchor that overlaps a longer name."""
+    phrases = set(market_phrases(taxonomy()))
+    assert "solar power" in phrases
+    assert "solar power market" in phrases
+
+
+def test_an_anchor_is_not_taken_out_of_a_longer_market_name() -> None:
+    """ "The India Cloud Gaming and [[Esports Market]] is projected to ..." misreads the
+    sentence: the anchor is a slice of the SOURCE's own market name."""
+    body = blocks(
+        INTRO + "<p>The India Cloud Gaming and Esports Market is projected to expand sharply.</p>"
+    )
+    assert _enclosed(body) is None
+
+
+def test_the_same_phrase_is_placeable_in_ordinary_prose() -> None:
+    """The guard must not refuse the anchor where it is NOT inside a longer name."""
+    body = blocks(
+        INTRO + "<p>Sleepwell is a leader in the esports market across the region today.</p>"
+    )
+    placed = _enclosed(body)
+    assert placed is not None
+    assert placed.anchor_text == "esports market"
+
+
+def _enclosed(body: Sequence[ContentBlock]) -> PlacementCandidate | None:
+    return find_placement(
+        blocks=body,
+        phrases=(_phrase("esports market"),),
+        links_per_block={},
+        blocks_linking_target=(),
+        taken_spans=(),
+        salience={},
+        policy=policy(),
+        enclosing_phrases=("cloud gaming and esports market",),
+    )
+
+
+# --------------------------------------------------------------------------- #
+# Page titles as a fragment guard (the cross-sell list defect, 18% of 1,028 plans)
+# --------------------------------------------------------------------------- #
+def _with_titles(body: Sequence[ContentBlock], titles: Sequence[str]) -> PlacementCandidate | None:
+    return find_placement(
+        blocks=body,
+        phrases=(_phrase("furniture market"),),
+        links_per_block={},
+        blocks_linking_target=(),
+        taken_spans=(),
+        salience={},
+        policy=policy(),
+        enclosing_phrases=corpus_title_phrases(titles),
+    )
+
+
+def test_an_anchor_is_not_taken_from_another_reports_title() -> None:
+    """The real defect: a report ends with a cross-sell list of OTHER reports, one title per
+    list item, and the engine anchored on the tail of one -- "Thailand Residential
+    [[Furniture Market]]" pointing at a GERMANY furniture report."""
+    body = blocks(INTRO + "<ul><li>Thailand Residential Furniture Market</li></ul>")
+    assert _with_titles(body, ["Thailand Residential Furniture Market"]) is None
+
+
+def test_prose_is_still_placeable_when_titles_are_guarded() -> None:
+    """The guard is occurrence-based: a title blocks the anchor only where that title
+    actually appears. "the German furniture market grew" does not contain the title
+    "Germany Furniture Market", so the anchor stands."""
+    body = blocks(INTRO + "<p>Analysts say the German furniture market grew again in 2024.</p>")
+    placed = _with_titles(body, ["Thailand Residential Furniture Market"])
+    assert placed is not None
+    assert placed.anchor_text == "furniture market"
+
+
+def test_a_short_title_is_not_used_as_a_guard() -> None:
+    """A two-word title IS usually the right anchor. Guarding on "Furniture Market" would
+    block the anchor everywhere the phrase occurs, including legitimate prose."""
+    assert corpus_title_phrases(["Furniture Market"]) == ()
+    body = blocks(INTRO + "<p>The furniture market expanded across the region.</p>")
+    assert _with_titles(body, ["Furniture Market"]) is not None
+
+
+def test_a_cross_sell_list_entry_is_not_prose_and_hosts_no_anchor() -> None:
+    """The defect the corpus-title guard could NOT catch, because these entries link to
+    pages outside the inventory, so their titles are unknown to us."""
+    for title in (
+        "KSA Modular Kitchen Furniture Market",
+        "Kuwait E-commerce Furniture Market",
+        "Thailand Residential Furniture Market",
+        "Indonesia Payments Market Size, Share & Forecast, By Payment Method, "
+        "Customer Segment & Distribution Channel",
+    ):
+        assert not block_is_prose(title), title
+        body = blocks(INTRO + f"<ul><li>{title}</li></ul>")
+        assert _with_titles(body, []) is None, title
+
+
+def test_a_list_item_written_as_a_sentence_is_prose() -> None:
+    """The rule must not exclude list items as a kind -- only labels."""
+    text = "Fleet managers cite the furniture market as their main planning input."
+    assert block_is_prose(text)
+    placed = _with_titles(blocks(INTRO + f"<ul><li>{text}</li></ul>"), [])
+    assert placed is not None
+    assert placed.anchor_text == "furniture market"
+
+
+def test_a_long_unpunctuated_block_is_still_prose() -> None:
+    """Punctuation alone was too blunt: a long paragraph without a full stop is not a
+    title. Only short, unpunctuated blocks are labels."""
+    long_text = " ".join(f"word{n:03d}" for n in range(MAX_LABEL_WORDS + 5))
+    assert block_is_prose(long_text)
+    assert not block_is_prose("Short Unpunctuated Label")
+
+
+def test_corpus_title_phrases_normalises_titles() -> None:
+    phrases = corpus_title_phrases(
+        [
+            "Edible Oil Manufacturing &amp; Refining Market",  # entities decoded
+            "India EV Market: Outlook to 2030",  # cut at the separator
+            "  Spaced   Out   Title  ",  # whitespace collapsed
+            None,
+            "",
+            "Edible Oil Manufacturing & Refining Market",  # duplicate of the first
+        ]
+    )
+    assert "Edible Oil Manufacturing & Refining Market" in phrases
+    assert not any("&amp;" in p for p in phrases)
+    assert "India EV Market" in phrases
+    assert "Spaced Out Title" in phrases
+    assert len(phrases) == len(set(phrases)), phrases
