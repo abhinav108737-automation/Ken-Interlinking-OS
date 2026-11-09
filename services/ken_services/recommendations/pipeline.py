@@ -1159,6 +1159,89 @@ def _snapshot(
     }
 
 
+async def run_module_build(
+    *,
+    sessionmaker: async_sessionmaker[AsyncSession],
+    settings: Settings,
+    triggered_by: str,
+    policy: RecommendationPolicy | None = None,
+    ranking: RankingPolicy | None = None,
+    taxonomy: TaxonomyPolicy | None = None,
+    clock: Callable[[], datetime] = utc_now,
+) -> JobRunDetail:
+    """Rebuild the related-report modules ONLY, without re-proposing a single inline plan.
+
+    A full run on the real corpus takes about four hours, nearly all of it in retrieval,
+    scoring and placement -- none of which a module needs. Without this an operator who
+    changed the module ranking, or who wanted modules after an analysis change, had to pay
+    for the plans as well. The module step itself takes seconds: it reads the world once and
+    groups the market cores.
+
+    It runs under ``JobKind.RECOMMENDATION``, so the advisory lock still serialises it
+    against a plan run. That is deliberate -- both write recommendation artifacts from the
+    same world, and they must not interleave.
+
+    No model provider and no vector store: modules use neither. ``errors`` stays the
+    contract for failure, so a module build that raises is a ``completed_with_errors`` run
+    rather than a silent success.
+
+    Raises:
+        JobAlreadyRunningError: a recommendation run is in progress (nothing written).
+    """
+    if policy is None:
+        policy, loaded_ranking = load_policies(settings)
+        resolved_ranking = ranking or loaded_ranking
+    else:
+        resolved_ranking = ranking or resolve_ranking_policy(policy, root=REPO_ROOT)
+    tax = taxonomy if taxonomy is not None else load_taxonomy(settings.taxonomy_path)
+
+    async def body(job: JobContext) -> RunStatus:
+        engine = _Recommend(
+            job=job,
+            settings=settings,
+            policy=policy,
+            ranking=resolved_ranking,
+            taxonomy=tax,
+            embedding=None,
+            guard=NoExperiments(),
+            toolkit=default_toolkit(),
+            source_page_ids=None,
+            vector_store=None,
+        )
+        world = await engine._world()
+        engine._require_matching_analysis(world)
+        try:
+            await engine._modules(world)
+        except Exception as exc:
+            engine._error("modules_failed", exc)
+        await job.flush()
+        return (
+            RunStatus.SUCCEEDED
+            if job.counters.get("errors", 0) == 0
+            else RunStatus.COMPLETED_WITH_ERRORS
+        )
+
+    return await run_job(
+        kind=JobKind.RECOMMENDATION,
+        sessionmaker=sessionmaker,
+        triggered_by=triggered_by,
+        body=body,
+        config_snapshot={
+            **_snapshot(
+                settings=settings,
+                policy=policy,
+                ranking=resolved_ranking,
+                taxonomy=tax,
+                embedding=None,
+                source_page_ids=None,
+            ),
+            "step": "modules",
+        },
+        counter_names=RECOMMENDATION_COUNTERS,
+        clock=clock,
+    )
+
+
 async def run_recommendations(
     *,
     sessionmaker: async_sessionmaker[AsyncSession],

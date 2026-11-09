@@ -39,9 +39,11 @@ from ken_services.inventory.normalize import extract_blocks
 from ken_services.recommendations.channels import graph_channel, lexical_channel
 from ken_services.recommendations.pipeline import (
     EMITTED_BY,
+    NO_PAGE_AT_ANALYSIS_VERSION,
     RECOMMENDATION_COUNTERS,
     RecommendationToolkit,
     load_policies,
+    run_module_build,
 )
 from ken_services.recommendations.transitions import ENGINE_ACTOR, transition
 from tests.integration.recommendation_support import (
@@ -714,3 +716,43 @@ async def test_an_india_only_corpus_proposes_no_module(sessionmaker: SM, tmp_pat
     run = await recommend(sessionmaker)
     assert run.counters["modules"] == 0
     assert await scalar(sessionmaker, "SELECT count(*) FROM page_modules") == 0
+
+
+async def test_a_modules_only_run_writes_modules_and_no_plans(
+    sessionmaker: SM, tmp_path: Path
+) -> None:
+    """``make modules``: seconds instead of the four hours a plan run costs on the corpus."""
+    await seed_corpus(sessionmaker, tmp_path, *sibling_records())
+    build = await run_module_build(
+        sessionmaker=sessionmaker, settings=SETTINGS, triggered_by="test-modules"
+    )
+    assert build.status is RunStatus.SUCCEEDED
+    assert build.counters["modules"] > 0
+    assert build.counters["module_items"] == await scalar(
+        sessionmaker, "SELECT count(*) FROM page_module_items"
+    )
+    # It proposes NOTHING else: no plan, no candidate audit row, no opportunity.
+    assert await scalar(sessionmaker, "SELECT count(*) FROM link_plans") == 0
+    assert await scalar(sessionmaker, "SELECT count(*) FROM link_candidates") == 0
+    assert await scalar(sessionmaker, "SELECT count(*) FROM opportunities") == 0
+    assert build.config_snapshot["step"] == "modules"
+
+
+async def test_a_modules_only_run_fails_on_a_stale_corpus(sessionmaker: SM, tmp_path: Path) -> None:
+    """It shares the plan run's item-28 guard: a corpus at another analysis version fails.
+
+    The corpus is analysed under the real taxonomy and the run is then handed a taxonomy
+    whose VERSION differs -- which is exactly the production mistake (a wrong
+    ``KEN_TAXONOMY_PATH``), and the only way to produce it here, since ``page_analyses`` is
+    append-only and refuses an UPDATE.
+    """
+    await seed_corpus(sessionmaker, tmp_path, *sibling_records())
+    other = load_taxonomy(SETTINGS.taxonomy_path).model_copy(update={"version": 9})
+    build = await run_module_build(
+        sessionmaker=sessionmaker,
+        settings=SETTINGS,
+        triggered_by="test-modules",
+        taxonomy=other,
+    )
+    assert build.status is RunStatus.FAILED
+    assert build.failure_reason == NO_PAGE_AT_ANALYSIS_VERSION

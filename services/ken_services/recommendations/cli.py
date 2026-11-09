@@ -3,9 +3,15 @@
 Recommendation runs start here, never over HTTP (ADR-0011 section 8)::
 
     recommend [--source PAGE_ID ...]
+    modules
 
 * ``--source PAGE_ID``  only these source pages (repeatable; UUIDs). Named sources are
                         processed even when ineligible, so their candidates record why.
+* ``modules``           rebuilds the related-report modules and NOTHING else. A full run on
+                        the real corpus is about four hours, nearly all of it retrieval,
+                        scoring and placement, none of which a module needs; the module step
+                        itself takes seconds. It runs under the same job kind, so the
+                        advisory lock still serialises it against a plan run.
 
 Deterministic: no LLM. The configured model provider is asked only for the embedding
 IDENTITY (which stored vectors are current); nothing is embedded. When it cannot answer,
@@ -74,6 +80,10 @@ def _parser() -> argparse.ArgumentParser:
         metavar="PAGE_ID",
         help="Only this source page (repeatable).",
     )
+    commands.add_parser(
+        "modules",
+        help="Rebuild the related-report modules only (seconds, not hours).",
+    )
     return parser
 
 
@@ -105,21 +115,31 @@ async def _run(
     policies: tuple[RecommendationPolicy, RankingPolicy],
     args: argparse.Namespace,
 ) -> int:
-    from ken_services.recommendations.pipeline import run_recommendations
+    from ken_services.recommendations.pipeline import run_module_build, run_recommendations
 
     engine = create_engine(settings)  # no I/O until first use
     provider: Any = None
     try:
-        provider = build_model_provider(settings)
-        detail = await run_recommendations(
-            sessionmaker=create_sessionmaker(engine),
-            settings=settings,
-            triggered_by=TRIGGERED_BY,
-            source_page_ids=args.sources,
-            policy=policies[0],
-            ranking=policies[1],
-            model_provider=provider,
-        )
+        # Modules need no model: no embedding identity to resolve, so no provider to build.
+        if args.command == "modules":
+            detail = await run_module_build(
+                sessionmaker=create_sessionmaker(engine),
+                settings=settings,
+                triggered_by=f"{TRIGGERED_BY}-modules",
+                policy=policies[0],
+                ranking=policies[1],
+            )
+        else:
+            provider = build_model_provider(settings)
+            detail = await run_recommendations(
+                sessionmaker=create_sessionmaker(engine),
+                settings=settings,
+                triggered_by=TRIGGERED_BY,
+                source_page_ids=args.sources,
+                policy=policies[0],
+                ranking=policies[1],
+                model_provider=provider,
+            )
     except JobAlreadyRunningError:
         print("another recommendation run is in progress; nothing was run", file=sys.stderr)
         return EXIT_ALREADY_RUNNING
