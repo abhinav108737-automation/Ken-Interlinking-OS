@@ -144,6 +144,7 @@ def test_provider_protocols_are_closable(protocol: type) -> None:
         (recommendations.RecommendationReader, "get_plan"),
         (recommendations.RecommendationReader, "list_candidates"),
         (recommendations.RecommendationReader, "list_opportunities"),
+        (recommendations.RecommendationReader, "list_modules"),
     ],
 )
 def test_protocol_methods_are_async_and_keyword_only(protocol: type, method: str) -> None:

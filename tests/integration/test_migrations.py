@@ -36,6 +36,8 @@ APP_TABLES = frozenset(
         "link_plan_transitions",
         "link_candidates",
         "opportunities",
+        "page_modules",
+        "page_module_items",
         "agent_runs",
         "agent_steps",
         "agent_run_plans",

@@ -807,6 +807,52 @@ class OpportunityView(FrozenModel):
     computed_at: AwareDatetime
 
 
+class ModuleKind(StrEnum):
+    """What relation a related-reports module expresses. Additive (ADR-0027 §1b/§1c).
+
+    One member today, deliberately. ``adjacent`` -- "a reader of an EV report wants charging
+    stations and batteries" -- needs the typed market graph the taxonomy does not declare
+    (NEXT_STEPS items 27 and 32), so it is absent rather than guessed at.
+    """
+
+    REGIONAL_SIBLING = "regional_sibling"
+    """The same market in another geography: the owner's Priority 1."""
+
+
+class PageModuleItemView(FrozenModel):
+    """One entry of a module, in the order it would render."""
+
+    rank: int = Field(ge=1)
+    target_page_id: UUID
+    target_url: str
+    target_title: str | None = None
+    geography_label: str | None = None
+    reason_codes: list[ReasonCode]
+
+
+class PageModuleView(FrozenModel):
+    """A whole module as proposed for one page -- the unit an editor judges.
+
+    A module is a PROPOSAL and nothing more. Unlike a ``LinkPlan`` it has no status, because
+    approving one would mean composing it onto a page, and how that happens is still open
+    (NEXT_STEPS item 12, the CMS surface). It is replaced wholesale by each run, like
+    ``opportunities``: there is no partial edit to preserve.
+    """
+
+    page_id: UUID
+    canonical_url: str
+    title: str | None = None
+    kind: ModuleKind
+    market_core: str
+    """The market identity every item shares with the page -- the module's coherence gate."""
+    geography_label: str | None = None
+    """The page's own geography; ``None`` for a global page."""
+    items: list[PageModuleItemView]
+    run_id: UUID
+    analysis_version: str
+    computed_at: AwareDatetime
+
+
 class LinkPlanEvent(FrozenModel):
     """Payload of ``link.proposed`` (and later link.* lifecycle events)."""
 
@@ -870,5 +916,14 @@ class RecommendationReader(Protocol):
     async def list_opportunities(
         self, *, limit: int, offset: int, kind: OpportunityKind | None = None
     ) -> ListResponse[OpportunityView]: ...
+
+    async def list_modules(
+        self,
+        *,
+        limit: int,
+        offset: int,
+        kind: ModuleKind | None = None,
+        page_id: UUID | None = None,
+    ) -> ListResponse[PageModuleView]: ...
 
     async def get_summary(self) -> RecommendationSummary: ...

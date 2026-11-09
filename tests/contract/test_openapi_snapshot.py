@@ -91,6 +91,7 @@ def test_operation_ids_and_tags(live: dict[str, Any]) -> None:
         "/recommendations/summary": ("getRecommendationSummary", ["recommendations"]),
         "/recommendations/candidates": ("listLinkCandidates", ["recommendations"]),
         "/recommendations/opportunities": ("listOpportunities", ["recommendations"]),
+        "/recommendations/modules": ("listPageModules", ["recommendations"]),
         "/recommendations/{plan_id}": ("getLinkPlan", ["recommendations"]),
         "/agents/runs": ("listAgentRuns", ["agents"]),
         "/agents/runs/{run_id}": ("getAgentRun", ["agents"]),

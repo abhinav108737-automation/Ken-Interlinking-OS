@@ -6548,6 +6548,27 @@
         "title": "ListResponse[OpportunityView]",
         "type": "object"
       },
+      "ListResponse_PageModuleView_": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PageModuleView"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          }
+        },
+        "required": [
+          "items",
+          "page"
+        ],
+        "title": "ListResponse[PageModuleView]",
+        "type": "object"
+      },
       "ListResponse_PageRelationshipView_": {
         "additionalProperties": false,
         "properties": {
@@ -6864,6 +6885,14 @@
           "embedding"
         ],
         "title": "ModelRole",
+        "type": "string"
+      },
+      "ModuleKind": {
+        "description": "What relation a related-reports module expresses. Additive (ADR-0027 \u00a71b/\u00a71c).\n\nOne member today, deliberately. ``adjacent`` -- \"a reader of an EV report wants charging\nstations and batteries\" -- needs the typed market graph the taxonomy does not declare\n(NEXT_STEPS items 27 and 32), so it is absent rather than guessed at.",
+        "enum": [
+          "regional_sibling"
+        ],
+        "title": "ModuleKind",
         "type": "string"
       },
       "NoteText": {
@@ -7616,6 +7645,144 @@
           "relationship_counts"
         ],
         "title": "PageIntelligenceView",
+        "type": "object"
+      },
+      "PageModuleItemView": {
+        "additionalProperties": false,
+        "description": "One entry of a module, in the order it would render.",
+        "properties": {
+          "geography_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Geography Label"
+          },
+          "rank": {
+            "minimum": 1.0,
+            "title": "Rank",
+            "type": "integer"
+          },
+          "reason_codes": {
+            "items": {
+              "$ref": "#/components/schemas/ReasonCode"
+            },
+            "title": "Reason Codes",
+            "type": "array"
+          },
+          "target_page_id": {
+            "format": "uuid",
+            "title": "Target Page Id",
+            "type": "string"
+          },
+          "target_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Title"
+          },
+          "target_url": {
+            "title": "Target Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "rank",
+          "target_page_id",
+          "target_url",
+          "target_title",
+          "geography_label",
+          "reason_codes"
+        ],
+        "title": "PageModuleItemView",
+        "type": "object"
+      },
+      "PageModuleView": {
+        "additionalProperties": false,
+        "description": "A whole module as proposed for one page -- the unit an editor judges.\n\nA module is a PROPOSAL and nothing more. Unlike a ``LinkPlan`` it has no status, because\napproving one would mean composing it onto a page, and how that happens is still open\n(NEXT_STEPS item 12, the CMS surface). It is replaced wholesale by each run, like\n``opportunities``: there is no partial edit to preserve.",
+        "properties": {
+          "analysis_version": {
+            "title": "Analysis Version",
+            "type": "string"
+          },
+          "canonical_url": {
+            "title": "Canonical Url",
+            "type": "string"
+          },
+          "computed_at": {
+            "format": "date-time",
+            "title": "Computed At",
+            "type": "string"
+          },
+          "geography_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Geography Label"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PageModuleItemView"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/ModuleKind"
+          },
+          "market_core": {
+            "title": "Market Core",
+            "type": "string"
+          },
+          "page_id": {
+            "format": "uuid",
+            "title": "Page Id",
+            "type": "string"
+          },
+          "run_id": {
+            "format": "uuid",
+            "title": "Run Id",
+            "type": "string"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "required": [
+          "page_id",
+          "canonical_url",
+          "title",
+          "kind",
+          "market_core",
+          "geography_label",
+          "items",
+          "run_id",
+          "analysis_version",
+          "computed_at"
+        ],
+        "title": "PageModuleView",
         "type": "object"
       },
       "PageProtectionView": {
@@ -16731,6 +16898,116 @@
           }
         },
         "summary": "Retrieved candidates of a run or source page, kept or rejected.",
+        "tags": [
+          "recommendations"
+        ]
+      }
+    },
+    "/recommendations/modules": {
+      "get": {
+        "operationId": "listPageModules",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "maximum": 10000000,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "kind",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/ModuleKind"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Kind"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Page Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListResponse_PageModuleView_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not authenticated."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The role lacks the permission."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A parameter is invalid."
+          }
+        },
+        "summary": "Related-report modules proposed for a page, items in render order.",
         "tags": [
           "recommendations"
         ]

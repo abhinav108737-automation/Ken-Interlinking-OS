@@ -19,12 +19,16 @@ from ken_contracts.recommendations import (
     LinkPlan,
     LinkPlanDetail,
     LinkPlanStatus,
+    ModuleKind,
     OpportunityKind,
     OpportunityView,
+    PageModuleItemView,
+    PageModuleView,
     PlacementLocator,
     PlacementPreview,
     PlanNotFoundError,
     PlanTransitionView,
+    ReasonCode,
     RecommendationReader,
     RecommendationSummary,
     RetrievalChannel,
@@ -165,6 +169,33 @@ class FakeRecommendationReader:
         ]
         return _list(items, kwargs["limit"], kwargs["offset"])
 
+    async def list_modules(self, **kwargs: Any) -> ListResponse[PageModuleView]:
+        self.calls.append(("list_modules", kwargs))
+        items = [
+            PageModuleView(
+                page_id=SOURCE_ID,
+                canonical_url="https://site.test/reports/india-ev",
+                title="India Electric Vehicles Market",
+                kind=ModuleKind.REGIONAL_SIBLING,
+                market_core="electric vehicles",
+                geography_label="India",
+                items=[
+                    PageModuleItemView(
+                        rank=1,
+                        target_page_id=TARGET_ID,
+                        target_url="https://site.test/reports/germany-ev",
+                        target_title="Germany Electric Vehicles Market",
+                        geography_label="Germany",
+                        reason_codes=[ReasonCode.REGIONAL_SIBLING_MARKET],
+                    )
+                ],
+                run_id=RUN_ID,
+                analysis_version="tax1-alg2",
+                computed_at=NOW,
+            )
+        ]
+        return _list(items, kwargs["limit"], kwargs["offset"])
+
     async def get_summary(self) -> RecommendationSummary:
         self.calls.append(("get_summary", {}))
         return RecommendationSummary(
@@ -201,6 +232,7 @@ def test_the_fake_satisfies_the_protocol(reader: FakeRecommendationReader) -> No
         (f"/recommendations/{PLAN_ID}", LinkPlanDetail),
         ("/recommendations/candidates", ListResponse[CandidateView]),
         ("/recommendations/opportunities", ListResponse[OpportunityView]),
+        ("/recommendations/modules", ListResponse[PageModuleView]),
         ("/recommendations/summary", RecommendationSummary),
     ],
 )
@@ -315,6 +347,7 @@ def test_invalid_parameters_are_422_error_responses(client: TestClient, path: st
         f"/recommendations/{PLAN_ID}",
         "/recommendations/candidates",
         "/recommendations/opportunities",
+        "/recommendations/modules",
         "/recommendations/summary",
     ],
 )
@@ -349,6 +382,7 @@ def test_every_recommendation_route_is_get_only_except_the_review_actions() -> N
         "/recommendations/{plan_id}",
         "/recommendations/candidates",
         "/recommendations/opportunities",
+        "/recommendations/modules",
         "/recommendations/summary",
         "/recommendations/{plan_id}/target-options",
         "/recommendations/{plan_id}/review-actions",

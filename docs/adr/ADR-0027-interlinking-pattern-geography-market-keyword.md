@@ -249,6 +249,20 @@ ADR-0023. No second agent framework is introduced; LangGraph remains the supervi
   A new eval decision, `geography_refused`, keeps a §1 refusal from being scored as an anchor
   failure.
 
+- **Modules are persisted by the recommendation job, not by a job of their own** (migration 0012,
+  `page_modules` / `page_module_items`, 2026-11-09). A module and a plan are two surfaces for one
+  decision, so they are computed in the same run, from the world already in memory: no model call,
+  no extra query, no second analysis version to reconcile. A separate job could outlive the analysis
+  its plans were built from, and then the page would carry a module and an anchor that disagree.
+
+  The table deliberately has **no status column and no transition history**, unlike `link_plans`. A
+  plan has those because a reviewer approves one and the deployment service applies it; a module has
+  nowhere to be applied until the CMS surface is decided (NEXT_STEPS item 12), so a status would
+  record a decision that cannot be carried out. Modules are therefore derived state, replaced per
+  run like `opportunities`, and `page_module_items` cascades from its module — the items *are* the
+  module, and half a module is not a smaller module but a wrong one. `GET /recommendations/modules`
+  exposes them read-only, items in render order.
+
 ## Risks and limits
 
 - **Yield is far lower than this ADR first claimed** — see the correction in §5. Stage A produces 853

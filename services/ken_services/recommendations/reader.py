@@ -12,6 +12,8 @@ The API resolves this module by name (``ken_api.deps.RECOMMENDATION_READER``) an
 * **Candidates** are listed newest run first, then by total score desc (rejected last), then
   by row id. ``rejected=True`` lists rejected candidates only, ``False`` kept ones only.
 * **Opportunities** are listed by score desc, then canonical URL, then page id.
+* **Modules** are listed by canonical URL, then page id, with their items in rank order
+  (fetched in ONE query for the whole page of modules, never per module).
 * **Summary** counts plans by status, distinct sources / targets over ALL plans, and
   opportunities by kind; ``last_run_id`` is the newest recommendation job run; the policy
   versions are those of the configured policy files.
@@ -33,8 +35,10 @@ from ken_contracts.recommendations import (
     LinkPlan,
     LinkPlanDetail,
     LinkPlanStatus,
+    ModuleKind,
     OpportunityKind,
     OpportunityView,
+    PageModuleView,
     PlanNotFoundError,
     RankingPolicy,
     RecommendationPolicy,
@@ -43,7 +47,7 @@ from ken_contracts.recommendations import (
 from ken_core.config import REPO_ROOT, Settings
 from ken_core.db.models.intelligence import JobRun
 from ken_core.db.models.inventory import Page, PageVersion
-from ken_core.db.models.recommendations import LinkCandidate, Opportunity
+from ken_core.db.models.recommendations import LinkCandidate, Opportunity, PageModule
 from ken_core.db.models.recommendations import LinkPlan as LinkPlanRow
 from ken_core.db.repositories import recommendations as repo
 from ken_services.inventory.normalize import extract_blocks
@@ -250,6 +254,44 @@ class SqlRecommendationReader:
             ).all()
         return ListResponse[OpportunityView](
             items=[repo.opportunity_from_row(r[0], r[1], r[2]) for r in rows],
+            page=PageInfo(total=total, limit=limit, offset=offset),
+        )
+
+    # ---------------------------------------------------------------- modules
+    async def list_modules(
+        self,
+        *,
+        limit: int,
+        offset: int,
+        kind: ModuleKind | None = None,
+        page_id: uuid.UUID | None = None,
+    ) -> ListResponse[PageModuleView]:
+        _check_paging(limit, offset)
+        conditions: list[ColumnElement[bool]] = []
+        if kind is not None:
+            conditions.append(PageModule.kind == ModuleKind(kind).value)
+        if page_id is not None:
+            conditions.append(PageModule.page_id == page_id)
+        async with self._sessionmaker() as session:
+            total = int(
+                await session.scalar(
+                    select(func.count()).select_from(PageModule).where(*conditions)
+                )
+                or 0
+            )
+            rows = (
+                await session.execute(
+                    select(PageModule, Page.canonical_url, Page.title)
+                    .join(Page, Page.id == PageModule.page_id)
+                    .where(*conditions)
+                    .order_by(Page.canonical_url, PageModule.page_id)
+                    .limit(limit)
+                    .offset(offset)
+                )
+            ).all()
+            items = await repo.module_items(session, module_ids=[row[0].id for row in rows])
+        return ListResponse[PageModuleView](
+            items=[repo.module_from_rows(r[0], r[1], r[2], items[r[0].id]) for r in rows],
             page=PageInfo(total=total, limit=limit, offset=offset),
         )
 

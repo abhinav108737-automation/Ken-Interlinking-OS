@@ -39,11 +39,15 @@ from ken_contracts.recommendations import (
     CandidateView,
     LinkPlan,
     LinkPlanStatus,
+    ModuleKind,
     OpportunityKind,
     OpportunityView,
+    PageModuleItemView,
+    PageModuleView,
     PlacementLocator,
     PlacementPreview,
     PlanTransitionView,
+    ReasonCode,
     RetrievalChannel,
     ScoreBreakdown,
 )
@@ -56,6 +60,8 @@ from ken_core.db.models.recommendations import (
     LinkCandidate,
     LinkPlanTransition,
     Opportunity,
+    PageModule,
+    PageModuleItem,
 )
 from ken_core.db.models.recommendations import LinkPlan as LinkPlanRow
 from ken_core.db.models.review import ReviewActionRow
@@ -454,6 +460,125 @@ class NewOpportunity:
     kind: OpportunityKind
     score: float
     evidence: Mapping[str, Any]
+
+
+@dataclass(frozen=True, slots=True)
+class NewModuleItem:
+    rank: int
+    target_page_id: uuid.UUID
+    target_url: str
+    target_title: str | None
+    geography_label: str | None
+    reason_codes: Sequence[ReasonCode]
+
+
+@dataclass(frozen=True, slots=True)
+class NewModule:
+    page_id: uuid.UUID
+    page_version: int
+    kind: ModuleKind
+    market_core: str
+    geography_id: str | None
+    geography_label: str | None
+    analysis_version: str
+    items: Sequence[NewModuleItem]
+
+
+async def replace_modules(
+    session: AsyncSession,
+    *,
+    run_id: uuid.UUID,
+    modules: Sequence[NewModule],
+    computed_at: datetime,
+) -> int:
+    """Replace every module of the kinds present with this run's. Returns items written.
+
+    Only the kinds this run computed are cleared, so a future ``adjacent`` build cannot
+    silently delete the regional-sibling modules by being the more recent run. Items go with
+    their module through ``ON DELETE CASCADE``.
+    """
+    kinds = {ModuleKind(module.kind).value for module in modules}
+    if kinds:
+        await session.execute(delete(PageModule).where(PageModule.kind.in_(sorted(kinds))))
+    items = 0
+    for module in modules:
+        module_id = uuid.uuid4()
+        session.add(
+            PageModule(
+                id=module_id,
+                run_id=run_id,
+                page_id=module.page_id,
+                page_version=module.page_version,
+                kind=ModuleKind(module.kind).value,
+                market_core=module.market_core,
+                geography_id=module.geography_id,
+                geography_label=module.geography_label,
+                analysis_version=module.analysis_version,
+                computed_at=computed_at,
+            )
+        )
+        for item in module.items:
+            session.add(
+                PageModuleItem(
+                    module_id=module_id,
+                    rank=item.rank,
+                    target_page_id=item.target_page_id,
+                    target_url=item.target_url,
+                    target_title=item.target_title,
+                    geography_label=item.geography_label,
+                    reason_codes=[ReasonCode(code).value for code in item.reason_codes],
+                )
+            )
+            items += 1
+    await session.flush()
+    return items
+
+
+def module_from_rows(
+    row: PageModule,
+    canonical_url: str,
+    title: str | None,
+    items: Sequence[PageModuleItem],
+) -> PageModuleView:
+    return PageModuleView(
+        page_id=row.page_id,
+        canonical_url=canonical_url,
+        title=title,
+        kind=ModuleKind(row.kind),
+        market_core=row.market_core,
+        geography_label=row.geography_label,
+        items=[
+            PageModuleItemView(
+                rank=item.rank,
+                target_page_id=item.target_page_id,
+                target_url=item.target_url,
+                target_title=item.target_title,
+                geography_label=item.geography_label,
+                reason_codes=[ReasonCode(code) for code in item.reason_codes],
+            )
+            for item in sorted(items, key=lambda i: i.rank)
+        ],
+        run_id=row.run_id,
+        analysis_version=row.analysis_version,
+        computed_at=row.computed_at,
+    )
+
+
+async def module_items(
+    session: AsyncSession, *, module_ids: Sequence[uuid.UUID]
+) -> dict[uuid.UUID, list[PageModuleItem]]:
+    """Every item of the given modules, keyed by module id (one query, not N)."""
+    out: dict[uuid.UUID, list[PageModuleItem]] = {module_id: [] for module_id in module_ids}
+    if not module_ids:
+        return out
+    rows = await session.scalars(
+        select(PageModuleItem)
+        .where(PageModuleItem.module_id.in_(list(module_ids)))
+        .order_by(PageModuleItem.module_id, PageModuleItem.rank)
+    )
+    for item in rows.all():
+        out[item.module_id].append(item)
+    return out
 
 
 async def replace_opportunities(

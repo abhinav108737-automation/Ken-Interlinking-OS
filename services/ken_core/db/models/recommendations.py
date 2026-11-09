@@ -14,6 +14,10 @@
                            rejected (with the rejection code), for explainability and evals.
 ``opportunities``          derived page-level signals (orphan / under-linked / capacity);
                            replaced per run.
+``page_modules`` /         a related-reports module proposed for a page, and its ranked
+``page_module_items``      items (migration 0012). Derived and replaced per run like
+                           ``opportunities``, so no status and no transition history: see
+                           :class:`PageModule`.
 
 Migration 0004 also adds ``page_versions.search_vector`` (a STORED generated
 ``tsvector`` with a GIN index) for the lexical retrieval channel -- built-in
@@ -49,6 +53,7 @@ from ken_contracts.recommendations import (
     OPEN_STATUSES,
     CandidateRejection,
     LinkPlanStatus,
+    ModuleKind,
     OpportunityKind,
 )
 from ken_core.db.base import Base
@@ -248,6 +253,71 @@ class LinkCandidate(Base):
         CheckConstraint("jsonb_typeof(attribution) = 'array'", name="attribution_array"),
         CheckConstraint("jsonb_typeof(graph_signals) = 'object'", name="graph_signals_object"),
         Index("ix_link_candidates_source_page_id", "source_page_id"),
+    )
+
+
+class PageModule(Base):
+    """A related-reports module proposed for one page (migration 0012, ADR-0027 §1b).
+
+    DERIVED and REPLACED PER RUN, like ``opportunities``, which is why it carries no status
+    and no transition history: there is no reviewer edit to preserve, and approving a module
+    would mean composing it onto a page -- a decision that waits on the CMS surface
+    (NEXT_STEPS item 12). Items cascade from the module because they are the module; half a
+    module is not a smaller module, it is a wrong one.
+    """
+
+    __tablename__ = "page_modules"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    run_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("job_runs.id", ondelete="RESTRICT"), nullable=False
+    )
+    page_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("pages.id", ondelete="RESTRICT"), nullable=False
+    )
+    page_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    kind: Mapped[str] = mapped_column(Text, nullable=False)
+    market_core: Mapped[str] = mapped_column(Text, nullable=False)
+    geography_id: Mapped[str | None] = mapped_column(Text, nullable=True)
+    geography_label: Mapped[str | None] = mapped_column(Text, nullable=True)
+    analysis_version: Mapped[str] = mapped_column(Text, nullable=False)
+    computed_at: Mapped[datetime] = _ts(default_now=True)
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["page_id", "page_version"],
+            ["page_versions.page_id", "page_versions.version"],
+            ondelete="RESTRICT",
+        ),
+        UniqueConstraint("page_id", "kind"),
+        CheckConstraint(_one_of("kind", ModuleKind), name="kind_valid"),
+        CheckConstraint("length(market_core) > 0", name="market_core_present"),
+        Index("ix_page_modules_run_id", "run_id"),
+    )
+
+
+class PageModuleItem(Base):
+    __tablename__ = "page_module_items"
+
+    id: Mapped[int] = mapped_column(BigInteger, Identity(always=True), primary_key=True)
+    module_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("page_modules.id", ondelete="CASCADE"), nullable=False
+    )
+    rank: Mapped[int] = mapped_column(Integer, nullable=False)
+    target_page_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("pages.id", ondelete="RESTRICT"), nullable=False
+    )
+    target_url: Mapped[str] = mapped_column(Text, nullable=False)
+    target_title: Mapped[str | None] = mapped_column(Text, nullable=True)
+    geography_label: Mapped[str | None] = mapped_column(Text, nullable=True)
+    reason_codes: Mapped[list[str]] = _jsonb("[]")
+
+    __table_args__ = (
+        UniqueConstraint("module_id", "rank"),
+        UniqueConstraint("module_id", "target_page_id"),
+        CheckConstraint("rank >= 1", name="rank_positive"),
+        CheckConstraint("jsonb_typeof(reason_codes) = 'array'", name="reason_codes_array"),
+        Index("ix_page_module_items_target_page_id", "target_page_id"),
     )
 
 

@@ -1,4 +1,4 @@
-"""Phase 3 recommendation read API: link plans, candidates, opportunities.
+"""Phase 3 recommendation read API: link plans, candidates, opportunities, modules.
 
 READ-ONLY. Recommendation runs start from the command line (``make recommend``);
 approving, rejecting and editing plans is the Phase 5 review API
@@ -24,8 +24,10 @@ from ken_contracts.recommendations import (
     LinkPlan,
     LinkPlanDetail,
     LinkPlanStatus,
+    ModuleKind,
     OpportunityKind,
     OpportunityView,
+    PageModuleView,
     RecommendationSummary,
 )
 
@@ -94,6 +96,23 @@ async def list_opportunities(
     kind: OpportunityKind | None = None,
 ) -> ListResponse[OpportunityView]:
     return await reader.list_opportunities(limit=limit, offset=offset, kind=kind)
+
+
+@router.get(
+    "/modules",
+    operation_id="listPageModules",
+    summary="Related-report modules proposed for a page, items in render order.",
+    response_model=ListResponse[PageModuleView],
+    responses=_ERRORS,
+)
+async def list_modules(
+    reader: RecommendationReaderDep,
+    limit: Limit = 50,
+    offset: Offset = 0,
+    kind: ModuleKind | None = None,
+    page_id: UUID | None = None,
+) -> ListResponse[PageModuleView]:
+    return await reader.list_modules(limit=limit, offset=offset, kind=kind, page_id=page_id)
 
 
 @router.get(

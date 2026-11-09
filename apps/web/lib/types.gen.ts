@@ -1008,6 +1008,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/recommendations/modules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Related-report modules proposed for a page, items in render order. */
+        get: operations["listPageModules"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/recommendations/opportunities": {
         parameters: {
             query?: never;
@@ -1878,7 +1895,7 @@ export interface components {
          *     FINAL score), then selection caps (density, per-source, diversity).
          * @enum {string}
          */
-        CandidateRejection: "self_link" | "source_protected" | "target_protected" | "experiment_locked" | "source_ineligible" | "target_ineligible" | "already_linked" | "duplicate_recommendation" | "previously_rejected" | "target_excluded" | "page_type_incompatible" | "below_min_relevance" | "no_natural_anchor" | "below_min_score" | "link_density_exceeded" | "per_source_limit" | "diversity_limit";
+        CandidateRejection: "self_link" | "source_protected" | "target_protected" | "experiment_locked" | "source_ineligible" | "target_ineligible" | "already_linked" | "duplicate_recommendation" | "previously_rejected" | "target_excluded" | "page_type_incompatible" | "geography_mismatch" | "market_unrelated" | "below_min_relevance" | "no_market_keyword_anchor" | "no_natural_anchor" | "below_min_score" | "link_density_exceeded" | "per_source_limit" | "diversity_limit";
         /**
          * CandidateView
          * @description A retrieved candidate, kept or rejected, for explainability and evals.
@@ -4010,6 +4027,12 @@ export interface components {
             items: components["schemas"]["OpportunityView"][];
             page: components["schemas"]["PageInfo"];
         };
+        /** ListResponse[PageModuleView] */
+        ListResponse_PageModuleView_: {
+            /** Items */
+            items: components["schemas"]["PageModuleView"][];
+            page: components["schemas"]["PageInfo"];
+        };
         /** ListResponse[PageRelationshipView] */
         ListResponse_PageRelationshipView_: {
             /** Items */
@@ -4133,6 +4156,16 @@ export interface components {
          * @enum {string}
          */
         ModelRole: "fast" | "reasoning" | "embedding";
+        /**
+         * ModuleKind
+         * @description What relation a related-reports module expresses. Additive (ADR-0027 §1b/§1c).
+         *
+         *     One member today, deliberately. ``adjacent`` -- "a reader of an EV report wants charging
+         *     stations and batteries" -- needs the typed market graph the taxonomy does not declare
+         *     (NEXT_STEPS items 27 and 32), so it is absent rather than guessed at.
+         * @enum {string}
+         */
+        ModuleKind: "regional_sibling";
         NoteText: string;
         /** Format: uuid */
         OperationId: string;
@@ -4470,6 +4503,66 @@ export interface components {
             relationship_counts: {
                 [key: string]: number;
             };
+            /** Title */
+            title: string | null;
+        };
+        /**
+         * PageModuleItemView
+         * @description One entry of a module, in the order it would render.
+         */
+        PageModuleItemView: {
+            /** Geography Label */
+            geography_label: string | null;
+            /** Rank */
+            rank: number;
+            /** Reason Codes */
+            reason_codes: components["schemas"]["ReasonCode"][];
+            /**
+             * Target Page Id
+             * Format: uuid
+             */
+            target_page_id: string;
+            /** Target Title */
+            target_title: string | null;
+            /** Target Url */
+            target_url: string;
+        };
+        /**
+         * PageModuleView
+         * @description A whole module as proposed for one page -- the unit an editor judges.
+         *
+         *     A module is a PROPOSAL and nothing more. Unlike a ``LinkPlan`` it has no status, because
+         *     approving one would mean composing it onto a page, and how that happens is still open
+         *     (NEXT_STEPS item 12, the CMS surface). It is replaced wholesale by each run, like
+         *     ``opportunities``: there is no partial edit to preserve.
+         */
+        PageModuleView: {
+            /** Analysis Version */
+            analysis_version: string;
+            /** Canonical Url */
+            canonical_url: string;
+            /**
+             * Computed At
+             * Format: date-time
+             */
+            computed_at: string;
+            /** Geography Label */
+            geography_label: string | null;
+            /** Items */
+            items: components["schemas"]["PageModuleItemView"][];
+            kind: components["schemas"]["ModuleKind"];
+            /** Market Core */
+            market_core: string;
+            /**
+             * Page Id
+             * Format: uuid
+             */
+            page_id: string;
+            /**
+             * Run Id
+             * Format: uuid
+             */
+            run_id: string;
             /** Title */
             title: string | null;
         };
@@ -5403,7 +5496,7 @@ export interface components {
          * @description Why a plan exists: structured, explainable, never free-form model text.
          * @enum {string}
          */
-        ReasonCode: "semantically_similar" | "lexical_overlap" | "same_market" | "parent_market" | "submarket" | "related_market" | "supply_chain" | "complementary_market" | "industry_adjacency" | "same_geography" | "regional_context" | "high_commercial_value" | "underlinked_target" | "orphan_target" | "anchor_matches_target_topic" | "anchor_matches_target_title";
+        ReasonCode: "semantically_similar" | "lexical_overlap" | "same_market" | "parent_market" | "submarket" | "related_market" | "supply_chain" | "complementary_market" | "industry_adjacency" | "same_geography" | "regional_context" | "global_target" | "cross_geography_supported" | "high_commercial_value" | "underlinked_target" | "orphan_target" | "anchor_matches_target_topic" | "anchor_matches_target_title" | "anchor_is_target_market_keyword" | "anchor_names_target_geography" | "regional_sibling_market";
         /**
          * RecommendationSummary
          * @description Counts for the dashboard.
@@ -9436,6 +9529,58 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ListResponse_CandidateView_"];
+                };
+            };
+            /** @description Not authenticated. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The role lacks the permission. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A parameter is invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    listPageModules: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+                kind?: components["schemas"]["ModuleKind"] | null;
+                page_id?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListResponse_PageModuleView_"];
                 };
             };
             /** @description Not authenticated. */

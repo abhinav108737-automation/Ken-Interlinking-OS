@@ -175,6 +175,44 @@ CORPUS: Final[dict[str, tuple[str, tuple[str, ...]]]] = {
 }
 
 
+GERMANY_EV: Final = "/reports/germany-electric-vehicles-market"
+GLOBAL_EV: Final = "/reports/global-electric-vehicles-market"
+SIBLING_PARAS: Final = (
+    OUTLOOK,
+    _p(
+        "Electric vehicle registrations keep rising as electric cars reach price parity with "
+        "petrol models and charging networks mature.",
+        "Fleet buyers are the fastest moving segment of the electric vehicles market.",
+    ),
+    _p(
+        "Incentives, tightening emissions rules and falling battery prices all point the same "
+        "way, and manufacturers have moved their launch plans forward accordingly.",
+        "Dealers report longer waiting lists for electric models than for petrol equivalents.",
+    ),
+    _p(
+        "Charging remains the constraint most often named by buyers who have not yet switched, "
+        "and public network operators are expanding to answer it.",
+    ),
+    _p("The electric vehicle market is expected to keep growing through 2030."),
+)
+
+
+def sibling_records() -> list[dict[str, Any]]:
+    """Two EV reports in OTHER geographies, for the related-reports module.
+
+    The rest of the corpus is India-only, which is what inline anchors are tested on. A
+    module needs the opposite shape -- the same market core in a different geography -- and
+    these are the smallest pair that provides it: a country sibling and a global one, so the
+    global tier can be told apart from the rest.
+    """
+    return [
+        record(GERMANY_EV, title="Germany Electric Vehicles Market Report",
+               paragraphs=SIBLING_PARAS),
+        record(GLOBAL_EV, title="Global Electric Vehicles Market Report",
+               paragraphs=SIBLING_PARAS),
+    ]  # fmt: skip
+
+
 def body_html(title: str, paragraphs: Sequence[str]) -> str:
     return f"<main><h1>{title}</h1>" + "".join(paragraphs) + "</main>"
 

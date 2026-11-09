@@ -91,6 +91,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from ken_contracts.events import EventEnvelope, EventName
 from ken_contracts.intelligence import (
+    GeographyNode,
     Intent,
     LinkEligibility,
     PageAnalysis,
@@ -108,6 +109,7 @@ from ken_contracts.recommendations import (
     LinkPlan,
     LinkPlanEvent,
     LinkPlanStatus,
+    ModuleKind,
     OpportunityKind,
     PlanFreshness,
     RankingPolicy,
@@ -145,6 +147,12 @@ from ken_services.recommendations.gates import (
     geography_gate,
     geography_terms,
     market_gate,
+    primary_geography,
+)
+from ken_services.recommendations.modules import (
+    ModuleCandidate,
+    ModuleSource,
+    regional_sibling_module,
 )
 from ken_services.recommendations.placement import (
     MARKET_WORD,
@@ -212,6 +220,8 @@ RECOMMENDATION_COUNTERS: Final = (
     "plans_expired",
     "plans_invalidated",
     "opportunities",
+    "modules",
+    "module_items",
     "errors",
 )
 _R = CandidateRejection
@@ -431,6 +441,11 @@ class _Recommend:
             await self._opportunities(world)
         except Exception as exc:
             self._error("opportunities_failed", exc)
+        await job.flush()
+        try:
+            await self._modules(world)
+        except Exception as exc:
+            self._error("modules_failed", exc)
         await job.flush()
         clean = job.counters.get("errors", 0) == 0
         return RunStatus.SUCCEEDED if clean else RunStatus.COMPLETED_WITH_ERRORS
@@ -1003,6 +1018,95 @@ class _Recommend:
                     computed_at=self.job.clock(),
                 ),
             )
+
+    async def _modules(self, world: _World) -> None:
+        """Replace the regional-sibling modules from current state (ADR-0027 §1b).
+
+        Runs in the SAME job as the plans, on the world already in memory, because a module
+        and a plan must never disagree about the corpus: they are two surfaces for one
+        decision, and a module built by a separate job could outlive the analysis the plans
+        were built from. No model call, no extra database read and no embedding lookup --
+        ranking inside a tier uses signals the run already holds.
+
+        Cost is linear: the market cores are grouped once, and each page only looks at its
+        own core's group.
+        """
+        cores: dict[str, list[uuid.UUID]] = defaultdict(list)
+        pages: dict[uuid.UUID, tuple[str, GeographyNode | None]] = {}
+        for pid in sorted(world.facts):
+            facts = world.facts[pid]
+            if facts.analysis is None or facts.analysis.analysis_version != world.av:
+                continue
+            core = market_core(
+                target_url=facts.canonical_url, target_title=facts.title, taxonomy=self.taxonomy
+            )
+            if core is None:
+                continue
+            pages[pid] = (core, primary_geography(facts.analysis, taxonomy=self.taxonomy))
+            if world.eligibility[pid].as_target:
+                cores[core].append(pid)
+
+        modules: list[repo.NewModule] = []
+        for pid, (core, geography) in pages.items():
+            if not world.eligibility[pid].as_source:
+                continue
+            items = regional_sibling_module(
+                ModuleSource(page_id=pid, market_core=core, geography=geography),
+                (self._module_candidate(world, other, pages) for other in cores[core]),
+                taxonomy=self.taxonomy,
+            )
+            if not items:
+                continue
+            modules.append(
+                repo.NewModule(
+                    page_id=pid,
+                    page_version=world.facts[pid].current_version,
+                    kind=ModuleKind.REGIONAL_SIBLING,
+                    market_core=core,
+                    geography_id=None if geography is None else geography.id,
+                    geography_label=None if geography is None else geography.label,
+                    analysis_version=world.av,
+                    items=[
+                        repo.NewModuleItem(
+                            rank=item.rank,
+                            target_page_id=item.page_id,
+                            target_url=item.url,
+                            target_title=item.title,
+                            geography_label=item.geography_label,
+                            reason_codes=item.reason_codes,
+                        )
+                        for item in items
+                    ],
+                )
+            )
+        async with self.job.transaction() as tx:
+            written = await repo.replace_modules(
+                tx.session,
+                run_id=self.job.run_id,
+                modules=modules,
+                computed_at=self.job.clock(),
+            )
+            tx.increment("modules", len(modules))
+            tx.increment("module_items", written)
+
+    def _module_candidate(
+        self,
+        world: _World,
+        page_id: uuid.UUID,
+        pages: Mapping[uuid.UUID, tuple[str, GeographyNode | None]],
+    ) -> ModuleCandidate:
+        facts = world.facts[page_id]
+        return ModuleCandidate(
+            page_id=page_id,
+            url=facts.canonical_url,
+            title=facts.title,
+            market_core=pages[page_id][0],
+            geography=pages[page_id][1],
+            inbound_links=world.inbound.get(page_id, 0),
+            commercial_importance=0
+            if facts.analysis is None
+            else facts.analysis.commercial_importance,
+        )
 
 
 # --------------------------------------------------------------------------- #
