@@ -92,6 +92,7 @@ make dev-api                       # terminal 1: http://127.0.0.1:8000/ready
 make dev-web                       # terminal 2: http://127.0.0.1:3000
 make ingest-file FILE=tests/fixtures/demo/research_site.jsonl
 make analyze && make recommend && make agents
+make modules                       # rebuild the related-report modules alone (seconds)
 make user-create USERNAME=you ROLE=operator_admin
 make verify                        # the full quality gate
 ```
@@ -103,6 +104,7 @@ make verify                        # the full quality gate
 | `http://127.0.0.1:3000/inventory` | Every page, its versions and the links it already contains |
 | `http://127.0.0.1:3000/intelligence` | Page type, market, geography, relationships, eligibility |
 | `http://127.0.0.1:3000/recommendations` | Proposed link plans with rationale, score breakdown and before/after preview |
+| `http://127.0.0.1:3000/recommendations/modules` | Related-report modules: the same market in every other geography, ranked |
 | `http://127.0.0.1:3000/agents` | Every agent run, step and model call |
 | `http://127.0.0.1:3000/jobs` | Job runs and their counters |
 | `http://127.0.0.1:8000/docs` | Interactive API reference |
