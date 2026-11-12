@@ -242,7 +242,9 @@ class Settings(BaseSettings):
     # production adapter for TRD section 13, inert until explicitly enabled: every call is
     # refused unless the base URL is loopback or KEN_CMS_ALLOW_REMOTE=true, and writes also
     # need KEN_CMS_WRITES_ENABLED=true. Pointing it at the real Ken CMS is an ASK action.
-    cms_provider: Literal["mock", "simulated", "http"] = "mock"
+    # "kenconsulting" is the real CMS's own dialect (ADR-0028): same gating, two keys, and
+    # the differences from TRD section 13 absorbed inside the adapter.
+    cms_provider: Literal["mock", "simulated", "http", "kenconsulting"] = "mock"
     cms_sim_database_url: str = Field(
         default="postgresql+asyncpg://ken:ken@localhost:5433/ken_cms_sim",
         description="The simulated CMS's OWN database (project-local, disposable).",
@@ -250,6 +252,14 @@ class Settings(BaseSettings):
     cms_base_url: str | None = Field(default=None, description="HttpCMSProvider base URL.")
     cms_token: SecretStr | None = Field(
         default=None, description="HttpCMSProvider Bearer token. Never logged."
+    )
+    # The kenconsulting dialect issues two keys. The read key is enough to read and to
+    # validate nothing-is-written; the write key is only ever sent once writes are enabled.
+    cms_read_token: SecretStr | None = Field(
+        default=None, description="KenConsultingCMSProvider read key. Never logged."
+    )
+    cms_write_token: SecretStr | None = Field(
+        default=None, description="KenConsultingCMSProvider write key. Never logged."
     )
     cms_writes_enabled: bool = Field(
         default=False, description="HttpCMSProvider: allow apply/rollback (ASK to enable)."

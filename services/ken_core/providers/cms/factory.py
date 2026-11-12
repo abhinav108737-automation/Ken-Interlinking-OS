@@ -9,7 +9,9 @@ this. ``KEN_CMS_PROVIDER`` (ADR-0014 s4):
 * ``simulated`` -- :class:`SimulatedCMSProvider` over its own database
   (``KEN_CMS_SIM_DATABASE_URL``; ``make cms-sim-seed`` first);
 * ``http`` -- :class:`HttpCMSProvider` for TRD section 13, gated (loopback unless
-  ``KEN_CMS_ALLOW_REMOTE``; writes need ``KEN_CMS_WRITES_ENABLED``).
+  ``KEN_CMS_ALLOW_REMOTE``; writes need ``KEN_CMS_WRITES_ENABLED``);
+* ``kenconsulting`` -- :class:`KenConsultingCMSProvider`, the real CMS's dialect (ADR-0028),
+  same gating, with ``KEN_CMS_READ_TOKEN`` and ``KEN_CMS_WRITE_TOKEN`` in place of one token.
 
 This is the composition root of the HTML engine: ``ken_core`` never imports ``ken_services``
 statically, so the engine (``ken_services.deployment.changes.ChangeEngine`` over
@@ -27,6 +29,7 @@ from ken_core.config import Settings
 from ken_core.logging import get_logger
 from ken_core.providers.cms.html_engine import LinkHtmlEngine
 from ken_core.providers.cms.http import HttpCMSProvider
+from ken_core.providers.cms.kenconsulting import KenConsultingCMSProvider
 from ken_core.providers.cms.mock import MockCMSProvider
 from ken_core.providers.cms.seed import seed_pages
 from ken_core.providers.cms.simulated import SimulatedCMSProvider
@@ -73,6 +76,15 @@ def build_cms_provider(settings: Settings) -> CMSProvider:
             return HttpCMSProvider(
                 base_url=settings.cms_base_url,
                 token=settings.cms_token,
+                writes_enabled=settings.cms_writes_enabled,
+                allow_remote=settings.cms_allow_remote,
+                timeout_s=settings.cms_timeout_s,
+            )
+        case "kenconsulting":
+            return KenConsultingCMSProvider(
+                base_url=settings.cms_base_url,
+                read_token=settings.cms_read_token,
+                write_token=settings.cms_write_token,
                 writes_enabled=settings.cms_writes_enabled,
                 allow_remote=settings.cms_allow_remote,
                 timeout_s=settings.cms_timeout_s,
