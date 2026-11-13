@@ -142,13 +142,25 @@ _DECISION_CODES: Final[Mapping[GeographyDecision, tuple[ReasonCode, ...]]] = {
 _LABELLED: Final[frozenset[GeographyDecision]] = frozenset(
     {
         GeographyDecision.SOURCE_REGION_CONTAINS_TARGET,
+        GeographyDecision.TARGET_REGION_CONTAINS_SOURCE,
         GeographyDecision.CROSS_GEOGRAPHY_MENTIONED,
         GeographyDecision.GLOBAL_SOURCE_MENTIONED,
         GeographyDecision.REGIONAL_SIBLING,
     }
 )
-"""Decisions whose target is NARROWER than, or outside, the source's geography: the anchor
-must name the target's geography.
+"""Decisions whose target is not the source's own geography: the anchor must name the
+target's geography.
+
+:attr:`GeographyDecision.TARGET_REGION_CONTAINS_SOURCE` was EXEMPT until 2026-11-12 (the
+ADR-0027 §4 containment exemption, taken 2026-10-31 on the reasoning that a GCC report
+genuinely serves a UAE reader). The owner revoked it after reading real output: a France
+cybersecurity page linked to the Europe report on the bare anchor "cybersecurity market",
+and a bare market keyword reads as the WORLD market, not as whichever region happens to
+contain the reader. Measured on the 915-plan run of 2026-11-09, 218 plans were in this
+class, and in 212 of them the word immediately before the anchor named a DIFFERENT, narrower
+geography -- "the India pet food market" pointing at the Asia Pacific report. The containing
+region being a superset of the reader's geography does not rescue that: the sentence still
+promises India and the link still delivers Asia Pacific.
 
 For :attr:`GeographyDecision.REGIONAL_SIBLING` this is the ONLY protection, and it is what
 makes the ADR-0027 §1 amendment safe. The owner's Brazil case: a page whose text reads

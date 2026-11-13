@@ -152,8 +152,13 @@ def test_a_mention_must_be_a_whole_phrase_not_a_substring() -> None:
 
 def test_the_anchor_must_name_the_target_geography_only_when_it_differs() -> None:
     tax = taxonomy()
+    # TARGET_REGION_CONTAINS_SOURCE joined this set on 2026-11-12, when the owner revoked the
+    # ADR-0027 §4 containment exemption: a bare market keyword reads as the WORLD market, so
+    # "France ... cybersecurity market" pointing at the Europe report is a broken promise even
+    # though Europe contains France.
     labelled = {
         D.SOURCE_REGION_CONTAINS_TARGET,
+        D.TARGET_REGION_CONTAINS_SOURCE,
         D.CROSS_GEOGRAPHY_MENTIONED,
         D.GLOBAL_SOURCE_MENTIONED,
     }
