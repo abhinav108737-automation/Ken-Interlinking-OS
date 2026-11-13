@@ -105,31 +105,53 @@ def request(*changes: LinkChange, dry_run: bool = False) -> LinkChangeRequest:
     )
 
 
-def field_response(version: str = VERSION) -> httpx.Response:
-    return httpx.Response(
-        200, json={"version": version, "html": "<p>Charging at fleet depots is growing.</p>"}
-    )
+def field_response(version: str = VERSION, *, protected: bool = False) -> httpx.Response:
+    """``GET /pages/<slug>:<field>/``, RECORDED from the live API on 2026-11-13.
 
-
-def report_response(*, protected: bool = False) -> httpx.Response:
+    Six keys, ``protected`` among them, which is why reading a field is one call and not two.
+    """
     return httpx.Response(
         200,
         json={
+            "page_id": PAGE,
+            "url": f"https://thekenconsulting.com/industry-reports/{SLUG}",
+            "title": "Thailand EV Charging Infrastructure and Smart Energy Mobility "
+            "Ecosystem Market Assessment and Outlook to 2030",
+            "body_html": "<h1>CHAPTER 1 - Market Overview</h1><p>Charging at fleet depots "
+            "is growing.</p>",
+            "version": version,
             "protected": protected,
-            "title": "Thailand EV Charging Market",
-            "url": f"/{SLUG}",
-            "related": [],
         },
     )
 
 
 def read_handler(*, protected: bool = False, version: str = VERSION) -> Handler:
-    def handler(r: httpx.Request) -> httpx.Response:
-        if r.url.path.startswith("/internal/reports/"):
-            return report_response(protected=protected)
-        return field_response(version)
+    def handler(_r: httpx.Request) -> httpx.Response:
+        return field_response(version, protected=protected)
 
     return handler
+
+
+def validate_response(*results: dict[str, object]) -> httpx.Response:
+    """``POST /link-changes/validate/``, RECORDED from the live API on 2026-11-13.
+
+    ``valid`` is a COUNT, not a boolean. Reading it as one is the defect this fixture exists
+    to prevent.
+    """
+    invalid = sum(1 for r in results if not r.get("valid"))
+    return httpx.Response(
+        200,
+        json={
+            "total": len(results),
+            "valid": len(results) - invalid,
+            "invalid": invalid,
+            "results": [{"index": i, "page_id": PAGE, **r} for i, r in enumerate(results)],
+        },
+    )
+
+
+def all_valid(n: int = 1) -> Handler:
+    return lambda _r: validate_response(*({"valid": True},) * n)
 
 
 # ------------------------------------------------------------------ gating
@@ -155,7 +177,7 @@ async def test_a_write_is_refused_while_writes_are_disabled() -> None:
 async def test_validate_needs_the_write_key_but_not_writes_enabled() -> None:
     """Their validate endpoint changes nothing and is authorised with the write key. A dry run
     must therefore work with writes still switched off -- that is what a dry run is for."""
-    rec = Recorder(lambda _r: httpx.Response(200, json={"valid": True}))
+    rec = Recorder(all_valid())
     cms = provider(rec, writes_enabled=False)
     result = await cms.validate_link_changes(request=request())
     assert result.valid
@@ -186,7 +208,7 @@ async def test_every_path_ends_in_a_slash() -> None:
     cms = provider(rec)
     await cms.get_page(page_id=PAGE)
 
-    rec.handler = lambda _r: httpx.Response(200, json={"valid": True})
+    rec.handler = all_valid()
     await cms.validate_link_changes(request=request())
 
     rec.handler = lambda r: (
@@ -213,14 +235,15 @@ async def test_a_redirect_is_reported_as_the_trailing_slash_problem_it_is() -> N
 
 # -------------------------------------------------------------- reading
 @pytest.mark.asyncio
-async def test_get_page_reads_the_field_and_the_report() -> None:
+async def test_get_page_is_a_single_call_carrying_protected() -> None:
+    """The live API answers ``protected`` on the field itself, so one read is enough."""
     rec = Recorder(read_handler(protected=True))
     page = await provider(rec).get_page(page_id=PAGE)
     assert page.page_id == PAGE
     assert page.version == VERSION
-    assert page.protected is True, "protected lives on the report, not the field"
+    assert page.protected is True
     assert page.metadata == {"slug": SLUG, "field": FIELD}
-    assert rec.paths() == [f"/internal/pages/{PAGE}/", f"/internal/reports/{SLUG}/"]
+    assert rec.paths() == [f"/internal/pages/{PAGE}/"]
 
 
 @pytest.mark.asyncio
@@ -240,22 +263,19 @@ async def test_a_field_payload_without_recognised_html_fails_loudly() -> None:
 
 
 @pytest.mark.asyncio
-async def test_a_report_without_the_protected_flag_fails_loudly() -> None:
+async def test_a_field_without_the_protected_flag_fails_loudly() -> None:
     """A page whose protection we could not read is not a page we may edit."""
-
-    def handler(r: httpx.Request) -> httpx.Response:
-        if r.url.path.startswith("/internal/reports/"):
-            return httpx.Response(200, json={"title": "x"})
-        return field_response()
-
+    rec = Recorder(
+        lambda _r: httpx.Response(200, json={"version": VERSION, "body_html": "<p>x</p>"})
+    )
     with pytest.raises(CMSUnavailableError, match="protected"):
-        await provider(Recorder(handler)).get_page(page_id=PAGE)
+        await provider(rec).get_page(page_id=PAGE)
 
 
 # ------------------------------------------------------------- validate
 @pytest.mark.asyncio
 async def test_validate_sends_their_changes_array_with_a_one_based_occurrence() -> None:
-    rec = Recorder(lambda _r: httpx.Response(200, json={"valid": True}))
+    rec = Recorder(all_valid())
     req = request(change(occurrence_index=0), change(occurrence_index=2))
     await provider(rec).validate_link_changes(request=req)
 
@@ -278,19 +298,43 @@ async def test_a_refusal_becomes_issues_not_an_exception() -> None:
 
 
 @pytest.mark.asyncio
-async def test_a_valid_result_still_surfaces_their_warnings() -> None:
+async def test_each_refusal_is_mapped_back_to_the_change_it_belongs_to() -> None:
+    """Their ``index`` is the only link between a refusal and OUR change. Without the mapping
+    a reviewer is told the page failed, not which of their links did."""
+    first, second, third = change(), change(anchor="battery swapping"), change()
     rec = Recorder(
-        lambda _r: httpx.Response(200, json={"valid": True, "warnings": ["already_linked"]})
+        lambda _r: validate_response(
+            {"valid": True},
+            {
+                "valid": False,
+                "error": "anchor_not_found",
+                "message": "anchor_text occurrence 1 not found in a linkable text node",
+            },
+            {"valid": False, "error": "already_linked", "message": "already linked"},
+        )
     )
-    result = await provider(rec).validate_link_changes(request=request())
+    result = await provider(rec).validate_link_changes(request=request(first, second, third))
+    assert result.valid is False
+    assert [(i.code, i.change_id) for i in result.issues] == [
+        ("anchor_not_found", second.change_id),
+        ("already_linked", third.change_id),
+    ]
+
+
+@pytest.mark.asyncio
+async def test_all_valid_is_a_count_of_zero_invalid_not_a_boolean() -> None:
+    """``valid`` at the top level is a COUNT. Reading it as a bool would make a fully valid
+    batch of two look false-y in some shapes and truthy in others."""
+    rec = Recorder(all_valid(2))
+    result = await provider(rec).validate_link_changes(request=request(change(), change()))
     assert result.valid is True
-    assert [(i.code, i.severity) for i in result.issues] == [("already_linked", "warning")]
+    assert result.issues == []
 
 
 # ------------------------------------------------------------------ href
 @pytest.mark.asyncio
 async def test_an_absolute_site_url_is_reduced_to_a_path() -> None:
-    rec = Recorder(lambda _r: httpx.Response(200, json={"valid": True}))
+    rec = Recorder(all_valid())
     req = request(change(href=f"https://www.kenresearch.com{TARGET}"))
     await provider(rec).validate_link_changes(request=req)
     assert rec.bodies()[0]["changes"][0]["link"]["href"] == TARGET
@@ -309,7 +353,7 @@ async def test_an_offsite_url_is_refused_before_any_io() -> None:
 # ----------------------------------------------------------------- apply
 @pytest.mark.asyncio
 async def test_a_dry_run_never_reaches_the_apply_endpoint() -> None:
-    rec = Recorder(lambda _r: httpx.Response(200, json={"valid": True}))
+    rec = Recorder(all_valid())
     result = await provider(rec).apply_link_changes(request=request(dry_run=True))
     assert result.status == "no_op"
     assert rec.paths() == ["/internal/link-changes/validate/"]

@@ -303,10 +303,12 @@ class KenConsultingCMSProvider:
 
     # ------------------------------------------------------------- protocol
     async def get_page(self, *, page_id: str) -> CMSPage:
-        """One field, plus the report's ``protected`` flag and title.
+        """One field, in ONE call.
 
-        Two reads: ``protected`` lives on the report, not the field, and a page whose protection
-        we could not read is not a page we may edit.
+        VERIFIED against the live API 2026-11-13: ``GET /pages/<slug>:<field>/`` answers
+        ``page_id``, ``url``, ``title``, ``body_html``, ``version`` and ``protected`` together,
+        so the report does not need a second read. ``protected`` being on the field response is
+        what makes that safe -- a page whose protection we could not read is not editable.
         """
         response = await self._call("GET", self._page_path(page_id), write=False)
         if response.status_code == 404:
@@ -323,16 +325,16 @@ class KenConsultingCMSProvider:
                 "CMS field payload carries no 'version' or no recognised HTML key"
             )
 
+        if "protected" not in field:
+            raise CMSUnavailableError("CMS field payload carries no 'protected' flag")
         slug = self._report_slug(page_id)
-        report = await self._report(slug)
         return CMSPage(
-            page_id=page_id,
-            url=str(report.get("url") or f"/{slug}"),
-            title=str(report.get("title") or field.get("title") or slug),
+            page_id=str(field.get("page_id") or page_id),
+            url=str(field.get("url") or f"/{slug}"),
+            title=str(field.get("title") or slug),
             body_html=html,
             version=version,
-            canonical_url=report.get("canonical_url") if isinstance(report, dict) else None,
-            protected=bool(report.get("protected", False)),
+            protected=bool(field["protected"]),
             metadata={"slug": slug, "field": page_id.partition(":")[2]},
         )
 
@@ -373,18 +375,48 @@ class KenConsultingCMSProvider:
             return ValidationResult(valid=False, issues=self._issues(response))
         if response.status_code != 200:
             raise CMSUnavailableError(f"CMS answered HTTP {response.status_code}")
-        data = self._json(response)
-        if not isinstance(data, dict) or not isinstance(data.get("valid"), bool):
+        return self._validation(self._json(response), request)
+
+    @staticmethod
+    def _validation(data: Any, request: LinkChangeRequest) -> ValidationResult:
+        """Their batch-validate body, VERIFIED against the live API 2026-11-13::
+
+            {"total": 6, "valid": 5, "invalid": 1,
+             "results": [{"index": 0, "page_id": "...", "valid": true},
+                         {"index": 1, ..., "valid": false,
+                          "error": "anchor_not_found",
+                          "message": "anchor_text occurrence 1 not found in a linkable
+                                      text node"}]}
+
+        ``valid`` at the top level is a COUNT, not a boolean -- reading it as one is how this
+        adapter would have failed on its first real call. The verdict is ``invalid == 0``, and
+        each failed result is mapped back to its ``change_id`` through ``index``, so the
+        reviewer sees which of their links was refused rather than a page-level "no".
+        """
+        if not isinstance(data, dict) or not isinstance(data.get("results"), list):
             raise CMSUnavailableError("CMS answered a body outside the contract")
-        issues = [] if data["valid"] else self._issues(response)
-        # A valid result may still carry warnings; they must reach the reviewer.
-        if data["valid"]:
-            issues = [
-                i
-                for i in self._issues(response)
-                if i.severity == "warning" or i.code != "cms_validation_failed"
-            ]
-        return ValidationResult(valid=bool(data["valid"]), issues=issues)
+        issues: list[ValidationIssue] = []
+        for item in data["results"]:
+            if not isinstance(item, dict) or item.get("valid"):
+                continue
+            index = item.get("index")
+            change_id = (
+                request.changes[index].change_id
+                if isinstance(index, int) and 0 <= index < len(request.changes)
+                else None
+            )
+            code = str(item.get("error") or "cms_validation_failed")
+            issues.append(
+                ValidationIssue(
+                    code=code,
+                    severity="warning" if code in _KNOWN_WARNINGS else "error",
+                    message=str(item.get("message") or code),
+                    change_id=change_id,
+                )
+            )
+        invalid = data.get("invalid")
+        valid = invalid == 0 if isinstance(invalid, int) else not issues
+        return ValidationResult(valid=valid, issues=issues)
 
     async def apply_link_changes(self, *, request: LinkChangeRequest) -> DeploymentResult:
         """One call per change, in order, compensating on failure (ADR-0028 §3).
@@ -440,7 +472,12 @@ class KenConsultingCMSProvider:
         if response.status_code not in {200, 201}:
             raise CMSUnavailableError(f"CMS answered HTTP {response.status_code}")
         data = self._json(response)
-        if not isinstance(data, dict) or data.get("status") != "applied":
+        # A replay answers ``"replayed": true`` (Snehal, 2026-11-13) and is a SUCCESS: the link
+        # is already there and nothing was inserted twice. Treating it as off-contract would
+        # turn the safe outcome of a retry into a failure.
+        if not isinstance(data, dict) or not (
+            data.get("status") == "applied" or data.get("replayed") is True
+        ):
             raise CMSUnavailableError("CMS answered a body outside the contract")
         deployment_id = data.get("deployment_id")
         if deployment_id is None:
