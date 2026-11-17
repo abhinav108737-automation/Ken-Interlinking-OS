@@ -1,0 +1,54 @@
+[
+ {
+  "source": "thailand-ev-charging-infrastructure-and-smart-energy-mobility-ecosystem-market",
+  "field": "v02_faq",
+  "anchor": "two-wheeler",
+  "occurrence": 0,
+  "target": "malaysia-electric-two-wheeler-adoption-ecosystem-market",
+  "context": "ling, load control, and interoperability. Battery swapping also becomes more important in two-wheeler-heavy urban mobility. In practical terms, margin quality should improve in segments where"
+ },
+ {
+  "source": "philippines-automotive-lubricants-distribution-market-assessment-outlook-to",
+  "field": "v02_regional_analysis",
+  "anchor": "two-wheeler",
+  "occurrence": 0,
+  "target": "malaysia-electric-two-wheeler-adoption-ecosystem-market",
+  "context": "ailand, Malaysia, and Vietnam, but it remains strategically relevant because of its large two-wheeler base, dense workshop ecosystem, and improving branded distribution structure. Its positio"
+ },
+ {
+  "source": "united-arab-emirates-regional-auto-components-import-and-distribution-market",
+  "field": "v02_market_trajectory",
+  "anchor": "charging infrastructure",
+  "occurrence": 0,
+  "target": "thailand-ev-charging-infrastructure-and-smart-energy-mobility-ecosystem-market",
+  "context": "2024 revenue, and their share is expected to expand further as Dubai EV stock scales and charging infrastructure deepens. The forecast therefore favors distributors with diagnostic capability, certifica"
+ },
+ {
+  "source": "united-arab-emirates-mobility-as-a-service-platforms-maas-market",
+  "error": "no prose phrase found"
+ },
+ {
+  "source": "qatar-tire-distribution-and-retail-service-ecosystem-market",
+  "field": "v02_market_trajectory",
+  "anchor": "fleet management",
+  "occurrence": 0,
+  "target": "indonesia-commercial-vehicle-leasing-and-fleet-management-market",
+  "context": "ains ahead of pure unit growth, with premiumization, service bundling, and contract-based fleet management contributing a larger share of incremental profit. Forecast closure reconciles to the loc"
+ },
+ {
+  "source": "indonesia-commercial-vehicle-leasing-and-fleet-management-market",
+  "field": "v02_market_segmentation",
+  "anchor": "ride-hailing",
+  "occurrence": 0,
+  "target": "united-arab-emirates-mobility-as-a-service-platforms-maas-market",
+  "context": "point trips monetized through commissions, network fees, and fare-linked processing, with ride-hailing defining core on-demand scale.\r\n\r\nCommercial Rationale: This segment matters because it c"
+ },
+ {
+  "source": "malaysia-electric-two-wheeler-adoption-ecosystem-market",
+  "field": "v02_market_overview",
+  "anchor": "charging infrastructure",
+  "occurrence": 0,
+  "target": "thailand-ev-charging-infrastructure-and-smart-energy-mobility-ecosystem-market",
+  "context": "m Market because it combines the highest commuting density, delivery intensity, and early charging infrastructure concentration. Nationally, Malaysia had 3,354 EV charging stations as of October 2024, wh"
+ }
+]
