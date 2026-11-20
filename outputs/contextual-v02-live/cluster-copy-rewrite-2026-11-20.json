@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "purpose": "Owner-requested rewrite of the 12 live cluster sentences (deployments 43-54): at least two sentences, 32-38 words, no dashes, no reader-address rationale, figures rounded, every claim taken from the destination report's own evidence.",
+  "requested_at": "2026-11-20",
+  "rewrites": {
+    "cluster:2":  "The Kuwait Dermal Toxicity Testing Market reaches USD 35 million by 2032, growing at 9.3% a year, close to Malaysia's 9.2%. Demand shifts toward in vitro testing, while specialty studies and dossier work support continued fee growth.",
+    "cluster:3":  "The Malaysia Guaiacol Market grows at 6.5% a year to about USD 6 million by 2032, ahead of Kuwait's 5.0%. Pharmaceutical manufacturing reaches 46% of modelled spending, while purchase prices are expected to stay broadly flat.",
+    "cluster:4":  "The Kuwait Guaiacol Market grows at 5.0% a year through 2032, slower than Malaysia's 6.5%. Volume reaches 127 metric tonnes by 2030, and with prices nearly flat, the outlook favours low-overhead distribution and repeat orders.",
+    "cluster:5":  "The Malaysia Heating Radiator Market grows from USD 29 million to USD 46 million by 2032, at 6.8% a year against Kuwait's 5.6%. Unit volumes drive that growth, with average pricing expected to remain broadly stable.",
+    "cluster:7":  "The Qatar Organic Dyes Market reaches about USD 7.6 million by 2032, growing at 4.0% a year, well below Malaysia's 6.0%. Value rises faster than volume, pointing to selective premiumisation rather than a surge in commodity demand.",
+    "cluster:8":  "The Malaysia Organic Dyes Market grows from USD 75 million to USD 113 million by 2032, at 6.0% a year against Qatar's 4.0%. Volume drives most of that increase, with natural dyes and cleaner processing offering further upside.",
+    "cluster:9":  "The Qatar Ortho-Phthalaldehyde Market reaches about USD 7.7 million by 2032, growing at 7.0% a year against Malaysia's 8.0%. Value rises faster than volume over the period, reflecting modest pricing and product-mix improvement.",
+    "cluster:10": "The Malaysia Ortho-Phthalaldehyde Market reaches about USD 8 million by 2032, growing at 8.0% a year against Qatar's 7.0%. Healthcare disinfection remains the main use at 68% of demand, while analytical applications gain share.",
+    "cluster:11": "The Qatar Orthopedic Spine Navigation Systems Market reaches about USD 1.9 million by 2032, growing at 8.0% a year against Malaysia's 11.1%. Service and capital equipment lead spending, while software grows fastest at 14% a year.",
+    "cluster:12": "The Malaysia Orthopedic Spine Navigation Systems Market reaches USD 24 million by 2032, growing at 11.1% a year against Qatar's 8.0%. Accessory revenue grows faster still, while average workstation prices fall to USD 230,000.",
+    "cluster:13": "The Qatar Outdoor Payment Terminals Market reaches USD 26 million by 2032, growing at 13.1% a year, close to Malaysia's 13.8%. The installed base adds about 2,600 terminals, with replacement hardware and services lifting revenue.",
+    "cluster:14": "The Malaysia Outdoor Payment Terminals Market grows from USD 48 million to USD 119 million by 2032, at 13.8% a year. The installed base adds about 45,800 terminals, with software and services taking a larger revenue share."
+  }
+}
