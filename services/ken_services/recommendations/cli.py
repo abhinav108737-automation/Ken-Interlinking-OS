@@ -82,7 +82,7 @@ def _parser() -> argparse.ArgumentParser:
     )
     commands.add_parser(
         "modules",
-        help="Rebuild the related-report modules only (seconds, not hours).",
+        help="Apply module policy only; currently clears disabled related-report modules.",
     )
     return parser
 

@@ -15,7 +15,6 @@ import pytest
 from ken_contracts.recommendations import (
     CandidateRejection,
     LinkPlanStatus,
-    ModuleKind,
     OpportunityKind,
     PlanNotFoundError,
     RecommendationReader,
@@ -191,28 +190,15 @@ async def test_status_filter_ordering_ties_and_history(sessionmaker: SM, tmp_pat
     assert await scalar(sessionmaker, "SELECT count(*) FROM link_plans") == 3
 
 
-async def test_modules_are_listed_with_their_items_in_rank_order(
-    sessionmaker: SM, tmp_path: Path
-) -> None:
+async def test_disabled_modules_return_an_empty_list(sessionmaker: SM, tmp_path: Path) -> None:
     await seed_corpus(sessionmaker, tmp_path, *sibling_records())
     run = await recommend(sessionmaker)
     reader = _reader(sessionmaker)
 
     listed = await reader.list_modules(limit=200, offset=0)
-    assert listed.page.total == run.counters["modules"] > 0
-    assert sum(len(m.items) for m in listed.items) == run.counters["module_items"]
-    for module in listed.items:
-        assert module.kind is ModuleKind.REGIONAL_SIBLING
-        assert module.run_id == run.id
-        assert [item.rank for item in module.items] == list(range(1, len(module.items) + 1))
-        assert all(item.reason_codes for item in module.items)
-        # Every item is the same market somewhere else: the module's coherence gate.
-        assert all(item.target_page_id != module.page_id for item in module.items)
-    # Ordered by canonical URL, so a reviewer reads the queue in a stable order.
-    assert [m.canonical_url for m in listed.items] == sorted(m.canonical_url for m in listed.items)
-
-    one = await reader.list_modules(limit=10, offset=0, page_id=listed.items[0].page_id)
-    assert one.page.total == 1 and one.items[0].page_id == listed.items[0].page_id
+    assert listed.items == []
+    assert listed.page.total == run.counters["modules"] == 0
+    assert run.counters["module_items"] == 0
 
 
 async def test_modules_of_an_empty_database(sessionmaker: SM) -> None:

@@ -1,4 +1,8 @@
-"""Related-report modules: the owner's Priority 1, on the surface that can carry it.
+"""Related-report modules: historical builder, disabled by ADR-0031.
+
+The pure ranking function is retained for auditability and reversibility, but the recommendation
+pipeline does not publish its output. On 2026-11-20 the owner determined that the website's
+existing Related Reports area already performs this job and another module is duplicative.
 
 ADR-0027 §1c found that inline contextual anchors CANNOT express a regional sibling link.
 The anchor must name the target's geography (§4) and may only use text already on the page

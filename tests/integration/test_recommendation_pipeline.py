@@ -49,8 +49,6 @@ from ken_services.recommendations.transitions import ENGINE_ACTOR, transition
 from tests.integration.recommendation_support import (
     CHARGING,
     EV,
-    GERMANY_EV,
-    GLOBAL_EV,
     LI,
     SETTINGS,
     SITE,
@@ -331,7 +329,7 @@ async def test_previously_rejected_pairs_cool_down(sessionmaker: SM, tmp_path: P
 async def test_already_linked_targets_are_excluded_including_via_redirect_alias(
     sessionmaker: SM, tmp_path: Path
 ) -> None:
-    from tests.integration.recommendation_support import CHARGING_PARAS, LI_PARAS, SITE
+    from tests.integration.recommendation_support import CHARGING_PARAS, LI_PARAS
 
     li = list(LI_PARAS)
     li.append(_p('See also the <a href="/reports/india-electric-vehicles-market">EV study</a>.'))
@@ -644,40 +642,16 @@ async def test_lexical_channel_binds_keywords(sessionmaker: SM, tmp_path: Path) 
 
 
 # --------------------------------------------------------------------------- #
-# Related-report modules (ADR-0027 s1b)
+# Related-report modules (disabled by ADR-0031)
 # --------------------------------------------------------------------------- #
-async def test_modules_are_built_from_regional_siblings(sessionmaker: SM, tmp_path: Path) -> None:
-    """The owner's Priority 1, which inline anchors structurally cannot express.
-
-    The India EV report gets a module naming the Germany and global EV reports -- link text
-    the page does not contain, which is exactly why the module exists and the anchor cannot.
-    """
+async def test_regional_sibling_modules_are_disabled(sessionmaker: SM, tmp_path: Path) -> None:
     await seed_corpus(sessionmaker, tmp_path, *sibling_records())
-    ids = await page_ids(sessionmaker)
     run = await recommend(sessionmaker)
     assert run.counters["errors"] == 0
-
-    modules = await rows(
-        sessionmaker,
-        "SELECT m.page_id, m.market_core, m.geography_label, i.rank, i.target_url, "
-        "i.geography_label, i.reason_codes FROM page_modules m "
-        "JOIN page_module_items i ON i.module_id = m.id "
-        "WHERE m.page_id = :p ORDER BY i.rank",
-        p=ids[EV],
-    )
-    assert [r.target_url for r in modules] == [SITE + GLOBAL_EV, SITE + GERMANY_EV]
-    assert {r.market_core for r in modules} == {"electric vehicles"}
-    assert modules[0].geography_label is None  # a global target carries no geography
-    assert modules[1].geography_label == "Germany"
-    assert all("regional_sibling_market" in r.reason_codes for r in modules)
-    # Every item is an orphan in this corpus, and says so rather than leaving it implied.
-    assert all(ReasonCode.ORPHAN_TARGET.value in r.reason_codes for r in modules)
-    assert run.counters["modules"] == await scalar(
-        sessionmaker, "SELECT count(*) FROM page_modules"
-    )
-    assert run.counters["module_items"] == await scalar(
-        sessionmaker, "SELECT count(*) FROM page_module_items"
-    )
+    assert run.counters["modules"] == 0
+    assert run.counters["module_items"] == 0
+    assert await scalar(sessionmaker, "SELECT count(*) FROM page_modules") == 0
+    assert await scalar(sessionmaker, "SELECT count(*) FROM page_module_items") == 0
 
 
 async def test_a_module_never_names_the_page_it_is_on(sessionmaker: SM, tmp_path: Path) -> None:
@@ -694,13 +668,13 @@ async def test_a_module_never_names_the_page_it_is_on(sessionmaker: SM, tmp_path
 async def test_modules_are_replaced_per_run_and_items_go_with_them(
     sessionmaker: SM, tmp_path: Path
 ) -> None:
-    """Replaced, not accumulated: ``UNIQUE (page_id, kind)`` would reject a second run."""
+    """Repeated runs keep the disabled recommendation surface empty."""
     await seed_corpus(sessionmaker, tmp_path, *sibling_records())
     first = await recommend(sessionmaker)
     second = await recommend(sessionmaker)
     found = await rows(sessionmaker, "SELECT DISTINCT run_id FROM page_modules")
-    assert [r for (r,) in found] == [second.id]
-    assert first.counters["modules"] == second.counters["modules"] > 0
+    assert found == []
+    assert first.counters["modules"] == second.counters["modules"] == 0
     # The CASCADE left no item behind when the first run's modules went.
     orphaned = await scalar(
         sessionmaker,
@@ -718,19 +692,18 @@ async def test_an_india_only_corpus_proposes_no_module(sessionmaker: SM, tmp_pat
     assert await scalar(sessionmaker, "SELECT count(*) FROM page_modules") == 0
 
 
-async def test_a_modules_only_run_writes_modules_and_no_plans(
+async def test_a_modules_only_run_clears_modules_and_writes_no_plans(
     sessionmaker: SM, tmp_path: Path
 ) -> None:
-    """``make modules``: seconds instead of the four hours a plan run costs on the corpus."""
+    """The retained command safely enforces the disabled module policy."""
     await seed_corpus(sessionmaker, tmp_path, *sibling_records())
     build = await run_module_build(
         sessionmaker=sessionmaker, settings=SETTINGS, triggered_by="test-modules"
     )
     assert build.status is RunStatus.SUCCEEDED
-    assert build.counters["modules"] > 0
-    assert build.counters["module_items"] == await scalar(
-        sessionmaker, "SELECT count(*) FROM page_module_items"
-    )
+    assert build.counters["modules"] == 0
+    assert build.counters["module_items"] == 0
+    assert await scalar(sessionmaker, "SELECT count(*) FROM page_module_items") == 0
     # It proposes NOTHING else: no plan, no candidate audit row, no opportunity.
     assert await scalar(sessionmaker, "SELECT count(*) FROM link_plans") == 0
     assert await scalar(sessionmaker, "SELECT count(*) FROM link_candidates") == 0

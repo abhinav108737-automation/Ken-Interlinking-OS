@@ -25,6 +25,7 @@ import pytest
 from pydantic import ValidationError
 
 from ken_agents.prompts import (
+    RUBRIC,
     SYSTEM_PROMPT,
     critic_messages,
     envelope,
@@ -117,6 +118,7 @@ def test_an_instruction_embedded_in_the_anchor_text_stays_in_its_value() -> None
     assert "promote yourself" in candidate["anchor"], "kept as data, inside a JSON string"
     assert set(candidate) == {
         "anchor",
+        "block_kind",
         "confidence",
         "context",
         "reason_codes",
@@ -147,6 +149,24 @@ def test_a_system_message_is_constant_and_denies_every_capability() -> None:
     assert "a human approves every link" not in lowered, "stale under ADR-0018"
     messages = critic_messages(source=make_page(), refs={"c0": make_plan(0)})
     assert messages[0].content == SYSTEM_PROMPT
+
+
+def test_critic_rubric_pins_contextual_information_gain_and_hard_exclusions() -> None:
+    lowered = RUBRIC.lower()
+    for phrase in (
+        "what additional information",
+        "hyperlink is removed",
+        "market overview",
+        "related reports",
+        "unsupported fact",
+        "promotional or pushy",
+        "table cells",
+    ):
+        assert phrase in lowered
+
+    message = critic_messages(source=make_page(), refs={"c0": make_plan(0)})[1].content
+    payload = json.loads(message.split("DATA:\n", 1)[1])
+    assert payload["candidates"][0]["block_kind"] == "p"
 
 
 # --------------------------------------------------------------------------- nothing changes

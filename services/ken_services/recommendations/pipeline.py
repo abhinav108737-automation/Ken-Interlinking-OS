@@ -227,6 +227,12 @@ RECOMMENDATION_COUNTERS: Final = (
 _R = CandidateRejection
 MAX_TARGET_TITLE_CHARS: Final = 300
 """A plan copies at most this much of the target title (QA: ingestion does not cap it)."""
+RELATED_REPORT_MODULES_ENABLED: Final = False
+"""Owner decision 2026-11-20: the site already has Related Reports.
+
+Generating another recommendation surface there is duplicative and reads as a pushy cross-sell.
+Regional siblings must earn an inline placement in allowed explanatory prose or receive no link.
+"""
 
 
 def analysis_version_absent(facts: Iterable[repo.PageFacts], *, analysis_version: str) -> bool:
@@ -794,6 +800,10 @@ class _Recommend:
                     else geography_terms(verdict.target_geography)
                 ),
                 require_geography=verdict.anchor_must_name_target_geography,
+                # Partial title runs produced anchors that were technically related but too
+                # vague to predict the destination. Require the target's complete market
+                # phrase; a missing exact phrase is safer than an engagement-poor link.
+                allow_context=False,
             )
             if not phrases or not _any_occurrence(phrases, blocks):
                 # The target's market keyword is not in the source text. A later phase may
@@ -1022,6 +1032,10 @@ class _Recommend:
     async def _modules(self, world: _World) -> None:
         """Replace the regional-sibling modules from current state (ADR-0027 §1b).
 
+        ADR-0031 now disables this surface because the site already renders Related Reports.
+        While disabled, a run clears older regional-sibling modules and writes nothing. The
+        historical builder remains below so a later governed decision can reuse it.
+
         Runs in the SAME job as the plans, on the world already in memory, because a module
         and a plan must never disagree about the corpus: they are two surfaces for one
         decision, and a module built by a separate job could outlive the analysis the plans
@@ -1031,6 +1045,11 @@ class _Recommend:
         Cost is linear: the market cores are grouped once, and each page only looks at its
         own core's group.
         """
+        if not RELATED_REPORT_MODULES_ENABLED:
+            async with self.job.transaction() as tx:
+                await repo.clear_modules(tx.session, kinds=(ModuleKind.REGIONAL_SIBLING,))
+            return
+
         cores: dict[str, list[uuid.UUID]] = defaultdict(list)
         pages: dict[uuid.UUID, tuple[str, GeographyNode | None]] = {}
         for pid in sorted(world.facts):
@@ -1169,7 +1188,10 @@ async def run_module_build(
     taxonomy: TaxonomyPolicy | None = None,
     clock: Callable[[], datetime] = utc_now,
 ) -> JobRunDetail:
-    """Rebuild the related-report modules ONLY, without re-proposing a single inline plan.
+    """Apply the module policy ONLY, without re-proposing a single inline plan.
+
+    Under ADR-0031 this clears the disabled regional-sibling surface and produces no new
+    module items. The command remains useful for removing older derived module rows.
 
     A full run on the real corpus takes about four hours, nearly all of it in retrieval,
     scoring and placement -- none of which a module needs. Without this an operator who

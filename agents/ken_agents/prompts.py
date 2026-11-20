@@ -54,12 +54,19 @@ SYSTEM_PROMPT: Final = (
 )
 
 RUBRIC: Final = (
-    "Judge each candidate on: semantic appropriateness; contextual usefulness to the reader at "
-    "that point; anchor naturalness; duplicate intent with another candidate; destination fit; "
-    "risk that the anchor misleads about the destination; editorial awkwardness; excessive "
-    "linking; cannibalisation of another candidate or page. "
-    "accept = a clear, natural, useful link; reject = a concrete defect on any dimension; "
-    "uncertain = a human-quality doubt you cannot resolve."
+    "Apply the reader test: the surrounding prose must make clear both why the destination is "
+    "related at this exact point and what additional information the reader will gain. The "
+    "sentence must remain useful and natural when the hyperlink is removed. The anchor must "
+    "accurately predict the destination market; reject vague or partial fragments. Reject a "
+    "candidate that manufactures a capability mention merely to create a link, sounds promotional "
+    "or pushy, depends on an unsupported fact, number, entity, geography or market claim, or has "
+    "only broad-word similarity such as cloud, AI, analytics or platform. Market Overview and "
+    "Related Reports are hard exclusions, as are headings, table cells, citations, methodology, "
+    "legal copy and boilerplate FAQs. A list item is acceptable only when it is a complete "
+    "explanatory sentence. Also judge duplicate intent, destination fit, excessive linking and "
+    "cannibalisation. accept = evidence-backed, neutral, contextual and clearly useful; reject = "
+    "a concrete defect; uncertain = the supplied evidence cannot resolve the reader benefit, "
+    "placement or factual support."
 )
 """The critic's dimensions (the completion directive section 11). Each maps onto a frozen
 :class:`~ken_contracts.agents.CriticReason`; the rubric is task text, never corpus text."""
@@ -105,6 +112,7 @@ def _candidate(ref: str, plan: LinkPlan) -> dict[str, Any]:
         "target_title": _clip(plan.target_title, _TITLE_CHARS),
         "target_url": _clip(plan.target_url, _URL_CHARS),
         "anchor": _clip(plan.anchor_text, _TITLE_CHARS),
+        "block_kind": plan.locator.block_kind,
         "context": f"{before} [{_clip(plan.preview.anchor, _TITLE_CHARS)}] {after}".strip(),
         "relationship": plan.relationship_type.value if plan.relationship_type else None,
         "reason_codes": [code.value for code in plan.reason_codes],

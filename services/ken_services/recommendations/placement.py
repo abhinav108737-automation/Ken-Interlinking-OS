@@ -73,6 +73,7 @@ from ken_services.inventory.normalize import ContentBlock
 
 __all__ = [
     "ANCHOR_MAX_CHARS",
+    "CONTEXT_ANCHOR_RANK",
     "MARKET_WORD",
     "MAX_LABEL_WORDS",
     "MAX_SECONDARY_TOPICS",
@@ -86,6 +87,7 @@ __all__ = [
     "anchor_phrases",
     "anchor_rule_ok",
     "block_is_prose",
+    "blocked_section_block_ids",
     "corpus_title_phrases",
     "find_placement",
     "keyword_bigrams",
@@ -93,12 +95,22 @@ __all__ = [
     "market_keyword_anchors",
     "market_keyword_phrases",
     "market_phrases",
+    "market_subphrases",
     "phrase_occurrences",
     "preview_for",
     "slug_text",
     "span_is_safe",
     "title_core",
 ]
+
+BLOCKED_INLINE_SECTION_TITLES: Final = frozenset(
+    {"market overview", "related report", "related reports"}
+)
+"""Editorial hard exclusions approved by the owner on 2026-11-20.
+
+Market Overview must remain entirely about the page's own market. Related Reports already
+performs the cross-sell job, so placing another inline link there is duplicative and pushy.
+"""
 
 type AnchorSource = Literal["target_topic", "target_title", "target_keyword"]
 
@@ -514,6 +526,10 @@ def market_core(
     return fold(phrases[0]) if phrases else None
 
 
+CONTEXT_ANCHOR_RANK: Final = 2
+"""Ranks below this are ADR-0027 market-keyword anchors (the target's whole market phrase);
+ranks from here up are ADR-0029 context anchors (a run of that phrase)."""
+
 MARKET_WORD: Final = "market"
 """Every engine anchor ends in this word: an anchor must read as a market, not as a noun."""
 
@@ -526,6 +542,32 @@ def _with_market_word(phrase: str) -> str | None:
     return f"{phrase} {MARKET_WORD}"
 
 
+#: Words an anchor may never begin or end on. A contiguous run of a market phrase is only a
+#: usable anchor if it reads as a noun phrase: "and Fleet Management" and "Leasing and" do not.
+_EDGE_STOP_WORDS: Final = frozenset(
+    {"a", "an", "and", "by", "for", "in", "of", "or", "the", "to", "with"}
+)
+
+
+def market_subphrases(phrase: str) -> tuple[str, ...]:
+    """Contiguous multi-word runs of ``phrase``, longest first, shorter than ``phrase`` itself.
+
+    ADR-0029: a report's full market phrase ("Electric Two-Wheeler Adoption Ecosystem") does not
+    recur in other reports' prose, but the concepts inside it do ("two-wheeler"). These runs are
+    the only context anchors the engine will offer -- still the target's subject, in the target's
+    own words, never a synonym or model output.
+    """
+    words = [w for w in _collapse(phrase).split(" ") if w]
+    out: list[str] = []
+    for size in range(len(words) - 1, 1, -1):
+        for start in range(len(words) - size + 1):
+            run = words[start : start + size]
+            if fold(run[0]) in _EDGE_STOP_WORDS or fold(run[-1]) in _EDGE_STOP_WORDS:
+                continue
+            out.append(" ".join(run))
+    return tuple(out)
+
+
 def market_keyword_anchors(
     *,
     target_url: str | None,
@@ -534,8 +576,9 @@ def market_keyword_anchors(
     policy: RecommendationPolicy,
     geography_terms: Sequence[str] = (),
     require_geography: bool = False,
+    allow_context: bool = True,
 ) -> tuple[AnchorPhrase, ...]:
-    """The target's market-keyword anchors, in rank order (module docstring). Pure.
+    """The target's market-keyword anchors, then its context anchors, in rank order. Pure.
 
     ``geography_terms`` name the target's geography (label and longer aliases, longest first).
     Geography-qualified anchors ("India cosmetics market") rank FIRST because they are the more
@@ -543,30 +586,64 @@ def market_keyword_anchors(
     the engine refuses to label a cross-geography link as a local one. Every phrase passes the
     usual anchor rules (:func:`anchor_rule_ok`), so an overlong editorial phrase is dropped
     rather than truncated.
+
+    **Context anchors (ADR-0029), ranked after every market-keyword form.** The market keyword
+    is derived from the target's WHOLE title, and whole titles do not recur in other reports'
+    prose -- measured over two live Ken Consulting corpora, 0 of 24 pages named another report's
+    market, so the engine proposed nothing at all. A context anchor is a contiguous run of that
+    same phrase (:func:`market_subphrases`). Under ``require_geography`` a run is offered either
+    geography-qualified, exactly as the keyword is, or bare with ``context_terms`` -- admissible
+    only in a block that itself names the target's geography. Honesty about where the link goes
+    is preserved either way; "the geography appears somewhere on the page" was rejected.
+
+    ``allow_context=False`` restores the pre-ADR-0029 behaviour, for comparison.
     """
     phrases = market_keyword_phrases(
         target_url=target_url, target_title=target_title, taxonomy=taxonomy
     )
-    groups: list[tuple[int, str]] = []
+    terms = tuple(term for term in geography_terms if _collapse(term))
+    # (rank, text, context_terms). Lower rank wins; keyword forms occupy 0-1, context 2-5.
+    groups: list[tuple[int, str, tuple[str, ...]]] = []
     for phrase in phrases:
         core = _with_market_word(phrase)
         if core is None:
             continue
-        groups.extend((0, f"{term} {core}") for term in geography_terms if _collapse(term))
+        groups.extend((0, f"{term} {core}", ()) for term in terms)
         if not require_geography:
-            groups.append((1, core))
+            groups.append((1, core, ()))
+        if not allow_context or len(phrase.split()) > policy.placement.max_anchor_words:
+            # A phrase too long to be an anchor in its own right is a noisy editorial title,
+            # not a market name ("How a Global Food Leader Found Many Opportunities in KSA
+            # Catering"). Slicing it yields prose fragments, so it is never sliced.
+            continue
+        for run in market_subphrases(phrase):
+            for offset, form in ((0, _with_market_word(run)), (2, run)):
+                if form is None:
+                    continue
+                groups.extend((2 + offset, f"{term} {form}", ()) for term in terms)
+                if require_geography:
+                    # The anchor does not name the geography, so its BLOCK must.
+                    groups.append((3 + offset, form, terms))
+                else:
+                    groups.append((3 + offset, form, ()))
     geo = _geography_phrases(taxonomy)
     seen: set[str] = set()
     out: list[AnchorPhrase] = []
-    for rank, text in sorted(groups, key=lambda item: item[0]):
+    # Stable on rank alone: insertion order already carries the preferences that matter --
+    # the geography LABEL before its aliases (ADR-0027), and longer runs before shorter.
+    for rank, text, context in sorted(groups, key=lambda item: item[0]):
         candidate = _collapse(text)
         key = fold(candidate)
         if not candidate or key in seen or key in geo:
             continue
         if not anchor_rule_ok(candidate, "target_topic", policy=policy.placement):
             continue
+        if require_geography and rank >= 2 and not context and not terms:
+            continue  # a context anchor with no way to name the geography is never offered
         seen.add(key)
-        out.append(AnchorPhrase(text=candidate, source="target_topic", rank=rank))
+        out.append(
+            AnchorPhrase(text=candidate, source="target_topic", rank=rank, context_terms=context)
+        )
     return tuple(out)
 
 
@@ -620,6 +697,33 @@ def block_is_prose(text: str) -> bool:
     return len(text.split()) > MAX_LABEL_WORDS
 
 
+def _section_key(text: str) -> str:
+    """Normalised visible heading text for deterministic section matching."""
+    return " ".join(re.sub(r"[^a-z0-9]+", " ", fold(text)).split())
+
+
+def blocked_section_block_ids(blocks: Sequence[ContentBlock]) -> frozenset[str]:
+    """Blocks governed by a Market Overview or Related Reports heading.
+
+    The heading itself and every following block remain excluded until the next heading.
+    Pages without one of these visible headings are unchanged. This is deliberately a hard
+    placement rule rather than a score penalty: a high semantic score may not buy its way
+    into a section whose editorial purpose forbids cross-market links.
+    """
+    blocked: set[str] = set()
+    inside_blocked_section = False
+    for block in blocks:
+        if block.kind in {"h1", "h2", "h3", "h4", "h5", "h6"}:
+            key = _section_key(block.text)
+            inside_blocked_section = any(
+                key == title or key.startswith(title + " ")
+                for title in BLOCKED_INLINE_SECTION_TITLES
+            )
+        if inside_blocked_section:
+            blocked.add(block.block_id)
+    return frozenset(blocked)
+
+
 MIN_TITLE_GUARD_WORDS: Final = 3
 """A title shorter than this is not used as a fragment guard. A two-word title
 ("Coffee Market") is often exactly the right anchor, and guarding on it would block the
@@ -669,6 +773,69 @@ def market_phrases(taxonomy: TaxonomyPolicy) -> tuple[str, ...]:
     """
     bare = {_collapse(p) for m in taxonomy.markets for p in (m.label, *m.aliases) if _collapse(p)}
     return tuple(sorted(bare | {f"{p} {MARKET_WORD}" for p in bare}))
+
+
+#: Lowercase words that may sit INSIDE a proper name without ending it ("Ministry of Trade",
+#: "National Strategy for Data and Artificial Intelligence").
+_NAME_CONNECTORS: Final = frozenset({"and", "for", "of", "the", "de", "van", "al"})
+
+_WORD_SPAN: Final = re.compile(r"\S+")
+
+
+def _names_a_longer_entity(text: str, start: int, end: int) -> bool:
+    """``text[start:end]`` is a strict part of a longer Title-Case name in ``text``.
+
+    ADR-0029 context anchors are runs of words, so they can slice through a proper noun that
+    the taxonomy has never heard of. Both real cases found on the Saudi corpus, 2026-11-19:
+
+        "National Strategy for Data and Artificial Intelligence"
+            -> anchor "Data and Artificial Intelligence"
+        "Saudi Data and Artificial Intelligence Authority (SDAIA)"
+            -> anchor "Saudi Data and Artificial Intelligence"
+
+    Both would have linked an organisation's name to a market report. The maximal Title-Case
+    run containing the span is grown outwards across capitalised words, stepping over lowercase
+    connectors; if it is longer than the span, the span is part of a name and not an anchor.
+
+    A lowercase span ("...technologies such as artificial intelligence and cloud computing...")
+    starts no run and is unaffected, which is the ordinary topical mention this rule must allow.
+    """
+    words = [(m.start(), m.end()) for m in _WORD_SPAN.finditer(text)]
+    inside = [i for i, (s, e) in enumerate(words) if s < end and start < e]
+    if not inside:
+        return False
+    first, last = inside[0], inside[-1]
+
+    def capitalised(index: int) -> bool:
+        word = text[words[index][0] : words[index][1]].lstrip("(\"'“")
+        return bool(word) and word[0].isupper()
+
+    def connector(index: int) -> bool:
+        return fold(text[words[index][0] : words[index][1]].strip(".,;:()")) in _NAME_CONNECTORS
+
+    if not capitalised(first):
+        return False  # the span is not itself part of a Title-Case run
+    left = first
+    while left > 0:
+        if capitalised(left - 1):
+            left -= 1
+        elif left > 1 and connector(left - 1) and capitalised(left - 2):
+            left -= 2
+        else:
+            break
+    right = last
+    while right + 1 < len(words):
+        if capitalised(right + 1):
+            right += 1
+        elif right + 2 < len(words) and connector(right + 1) and capitalised(right + 2):
+            right += 2
+        else:
+            break
+    # A run that begins at the first word of the block is usually sentence capitalisation
+    # rather than a name, so it is not evidence on its own.
+    if left == 0 and right == last and first == 0:
+        return False
+    return (left, right) != (first, last)
 
 
 def _is_fragment(
@@ -770,6 +937,7 @@ def find_placement(
     kinds = frozenset(rules.block_kinds)
     excluded = frozenset(rules.excluded_ancestors)
     max_links = policy.selection.max_links_per_block
+    section_blocked = blocked_section_block_ids(blocks)
     opening = next((b.block_id for b in blocks if b.kind in kinds and b.text), None)
     compiled = [
         (phrase, _phrase_pattern(phrase.text)) for phrase in phrases if _collapse(phrase.text)
@@ -782,6 +950,8 @@ def find_placement(
 
     best: tuple[tuple[int, int, float, int, int, int], PlacementCandidate] | None = None
     for order, block in enumerate(blocks):
+        if block.block_id in section_blocked:
+            continue
         if not block_is_prose(block.text):
             continue  # a title or label, not a sentence: never host an inline anchor
         if block.kind not in kinds or not block.text:
@@ -812,6 +982,10 @@ def find_placement(
                     continue
                 if _is_fragment(block.text, start, end, enclosing):
                     continue
+                if phrase.rank >= CONTEXT_ANCHOR_RANK and _names_a_longer_entity(
+                    block.text, start, end
+                ):
+                    continue  # a slice of a proper noun, not a mention of the target
                 if any(start < t_end and t_start < end for t_start, t_end in taken):
                     continue
                 quality = PLACEMENT_QUALITY[phrase.source]

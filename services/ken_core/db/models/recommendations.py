@@ -59,6 +59,7 @@ from ken_contracts.recommendations import (
 from ken_core.db.base import Base
 from ken_core.db.models.inventory import _one_of
 from ken_core.db.types import Xid8
+from ken_core.priority import MAX_TIER, MIN_TIER, PriorityType
 
 OPEN_PLAN_STATUSES: Final = tuple(s for s in LinkPlanStatus if s in OPEN_STATUSES)
 """Statuses in which a plan still occupies its (source, target) and its anchor span."""
@@ -340,4 +341,62 @@ class Opportunity(Base):
         UniqueConstraint("page_id", "kind"),
         CheckConstraint(_one_of("kind", OpportunityKind), name="kind_valid"),
         CheckConstraint("score >= 0 AND score <= 1", name="score_range"),
+    )
+
+
+class PagePriority(Base):
+    """A governed business-priority designation for one page (migration 0013).
+
+    Business Phase 2A-1, knowledge base §5.1. UNLIKE every other table in this module it is
+    neither derived nor replaced per run: a designation is EDITORIAL INPUT, written by a
+    person and owned by one. So it carries its own ``owner``, ``reason`` and created/updated
+    audit pair, and it is mutable -- an owner revises a tier or retires a designation.
+
+    It carries no status column and no transition history. The only question a reader asks --
+    "was this in force at instant X?" -- is answered by arithmetic on the row's own
+    timestamps, so there is no lifecycle for a reviewer to advance and nothing for a
+    transition table to record.
+
+    **Time-bound by the row, never by a sweep.** Validity is the half-open interval
+    ``[effective_from, min(effective_to, retired_at))``. Retirement records an INSTANT, so a
+    designation retired today still resolves for a date on which it was in force -- a boolean
+    ``active`` could only answer "is it live now" and would give every historical question
+    today's answer (:mod:`ken_services.recommendations.priority`).
+
+    Two designations of one (page, type) may not be in force at the same instant. That is a
+    NON-OVERLAP rule, enforced by the ``page_priorities_no_overlap`` trigger, not a unique
+    index: uniqueness would forbid scheduling a replacement for a future date and would let an
+    expired row block its own successor.
+    """
+
+    __tablename__ = "page_priorities"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    page_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("pages.id", ondelete="RESTRICT"), nullable=False
+    )
+    priority_type: Mapped[str] = mapped_column(Text, nullable=False)
+    tier: Mapped[int] = mapped_column(Integer, nullable=False)
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    owner: Mapped[str] = mapped_column(Text, nullable=False)
+    effective_from: Mapped[datetime] = _ts()
+    effective_to: Mapped[datetime | None] = _ts(nullable=True)
+    retired_at: Mapped[datetime | None] = _ts(nullable=True)
+    created_at: Mapped[datetime] = _ts(default_now=True)
+    created_by: Mapped[str] = mapped_column(Text, nullable=False)
+    updated_at: Mapped[datetime] = _ts(default_now=True)
+    updated_by: Mapped[str] = mapped_column(Text, nullable=False)
+
+    __table_args__ = (
+        CheckConstraint(_one_of("priority_type", PriorityType), name="priority_type_valid"),
+        CheckConstraint(f"tier >= {MIN_TIER} AND tier <= {MAX_TIER}", name="tier_range"),
+        CheckConstraint("length(btrim(reason)) > 0", name="reason_present"),
+        CheckConstraint("length(btrim(owner)) > 0", name="owner_present"),
+        CheckConstraint("length(btrim(created_by)) > 0", name="created_by_present"),
+        CheckConstraint("length(btrim(updated_by)) > 0", name="updated_by_present"),
+        CheckConstraint(
+            "effective_to IS NULL OR effective_to > effective_from", name="window_ordered"
+        ),
+        Index("ix_page_priorities_page_id", "page_id"),
+        Index("ix_page_priorities_page_id_type", "page_id", "priority_type"),
     )

@@ -1,7 +1,8 @@
 # ADR-0023 — A link plus the wording around it: contextual copy proposals
 
 - **Status:** Accepted by the owner for planning, 2026-10-29 (answers recorded at the end).
-  **Nothing here is implemented.**
+  A read-only shadow reviewer/drafter audit was implemented on 2026-11-20. The production copy-edit
+  plan contract, autonomous drafting and CMS publish path described below remain unimplemented.
 - **Decision owner:** the project owner.
 - **Supersedes:** ADR-0020 decision 2 ("insert the single word *market* only") and the resolution
   of decision 4 ("report data is used only to judge relevance"). ADR-0020 decision 3
@@ -207,3 +208,11 @@ and a shadow pass before anything reaches a draft. This is a full phase; it is *
 - Whether an agent may eventually trigger the CMS's publish step, or a person always does. That
   is a backend-team and owner decision for later; it does not block planning or the draft stage.
 - The 20-word data threshold and the autonomy gates above are starting values, not final.
+
+## Shadow implementation note (2026-11-20)
+
+`tools/v02-contextual-audit/audit-and-draft.mjs` implements the safe first slice only. It reads the
+current CMS source and destination content, enforces ADR-0031 placement rules, requires visible
+explanatory prose and destination evidence, checks neutral/descriptive wording, and produces a
+versioned review record under `outputs/contextual-v02-shadow/`. It cannot mutate the CMS. When the
+existing sentence already carries the context, its draft is deliberately a no-copy-change result.

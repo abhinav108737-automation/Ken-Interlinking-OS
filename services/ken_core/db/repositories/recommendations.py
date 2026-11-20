@@ -534,6 +534,18 @@ async def replace_modules(
     return items
 
 
+async def clear_modules(session: AsyncSession, *, kinds: Sequence[ModuleKind]) -> None:
+    """Remove obsolete module surfaces when editorial policy disables them.
+
+    Items are removed by the existing ``ON DELETE CASCADE``. An explicit kind list keeps
+    one disabled surface from deleting future, unrelated module kinds.
+    """
+    values = sorted({ModuleKind(kind).value for kind in kinds})
+    if values:
+        await session.execute(delete(PageModule).where(PageModule.kind.in_(values)))
+        await session.flush()
+
+
 def module_from_rows(
     row: PageModule,
     canonical_url: str,

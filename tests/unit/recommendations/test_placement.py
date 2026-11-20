@@ -498,6 +498,23 @@ def test_skip_first_block_skips_the_opening_paragraph() -> None:
     found = _place(body, rules=policy_with(placement={"skip_first_block": True}))
     assert found is not None
     assert found.locator.block_id == "b2"
+
+
+def test_market_overview_is_a_hard_placement_exclusion() -> None:
+    body = (
+        "<h2>Market Overview</h2>"
+        "<p>The solar power market supports utility planning.</p>"
+        "<h2>Growth Drivers</h2>"
+        "<p>Manufacturers compare the solar power market when planning capacity.</p>"
+    )
+    found = _place(body)
+    assert found is not None
+    assert found.locator.block_id == "b3"
+
+
+def test_related_reports_section_never_hosts_an_inline_anchor() -> None:
+    body = "<h2>Related Reports</h2><p>The solar power market supports utility planning.</p>"
+    assert _place(body) is None
     assert _place(body) is not None
 
 
