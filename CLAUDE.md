@@ -4,7 +4,7 @@ You are working inside the Ken Research Agentic Interlinking OS repository.
 
 ## Mandatory First Step
 
-Before editing code, read START_HERE.md, PRD.md, TRD.md, AUTONOMY_AND_PERMISSIONS.md, REPO_CLONE_PLAN.md and IMPLEMENTATION_PLAN.md.
+Before editing code, read START_HERE.md, PRD.md, TRD.md, AUTONOMY_AND_PERMISSIONS.md, REPO_CLONE_PLAN.md, IMPLEMENTATION_PLAN.md and knowledge/README.md. Then read every knowledge-base document that START_HERE.md marks as required for the active phase.
 
 Treat these files as the governing project specification.
 

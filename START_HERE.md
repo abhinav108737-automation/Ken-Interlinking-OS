@@ -46,6 +46,11 @@ Read these files in this exact order before modifying code:
 6. `REPO_CLONE_PLAN.md`
 7. `IMPLEMENTATION_PLAN.md`
 8. `INITIAL_CLAUDE_CODE_PROMPT.md`
+9. `knowledge/README.md`
+10. `knowledge/BUSINESS_PHASE_2_PRIORITY_INTERLINKING.md` for the active Business Phase 2 work
+
+Knowledge-base documents capture approved product and editorial intent. They supplement but do not
+silently override the governing specifications, frozen contracts, ADRs, or permission controls.
 
 ## Development Mode
 
