@@ -24,9 +24,24 @@ Applied and verified on the Ken Consulting test CMS on 2026-11-19. These deploym
 |---:|---:|---|
 | 1 | 18 | Applied and verified |
 | 7 | 19 | Applied and verified |
-| 8 | 20 | Applied and verified |
+| 8 | 24 | Repaired to a visible bullet and publicly verified |
 | 13 | 21 | Applied and verified |
 | 12 | 22 | Applied and verified |
+
+### Recommendation 8 visibility repair
+
+The original deployment 20 was stored in a Market Opportunities description that the public
+Growth Drivers component did not render. It was therefore present in CMS data but invisible to
+readers.
+
+- Deployment 20 was rolled back.
+- A first content-contract attempt was refused with HTTP 422 and compensated by deployment 23.
+- After Snehal supplied the `find` + `new_text` contract, deployment 23 was rolled back.
+- Deployment 24 atomically changed the visible bullet from `create recurring data-maintenance
+  needs` to `create recurring document management and data-maintenance needs`, with **document
+  management** linked to the intended report.
+- The public cache was revalidated six times. Public HTML returned 200 and contained exactly one
+  rendered anchor with the intended text and destination.
 
 ## Recommended links
 

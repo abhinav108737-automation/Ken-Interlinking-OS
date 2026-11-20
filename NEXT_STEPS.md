@@ -1,5 +1,180 @@
 # Next Steps
 
+**Approved Kuwait topic batch LIVE on the test host (2026-11-20):** dashboard approvals
+`topic-kuwait:1` through `topic-kuwait:6` are now publicly rendered and CMS-verified. The first
+canary uses deployments `35`–`37`; the approved follow-up batch uses deployments `38`–`42`.
+`topic-kuwait:7` remains a shadow proposal because it has no approval. The batch audit is
+`outputs/contextual-v02-live/approved-topic-batch-2026-11-20.json`. These links demonstrate copy,
+placement, rollback and rendered-link safety only: the test host declares `noindex,nofollow`, so
+they do not transfer search authority.
+
+**GitHub inheritance sequence implemented as a governed MVP (2026-11-20):** the dashboard now
+contains a filtered interactive Kuwait graph with existing, proposed and live edges; the graph
+CLI builds snapshots, diffs two snapshots, finds shortest paths and discovers sitemap seeds; and
+RRF fusion plus precision/recall tests is available in shadow code. Five RRF tests pass. The first
+real judgment set contains 6 approvals, 6 rendered-live outcomes, 0 rejections and 0 measured
+click outcomes. Therefore the reranker gate correctly remains closed: continue collecting real
+negative labels and engagement events before training or promoting any learned ranker. See
+`docs/handover/GITHUB_REPOSITORY_INHERITANCE_IMPLEMENTATION_2026-11-20.md`.
+
+**Kuwait topic-cluster authority audit (2026-11-20):** seven new editorial drafts now appear in
+the v0.2 dashboard with individual 91–97 contextual scores and a separate authority/indexability
+gate. All seven are currently blocked for authority routing on `thekenconsulting.com`: the audited
+source and destination pages declare `noindex,nofollow`, the draft `www` href differs from the
+declared non-`www` canonical, and destination presentation remains pending. Keep editorial approval
+separate from production eligibility. Next: map approved drafts to followable, indexable canonical
+production URLs (if available), verify public destination evidence, then run CMS dry-run and
+rendered-link verification. Search Console is required to label a page indexed/non-indexed or
+ranking/non-ranking; internal linking alone is never recorded as a guarantee.
+
+**Kuwait topic canary LIVE on the test host (2026-11-20):** owner-approved `topic-kuwait:1`
+(Retail Inventory Forecasting → Order Management Systems) passed the atomic content-change dry run,
+was applied as deployment `35`, and was verified in both CMS content and the public rendered DOM.
+The link appears in Market Trajectory on `order management systems`. The durable audit record is
+`outputs/contextual-v02-live/topic-kuwait-1-live-2026-11-20.json`. This remains a presentation
+canary because the test host declares `noindex,nofollow`.
+
+**Business Phase 2 direction (2026-11-19):** the approved engagement-oriented Priority
+Interlinking plan is now durable project knowledge in
+[`knowledge/BUSINESS_PHASE_2_PRIORITY_INTERLINKING.md`](knowledge/BUSINESS_PHASE_2_PRIORITY_INTERLINKING.md).
+The Claude handover is
+[`docs/handover/BUSINESS_PHASE_2_CLAUDE_HANDOVER.md`](docs/handover/BUSINESS_PHASE_2_CLAUDE_HANDOVER.md).
+Start with the repository-backed gap analysis described there; build on items 29, 31, 32, and 34
+rather than creating a parallel recommendation engine. This business phase is not the historical
+repository software Phase 2.
+
+**Gap analysis DONE 2026-11-19:** [`docs/handover/BUSINESS_PHASE_2_GAP_ANALYSIS.md`](docs/handover/BUSINESS_PHASE_2_GAP_ANALYSIS.md).
+Measured baseline at that commit: `tests/unit` 4,657 passed, 32 skipped. It found that Business
+Phase 2 needs **no second engine and conflicts with no ADR-0027 gate**, and that three of its four
+headline gaps are policy data or owner decisions rather than missing code. It also found one
+genuine structural gap: `link_events.plan_id` is a foreign key to `link_plans`, so the 3,213
+persisted modules and 9,777 module items (item 31) **cannot be measured at all** — which is most
+of Business Phase 2's intended surface area.
+
+**Owner decisions, 2026-11-19** (recorded in full in the gap analysis §10):
+D1 approve 2A-1 · D2 page-family routing classification for a *proposed* `recommendation.v2` ·
+D3 a separate `priority` ranking component via ADR, never permanently through `commercial` ·
+D4 rebuild the full eval corpus only AFTER the market graph (item 32); purpose-built fixtures for
+2A-1 · D5 ADR for module-item analytics identity · D6 no auto-generated public hubs; curated
+membership, shadow only · D7 `expert` is a taxonomy-v4 requirement, not invented now.
+
+**Owner-set sequence:**
+
+| # | Step | State |
+|---|---|---|
+| 1 | **2A-1** governed priority registry + shadow reporting | **DONE 2026-11-19, verified** (below) |
+| 2 | Update the gap analysis and NEXT_STEPS with the verified result | **DONE** (this entry; gap analysis §11) |
+| 3 | Draft the explicit-priority-component ADR (D3) | next — not started, by instruction |
+| 4 | Draft the module-analytics-identity ADR (D5) | not started |
+| 5 | Prepare the proposed `recommendation.v2` routing policy + tests, NOT activated (D2) | not started |
+| 6 | Full eval-corpus rebuild — only after the market graph, item 32 (D4) | deferred; item 34 stays open |
+| 7 | Public topic hubs (D6) and the `expert` taxonomy family (D7) | pending curated business data |
+
+**2A-1 — what exists now.** Migration `0013_page_priorities` (head confirmed as
+`0012_page_modules` before choosing it). `page_priorities`: 9 governed types, tier 1–5, reason,
+owner, `effective_from`, optional `effective_to`, `retired_at`, created/updated by+at; page FK
+`ON DELETE RESTRICT`.
+
+**Validity is an interval, not a flag** (two lifecycle defects fixed 2026-11-19 before
+acceptance). `ken_priority_validity` in migration 0013 returns
+`[effective_from, min(effective_to, retired_at))`, clamped so it can never invert, mirrored in
+Python by `PriorityDesignation.validity_end`, and a parametrised test holds the two
+implementations to each other over seven cases.
+* **Retirement records an INSTANT.** A boolean `active` answered only "is it live now", so a
+  designation retired today reported as absent for every past date and a shadow report
+  reconstructed for that date was wrong. `retired_at` truncates the interval instead, so the
+  designation still resolves for dates on which it was genuinely in force. A future `--at`
+  SCHEDULES the retirement, which is how an open-ended designation is handed over on a date
+  without ever editing it. `retired_at` at or before `effective_from` yields an EMPTY interval:
+  in force at no instant, blocking nothing.
+* **The rule is non-overlap, not uniqueness.** `page_priorities_no_overlap` (trigger, with
+  `pg_advisory_xact_lock` per page+type against concurrent inserts) refuses two designations of
+  one (page, type) whose validity intervals overlap. The previous partial unique index
+  `WHERE active` forbade a scheduled replacement and let an expired-but-still-active row block
+  its own successor. Adjacent half-open intervals do not overlap, so `[Nov, Dec)` then
+  `[Dec, …)` is accepted with no edit to the incumbent. **No `CREATE EXTENSION`:** a GiST
+  exclusion constraint would need `btree_gist`, while `tstzrange` is core PostgreSQL — every
+  migration in this chain states it creates no extension, and ADR-0017 removed the only one
+  this project ever had.
+* Timezone-naive instants are refused at the service boundary and in the dataclass, before any
+  comparison (comparing naive with aware raises `TypeError` and would mask the real fault).
+
+Two things the fix exposed, both now corrected:
+* **A trigger's constraint name is not in its message.** `str(exc.orig)` therefore never matched
+  `page_priorities_no_overlap`, so the CLI would have fallen through to a generic refusal. The
+  name lives on the asyncpg error's `constraint_name`, which SQLAlchemy's adapter does NOT copy
+  across — it keeps the original on `__cause__`. `violated_constraint()` unwraps both, and the
+  schema tests assert through that SAME helper, so a regression in it fails the tests instead of
+  silently degrading the message.
+* **Adding a function or trigger breaks every "a downgrade removes exactly these" test.** 0013
+  now creates two functions and a trigger, so `PRIORITY_FUNCTIONS` / `PRIORITY_TRIGGERS` join
+  `PRIORITY_TABLES` in the conftest sets, and the head-state function inventory in
+  `test_recommendations_schema` names both functions. Seven downgrade tests caught this. Vocabulary in `ken_core/priority.py` (deliberately not `ken_contracts`:
+graduating it is the D3 ADR's decision). Domain + resolver `recommendations/priority.py`; shadow
+`recommendations/priority_shadow.py`; DB read path + management `recommendations/priority_store.py`;
+CLI `python -m ken_services.recommendations.priority_cli {add,retire,list,shadow}`.
+**No frozen contract, policy file, live score, plan, module or analytics row is changed.**
+
+**How priority is kept behind every gate (verified, not asserted):**
+* The shadow reads only QUALIFIED candidates — survivors, plus those cut solely by
+  `per_source_limit` / `diversity_limit`. Gate, eligibility, both floors (`below_min_relevance`,
+  `below_min_score`) and the `link_density_exceeded` safety guard are excluded in SQL. The pipeline
+  order this relies on (gates → min_relevance → placement → min_score → caps) was read from
+  `pipeline.py:700–834`, not assumed.
+* A designated target that is unpublished, gone, protected, noindex, non-canonical, HTTP-error,
+  thin, type-excluded, unanalysed or stale earns nothing, with the refusing rule named — using the
+  engine's own `page_eligibility`, under the shadowed run's own `analysis_version`.
+* **Load-bearing tests:** unit — a tier-1 designation cannot admit a pair the REAL
+  `geography_gate` / `market_gate` refuses, each with a positive control; integration — the real
+  engine run with EVERY page designated tier 1 reports exactly the qualified set (8) and none of
+  the 12 `market_unrelated` refusals; and every live table is identical before and after a shadow.
+
+**Verified 2026-11-19** (after the two lifecycle fixes): unit + contract **5,269 passed**,
+32 skipped (platform-only) — unit **4,768** (was 4,657) and contract 533. New tests: **69 unit**
+(domain, shadow and CLI) and **58 integration** (priority schema + store, including the real
+engine run). Migration round trip 9/9; all seven "a downgrade removes exactly these" tests pass
+with `PRIORITY_TABLES` / `PRIORITY_FUNCTIONS` / `PRIORITY_TRIGGERS`; ORM↔DB parity on every
+CHECK name and both indexes; SQL and Python validity intervals agree over seven cases; ruff +
+format clean repo-wide; mypy clean except ONE pre-existing error
+(`tests/unit/test_kenconsulting_cms_provider.py:154`, present at clean HEAD `8b5be34`).
+Full integration suite: **1,293 passed, 4 failed, 5 skipped** (live-Ollama only) — the 4 failures are exactly item 34's known-red list by name, nothing else.
+
+**CLI smoke on a real (test-DB) engine run:** 8 qualified candidates across 5 sources,
+5 designated, 4 rank changes, 4 plan-set changes, **max priority share 0.140** at the
+provisional 0.10 weight — first evidence for the D3 ADR's dominance limit.
+
+**2A-1 known limitations:**
+1. The shadow formula is an **additive approximation on the final score**
+   (`min(1, live_score + value × 0.10)`); where a real `priority` component enters (inside
+   relevance, before or after the placement factor) is the D3 ADR's decision. Every report states
+   the formula and the assumed weight.
+2. `SHADOW_PRIORITY_WEIGHT = 0.10` is provisional and is NOT in `ranking_weights.v1.yaml`.
+3. No HTTP API or reviewer UI: both need contract models, which wait on the D3 ADR. The CLI is the
+   local management surface.
+4. Designation changes emit **no events**: `EventName` is a frozen vocabulary. Audit is the row
+   history instead — there is no edit, only add and retire, so every decision leaves a row.
+5. The plan-set comparison preserves each source's plan count but does not re-simulate the
+   cross-source `diversity_limit`.
+6. Eligibility is today's (live facts) while designations resolve at `--at`. Designations now
+   reconstruct the past correctly, but eligibility does not: a report for a past instant pairs
+   that instant's designations with today's eligibility. Historical eligibility would need the
+   page facts as they were, which this slice does not store.
+7. The integration corpus is India-only, so the geography gate is exercised at unit level
+   (against the real gate) but not end to end.
+8. The real-site corpus (`ken_real500`) has not been shadowed: that database is not migrated to
+   0013, and migrating a database holding real-site data is left to the owner.
+
+**Two findings outside 2A-1, flagged not fixed:**
+* **Integration tests silently SKIP on this machine.** `tests/conftest.py` defaults to
+  `localhost:5433`; Windows resolves `localhost` to IPv6 `::1` first, the container publishes only
+  `127.0.0.1:5433`, and the 2-second connect timeout makes every integration test *skip* — so the
+  suite reports green while testing nothing. Setting
+  `KEN_TEST_DATABASE_URL=postgresql+asyncpg://ken:ken@127.0.0.1:5433/ken_interlink_test` fixes it
+  (the Makefile already says `127.0.0.1`). Recommended one-line fix: change the default host.
+* **Repo-wide lint had been red since 2026-11-17.** The archived live-test scripts committed then
+  (`docs/live-tests/`) were linted; they are a verbatim record of what ran against the CMS, so
+  they are now excluded in `pyproject.toml` rather than reformatted.
+
 **Current state (2026-10-29):** Phases 7 (Analytics) and 8 (Learning) have passed their gates; see
 [PHASE_8_REPORT.md](PHASE_8_REPORT.md) (full suite green after fixing a Windows-only test defect; ruff and
 mypy clean). Phase 9 (autonomy, Qdrant, ADR-0017/0018) is verified in [PHASE_9_REPORT.md](PHASE_9_REPORT.md): 336 tests pass,
@@ -83,7 +258,7 @@ any governing document, so none was guessed.
 | | *Original finding, 2026-11-01:* `/industry-reports/global-oat-milk-market` has primary geography **Asia Pacific**; `/industry-reports/global-trade-management-market` has **North America**. Cause: `gates.primary_geography` takes the highest-scored geography *mention*, and on a global page the most-discussed country or region outscores the word "global". Consequences seen in real output: a global page links to a regional report on its own market name ("The Global **Methanol Market**" → Asia Pacific report, 6% of the 1,028-plan run), and a related-report module lists the global report under a country label. Fix belongs in analysis, not in the gate: a page whose slug or title declares `global`/`worldwide` should carry the global node as primary regardless of mention counts. Needs a re-analysis of the corpus after the change. | — | superseded by the row above |
 | 32 | **Priority 2, adjacency, needs the market graph the taxonomy lacks.** The owner's model (2026-11-01): a reader of an EV report wants charging-station and battery markets, because those are components of the same decision; then segments (electric bus, electric car); ranked by which genuinely helps. This is item 27's missing relationship edges, with a purpose. Proposed shape: the local model proposes **typed edges between the 6,592 market cores once, offline** (`component_of`, `complement_of`, `upstream`, `downstream`, `substitute_of`, each with a rationale and provenance), Pydantic-validated, scored against the owner's labels, shadowed, then explicitly promoted — never per-candidate inference at run time, which would be millions of calls and unexplainable. Serving stays a deterministic graph lookup. Ranking combines edge type, embedding similarity (Qdrant, already there) and **co-demand from the live GA4/GSC data** — the pages real readers visit together — which is the engagement signal the owner is optimising for. | The only part of the owner's model that genuinely needs a model | design + **ASK** before adding an agent node |
 | 30 | **Eval scorers that re-implement a decision drift silently.** Found 2026-10-31: the `anchor-selection` scorer drove the pre-ADR-0027 `placement.anchor_phrases` while the pipeline had moved to `market_keyword_anchors`, so the suite had stopped gating real anchor behaviour and stayed green the whole time. Fixed, and the dataset reissued as `core.v2.jsonl` (dataset_version 2). **`shadow.py` FIXED 2026-11-09:** its restatement of the engine now calls the production geography gate, market gate and `market_keyword_anchors`, with the pipeline's own `enclosing_phrases` (market phrases, the source's own market name, every corpus title). It had been running the pre-ADR-0027 anchor path with no gates at all, so every pair it proposed and production refused was a false diff. A restatement is a liability by construction: the durable fix is one callable both paths use, and that refactor is NOT done. The audit itself turned up item 34, where the drift runs the other way. | A gate that cannot fail is not a gate | fix (ours) |
-| 34 | **The agent eval suites now assert nothing, and they fail loudly saying so (found 2026-11-09).** `tests/integration/test_agent_evals.py::test_recorded_agent_cases` reports FIXTURE DRIFT on 22 of 48 cases with the same shape: *engine proposes [], fixture records [...]*. The cause is not a regression but the ADR-0027 gates meeting a corpus built for the engine that preceded them. Of 78 fixture plans, **46 cross a geography** (an India cold-chain source linking to Qatar logistics and Saudi solar) and most of the rest are **adjacency** links within one geography (India EV -> India lithium-ion battery *manufacturing*), which `market_unrelated` refuses while the taxonomy declares no relationships (item 27). So the critic, destination-selection, no-action and malformed-output suites have no plans to score at all. **The fixtures were deliberately NOT re-recorded**: re-recording would write empty expectations and leave four suites permanently green while measuring nothing, which is the same defect as item 30 with the opposite sign. **It is wider than the agent suites.** `test_recommendation_evals.py` fails the same way on the 65-page demo corpus itself — *"the engine proposed nothing on the demo corpus"* — so `test_demo_corpus_recommendations_pass_every_gate` and the placement-safety test are red too. **The whole synthetic corpus is inert under ADR-0027.** Rebuilding it is a coupled change, which is why it is not done here: `research_site.jsonl` (65 pages), `recommendation_judgments.json` (1,831 lines of labels), `relatedness.json`, `analysis_expected.json` and 48 agent fixtures all key off the same pairs. Item 32's market graph would change what is permissible again, so doing it now means doing it twice. **Red tests with a known cause, exactly four, measured on a full integration run (1,232 passed): `test_agent_evals::test_recorded_agent_cases`, `test_agent_evals::test_model_disabled_equals_the_deterministic_rule`, `test_recommendation_evals::test_demo_corpus_recommendations_pass_every_gate`, `test_recommendation_evals::test_placement_safety_page_never_anchors_under_excluded_markup`.** The fix is a corpus whose links the current rules actually permit (same market, regional siblings, taxonomy parent/child) — or item 32 first, then one rebuild. | The synthetic eval corpus predates the gates; four agent suites and two engine gates are decorative | fix (ours) — needs an eval corpus decision |
+| 34 | **The agent eval suites now assert nothing, and they fail loudly saying so (found 2026-11-09).** `tests/integration/test_agent_evals.py::test_recorded_agent_cases` reports FIXTURE DRIFT on 22 of 48 cases with the same shape: *engine proposes [], fixture records [...]*. The cause is not a regression but the ADR-0027 gates meeting a corpus built for the engine that preceded them. Of 78 fixture plans, **46 cross a geography** (an India cold-chain source linking to Qatar logistics and Saudi solar) and most of the rest are **adjacency** links within one geography (India EV -> India lithium-ion battery *manufacturing*), which `market_unrelated` refuses while the taxonomy declares no relationships (item 27). So the critic, destination-selection, no-action and malformed-output suites have no plans to score at all. **The fixtures were deliberately NOT re-recorded**: re-recording would write empty expectations and leave four suites permanently green while measuring nothing, which is the same defect as item 30 with the opposite sign. **It is wider than the agent suites.** `test_recommendation_evals.py` fails the same way on the 65-page demo corpus itself — *"the engine proposed nothing on the demo corpus"* — so `test_demo_corpus_recommendations_pass_every_gate` and the placement-safety test are red too. **The whole synthetic corpus is inert under ADR-0027.** Rebuilding it is a coupled change, which is why it is not done here: `research_site.jsonl` (65 pages), `recommendation_judgments.json` (1,831 lines of labels), `relatedness.json`, `analysis_expected.json` and 48 agent fixtures all key off the same pairs. Item 32's market graph would change what is permissible again, so doing it now means doing it twice. **Red tests with a known cause, exactly four, measured on a full integration run (1,232 passed): `test_agent_evals::test_recorded_agent_cases`, `test_agent_evals::test_model_disabled_equals_the_deterministic_rule`, `test_recommendation_evals::test_demo_corpus_recommendations_pass_every_gate`, `test_recommendation_evals::test_placement_safety_page_never_anchors_under_excluded_markup`.** **UPDATED 2026-11-19.** Two of the four are resolved and the cause of a third is now understood. (a) The placement-safety test is GREEN: its fixture was not merely inert, it was *vacuous* -- its body still carried the free editorial phrases of the pre-ADR-0027 anchor path, so no anchor could be placed anywhere on the page and the test passed without exercising a single exclusion. Repaired with phrases `market_keyword_anchors` actually offers, and mutation-checked (narrowing the allowed set makes it fail). (b) `test_demo_corpus_recommendations_pass_every_gate` no longer proposes nothing: under [ADR-0029](docs/adr/ADR-0029-context-anchors-when-the-market-keyword-is-absent.md) context anchors it produces plans on 7 sources with `precision_at_3_macro` **1.00**, no bad examples and no anchor mismatches. It is still red, but now on `recall_good_macro` 0.1833 against a 0.70 floor calibrated for the pre-ADR-0027 engine -- a floor question for the corpus rebuild (D4), not an inert corpus. The agent suites are untouched and still need the rebuild. The fix is a corpus whose links the current rules actually permit (same market, regional siblings, taxonomy parent/child) — or item 32 first, then one rebuild. | The synthetic eval corpus predates the gates; four agent suites and two engine gates are decorative | fix (ours) — needs an eval corpus decision |
 | 29 | **Page-family routing is declared for three families and the site has twelve (measured 2026-11-09).** `recommendation.v1.yaml`'s `page_type_targets` names only `report`, `insight` and `other` as sources, and only `report`, `insight` and `hub` as targets. The corpus under `tax3-alg2` holds **report 7,085, survey 906, benchmark 496, insight 208, case_study 55, pov 53, other 32, brand_comparison 9, consulting 7, corporate 4, transactional 2, hub 1**. So nine of the twelve families have no source row at all and can never propose a link, and nine can never receive one — `benchmark` (496 pages, a real Ken product family) is invisible in both directions, and `hub` can be a target but never a source. The policy predates the real taxonomy; this is 166,576 `page_type_incompatible` refusals, most of them unexamined rather than intended. Insight pages are 2% of the corpus yet yield plans at 0.27 per page against 0.10 overall, and supplied almost every anchor that survived editorial review, so the families are not interchangeable and the question is worth answering properly. **Needs your decision, not ours:** which families may be sources, which may be targets. The mechanism already exists — it is policy data — but a change means `recommendation.v2.yaml`, never an in-place edit, and every past plan records the version that produced it. | Routing now matters more to quality than scoring does | decision (evidence ready) |
 ## Licence hazards in the research references (standing warning)
 
@@ -274,6 +449,17 @@ incompatibility, which this project treats as a hard stop.
 - Serialization-mode OpenAPI schemas: always-present fields are now required in TypeScript.
 
 ## Operating reminders
+
+### Kuwait Cloud-Based topic review — 20 November 2026
+
+- Reviewed all 28 reports in current CMS and public HTML. Seven editorial groups cover 24 reports;
+  four specialist topics remain separate. These are proposed research groups, not taxonomy changes.
+- Confirmed three existing visible links and prepared seven additional bridge drafts in the local
+  dashboard's `Kuwait topic clusters` filter. No CMS changes were performed.
+- Next: review the drafts, check destination presentation where the exact CMS passage is absent
+  from public HTML, then run version-locked CMS validation for approved proposals.
+- Detailed evidence: `docs/evaluation/V02_KUWAIT_TOPIC_CLUSTER_RESULTS_2026-11-20.md` and
+  `outputs/contextual-v02-shadow/kuwait_topic_cluster_results.md`.
 
 - Work one phase at a time. Under the current authorisation, continue to the next phase after
   each phase gate passes; stop only for ASK/BLOCK actions.
