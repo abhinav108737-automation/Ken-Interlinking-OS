@@ -3,6 +3,7 @@ import fs from "node:fs/promises";
 import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { copyRuleProblems } from "../v02-contextual-audit/copy-rules.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, "..", "..");
@@ -17,6 +18,9 @@ const topicEvidencePath = process.env.KEN_REVIEW_TOPIC_EVIDENCE_PATH || path.joi
 const liveApplyPath = process.env.KEN_REVIEW_LIVE_APPLY_PATH || path.join(root, "outputs", "contextual-v02-live", "approved-apply-2026-11-20.json");
 const topicLivePath = process.env.KEN_REVIEW_TOPIC_LIVE_PATH || path.join(root, "outputs", "contextual-v02-live", "topic-kuwait-1-live-2026-11-20.json");
 const topicBatchPath = process.env.KEN_REVIEW_TOPIC_BATCH_PATH || path.join(root, "outputs", "contextual-v02-live", "approved-topic-batch-2026-11-20.json");
+const clusterLivePath = process.env.KEN_REVIEW_CLUSTER_LIVE_PATH || path.join(root, "outputs", "contextual-v02-live", "approved-cluster-batch-2026-11-20.json");
+const clusterRewritePath = process.env.KEN_REVIEW_CLUSTER_REWRITE_PATH || path.join(root, "outputs", "contextual-v02-live", "cluster-copy-rewrite-apply-2026-11-20.json");
+const relocatedDraftsPath = process.env.KEN_REVIEW_RELOCATED_DRAFTS_PATH || path.join(root, "outputs", "contextual-v02-shadow", "relocated-rolled-back-drafts-2026-11-20.json");
 const graphSnapshotPath = process.env.KEN_REVIEW_GRAPH_PATH || path.join(root, "outputs", "graph-intelligence", "kuwait-topic-graph-current.json");
 const host = "127.0.0.1";
 const port = Number.parseInt(process.env.KEN_REVIEW_DASHBOARD_PORT || "4177", 10);
@@ -72,6 +76,11 @@ async function load() {
   const topicLive = await readJson(topicLivePath, null);
   const topicBatch = await readJson(topicBatchPath, { results: [] });
   const graph = await readJson(graphSnapshotPath, { nodes: [], edges: [] });
+  const clusterLive = await readJson(clusterLivePath, { results: [] });
+  const clusterRewrite = await readJson(clusterRewritePath, { results: [] });
+  const relocatedDrafts = await readJson(relocatedDraftsPath, { results: [] });
+  const clusterLiveById = new Map(clusterLive.results.filter((result) => result.rendered_verified).map((result) => [result.id, result]));
+  const clusterRewriteById = new Map(clusterRewrite.results.filter((result) => result.rendered_verified).map((result) => [result.id, result]));
   const liveById = new Map(liveApply.results.map((result) => [result.id, result]));
   if (topicLive?.id) liveById.set(topicLive.id, topicLive);
   for (const result of topicBatch.results ?? []) {
@@ -125,18 +134,54 @@ async function load() {
     });
   const clusterAdditions = clusterDrafts.results
     .filter((draft) => draft.verdict === "draft_ready" && !existingIds.has(draft.id))
-    .map((draft) => ({
+    .map((draft) => {
+      const live = clusterLiveById.get(draft.id);
+      const rewrite = clusterRewriteById.get(draft.id);
+      return {
       id: draft.id,
       kind: "cluster",
       review_batch: "Exact-market cluster audit · 2026-11-20",
-      current_status: "Shadow - awaiting approval",
+      current_status: live ? "Live - publicly verified" : "Shadow - awaiting approval",
       change_class: "Cluster comparison sentence + link",
       mode: "Exact market, different geography",
       source_report: String(draft.source_report).replace(/\s+Market Size[\s\S]*$/i, ""),
       destination_report: String(draft.destination_report).replace(/\s+Market Size[\s\S]*$/i, ""),
       placement: `${draft.source_field}, after the public forecast paragraph`,
-      proposed_wording: draft.proposed_sentence,
+      proposed_wording: rewrite?.after ?? (live ? live.proposed_sentence : draft.proposed_sentence),
       reader_value: draft.reader_value,
+      source_url: draft.source_url,
+      destination_url: draft.destination_url,
+      deployment_id: [live?.deployment_id, rewrite?.deployment_id].filter(Boolean).join(", "),
+      next_step: live ? "measure_engagement" : "contextual_dry_run",
+      policy_eligible: true,
+      policy_reasons: [],
+      anchor: draft.anchor,
+      market_core: draft.cluster,
+      before_copy: draft.exact_after_text,
+      after_copy: `${draft.exact_after_text}\n\n${rewrite?.after ?? draft.proposed_sentence}`,
+      source_evidence: draft.source_evidence,
+      target_evidence: draft.destination_evidence,
+      expected_source_version: draft.source_version,
+      cms_validation: live ? (rewrite ? "Applied, copy rewritten and public anchor verified" : "Applied and public anchor verified") : "Not run - approval required first",
+      scorer: draft.scorer,
+    };
+    });
+  // The three rolled-back links, moved to Market Trajectory (the one section the public template
+  // renders in full). New ids on purpose: the approvals of v02-new:1/:2/:4 covered other wording.
+  const relocatedAdditions = relocatedDrafts.results
+    .filter((draft) => draft.verdict === "draft_ready" && !existingIds.has(draft.id))
+    .map((draft) => ({
+      id: draft.id,
+      kind: "relocated",
+      review_batch: "Relocated after rollback · 2026-11-20",
+      current_status: "Shadow - awaiting approval",
+      change_class: "Relocated comparison sentence + link",
+      mode: `Replaces rolled-back ${draft.replaces_rolled_back}`,
+      source_report: draft.source_slug,
+      destination_report: draft.destination_slug,
+      placement: draft.placement,
+      proposed_wording: draft.proposed_sentence,
+      reader_value: draft.why_relocated,
       source_url: draft.source_url,
       destination_url: draft.destination_url,
       deployment_id: "",
@@ -144,14 +189,11 @@ async function load() {
       policy_eligible: true,
       policy_reasons: [],
       anchor: draft.anchor,
-      market_core: draft.cluster,
       before_copy: draft.exact_after_text,
-      after_copy: `${draft.exact_after_text}\n\n${draft.proposed_sentence}`,
-      source_evidence: draft.source_evidence,
+      after_copy: `${draft.exact_after_text}\n\n${draft.plain_sentence}`,
       target_evidence: draft.destination_evidence,
       expected_source_version: draft.source_version,
-      cms_validation: "Not run - approval required first",
-      scorer: draft.scorer,
+      cms_validation: "Dry run valid; approval required before any write",
     }));
   const topicAdditions = topicDrafts.results
     .filter((draft) => draft.verdict === "draft_ready" && !existingIds.has(draft.id))
@@ -223,7 +265,13 @@ async function load() {
       },
     };
     });
-  return { dataset: { ...dataset, proposals: [...topicAdditions, ...clusterAdditions, ...additions, ...dataset.proposals], graph }, state };
+  // Every inserted sentence is shown against the owner's copy rule before anyone approves it.
+  // Existing-text links (the older contextual batch) insert no sentence, so the rule does not apply.
+  const plain = (wording) => String(wording ?? "").replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");
+  const withCopyRule = (proposal) => ["cluster", "topic", "relocated"].includes(proposal.kind)
+    ? { ...proposal, copy_rule_problems: copyRuleProblems(plain(proposal.proposed_wording), { readerValue: proposal.reader_value }) }
+    : proposal;
+  return { dataset: { ...dataset, proposals: [...relocatedAdditions, ...topicAdditions, ...clusterAdditions, ...additions, ...dataset.proposals].map(withCopyRule), graph }, state };
 }
 
 function proposalMap(dataset) {

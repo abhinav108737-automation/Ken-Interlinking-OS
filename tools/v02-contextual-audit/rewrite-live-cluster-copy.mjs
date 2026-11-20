@@ -13,6 +13,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { JSDOM } from "jsdom";
+import { copyRuleProblems } from "./copy-rules.mjs";
 
 const ROOT = path.resolve(import.meta.dirname, "..", "..");
 const LIVE_PATH = path.join(ROOT, "outputs", "contextual-v02-live", "approved-cluster-batch-2026-11-20.json");
@@ -29,17 +30,6 @@ function parseEnv(text) {
 
 const normalize = (value) => String(value ?? "").replace(/\s+/g, " ").trim();
 const count = (haystack, needle) => haystack.split(needle).length - 1;
-
-function ruleProblems(sentence) {
-  const problems = [];
-  const words = sentence.trim().split(/\s+/).length;
-  const sentences = sentence.trim().split(/(?<=[.!?])\s+/).filter(Boolean).length;
-  if (words < 32 || words > 38) problems.push(`${words} words, need 32-38`);
-  if (sentences < 2) problems.push(`${sentences} sentence(s), need at least 2`);
-  if (/[–—]| - /.test(sentence)) problems.push("contains a dash");
-  if (/\breaders?\b/i.test(sentence)) problems.push("addresses the reader");
-  return problems;
-}
 
 async function request(url, options = {}) {
   const response = await fetch(url, { ...options, redirect: "manual", signal: AbortSignal.timeout(45_000) });
@@ -71,7 +61,7 @@ async function main() {
     const prefix = `The ${record.anchor} `;
     if (!record.proposed_sentence.startsWith(prefix)) throw new Error(`${id}: live sentence does not start with "${prefix}"`);
     if (!after.startsWith(prefix)) throw new Error(`${id}: rewrite must keep the opening "${prefix}"`);
-    const problems = ruleProblems(after);
+    const problems = copyRuleProblems(after);
     if (problems.length) throw new Error(`${id}: rewrite breaks the owner's rule: ${problems.join("; ")}`);
     plan.push({ id, record, before: record.proposed_sentence, after, oldTail: record.proposed_sentence.slice(prefix.length), newTail: after.slice(prefix.length) });
   }

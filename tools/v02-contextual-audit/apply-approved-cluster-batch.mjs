@@ -8,16 +8,24 @@
 // Without `--execute` nothing is written: every draft is read and validated, and the report
 // records the dry run. A draft whose source version moved since approval is REFUSED, never
 // re-approved against the newer version: the approval was given for the text that was reviewed.
+//
+// `--drafts=` and `--report=` point it at another draft file in the same shape. `--unapproved`
+// previews drafts that carry no approval yet, so they can be validated before review; it is
+// refused together with `--execute`, so nothing unapproved can ever be written.
 import fs from "node:fs/promises";
 import path from "node:path";
 import { JSDOM } from "jsdom";
+import { copyRuleProblems } from "./copy-rules.mjs";
 
 const ROOT = path.resolve(import.meta.dirname, "..", "..");
-const DRAFTS_PATH = path.join(ROOT, "outputs", "contextual-v02-shadow", "cluster_interlinking_drafts.json");
+const option = (name) => process.argv.find((arg) => arg.startsWith(`--${name}=`))?.slice(name.length + 3);
+const DRAFTS_PATH = path.resolve(ROOT, option("drafts") ?? path.join("outputs", "contextual-v02-shadow", "cluster_interlinking_drafts.json"));
 const DECISIONS_PATH = path.join(ROOT, "data", "v02-contextual-review", "decision-state.json");
-const REPORT_PATH = path.join(ROOT, "outputs", "contextual-v02-live", "approved-cluster-batch-2026-11-20.json");
+const REPORT_PATH = path.resolve(ROOT, option("report") ?? path.join("outputs", "contextual-v02-live", "approved-cluster-batch-2026-11-20.json"));
 const EXECUTE = process.argv.includes("--execute");
-const ONLY = new Set(process.argv.filter((arg) => arg.startsWith("cluster:")));
+const UNAPPROVED = process.argv.includes("--unapproved");
+if (EXECUTE && UNAPPROVED) throw new Error("--unapproved is a preview: it can never be combined with --execute");
+const ONLY = new Set(process.argv.slice(2).filter((arg) => !arg.startsWith("--")));
 
 function parseEnv(text) {
   return Object.fromEntries(text.split(/\r?\n/).filter((line) => line.trim() && !line.trim().startsWith("#") && line.includes("=")).map((line) => {
@@ -70,6 +78,10 @@ async function save(report) {
 }
 
 async function main() {
+  // A report that records live writes is the audit trail, and the dashboard reads live status from
+  // it: no later run may overwrite it. Each run must name a fresh report with --report=.
+  const existing = await fs.readFile(REPORT_PATH, "utf8").then(JSON.parse, () => null);
+  if (String(existing?.mode ?? "").startsWith("live")) throw new Error(`${path.relative(ROOT, REPORT_PATH)} records live writes and is never overwritten; pass --report=<new file>`);
   const env = parseEnv(await fs.readFile(path.join(ROOT, ".env"), "utf8"));
   const base = String(env.KEN_CMS_BASE_URL || "").replace(/\/$/, "");
   if (!["thekenconsulting.com", "www.thekenconsulting.com"].includes(new URL(base).hostname)) throw new Error("Refusing unexpected CMS host");
@@ -78,8 +90,8 @@ async function main() {
   const headers = { Accept: "application/json", Authorization: `Bearer ${env.KEN_CMS_WRITE_TOKEN}`, "Content-Type": "application/json" };
   const drafts = JSON.parse(await fs.readFile(DRAFTS_PATH, "utf8"));
   const decisions = JSON.parse(await fs.readFile(DECISIONS_PATH, "utf8"));
-  const approved = drafts.results.filter((draft) => decisions.decisions?.[draft.id]?.decision === "approve" && (ONLY.size === 0 || ONLY.has(draft.id)));
-  if (approved.length === 0) throw new Error("No approved cluster drafts were found");
+  const approved = drafts.results.filter((draft) => (UNAPPROVED || decisions.decisions?.[draft.id]?.decision === "approve") && (ONLY.size === 0 || ONLY.has(draft.id)));
+  if (approved.length === 0) throw new Error("No approved drafts were found");
 
   const prepared = [];
   const refused = [];
@@ -88,6 +100,10 @@ async function main() {
     const pageUrl = `${base}/internal/pages/${pageId}/`;
     const targetPath = new URL(draft.destination_url).pathname;
     try {
+      // The copy rule is checked before the page is even read: a draft that breaks it never
+      // reaches the CMS, whichever builder produced it.
+      const copyProblems = copyRuleProblems(linkedSentence(draft, targetPath).plain, { readerValue: draft.reader_value });
+      if (copyProblems.length) throw new Error(`copy rule: ${copyProblems.join("; ")}`);
       const pageResult = await request(pageUrl, { headers });
       if (!pageResult.response.ok) throw new Error(`CMS read failed with HTTP ${pageResult.response.status}`);
       const page = pageResult.data;
@@ -115,7 +131,8 @@ async function main() {
 
   const report = {
     schema_version: 1,
-    mode: EXECUTE ? "live_cluster_batch" : "dry_run",
+    mode: EXECUTE ? "live_batch" : UNAPPROVED ? "dry_run_unapproved_preview" : "dry_run",
+    drafts: path.relative(ROOT, DRAFTS_PATH),
     environment_note: "The staging host declares noindex,nofollow; this batch tests presentation and controlled publishing, not authority transfer.",
     approved_ids: approved.map((draft) => draft.id),
     validated_ids: prepared.map(({ draft }) => draft.id),
@@ -132,7 +149,7 @@ async function main() {
       proposed_sentence: sentence.plain,
       insertion_marker: marker,
       expected_version: version,
-      score: draft.scorer.total,
+      score: draft.scorer?.total ?? null,
       validation: "valid",
       deployment_id: null,
       cms_verified: false,
@@ -144,7 +161,7 @@ async function main() {
   if (!EXECUTE) {
     report.completed_at = new Date().toISOString();
     await save(report);
-    console.log(`Validated ${prepared.length} of ${approved.length} approved cluster drafts; no CMS writes performed`);
+    console.log(`Validated ${prepared.length} of ${approved.length} drafts; no CMS writes performed`);
     return;
   }
 
@@ -197,7 +214,7 @@ async function main() {
   report.completed_at = new Date().toISOString();
   await save(report);
   const live = report.results.filter((result) => result.rendered_verified).length;
-  console.log(`\n${live} of ${prepared.length} cluster links are live and publicly verified`);
+  console.log(`\n${live} of ${prepared.length} links are live and publicly verified`);
 }
 
 await main();
