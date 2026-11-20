@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "mode": "dry_run_unapproved_preview",
+  "drafts": "outputs\\contextual-v02-shadow\\cluster_interlinking_drafts.json",
+  "environment_note": "The staging host declares noindex,nofollow; this batch tests presentation and controlled publishing, not authority transfer.",
+  "approved_ids": [
+    "cluster:1",
+    "cluster:6",
+    "cluster:15"
+  ],
+  "validated_ids": [
+    "cluster:1",
+    "cluster:6",
+    "cluster:15"
+  ],
+  "refused": [],
+  "started_at": "2026-11-20T11:28:40.071Z",
+  "results": [
+    {
+      "id": "cluster:1",
+      "page_id": "kuwait-dermal-toxicity-testing-market:v02_market_trajectory",
+      "cluster": "dermal toxicity testing",
+      "source_url": "https://www.thekenconsulting.com/industry-reports/kuwait-dermal-toxicity-testing-market",
+      "destination_url": "https://www.thekenconsulting.com/industry-reports/malaysia-dermal-toxicity-testing-market",
+      "target_path": "/industry-reports/malaysia-dermal-toxicity-testing-market",
+      "anchor": "Malaysia Dermal Toxicity Testing Market",
+      "proposed_sentence": "The Malaysia Dermal Toxicity Testing Market reaches USD 22 million by 2032, growing at 9.2% a year, close to Kuwait's 9.3%. Volume and utilisation explain most of that increase, while validated in vitro work adds further throughput.",
+      "insertion_marker": "Operators can track the forecast against repeat-order frequency, the proportion of studies that require specialist review and fees realized after subcontracting.",
+      "expected_version": "3034e16478733d4fe037b92fb76db290358af3840b5e9782f29221983d7d739b",
+      "score": 96,
+      "validation": "valid",
+      "deployment_id": null,
+      "cms_verified": false,
+      "rendered_verified": false,
+      "rollback_status": null
+    },
+    {
+      "id": "cluster:6",
+      "page_id": "malaysia-heating-radiator-market:v02_market_trajectory",
+      "cluster": "heating radiator",
+      "source_url": "https://www.thekenconsulting.com/industry-reports/malaysia-heating-radiator-market",
+      "destination_url": "https://www.thekenconsulting.com/industry-reports/kuwait-heating-radiator-market",
+      "target_path": "/industry-reports/kuwait-heating-radiator-market",
+      "anchor": "Kuwait Heating Radiator Market",
+      "proposed_sentence": "The Kuwait Heating Radiator Market reaches USD 41 million by 2032, growing at 5.6% a year against Malaysia's 6.8%. Value grows faster than volume, reflecting price, product mix and directly associated service content.",
+      "insertion_marker": "Higher-value industrial assemblies can outperform the aggregate commercially, but their economics must be assessed separately from portable heaters because unit definitions and specification complexity differ materially.",
+      "expected_version": "390fceca6f9b40df57daef58feb88cd81b850795db09111eece4293b5ccf4051",
+      "score": 96,
+      "validation": "valid",
+      "deployment_id": null,
+      "cms_verified": false,
+      "rendered_verified": false,
+      "rollback_status": null
+    },
+    {
+      "id": "cluster:15",
+      "page_id": "mexico-warehousing-market:v02_market_trajectory",
+      "cluster": "warehousing",
+      "source_url": "https://www.thekenconsulting.com/industry-reports/mexico-warehousing-market",
+      "destination_url": "https://www.thekenconsulting.com/industry-reports/latin-america-warehousing-market",
+      "target_path": "/industry-reports/latin-america-warehousing-market",
+      "anchor": "Latin America Warehousing Market",
+      "proposed_sentence": "The Latin America Warehousing Market reaches about USD 108.5 billion by 2032, growing at 9.0% a year against Mexico's 6.5%. Growth in active space slows to 5.8% by 2032 as throughput and a richer service mix take over.",
+      "insertion_marker": "It does not assume that every newly completed industrial building becomes a commercial warehouse, or that automation equipment spending is separately added to service-provider revenue.",
+      "expected_version": "2d2535474fe65f6c406a0acbccb416d6c0927714162e3746ec2f815b54533b81",
+      "score": 96,
+      "validation": "valid",
+      "deployment_id": null,
+      "cms_verified": false,
+      "rendered_verified": false,
+      "rollback_status": null
+    }
+  ],
+  "completed_at": "2026-11-20T11:28:40.073Z"
+}

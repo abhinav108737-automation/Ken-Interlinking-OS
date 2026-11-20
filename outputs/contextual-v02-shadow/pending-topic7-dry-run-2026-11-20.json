@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "mode": "dry_run_unapproved_preview",
+  "drafts": "outputs\\contextual-v02-shadow\\kuwait_topic_cluster_drafts.json",
+  "environment_note": "The staging host declares noindex,nofollow; this batch tests presentation and controlled publishing, not authority transfer.",
+  "approved_ids": [
+    "topic-kuwait:7"
+  ],
+  "validated_ids": [
+    "topic-kuwait:7"
+  ],
+  "refused": [],
+  "started_at": "2026-11-20T11:28:41.537Z",
+  "results": [
+    {
+      "id": "topic-kuwait:7",
+      "page_id": "kuwait-cloud-based-digital-lending-platforms-market:v02_market_trajectory",
+      "cluster": "Banking and risk",
+      "source_url": "https://www.thekenconsulting.com/industry-reports/kuwait-cloud-based-digital-lending-platforms-market",
+      "destination_url": "https://www.thekenconsulting.com/industry-reports/kuwait-cloud-based-financial-risk-management-platforms-market",
+      "target_path": "/industry-reports/kuwait-cloud-based-financial-risk-management-platforms-market",
+      "anchor": "financial risk management platforms",
+      "proposed_sentence": "For portfolio-level oversight, financial risk management platforms cover credit portfolios and reporting beyond individual loan-servicing records. The Kuwait market is projected to reach USD 319 million by 2032, with banks as the main buyers.",
+      "insertion_marker": "It also increases the financial consequences of weak exception handling, particularly as lenders use digital workflows for more complex consumer, housing, and SME credit.",
+      "expected_version": "252fd6d3f24f06c14930a31155ba1adb0a448b683e87a53b5b4b52baa054693d",
+      "score": 94,
+      "validation": "valid",
+      "deployment_id": null,
+      "cms_verified": false,
+      "rendered_verified": false,
+      "rollback_status": null
+    }
+  ],
+  "completed_at": "2026-11-20T11:28:41.540Z"
+}

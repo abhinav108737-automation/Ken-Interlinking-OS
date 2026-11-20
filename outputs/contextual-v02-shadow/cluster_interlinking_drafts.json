@@ -31,7 +31,7 @@
       "source_version": "3034e16478733d4fe037b92fb76db290358af3840b5e9782f29221983d7d739b",
       "placement": "Insert after the visible forecast paragraph",
       "exact_after_text": "Revenue reaches USD 35 million by 2032 at a 9.27% value CAGR for 2025–2032. Volume grows at a 6.99% CAGR for 2025–2032, and the blended fee rises to USD 11,009 per event, a 2.13% CAGR for 2025–2032. The mix shifts toward in vitro delivery, while specialty studies and dossier work sustain fee growth at the portfolio level. The blend can rise even where individual routine assays become less expensive, provided buyers commission more complex work or package several endpoints. Operators can track the forecast against repeat-order frequency, the proportion of studies that require specialist review and fees realized after subcontracting.",
-      "proposed_sentence": "The [Malaysia Dermal Toxicity Testing Market](https://www.thekenconsulting.com/industry-reports/malaysia-dermal-toxicity-testing-market) reaches USD 22 million by 2032 at 9.2% CAGR, compared with Kuwait's USD 35 million and 9.27%, giving readers a smaller-revenue Asian benchmark with nearly the same growth rate.",
+      "proposed_sentence": "The [Malaysia Dermal Toxicity Testing Market](https://www.thekenconsulting.com/industry-reports/malaysia-dermal-toxicity-testing-market) reaches USD 22 million by 2032, growing at 9.2% a year, close to Kuwait's 9.3%. Volume and utilisation explain most of that increase, while validated in vitro work adds further throughput.",
       "anchor": "Malaysia Dermal Toxicity Testing Market",
       "source_evidence": "Revenue reaches USD 35 million by 2032 at a 9.27% value CAGR for 2025–2032. Volume grows at a 6.99% CAGR for 2025–2032, and the blended fee rises to USD 11,009 per event, a 2.13% CAGR for 2025–2032. The mix shifts toward in vitro delivery, while specialty studies and dossier work sustain fee growth at the portfolio level. The blend can rise even where individual routine assays become less expensive, provided buyers commission more complex work or package several endpoints. Operators can track the forecast against repeat-order frequency, the proportion of studies that require specialist review and fees realized after subcontracting.",
       "destination_evidence": "Forecast revenue rises to USD 22 million in 2032 at a 9.2% CAGR for 2025–2032. The forecast retains the source's USD 18 million projection for 2030 and extends the same trajectory for two years. Blended revenue yield at the end of the period is approximately USD 7,657 per study. At that yield, volume and utilization explain most of the increase in receipts. Validated in vitro work contributes incremental throughput, while broader device or pharmaceutical study panels support contract value. Rising competition for routine endpoints and more selective use of physical tests limit the assumed gains in blended revenue per study.",
@@ -126,7 +126,9 @@
           "CMS dry-run and rendered-link validation remain pending until approval."
         ],
         "disclaimer": "Editorial reference only. It does not reproduce Google ranking systems or predict AI citations."
-      }
+      },
+      "superseded_sentence": "The [Malaysia Dermal Toxicity Testing Market](https://www.thekenconsulting.com/industry-reports/malaysia-dermal-toxicity-testing-market) reaches USD 22 million by 2032 at 9.2% CAGR, compared with Kuwait's USD 35 million and 9.27%, giving readers a smaller-revenue Asian benchmark with nearly the same growth rate.",
+      "superseded_reason": "Owner copy rule 2026-11-20: at least two sentences, 32-38 words, no dashes, no reader address."
     },
     {
       "id": "cluster:2",
@@ -240,7 +242,8 @@
           "CMS dry-run and rendered-link validation remain pending until approval."
         ],
         "disclaimer": "Editorial reference only. It does not reproduce Google ranking systems or predict AI citations."
-      }
+      },
+      "live_sentence_after_rewrite": "The Kuwait Dermal Toxicity Testing Market reaches USD 35 million by 2032, growing at 9.3% a year, close to Malaysia's 9.2%. Demand shifts toward in vitro testing, while specialty studies and dossier work support continued fee growth."
     },
     {
       "id": "cluster:3",
@@ -354,7 +357,8 @@
           "CMS dry-run and rendered-link validation remain pending until approval."
         ],
         "disclaimer": "Editorial reference only. It does not reproduce Google ranking systems or predict AI citations."
-      }
+      },
+      "live_sentence_after_rewrite": "The Malaysia Guaiacol Market grows at 6.5% a year to about USD 6 million by 2032, ahead of Kuwait's 5.0%. Pharmaceutical manufacturing reaches 46% of modelled spending, while purchase prices are expected to stay broadly flat."
     },
     {
       "id": "cluster:4",
@@ -468,7 +472,8 @@
           "CMS dry-run and rendered-link validation remain pending until approval."
         ],
         "disclaimer": "Editorial reference only. It does not reproduce Google ranking systems or predict AI citations."
-      }
+      },
+      "live_sentence_after_rewrite": "The Kuwait Guaiacol Market grows at 5.0% a year through 2032, slower than Malaysia's 6.5%. Volume reaches 127 metric tonnes by 2030, and with prices nearly flat, the outlook favours low-overhead distribution and repeat orders."
     },
     {
       "id": "cluster:5",
@@ -582,7 +587,8 @@
           "CMS dry-run and rendered-link validation remain pending until approval."
         ],
         "disclaimer": "Editorial reference only. It does not reproduce Google ranking systems or predict AI citations."
-      }
+      },
+      "live_sentence_after_rewrite": "The Malaysia Heating Radiator Market grows from USD 29 million to USD 46 million by 2032, at 6.8% a year against Kuwait's 5.6%. Unit volumes drive that growth, with average pricing expected to remain broadly stable."
     },
     {
       "id": "cluster:6",
@@ -601,7 +607,7 @@
       "source_version": "390fceca6f9b40df57daef58feb88cd81b850795db09111eece4293b5ccf4051",
       "placement": "Insert after the visible forecast paragraph",
       "exact_after_text": "The projected CAGR is 6.8% (2025-2032), reconciling the displayed USD 29 million and USD 46 million endpoints. Equipment-count CAGR is 7.0% (2025-2032), while the blended value-per-count indicator moves from USD 24.64 to USD 24.35. The resulting outlook assumes broadly stable aggregate pricing rather than a sustained premiumization windfall. Whole-number market-value presentation creates apparent annual growth fluctuations, particularly late in the series; these should not be interpreted as independently forecast demand shocks. Higher-value industrial assemblies can outperform the aggregate commercially, but their economics must be assessed separately from portable heaters because unit definitions and specification complexity differ materially.",
-      "proposed_sentence": "The [Kuwait Heating Radiator Market](https://www.thekenconsulting.com/industry-reports/kuwait-heating-radiator-market) reaches USD 41 million by 2032 at 5.6% CAGR, compared with Malaysia's USD 46 million and 6.8%, providing a closely sized Gulf benchmark with more moderate growth.",
+      "proposed_sentence": "The [Kuwait Heating Radiator Market](https://www.thekenconsulting.com/industry-reports/kuwait-heating-radiator-market) reaches USD 41 million by 2032, growing at 5.6% a year against Malaysia's 6.8%. Value grows faster than volume, reflecting price, product mix and directly associated service content.",
       "anchor": "Kuwait Heating Radiator Market",
       "source_evidence": "The projected CAGR is 6.8% (2025-2032), reconciling the displayed USD 29 million and USD 46 million endpoints. Equipment-count CAGR is 7.0% (2025-2032), while the blended value-per-count indicator moves from USD 24.64 to USD 24.35. The resulting outlook assumes broadly stable aggregate pricing rather than a sustained premiumization windfall. Whole-number market-value presentation creates apparent annual growth fluctuations, particularly late in the series; these should not be interpreted as independently forecast demand shocks. Higher-value industrial assemblies can outperform the aggregate commercially, but their economics must be assessed separately from portable heaters because unit definitions and specification complexity differ materially.",
       "destination_evidence": "The projected 5.6% CAGR (2025-2032) produces a terminal market size of USD 41 million. Value grows by 46.4% across the period, while product volume increases by 35.2%. The resulting difference represents a combination of price, product mix and directly associated service content. Total revenue per unit reaches USD 468.57 in 2032; this is a revenue-intensity measure, not a retail appliance price. Annual growth variations in the tables primarily reflect whole-million rounding. The forecast assumes steady construction delivery, continued replacement activity and no abrupt expansion into industrial heating or full-building cooling expenditure.",
@@ -696,7 +702,9 @@
           "CMS dry-run and rendered-link validation remain pending until approval."
         ],
         "disclaimer": "Editorial reference only. It does not reproduce Google ranking systems or predict AI citations."
-      }
+      },
+      "superseded_sentence": "The [Kuwait Heating Radiator Market](https://www.thekenconsulting.com/industry-reports/kuwait-heating-radiator-market) reaches USD 41 million by 2032 at 5.6% CAGR, compared with Malaysia's USD 46 million and 6.8%, providing a closely sized Gulf benchmark with more moderate growth.",
+      "superseded_reason": "Owner copy rule 2026-11-20: at least two sentences, 32-38 words, no dashes, no reader address."
     },
     {
       "id": "cluster:7",
@@ -810,7 +818,8 @@
           "CMS dry-run and rendered-link validation remain pending until approval."
         ],
         "disclaimer": "Editorial reference only. It does not reproduce Google ranking systems or predict AI citations."
-      }
+      },
+      "live_sentence_after_rewrite": "The Qatar Organic Dyes Market reaches about USD 7.6 million by 2032, growing at 4.0% a year, well below Malaysia's 6.0%. Value rises faster than volume, pointing to selective premiumisation rather than a surge in commodity demand."
     },
     {
       "id": "cluster:8",
@@ -924,7 +933,8 @@
           "CMS dry-run and rendered-link validation remain pending until approval."
         ],
         "disclaimer": "Editorial reference only. It does not reproduce Google ranking systems or predict AI citations."
-      }
+      },
+      "live_sentence_after_rewrite": "The Malaysia Organic Dyes Market grows from USD 75 million to USD 113 million by 2032, at 6.0% a year against Qatar's 4.0%. Volume drives most of that increase, with natural dyes and cleaner processing offering further upside."
     },
     {
       "id": "cluster:9",
@@ -1038,7 +1048,8 @@
           "CMS dry-run and rendered-link validation remain pending until approval."
         ],
         "disclaimer": "Editorial reference only. It does not reproduce Google ranking systems or predict AI citations."
-      }
+      },
+      "live_sentence_after_rewrite": "The Qatar Ortho-Phthalaldehyde Market reaches about USD 7.7 million by 2032, growing at 7.0% a year against Malaysia's 8.0%. Value rises faster than volume over the period, reflecting modest pricing and product-mix improvement."
     },
     {
       "id": "cluster:10",
@@ -1152,7 +1163,8 @@
           "CMS dry-run and rendered-link validation remain pending until approval."
         ],
         "disclaimer": "Editorial reference only. It does not reproduce Google ranking systems or predict AI citations."
-      }
+      },
+      "live_sentence_after_rewrite": "The Malaysia Ortho-Phthalaldehyde Market reaches about USD 8 million by 2032, growing at 8.0% a year against Qatar's 7.0%. Healthcare disinfection remains the main use at 68% of demand, while analytical applications gain share."
     },
     {
       "id": "cluster:11",
@@ -1266,7 +1278,8 @@
           "CMS dry-run and rendered-link validation remain pending until approval."
         ],
         "disclaimer": "Editorial reference only. It does not reproduce Google ranking systems or predict AI citations."
-      }
+      },
+      "live_sentence_after_rewrite": "The Qatar Orthopedic Spine Navigation Systems Market reaches about USD 1.9 million by 2032, growing at 8.0% a year against Malaysia's 11.1%. Service and capital equipment lead spending, while software grows fastest at 14% a year."
     },
     {
       "id": "cluster:12",
@@ -1380,7 +1393,8 @@
           "CMS dry-run and rendered-link validation remain pending until approval."
         ],
         "disclaimer": "Editorial reference only. It does not reproduce Google ranking systems or predict AI citations."
-      }
+      },
+      "live_sentence_after_rewrite": "The Malaysia Orthopedic Spine Navigation Systems Market reaches USD 24 million by 2032, growing at 11.1% a year against Qatar's 8.0%. Accessory revenue grows faster still, while average workstation prices fall to USD 230,000."
     },
     {
       "id": "cluster:13",
@@ -1494,7 +1508,8 @@
           "CMS dry-run and rendered-link validation remain pending until approval."
         ],
         "disclaimer": "Editorial reference only. It does not reproduce Google ranking systems or predict AI citations."
-      }
+      },
+      "live_sentence_after_rewrite": "The Qatar Outdoor Payment Terminals Market reaches USD 26 million by 2032, growing at 13.1% a year, close to Malaysia's 13.8%. The installed base adds about 2,600 terminals, with replacement hardware and services lifting revenue."
     },
     {
       "id": "cluster:14",
@@ -1608,7 +1623,8 @@
           "CMS dry-run and rendered-link validation remain pending until approval."
         ],
         "disclaimer": "Editorial reference only. It does not reproduce Google ranking systems or predict AI citations."
-      }
+      },
+      "live_sentence_after_rewrite": "The Malaysia Outdoor Payment Terminals Market grows from USD 48 million to USD 119 million by 2032, at 13.8% a year. The installed base adds about 45,800 terminals, with software and services taking a larger revenue share."
     },
     {
       "id": "cluster:15",
@@ -1627,7 +1643,7 @@
       "source_version": "2d2535474fe65f6c406a0acbccb416d6c0927714162e3746ec2f815b54533b81",
       "placement": "Insert after the visible forecast paragraph",
       "exact_after_text": "Forecast CAGR of 6.5% (2025-2032) takes the market to USD 5,830 million in 2032. Operated area approaches 35.2 million square metres, while monthly revenue intensity increases to approximately USD 13.80 per operated square metre. Revenue therefore expands by 55.47% from the base year, compared with approximately 40.8% for area. Handling intensity, specialist storage and fulfillment provide the incremental monetization bridge. The outlook assumes gradual capacity commissioning and continued external customer demand. It does not assume that every newly completed industrial building becomes a commercial warehouse, or that automation equipment spending is separately added to service-provider revenue.",
-      "proposed_sentence": "The [Latin America Warehousing Market](https://www.thekenconsulting.com/industry-reports/latin-america-warehousing-market) reaches USD 108,524 million by 2032 at 9.0% CAGR, compared with Mexico's USD 5,830 million and 6.5%, placing the country forecast within the broader regional scale and growth pattern.",
+      "proposed_sentence": "The [Latin America Warehousing Market](https://www.thekenconsulting.com/industry-reports/latin-america-warehousing-market) reaches about USD 108.5 billion by 2032, growing at 9.0% a year against Mexico's 6.5%. Growth in active space slows to 5.8% by 2032 as throughput and a richer service mix take over.",
       "anchor": "Latin America Warehousing Market",
       "source_evidence": "Forecast CAGR of 6.5% (2025-2032) takes the market to USD 5,830 million in 2032. Operated area approaches 35.2 million square metres, while monthly revenue intensity increases to approximately USD 13.80 per operated square metre. Revenue therefore expands by 55.47% from the base year, compared with approximately 40.8% for area. Handling intensity, specialist storage and fulfillment provide the incremental monetization bridge. The outlook assumes gradual capacity commissioning and continued external customer demand. It does not assume that every newly completed industrial building becomes a commercial warehouse, or that automation equipment spending is separately added to service-provider revenue.",
       "destination_evidence": "Revenue reaches a modeled USD 108,524 Mn by 2032, a 9.0% CAGR in 2025-2032. The model places terminal active area at 152.4 million square meters and annual realization at USD 712 per active square meter. Growth in area moderates to 5.8% in 2032 as the forecast shifts toward greater throughput and a richer service mix. The realization measure combines storage, handling and eligible value-added fees, so an operator’s ability to win and price additional work matters alongside occupancy. The last three forecast years extend the supplied revenue path and assume a gradual slowdown in net additions to active space.",
@@ -1722,7 +1738,9 @@
           "CMS dry-run and rendered-link validation remain pending until approval."
         ],
         "disclaimer": "Editorial reference only. It does not reproduce Google ranking systems or predict AI citations."
-      }
+      },
+      "superseded_sentence": "The [Latin America Warehousing Market](https://www.thekenconsulting.com/industry-reports/latin-america-warehousing-market) reaches USD 108,524 million by 2032 at 9.0% CAGR, compared with Mexico's USD 5,830 million and 6.5%, placing the country forecast within the broader regional scale and growth pattern.",
+      "superseded_reason": "Owner copy rule 2026-11-20: at least two sentences, 32-38 words, no dashes, no reader address."
     }
   ]
 }

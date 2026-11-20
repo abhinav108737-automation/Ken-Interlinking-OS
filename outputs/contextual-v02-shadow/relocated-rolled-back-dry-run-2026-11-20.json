@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "mode": "dry_run_unapproved_preview",
+  "drafts": "outputs\\contextual-v02-shadow\\relocated-rolled-back-drafts-2026-11-20.json",
+  "environment_note": "The staging host declares noindex,nofollow; this batch tests presentation and controlled publishing, not authority transfer.",
+  "approved_ids": [
+    "v02-relocated:1",
+    "v02-relocated:2",
+    "v02-relocated:4"
+  ],
+  "validated_ids": [
+    "v02-relocated:1",
+    "v02-relocated:2",
+    "v02-relocated:4"
+  ],
+  "refused": [],
+  "started_at": "2026-11-20T11:25:30.225Z",
+  "results": [
+    {
+      "id": "v02-relocated:1",
+      "page_id": "kuwait-electrosurgical-devices-market:v02_market_trajectory",
+      "source_url": "https://www.thekenconsulting.com/industry-reports/kuwait-electrosurgical-devices-market",
+      "destination_url": "https://www.thekenconsulting.com/industry-reports/kuwait-electrosurgical-generators-market",
+      "target_path": "/industry-reports/kuwait-electrosurgical-generators-market",
+      "anchor": "Kuwait Electrosurgical Generators Market",
+      "proposed_sentence": "The Kuwait Electrosurgical Generators Market grows at 7.5% a year through 2032, while unit sales grow at 5.5%, lifting revenue per unit by about 1.9% a year. Procurement could be uneven around that trend.",
+      "insertion_marker": "Service and instrument demand follows installations, case volumes and platform-specific purchasing, so revenue from a new operating room is realized over several budget cycles.",
+      "expected_version": "292a0af9510e8503c63f3fe2ae26de16d95542ffc30795d11a83ab9e83c203e4",
+      "score": null,
+      "validation": "valid",
+      "deployment_id": null,
+      "cms_verified": false,
+      "rendered_verified": false,
+      "rollback_status": null
+    },
+    {
+      "id": "v02-relocated:2",
+      "page_id": "mexico-cold-chain-and-food-storage-market:v02_market_trajectory",
+      "source_url": "https://www.thekenconsulting.com/industry-reports/mexico-cold-chain-and-food-storage-market",
+      "destination_url": "https://www.thekenconsulting.com/industry-reports/mexico-pharmaceutical-logistics-market",
+      "target_path": "/industry-reports/mexico-pharmaceutical-logistics-market",
+      "anchor": "Mexico Pharmaceutical Logistics Market",
+      "proposed_sentence": "For comparison, the Mexico Pharmaceutical Logistics Market reaches about USD 3.5 billion by 2032, growing at 7.5% a year. Most of that increase comes from higher shipment and handling activity rather than pricing.",
+      "insertion_marker": "Project commissioning alone does not establish future occupied capacity or contracted revenue.",
+      "expected_version": "53d7c0880339b2181b1a2aa4f72da3290679272a49fe0b63acf1f00d85f4a4fa",
+      "score": null,
+      "validation": "valid",
+      "deployment_id": null,
+      "cms_verified": false,
+      "rendered_verified": false,
+      "rollback_status": null
+    },
+    {
+      "id": "v02-relocated:4",
+      "page_id": "kuwait-female-infertility-diagnosis-market:v02_market_trajectory",
+      "source_url": "https://www.thekenconsulting.com/industry-reports/kuwait-female-infertility-diagnosis-market",
+      "destination_url": "https://www.thekenconsulting.com/industry-reports/kuwait-genetic-testing-market",
+      "target_path": "/industry-reports/kuwait-genetic-testing-market",
+      "anchor": "Kuwait Genetic Testing Market",
+      "proposed_sentence": "The Kuwait Genetic Testing Market doubles from USD 22 million to USD 44 million by 2032, growing at 10.4% a year. Clinical diagnostic genetics rises from 37% to 42% of its modelled service mix.",
+      "insertion_marker": "Growth depends on affordability and clinical execution; insurance expansion, major new facilities and exceptional inbound patient inflows are not necessary assumptions in the base case.",
+      "expected_version": "f05641277ae808447eab8b514ecafdd272f617d2c591254cab3518a5f0a1720b",
+      "score": null,
+      "validation": "valid",
+      "deployment_id": null,
+      "cms_verified": false,
+      "rendered_verified": false,
+      "rollback_status": null
+    }
+  ],
+  "completed_at": "2026-11-20T11:25:30.227Z"
+}

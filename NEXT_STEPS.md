@@ -1,5 +1,28 @@
 # Next Steps
 
+**Copy rule enforced, and seven drafts ready for the owner's decision (2026-11-20, later):**
+the 12 live cluster sentences were rewritten to the owner's rule (two or more sentences, 32-38
+words; deployments 55-66, 12 of 12 publicly verified) because all 12 had been the draft's internal
+rationale verbatim. The rule now lives in `tools/v02-contextual-audit/copy-rules.mjs` (5 node
+tests) and every applier checks it before any CMS request; the review dashboard shows it on each
+card. **Awaiting owner approval, all dry-run valid against the live CMS and all passing the rule:**
+`v02-relocated:1`, `:2`, `:4` (the three rolled-back links, moved to Market Trajectory under new
+ids, because the old approvals covered other wording and another section), `cluster:1`, `:6`,
+`:15`, and `topic-kuwait:7`. The six live `topic-kuwait` links run 25-28 words and predate the
+rule; rewriting them is an owner decision. **Restart the dashboard** (`npm run dashboard:v02`) to
+see the new statuses: a running server holds the code it started with.
+
+**Finding: the public template hides most of every report.** `map-rendered-sections.mjs` shows only
+Market Trajectory and Key Stakeholders render in full; Growth Drivers shows 1 of 10 paragraphs.
+See knowledge lesson 8. Worth raising with the site team.
+
+**GitHub-inheritance sequence, honest state.** Step 1 (copy and evidence rule for all drafts) is
+now done at the point that matters, the appliers. Steps 2-4 exist only as local prototypes and are
+NOT integrated: sitemap/snapshot/diff is a standalone Node script over a hand-built 28-page file,
+not `inventory.sources.public_web` with persisted snapshot ids (needs a migration); the graph view
+is in the local review tool, not `apps/web`; RRF has tests but no caller in ranking. Each is its own
+phase (the plan estimates 5-8, 4-6 and 4-7 days), and the next one should start only on instruction.
+
 **Approved exact-market cluster batch LIVE on the test host (2026-11-20):** the 12 dashboard
 approvals `cluster:2`, `:3`, `:4`, `:5`, `:7`, `:8`, `:9`, `:10`, `:11`, `:12`, `:13` and `:14`
 are now CMS-verified and publicly rendered as deployments `43`-`54`. Twelve of twelve passed the

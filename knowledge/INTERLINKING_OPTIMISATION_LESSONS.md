@@ -77,3 +77,37 @@ click interest; it does not increase the authority-routing score or guarantee cl
 Owner feedback also rejected em dashes as an AI-writing signal. Contextual drafts should prefer
 short sentences, normal commas and full stops. Punctuation must not make otherwise accurate copy
 look machine-generated.
+
+## 7. The rationale is not the copy
+
+Twelve exact-market cluster links went live on 2026-11-20 with sentences that were the draft's
+internal `reader_value` note verbatim: the explanation of *why* a link helps, published as page
+text. Eleven ended "giving readers a ... benchmark". Every technical gate passed, because none can
+judge voice. The owner asked for all twelve to be rewritten, and they were (deployments 55-66).
+
+**The owner's copy rule for an inserted bridge sentence (2026-11-20):** at least two sentences,
+32-38 words in total, no em or en dashes, no address to the reader ("readers", "you"), currency
+figures rounded to at most one decimal, and never identical to the draft's rationale field. Every
+fact must come from the destination report's recorded evidence, and no sentence may assert a cause
+that the destination report does not itself state.
+
+The rule lives in one place, `tools/v02-contextual-audit/copy-rules.mjs`. Every applier checks it
+before any CMS request, so it holds whichever builder or model drafted the copy, and the review
+dashboard shows the same result on each card before anyone approves it. A rule that only a builder
+follows is a rule the next builder will not.
+
+This supersedes the 20-word limit (and its 21-35 word extension) in lesson 6 for inserted bridge
+sentences. The six Kuwait topic links already live (deployments 35-42) predate it and run 25-28
+words; they were left as approved.
+
+## 8. Most of a report is invisible to its readers
+
+A CMS write can succeed while the public template never shows that section. Mapping all v0.2
+fields of three reports against their public pages (`map-rendered-sections.mjs`) found that only
+**Market Trajectory** and **Key Stakeholders** render in full. Growth Drivers shows 1 of its 10
+paragraphs; Regional Analysis, Research Methodology and FAQ show none. Every link placed outside
+Market Trajectory so far has either vanished or been rolled back.
+
+Map the rendered sections of a report before drafting for it, and choose placements only from
+paragraphs a visitor can see. This is a property of the public template, not of the content, so it
+is worth raising with the site team: much of the written analysis never reaches a reader.
