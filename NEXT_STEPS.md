@@ -1,5 +1,27 @@
 # Next Steps
 
+**Approved exact-market cluster batch LIVE on the test host (2026-11-20):** the 12 dashboard
+approvals `cluster:2`, `:3`, `:4`, `:5`, `:7`, `:8`, `:9`, `:10`, `:11`, `:12`, `:13` and `:14`
+are now CMS-verified and publicly rendered as deployments `43`-`54`. Twelve of twelve passed the
+version-locked dry run, the apply, the CMS read-back and the rendered-DOM check with no rollbacks.
+All are `exact_market_different_geography` siblings (Kuwait/Malaysia/Qatar) placed in
+`v02_market_trajectory`, the one field the earlier batches proved the public template renders.
+`cluster:1`, `:6` and `:15` carry no dashboard decision and were not touched. The audit record is
+`outputs/contextual-v02-live/approved-cluster-batch-2026-11-20.json`; the applier is
+`tools/v02-contextual-audit/apply-approved-cluster-batch.mjs`. Same limit as every batch before it:
+the test host declares `noindex,nofollow`, so this proves copy, placement, rendering and rollback,
+not authority transfer. **Note for review:** five of the twelve are reciprocal pairs (both
+directions of guaiacol, organic dyes, ortho-phthalaldehyde, spine navigation and outdoor payment
+terminals). Each direction carries its own comparative forecast fact rather than bare symmetry, but
+the pilot's "no reciprocal inline links merely for symmetry" rule makes this an editorial judgement
+worth revisiting with click data.
+
+**Still open on the rolled-back placements:** `v02-new:1` (Kuwait electrosurgical devices) and
+`v02-new:2` (Mexico cold chain) were re-approved at 07:55Z AFTER their rollback, and `v02-new:4`
+(Kuwait female infertility) remains approved. All three failed `rendered_verified` because the
+chosen CMS field is absent from the public template, so each needs a different, visibly rendered
+section before it can be re-applied -- not a replay of the same placement.
+
 **Approved Kuwait topic batch LIVE on the test host (2026-11-20):** dashboard approvals
 `topic-kuwait:1` through `topic-kuwait:6` are now publicly rendered and CMS-verified. The first
 canary uses deployments `35`–`37`; the approved follow-up batch uses deployments `38`–`42`.
