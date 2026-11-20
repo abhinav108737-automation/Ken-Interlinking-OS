@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-11-20T08:06:59.628Z",
+  "ready": false,
+  "counts": {
+    "decisions": 6,
+    "positive": 6,
+    "negative": 0,
+    "rendered_live": 6,
+    "measured_click_outcomes": 0
+  },
+  "thresholds": {
+    "decisions": 100,
+    "positive": 40,
+    "negative": 20,
+    "measured_click_outcomes": 50
+  },
+  "missing": [
+    {
+      "metric": "decisions",
+      "actual": 6,
+      "required": 100
+    },
+    {
+      "metric": "positive",
+      "actual": 6,
+      "required": 40
+    },
+    {
+      "metric": "negative",
+      "actual": 0,
+      "required": 20
+    },
+    {
+      "metric": "measured_click_outcomes",
+      "actual": 0,
+      "required": 50
+    }
+  ],
+  "decision": "Do not train or promote a click reranker. Continue collecting real human labels and measured outcomes."
+}

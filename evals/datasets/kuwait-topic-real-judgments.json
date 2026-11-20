@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-11-20T08:06:59.562Z",
+  "provenance": "Real Ken dashboard decisions; no synthetic labels or clicks.",
+  "judgments": [
+    {
+      "id": "topic-kuwait:1",
+      "query_id": "kuwait-cloud-based-retail-inventory-forecasting-platforms-market",
+      "candidate_id": "kuwait-cloud-based-order-management-systems-market",
+      "decision": "approve",
+      "relevance": 1,
+      "reason_code": null,
+      "contextual_score": 96,
+      "rendered_live": true,
+      "source_field": "v02_market_trajectory",
+      "anchor": "order management systems",
+      "evidence_version": "ddf5d58eef38cc64484b9c036b8f8586ac82c722672581e850e7b1221b5d6d20"
+    },
+    {
+      "id": "topic-kuwait:2",
+      "query_id": "kuwait-cloud-based-order-management-systems-market",
+      "candidate_id": "kuwait-cloud-based-retail-inventory-forecasting-platforms-market",
+      "decision": "approve",
+      "relevance": 1,
+      "reason_code": null,
+      "contextual_score": 97,
+      "rendered_live": true,
+      "source_field": "v02_market_trajectory",
+      "anchor": "retail inventory forecasting",
+      "evidence_version": "d34aa921f0115d7d6012a477911008958e89812cd7b741545e9fc781cc934cf8"
+    },
+    {
+      "id": "topic-kuwait:3",
+      "query_id": "kuwait-cloud-based-retail-e-commerce-analytics-market",
+      "candidate_id": "kuwait-cloud-based-digital-experience-analytics-platforms-market",
+      "decision": "approve",
+      "relevance": 1,
+      "reason_code": null,
+      "contextual_score": 95,
+      "rendered_live": true,
+      "source_field": "v02_market_trajectory",
+      "anchor": "digital experience analytics",
+      "evidence_version": "609bb40b97d385c09b1f304dd0a3739ee3b31d84f17e54f3642b56625b090e28"
+    },
+    {
+      "id": "topic-kuwait:4",
+      "query_id": "kuwait-cloud-based-customer-success-platforms-market",
+      "candidate_id": "kuwait-cloud-based-ai-driven-customer-journey-orchestration-platforms-market",
+      "decision": "approve",
+      "relevance": 1,
+      "reason_code": null,
+      "contextual_score": 93,
+      "rendered_live": true,
+      "source_field": "v02_market_trajectory",
+      "anchor": "customer journey orchestration",
+      "evidence_version": "8ec467667ff9001f1d8acbbd89ea1c1dd03b3fefceb82828b735eca37790b2df"
+    },
+    {
+      "id": "topic-kuwait:5",
+      "query_id": "kuwait-cloud-based-customer-success-platforms-market",
+      "candidate_id": "kuwait-cloud-based-reverse-etl-platforms-market",
+      "decision": "approve",
+      "relevance": 1,
+      "reason_code": null,
+      "contextual_score": 92,
+      "rendered_live": true,
+      "source_field": "v02_growth_drivers",
+      "anchor": "reverse ETL platforms",
+      "evidence_version": "482ae2b66220e4424c97e540487fb7a2972205d4607f40a01b42465a47ee6697"
+    },
+    {
+      "id": "topic-kuwait:6",
+      "query_id": "kuwait-cloud-based-it-service-automation-platforms-market",
+      "candidate_id": "kuwait-cloud-based-hr-onboarding-chatbots-market",
+      "decision": "approve",
+      "relevance": 1,
+      "reason_code": null,
+      "contextual_score": 95,
+      "rendered_live": true,
+      "source_field": "v02_market_trajectory",
+      "anchor": "HR onboarding chatbots",
+      "evidence_version": "6c0adb32ba6493fcca3cb65e57fdfc4546bc32938d905130399386423adcba95"
+    }
+  ]
+}
