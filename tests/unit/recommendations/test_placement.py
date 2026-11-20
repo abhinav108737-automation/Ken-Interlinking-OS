@@ -515,7 +515,12 @@ def test_market_overview_is_a_hard_placement_exclusion() -> None:
 def test_related_reports_section_never_hosts_an_inline_anchor() -> None:
     body = "<h2>Related Reports</h2><p>The solar power market supports utility planning.</p>"
     assert _place(body) is None
-    assert _place(body) is not None
+    # The same sentence under any other heading is placeable: ADR-0031 excludes the SECTION,
+    # not the prose, so a failure here would mean the exclusion is matching the wrong thing.
+    elsewhere = "<h2>Growth Drivers</h2><p>The solar power market supports utility planning.</p>"
+    found = _place(elsewhere)
+    assert found is not None
+    assert found.locator.block_id == "b1"
 
 
 # --------------------------------------------------------------------------- #
