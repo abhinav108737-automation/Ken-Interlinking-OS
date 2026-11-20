@@ -28,6 +28,11 @@ from ken_services.recommendations.priority import PriorityDesignation
 from ken_services.recommendations.priority_store import violated_constraint
 from tests.integration.conftest import SyncDb
 
+pytestmark = pytest.mark.integration
+"""Every test here migrates and writes the `*_test` database. Without the marker the file
+ran in the unit suite, where it both escaped the `KEN_REQUIRE_INTEGRATION_DB` gate and
+contended with a concurrent integration run."""
+
 HASH = sha256(b"x").hexdigest()
 PAGE = uuid.UUID("00000000-0000-4000-8000-000000000131")
 START = datetime(2026, 11, 1, tzinfo=UTC)
