@@ -1,0 +1,184 @@
+import fs from "node:fs/promises";
+import path from "node:path";
+import { JSDOM } from "jsdom";
+
+const ROOT = path.resolve(import.meta.dirname, "..", "..");
+const DRAFTS_PATH = path.join(ROOT, "outputs", "contextual-v02-shadow", "kuwait_topic_cluster_drafts.json");
+const DECISIONS_PATH = path.join(ROOT, "data", "v02-contextual-review", "decision-state.json");
+const REPORT_PATH = path.join(ROOT, "outputs", "contextual-v02-live", "approved-topic-batch-2026-11-20.json");
+const EXECUTE = process.argv.includes("--execute");
+const LIVE_IDS = new Set(["topic-kuwait:1"]);
+
+function parseEnv(text) {
+  return Object.fromEntries(text.split(/\r?\n/).filter((line) => line.trim() && !line.trim().startsWith("#") && line.includes("=")).map((line) => {
+    const split = line.indexOf("=");
+    return [line.slice(0, split).trim(), line.slice(split + 1).trim().replace(/^['"]|['"]$/g, "")];
+  }));
+}
+
+const normalize = (value) => String(value ?? "").replace(/\s+/g, " ").trim();
+const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+function insertionMarker(text, bodyHtml) {
+  const candidates = normalize(text).split(/(?<=[.!?])\s+/).reverse();
+  const document = new JSDOM(bodyHtml).window.document;
+  const walker = document.createTreeWalker(document.body, 4);
+  const textNodes = [];
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) textNodes.push(node.nodeValue || "");
+  for (const candidate of candidates) {
+    const occurrences = textNodes.reduce((count, value) => count + value.split(candidate).length - 1, 0);
+    if (candidate.split(/\s+/).length >= 7 && occurrences === 1) return candidate;
+  }
+  throw new Error("No unique final sentence is available as the insertion marker");
+}
+
+function linkedSentence(draft, targetPath) {
+  const markdown = `[${draft.anchor}](${draft.destination_url})`;
+  if (draft.proposed_sentence.split(markdown).length - 1 !== 1) throw new Error(`${draft.id}: invalid linked sentence placeholder`);
+  const [before, after] = draft.proposed_sentence.split(markdown);
+  const document = new JSDOM("<p></p>").window.document;
+  const paragraph = document.querySelector("p");
+  paragraph.append(before);
+  const link = document.createElement("a");
+  link.href = `https://thekenconsulting.com${targetPath}`;
+  link.textContent = draft.anchor;
+  paragraph.append(link, after);
+  return { html: paragraph.innerHTML, plain: normalize(paragraph.textContent) };
+}
+
+async function request(url, options = {}) {
+  const response = await fetch(url, { ...options, redirect: "manual", signal: AbortSignal.timeout(45_000) });
+  const text = await response.text();
+  let data;
+  try { data = text ? JSON.parse(text) : {}; } catch { data = { non_json: true }; }
+  return { response, data, text };
+}
+
+async function save(report) {
+  await fs.mkdir(path.dirname(REPORT_PATH), { recursive: true });
+  await fs.writeFile(REPORT_PATH, `${JSON.stringify(report, null, 2)}\n`, "utf8");
+}
+
+async function main() {
+  const env = parseEnv(await fs.readFile(path.join(ROOT, ".env"), "utf8"));
+  const base = String(env.KEN_CMS_BASE_URL || "").replace(/\/$/, "");
+  if (!["thekenconsulting.com", "www.thekenconsulting.com"].includes(new URL(base).hostname)) throw new Error("Refusing unexpected CMS host");
+  if (!env.KEN_CMS_WRITE_TOKEN) throw new Error("KEN_CMS_WRITE_TOKEN is missing");
+  if (EXECUTE && String(process.env.KEN_CMS_WRITES_ENABLED ?? env.KEN_CMS_WRITES_ENABLED).toLowerCase() !== "true") throw new Error("KEN_CMS_WRITES_ENABLED must be true for execution");
+  const headers = { Accept: "application/json", Authorization: `Bearer ${env.KEN_CMS_WRITE_TOKEN}`, "Content-Type": "application/json" };
+  const drafts = JSON.parse(await fs.readFile(DRAFTS_PATH, "utf8"));
+  const decisions = JSON.parse(await fs.readFile(DECISIONS_PATH, "utf8"));
+  const approved = drafts.results.filter((draft) => !LIVE_IDS.has(draft.id) && decisions.decisions?.[draft.id]?.decision === "approve");
+  if (approved.length === 0) throw new Error("No newly approved topic drafts were found");
+
+  const prepared = [];
+  for (const draft of approved) {
+    const pageId = `${draft.source_slug}:${draft.source_field}`;
+    const pageUrl = `${base}/internal/pages/${pageId}/`;
+    const targetPath = new URL(draft.destination_url).pathname;
+    const pageResult = await request(pageUrl, { headers });
+    if (!pageResult.response.ok) throw new Error(`${draft.id}: CMS read failed with HTTP ${pageResult.response.status}`);
+    const page = pageResult.data;
+    if (page.protected) throw new Error(`${draft.id}: source field is protected`);
+    if (page.version !== draft.source_version) throw new Error(`${draft.id}: approved source version is stale`);
+    const body = String(page.body_html || "");
+    const sourceDocument = new JSDOM(body).window.document;
+    const placementMatches = [...sourceDocument.querySelectorAll("p")].filter((node) => normalize(node.textContent) === normalize(draft.exact_after_text));
+    if (placementMatches.length !== 1) throw new Error(`${draft.id}: expected one exact placement paragraph; found ${placementMatches.length}`);
+    if ([...sourceDocument.querySelectorAll("a[href]")].some((link) => new URL(link.href, draft.source_url).pathname === targetPath)) throw new Error(`${draft.id}: destination is already linked in the source field`);
+    const marker = draft.id === "topic-kuwait:5" ? "approve cloud deployment." : insertionMarker(draft.exact_after_text, body);
+    if (normalize(sourceDocument.body.textContent).split(marker).length - 1 !== 1) throw new Error(`${draft.id}: insertion marker is not unique in rendered CMS text`);
+    const sentence = linkedSentence(draft, targetPath);
+    const change = { op: "insert_after", after_text: marker, sentence: sentence.html };
+    const validation = await request(`${pageUrl}content-changes/validate/`, { method: "POST", headers, body: JSON.stringify({ expected_version: page.version, change }) });
+    if (!validation.response.ok || validation.data?.valid !== true) throw new Error(`${draft.id}: dry run failed with HTTP ${validation.response.status}: ${JSON.stringify(validation.data)}`);
+    prepared.push({ draft, pageId, pageUrl, targetPath, marker, sentence, change, version: page.version });
+    console.log(`${draft.id}: dry-run valid`);
+  }
+
+  const report = {
+    schema_version: 1,
+    mode: EXECUTE ? "live_test_batch" : "dry_run",
+    environment_note: "The staging host declares noindex,nofollow; this batch tests presentation and controlled publishing, not authority transfer.",
+    approved_ids: prepared.map(({ draft }) => draft.id),
+    started_at: new Date().toISOString(),
+    results: prepared.map(({ draft, pageId, targetPath, marker, sentence, version }) => ({
+      id: draft.id,
+      page_id: pageId,
+      source_url: draft.source_url,
+      destination_url: draft.destination_url,
+      target_path: targetPath,
+      anchor: draft.anchor,
+      proposed_sentence: sentence.plain,
+      insertion_marker: marker,
+      expected_version: version,
+      score: draft.scorer.total,
+      validation: "valid",
+      deployment_id: null,
+      cms_verified: false,
+      rendered_verified: false,
+      rollback_status: null,
+    })),
+  };
+  await save(report);
+  if (!EXECUTE) {
+    report.completed_at = new Date().toISOString();
+    await save(report);
+    console.log(`Validated ${prepared.length} approved topic drafts; no CMS writes performed`);
+    return;
+  }
+
+  for (const item of prepared) {
+    const record = report.results.find((result) => result.id === item.draft.id);
+    const operationId = `ken-${item.draft.id.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-data-20261120-v1`;
+    try {
+      record.operation_id = operationId;
+      record.apply_started_at = new Date().toISOString();
+      await save(report);
+      const applied = await request(`${item.pageUrl}content-changes/`, { method: "POST", headers, body: JSON.stringify({ operation_id: operationId, expected_version: item.version, change: item.change }) });
+      if (!applied.response.ok || applied.data?.deployment_id == null) throw new Error(`Apply failed or was ambiguous with HTTP ${applied.response.status}`);
+      record.deployment_id = String(applied.data.deployment_id);
+      await save(report);
+
+      const after = await request(item.pageUrl, { headers });
+      const afterBody = String(after.data?.body_html || "");
+      const afterDocument = new JSDOM(afterBody).window.document;
+      const anchorPattern = new RegExp(`<a[^>]+href=["'][^"']*${escapeRegExp(item.targetPath)}["'][^>]*>\\s*${escapeRegExp(item.draft.anchor)}\\s*<\\/a>`, "i");
+      if (!after.response.ok || !anchorPattern.test(afterBody) || !normalize(afterDocument.body.textContent).includes(item.sentence.plain)) throw new Error("CMS sentence and anchor verification failed");
+      record.cms_verified = true;
+      record.final_version = after.data.version;
+      await save(report);
+
+      for (let attempt = 0; attempt < 6; attempt += 1) {
+        const refreshed = await request("https://www.thekenconsulting.com/api/revalidate", { method: "POST", headers: { Accept: "application/json", "Content-Type": "application/json" }, body: JSON.stringify({ slug: item.draft.source_slug, type: "v0.2" }) });
+        if (!refreshed.response.ok) throw new Error(`Public revalidation failed with HTTP ${refreshed.response.status}`);
+      }
+      const publicPage = await request(item.draft.source_url, { headers: { Accept: "text/html", "Cache-Control": "no-cache" } });
+      const publicDocument = new JSDOM(publicPage.text, { url: item.draft.source_url }).window.document;
+      publicDocument.querySelectorAll("script,style,noscript,template,[hidden],[aria-hidden='true']").forEach((node) => node.remove());
+      const publicLinks = [...publicDocument.querySelectorAll("a[href]")].filter((link) => new URL(link.href, item.draft.source_url).pathname === item.targetPath && normalize(link.textContent) === item.draft.anchor);
+      if (!publicPage.response.ok || publicLinks.length !== 1 || !normalize(publicDocument.body.textContent).includes(item.sentence.plain)) throw new Error(`Public verification failed; visible anchors=${publicLinks.length}`);
+      record.rendered_verified = true;
+      record.public_anchor_href = publicLinks[0].href;
+      record.completed_at = new Date().toISOString();
+      await save(report);
+      console.log(`${item.draft.id}: live and publicly verified; deployment ${record.deployment_id}`);
+    } catch (error) {
+      record.error = error instanceof Error ? error.message : String(error);
+      if (record.deployment_id) {
+        const rollback = await request(`${base}/internal/deployments/${record.deployment_id}/rollback/`, { method: "POST", headers });
+        record.rollback_status = rollback.response.ok ? "rolled_back" : `failed_http_${rollback.response.status}`;
+      }
+      record.completed_at = new Date().toISOString();
+      await save(report);
+      console.warn(`${item.draft.id}: failed and compensated: ${record.error}`);
+    }
+  }
+  report.completed_at = new Date().toISOString();
+  await save(report);
+}
+
+main().catch((error) => {
+  console.error(error instanceof Error ? error.message : String(error));
+  process.exitCode = 1;
+});

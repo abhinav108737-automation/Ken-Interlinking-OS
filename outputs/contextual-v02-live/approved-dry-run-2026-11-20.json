@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "mode": "dry_run",
+  "actor": "abhinav.kumar",
+  "started_at": "2026-11-19T19:59:42.676Z",
+  "approved_count": 7,
+  "results": [
+    {
+      "id": "v02-new:1",
+      "page_id": "kuwait-electrosurgical-devices-market:v02_market_segmentation",
+      "target_path": "/industry-reports/kuwait-electrosurgical-generators-market",
+      "expected_version": "076c97fdbf50468c71388d70583ccb0cabeb606a2be970d1003d5d08cc607519",
+      "occurrence": 4,
+      "copy_dry_run": "not_needed",
+      "link_dry_run": "valid"
+    },
+    {
+      "id": "v02-new:2",
+      "page_id": "mexico-cold-chain-and-food-storage-market:v02_growth_drivers",
+      "target_path": "/industry-reports/mexico-pharmaceutical-logistics-market",
+      "expected_version": "b01e1620e2f605862d50bba6d8c91464e48674726e437d7bf1ab8530c7eb9738",
+      "occurrence": 1,
+      "copy_dry_run": "not_needed",
+      "link_dry_run": "valid"
+    },
+    {
+      "id": "v02-new:3",
+      "page_id": "kuwait-germanium-market:v02_market_segmentation",
+      "target_path": "/industry-reports/kuwait-fiber-optics-market",
+      "expected_version": "7b8ccc4b7724b9434b661bc4ea37c50f710c92832e295e4d437a4fa0461653af",
+      "occurrence": 3,
+      "copy_dry_run": "not_needed",
+      "link_dry_run": "valid"
+    },
+    {
+      "id": "v02-new:4",
+      "page_id": "kuwait-female-infertility-diagnosis-market:v02_growth_drivers",
+      "target_path": "/industry-reports/kuwait-genetic-testing-market",
+      "expected_version": "4b6f93af1917c56ecfc50af42a0c23a6504f7ea90189031e3dc8b0c6e749bd3f",
+      "occurrence": 2,
+      "copy_dry_run": "not_needed",
+      "link_dry_run": "valid"
+    },
+    {
+      "id": "v02-new:5",
+      "page_id": "kuwait-funeral-homes-market:v02_market_segmentation",
+      "target_path": "/industry-reports/kuwait-funeral-and-repatriation-services-market",
+      "expected_version": "a2555c313e44c2d83c4146058e4247c34668a6ac6908a4742f5b5ea888d36931",
+      "occurrence": 2,
+      "copy_dry_run": "not_needed",
+      "link_dry_run": "valid"
+    },
+    {
+      "id": "v02-new:6",
+      "page_id": "latin-america-cargo-security-market:v02_regional_analysis",
+      "target_path": "/industry-reports/mexico-cargo-security-market",
+      "expected_version": "9f2fc3c252a39308205b51d164c8a243cd37bf1b35a6b6de4cc7e04415456525",
+      "occurrence": 1,
+      "copy_dry_run": "valid",
+      "link_dry_run": "pending_after_copy_apply"
+    },
+    {
+      "id": "v02-new:7",
+      "page_id": "latin-america-warehousing-market:v02_regional_analysis",
+      "target_path": "/industry-reports/mexico-warehousing-market",
+      "expected_version": "8729760dac6f0bf06f8fa3a2be6e44634f884b55e5cfaaff486ea310bc0a251e",
+      "occurrence": 1,
+      "copy_dry_run": "valid",
+      "link_dry_run": "pending_after_copy_apply"
+    }
+  ],
+  "completed_at": "2026-11-19T19:59:42.676Z"
+}

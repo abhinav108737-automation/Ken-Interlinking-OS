@@ -1,0 +1,152 @@
+{
+  "schema_version": 1,
+  "mode": "live_apply",
+  "actor": "abhinav.kumar",
+  "started_at": "2026-11-19T20:01:05.122Z",
+  "approved_count": 7,
+  "results": [
+    {
+      "id": "v02-new:1",
+      "page_id": "kuwait-electrosurgical-devices-market:v02_market_segmentation",
+      "target_path": "/industry-reports/kuwait-electrosurgical-generators-market",
+      "anchor": "Electrosurgical Generators",
+      "operation_id": "ken-v02-new-1-20261120-v2",
+      "expected_version": "076c97fdbf50468c71388d70583ccb0cabeb606a2be970d1003d5d08cc607519",
+      "occurrence": 4,
+      "deployment_ids": [
+        "26"
+      ],
+      "rollback_status": [
+        {
+          "deployment_id": "26",
+          "status": "rolled_back"
+        }
+      ],
+      "cms_verified": true,
+      "rendered_verified": false,
+      "new_version": "e8acf409ee36d338bd5fb33b8470154ad850d7f6c1f910b1efd3cd8bf72eb219",
+      "error": "expected one rendered anchor; found 0",
+      "status": "blocked_public_template",
+      "skipped_at": "2026-11-19T20:01:05.123Z"
+    },
+    {
+      "id": "v02-new:2",
+      "page_id": "mexico-cold-chain-and-food-storage-market:v02_growth_drivers",
+      "target_path": "/industry-reports/mexico-pharmaceutical-logistics-market",
+      "anchor": "Pharmaceutical logistics",
+      "operation_id": "ken-v02-new-2-20261120-v2",
+      "expected_version": "b01e1620e2f605862d50bba6d8c91464e48674726e437d7bf1ab8530c7eb9738",
+      "occurrence": 1,
+      "deployment_ids": [
+        "27"
+      ],
+      "rollback_status": [
+        {
+          "deployment_id": "27",
+          "status": "rolled_back"
+        }
+      ],
+      "cms_verified": true,
+      "rendered_verified": false,
+      "new_version": "f83c877f80cbaf8a7dc08c1fd6f907761037c88c4baa15bc46352535ed959b5a",
+      "error": "expected one rendered anchor; found 0"
+    },
+    {
+      "id": "v02-new:3",
+      "page_id": "kuwait-germanium-market:v02_market_segmentation",
+      "target_path": "/industry-reports/kuwait-fiber-optics-market",
+      "anchor": "Fiber Optics",
+      "operation_id": "ken-v02-new-3-20261120-v2",
+      "expected_version": "7b8ccc4b7724b9434b661bc4ea37c50f710c92832e295e4d437a4fa0461653af",
+      "occurrence": 3,
+      "deployment_ids": [
+        "28"
+      ],
+      "rollback_status": null,
+      "cms_verified": true,
+      "rendered_verified": true,
+      "new_version": "bb2bddd03d7ee814e4235f1653696767fdc76a04df6723b6f9ce7e55c9530aaa",
+      "public_url": "https://www.thekenconsulting.com/industry-reports/kuwait-germanium-market",
+      "completed_at": "2026-11-19T20:01:07.642Z"
+    },
+    {
+      "id": "v02-new:4",
+      "page_id": "kuwait-female-infertility-diagnosis-market:v02_growth_drivers",
+      "target_path": "/industry-reports/kuwait-genetic-testing-market",
+      "anchor": "genetic testing",
+      "operation_id": "ken-v02-new-4-20261120-v2",
+      "expected_version": "4b6f93af1917c56ecfc50af42a0c23a6504f7ea90189031e3dc8b0c6e749bd3f",
+      "occurrence": 2,
+      "deployment_ids": [
+        "29"
+      ],
+      "rollback_status": [
+        {
+          "deployment_id": "29",
+          "status": "rolled_back"
+        }
+      ],
+      "cms_verified": true,
+      "rendered_verified": false,
+      "new_version": "4fd48bd2979cd269bc40d4ca61d0d8d3ec98ba7a0b80ad2cbdbea0496ad34ff6",
+      "error": "expected one rendered anchor; found 0"
+    },
+    {
+      "id": "v02-new:5",
+      "page_id": "kuwait-funeral-homes-market:v02_market_segmentation",
+      "target_path": "/industry-reports/kuwait-funeral-and-repatriation-services-market",
+      "anchor": "Repatriation Services",
+      "operation_id": "ken-v02-new-5-20261120-v2",
+      "expected_version": "a2555c313e44c2d83c4146058e4247c34668a6ac6908a4742f5b5ea888d36931",
+      "occurrence": 2,
+      "deployment_ids": [
+        "30"
+      ],
+      "rollback_status": null,
+      "cms_verified": true,
+      "rendered_verified": true,
+      "new_version": "eee40a7bdc44add054ef73c12ef6a3db8af9c514dadf0a46f5d60d3427c1f770",
+      "public_url": "https://www.thekenconsulting.com/industry-reports/kuwait-funeral-homes-market",
+      "completed_at": "2026-11-19T20:01:09.755Z"
+    },
+    {
+      "id": "v02-new:6",
+      "page_id": "latin-america-cargo-security-market:v02_regional_analysis",
+      "target_path": "/industry-reports/mexico-cargo-security-market",
+      "anchor": "Mexico Cargo Security Market",
+      "operation_id": "ken-v02-new-6-20261120-v2",
+      "expected_version": "9f2fc3c252a39308205b51d164c8a243cd37bf1b35a6b6de4cc7e04415456525",
+      "occurrence": 1,
+      "deployment_ids": [
+        "31",
+        "32"
+      ],
+      "rollback_status": null,
+      "cms_verified": true,
+      "rendered_verified": true,
+      "new_version": "e44790f69f61654f0a197e5083c3a35683ab59fb632f23b92a648a7d34d47b1c",
+      "public_url": "https://www.thekenconsulting.com/industry-reports/latin-america-cargo-security-market",
+      "completed_at": "2026-11-19T20:01:11.265Z"
+    },
+    {
+      "id": "v02-new:7",
+      "page_id": "latin-america-warehousing-market:v02_regional_analysis",
+      "target_path": "/industry-reports/mexico-warehousing-market",
+      "anchor": "Mexico Warehousing Market",
+      "operation_id": "ken-v02-new-7-20261120-v2",
+      "expected_version": "8729760dac6f0bf06f8fa3a2be6e44634f884b55e5cfaaff486ea310bc0a251e",
+      "occurrence": 1,
+      "deployment_ids": [
+        "33",
+        "34"
+      ],
+      "rollback_status": null,
+      "cms_verified": true,
+      "rendered_verified": true,
+      "new_version": "e4fa833bce6b78908237a46cc9aee0288d3e8636d58e20de3d4dfbaa079379fa",
+      "public_url": "https://www.thekenconsulting.com/industry-reports/latin-america-warehousing-market",
+      "completed_at": "2026-11-19T20:01:12.924Z"
+    }
+  ],
+  "completed_at": "2026-11-19T20:01:12.924Z"
+}

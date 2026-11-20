@@ -1,0 +1,839 @@
+{
+  "schema_version": 1,
+  "mode": "shadow_read_only",
+  "summary": {
+    "reviewed": 7,
+    "draft_ready": 7,
+    "refused": 0
+  },
+  "results": [
+    {
+      "id": "v02-new:1",
+      "verdict": "draft_ready",
+      "checks": {
+        "allowed_section": true,
+        "visible_explanatory_prose": true,
+        "not_already_linked_inline": true,
+        "descriptive_anchor": true,
+        "destination_evidence": true,
+        "neutral_non_pushy": true,
+        "no_negative_or_disclaimer_context": true
+      },
+      "source_report": "Kuwait Electrosurgical Devices Market Size, Share & Forecast, By Product Type, Surgical Application & End User, 2025–2032",
+      "source_url": "https://www.thekenconsulting.com/industry-reports/kuwait-electrosurgical-devices-market",
+      "destination_report": "Kuwait Electrosurgical Generators Market Size, Share & Forecast, By Product Type, Care Setting & Technology, 2025-2032",
+      "destination_url": "https://www.thekenconsulting.com/industry-reports/kuwait-electrosurgical-generators-market",
+      "source_field": "v02_market_segmentation",
+      "source_version": "076c97fdbf50468c71388d70583ccb0cabeb606a2be970d1003d5d08cc607519",
+      "anchor": "Electrosurgical Generators",
+      "exact_find": "Electrosurgical Generators account for the largest modeled revenue pool. General-purpose consoles serve multiple specialties, giving hospital procurement teams a reason to evaluate console standardization across rooms. The award influences subsequent purchases of compatible instruments and parts. A supplier’s ability to commission equipment, train staff and provide timely repairs affects the value of the installed base over the full replacement cycle.",
+      "before_copy": "Electrosurgical Generators account for the largest modeled revenue pool. General-purpose consoles serve multiple specialties, giving hospital procurement teams a reason to evaluate console standardization across rooms. The award influences subsequent purchases of compatible instruments and parts. A supplier’s ability to commission equipment, train staff and provide timely repairs affects the value of the installed base over the full replacement cycle.",
+      "after_copy": "[Electrosurgical Generators](https://www.thekenconsulting.com/industry-reports/kuwait-electrosurgical-generators-market) account for the largest modeled revenue pool. General-purpose consoles serve multiple specialties, giving hospital procurement teams a reason to evaluate console standardization across rooms. The award influences subsequent purchases of compatible instruments and parts. A supplier’s ability to commission equipment, train staff and provide timely repairs affects the value of the installed base over the full replacement cycle.",
+      "copy_change": null,
+      "reader_value": "The paragraph identifies generators as the largest solution segment and explains their procurement, standardization and installed-base value.",
+      "source_evidence": "Electrosurgical Generators account for the largest modeled revenue pool. General-purpose consoles serve multiple specialties, giving hospital procurement teams a reason to evaluate console standardization across rooms. The award influences subsequent purchases of compatible instruments and parts. A supplier’s ability to commission equipment, train staff and provide timely repairs affects the value of the installed base over the full replacement cycle.",
+      "target_evidence_field": "v02_market_segmentation",
+      "target_evidence": "Product Type is the primary sizing dimension because configurations correspond to distinct procurement specifications and equipment budgets. Monopolar Generators provide the broadest routine surgical coverage in the supplied baseline. Dedicated Vessel-Sealing and APC Generators represent the principal specialty-growth opportunity, while Hybrid Generators compete where facilities can justify broader functionality. Classification precedence prevents one multimodal console from being counted in multiple product groups.",
+      "target_shared_terms": [
+        "console",
+        "equipment",
+        "generator",
+        "multiple",
+        "procurement",
+        "provide",
+        "specialty"
+      ],
+      "cms_validation": "not_run_shadow_only",
+      "scorer": {
+        "version": "contextual-editorial-v1",
+        "label": "Independent editorial reference",
+        "decision": "approve",
+        "total": 96,
+        "maximum": 100,
+        "confidence": 95,
+        "kpis": [
+          {
+            "key": "reader_need",
+            "label": "Reader need",
+            "score": 14,
+            "maximum": 15
+          },
+          {
+            "key": "source_evidence",
+            "label": "Source evidence",
+            "score": 15,
+            "maximum": 15
+          },
+          {
+            "key": "destination_fit",
+            "label": "Destination fit",
+            "score": 19,
+            "maximum": 20
+          },
+          {
+            "key": "anchor_expectation",
+            "label": "Anchor expectation",
+            "score": 15,
+            "maximum": 15
+          },
+          {
+            "key": "placement",
+            "label": "Context and placement",
+            "score": 14,
+            "maximum": 15
+          },
+          {
+            "key": "added_value",
+            "label": "Added information value",
+            "score": 9,
+            "maximum": 10
+          },
+          {
+            "key": "quality_risk",
+            "label": "Quality and risk",
+            "score": 10,
+            "maximum": 10
+          }
+        ],
+        "hard_gates": [
+          {
+            "label": "Source phrase exists",
+            "status": "pass"
+          },
+          {
+            "label": "Destination evidence exists",
+            "status": "pass"
+          },
+          {
+            "label": "Approved visible section",
+            "status": "pass"
+          },
+          {
+            "label": "No existing inline duplicate",
+            "status": "pass"
+          },
+          {
+            "label": "Rendered crawlable link",
+            "status": "pending"
+          }
+        ],
+        "missing_information": [
+          "Rendered <a href> validation remains pending until an approved dry run and apply."
+        ],
+        "disclaimer": "Editorial reference only. It does not reproduce Google ranking systems or predict AI citations."
+      }
+    },
+    {
+      "id": "v02-new:2",
+      "verdict": "draft_ready",
+      "checks": {
+        "allowed_section": true,
+        "visible_explanatory_prose": true,
+        "not_already_linked_inline": true,
+        "descriptive_anchor": true,
+        "destination_evidence": true,
+        "neutral_non_pushy": true,
+        "no_negative_or_disclaimer_context": true
+      },
+      "source_report": "Mexico Cold Chain and Food Storage Market Size, Share & Forecast, By Service and Industry, 2025-2032",
+      "source_url": "https://www.thekenconsulting.com/industry-reports/mexico-cold-chain-and-food-storage-market",
+      "destination_report": "Mexico Pharmaceutical Logistics Market Size, Share & Forecast, by Service Type, Temperature Regime & Customer Type, 2025-2032",
+      "destination_url": "https://www.thekenconsulting.com/industry-reports/mexico-pharmaceutical-logistics-market",
+      "source_field": "v02_growth_drivers",
+      "source_version": "b01e1620e2f605862d50bba6d8c91464e48674726e437d7bf1ab8530c7eb9738",
+      "anchor": "Pharmaceutical logistics",
+      "exact_find": "Pharmaceutical logistics creates differentiated demand for validated handling, illustrated by a September 2026 integrated Mexico operation covering several temperature environments. dhl.com",
+      "before_copy": "Pharmaceutical logistics creates differentiated demand for validated handling, illustrated by a September 2026 integrated Mexico operation covering several temperature environments. dhl.com",
+      "after_copy": "[Pharmaceutical logistics](https://www.thekenconsulting.com/industry-reports/mexico-pharmaceutical-logistics-market) creates differentiated demand for validated handling, illustrated by a September 2026 integrated Mexico operation covering several temperature environments. dhl.com",
+      "copy_change": null,
+      "reader_value": "The paragraph explains why pharmaceutical logistics creates differentiated demand for validated handling across multiple temperature environments.",
+      "source_evidence": "Pharmaceutical logistics creates differentiated demand for validated handling, illustrated by a September 2026 integrated Mexico operation covering several temperature environments. dhl.com",
+      "target_evidence_field": "v02_growth_drivers",
+      "target_evidence": "Integrated specialty storage and transport (2026, Mexico) shows how a pharmaceutical manufacturer and a third-party provider can contract for both activities under one operation. dhl.com",
+      "target_shared_terms": [
+        "2026",
+        "com",
+        "dhl",
+        "integrated",
+        "operation",
+        "pharmaceutical"
+      ],
+      "cms_validation": "not_run_shadow_only",
+      "scorer": {
+        "version": "contextual-editorial-v1",
+        "label": "Independent editorial reference",
+        "decision": "approve",
+        "total": 97,
+        "maximum": 100,
+        "confidence": 95,
+        "kpis": [
+          {
+            "key": "reader_need",
+            "label": "Reader need",
+            "score": 14,
+            "maximum": 15
+          },
+          {
+            "key": "source_evidence",
+            "label": "Source evidence",
+            "score": 15,
+            "maximum": 15
+          },
+          {
+            "key": "destination_fit",
+            "label": "Destination fit",
+            "score": 19,
+            "maximum": 20
+          },
+          {
+            "key": "anchor_expectation",
+            "label": "Anchor expectation",
+            "score": 15,
+            "maximum": 15
+          },
+          {
+            "key": "placement",
+            "label": "Context and placement",
+            "score": 15,
+            "maximum": 15
+          },
+          {
+            "key": "added_value",
+            "label": "Added information value",
+            "score": 9,
+            "maximum": 10
+          },
+          {
+            "key": "quality_risk",
+            "label": "Quality and risk",
+            "score": 10,
+            "maximum": 10
+          }
+        ],
+        "hard_gates": [
+          {
+            "label": "Source phrase exists",
+            "status": "pass"
+          },
+          {
+            "label": "Destination evidence exists",
+            "status": "pass"
+          },
+          {
+            "label": "Approved visible section",
+            "status": "pass"
+          },
+          {
+            "label": "No existing inline duplicate",
+            "status": "pass"
+          },
+          {
+            "label": "Rendered crawlable link",
+            "status": "pending"
+          }
+        ],
+        "missing_information": [
+          "Rendered <a href> validation remains pending until an approved dry run and apply."
+        ],
+        "disclaimer": "Editorial reference only. It does not reproduce Google ranking systems or predict AI citations."
+      }
+    },
+    {
+      "id": "v02-new:3",
+      "verdict": "draft_ready",
+      "checks": {
+        "allowed_section": true,
+        "visible_explanatory_prose": true,
+        "not_already_linked_inline": true,
+        "descriptive_anchor": true,
+        "destination_evidence": true,
+        "neutral_non_pushy": true,
+        "no_negative_or_disclaimer_context": true
+      },
+      "source_report": "Kuwait Germanium Market Size, Share & Forecast, By Product Type and End-Use Industry, 2025–2032",
+      "source_url": "https://www.thekenconsulting.com/industry-reports/kuwait-germanium-market",
+      "destination_report": "Kuwait Fiber Optics Market Size, Share & Forecast, by Product Type and End User, 2025–2032",
+      "destination_url": "https://www.thekenconsulting.com/industry-reports/kuwait-fiber-optics-market",
+      "source_field": "v02_market_segmentation",
+      "source_version": "7b8ccc4b7724b9434b661bc4ea37c50f710c92832e295e4d437a4fa0461653af",
+      "anchor": "Fiber Optics",
+      "exact_find": "End-Use Industry also identifies Telecommunications and Fiber Optics as the fastest-growing segment in the central model. Access-network extension creates additional routes, while backhaul upgrades and replacements add demand at existing sites. Local cable qualification can shorten replenishment for approved products. The opportunity for producers of germanium compounds depends on where glass preforms are made and whether the selected fiber design contains germanium. pubs.usgs.gov",
+      "before_copy": "End-Use Industry also identifies Telecommunications and Fiber Optics as the fastest-growing segment in the central model. Access-network extension creates additional routes, while backhaul upgrades and replacements add demand at existing sites. Local cable qualification can shorten replenishment for approved products. The opportunity for producers of germanium compounds depends on where glass preforms are made and whether the selected fiber design contains germanium. pubs.usgs.gov",
+      "after_copy": "End-Use Industry also identifies Telecommunications and [Fiber Optics](https://www.thekenconsulting.com/industry-reports/kuwait-fiber-optics-market) as the fastest-growing segment in the central model. Access-network extension creates additional routes, while backhaul upgrades and replacements add demand at existing sites. Local cable qualification can shorten replenishment for approved products. The opportunity for producers of germanium compounds depends on where glass preforms are made and whether the selected fiber design contains germanium. pubs.usgs.gov",
+      "copy_change": null,
+      "reader_value": "The paragraph explains the material-to-end-market relationship: fiber expansion can create demand for germanium compounds when the selected design uses germanium.",
+      "source_evidence": "End-Use Industry also identifies Telecommunications and Fiber Optics as the fastest-growing segment in the central model. Access-network extension creates additional routes, while backhaul upgrades and replacements add demand at existing sites. Local cable qualification can shorten replenishment for approved products. The opportunity for producers of germanium compounds depends on where glass preforms are made and whether the selected fiber design contains germanium. pubs.usgs.gov",
+      "target_evidence_field": "v02_market_segmentation",
+      "target_evidence": "Technology - Single-Mode Fiber anchors Kuwait’s operator and public-network procurement because it can serve access feeders, metro routes, mobile backhaul and longer links. Buyers qualify a narrower set of cable and passive assemblies before placing repeat orders under approved specifications. Manufacturers can carry qualified product families across multiple tender packages, with the order mix shaped by route length, fiber count and installation environment.",
+      "target_shared_terms": [
+        "acces",
+        "approved",
+        "backhaul",
+        "cable",
+        "can",
+        "fiber",
+        "network",
+        "product",
+        "route"
+      ],
+      "cms_validation": "not_run_shadow_only",
+      "scorer": {
+        "version": "contextual-editorial-v1",
+        "label": "Independent editorial reference",
+        "decision": "approve",
+        "total": 97,
+        "maximum": 100,
+        "confidence": 94,
+        "kpis": [
+          {
+            "key": "reader_need",
+            "label": "Reader need",
+            "score": 15,
+            "maximum": 15
+          },
+          {
+            "key": "source_evidence",
+            "label": "Source evidence",
+            "score": 15,
+            "maximum": 15
+          },
+          {
+            "key": "destination_fit",
+            "label": "Destination fit",
+            "score": 19,
+            "maximum": 20
+          },
+          {
+            "key": "anchor_expectation",
+            "label": "Anchor expectation",
+            "score": 15,
+            "maximum": 15
+          },
+          {
+            "key": "placement",
+            "label": "Context and placement",
+            "score": 14,
+            "maximum": 15
+          },
+          {
+            "key": "added_value",
+            "label": "Added information value",
+            "score": 10,
+            "maximum": 10
+          },
+          {
+            "key": "quality_risk",
+            "label": "Quality and risk",
+            "score": 9,
+            "maximum": 10
+          }
+        ],
+        "hard_gates": [
+          {
+            "label": "Source phrase exists",
+            "status": "pass"
+          },
+          {
+            "label": "Destination evidence exists",
+            "status": "pass"
+          },
+          {
+            "label": "Approved visible section",
+            "status": "pass"
+          },
+          {
+            "label": "No existing inline duplicate",
+            "status": "pass"
+          },
+          {
+            "label": "Rendered crawlable link",
+            "status": "pending"
+          }
+        ],
+        "missing_information": [
+          "Rendered <a href> validation remains pending until an approved dry run and apply."
+        ],
+        "disclaimer": "Editorial reference only. It does not reproduce Google ranking systems or predict AI citations."
+      }
+    },
+    {
+      "id": "v02-new:4",
+      "verdict": "draft_ready",
+      "checks": {
+        "allowed_section": true,
+        "visible_explanatory_prose": true,
+        "not_already_linked_inline": true,
+        "descriptive_anchor": true,
+        "destination_evidence": true,
+        "neutral_non_pushy": true,
+        "no_negative_or_disclaimer_context": true
+      },
+      "source_report": "Kuwait Female Infertility Diagnosis Market Size, Share & Forecast, By Service Type and Care Setting, 2025-2032",
+      "source_url": "https://www.thekenconsulting.com/industry-reports/kuwait-female-infertility-diagnosis-market",
+      "destination_report": "Kuwait Genetic Testing Market Size, Share & Forecast, By Service Type, Technology & Care Setting, 2025-2032",
+      "destination_url": "https://www.thekenconsulting.com/industry-reports/kuwait-genetic-testing-market",
+      "source_field": "v02_growth_drivers",
+      "source_version": "4b6f93af1917c56ecfc50af42a0c23a6504f7ea90189031e3dc8b0c6e749bd3f",
+      "anchor": "genetic testing",
+      "exact_find": "A documented genetic testing collaboration, Kuwait supports specialist referral models without requiring every clinic to build a full genetic laboratory. daralshifa.com",
+      "before_copy": "A documented genetic testing collaboration, Kuwait supports specialist referral models without requiring every clinic to build a full genetic laboratory. daralshifa.com",
+      "after_copy": "A documented [genetic testing](https://www.thekenconsulting.com/industry-reports/kuwait-genetic-testing-market) collaboration, Kuwait supports specialist referral models without requiring every clinic to build a full genetic laboratory. daralshifa.com",
+      "copy_change": null,
+      "reader_value": "The paragraph describes genetic testing as a specialist referral route for clinics that do not operate a full genetic laboratory.",
+      "source_evidence": "A documented genetic testing collaboration, Kuwait supports specialist referral models without requiring every clinic to build a full genetic laboratory. daralshifa.com",
+      "target_evidence_field": "v02_growth_drivers",
+      "target_evidence": "Kuwait listed in the regional network (current service listing) supports access to specialized assays without assuming a dedicated local laboratory for every test. igenomix.net",
+      "target_shared_terms": [
+        "every",
+        "laboratory",
+        "support",
+        "test",
+        "without"
+      ],
+      "cms_validation": "not_run_shadow_only",
+      "scorer": {
+        "version": "contextual-editorial-v1",
+        "label": "Independent editorial reference",
+        "decision": "approve",
+        "total": 94,
+        "maximum": 100,
+        "confidence": 88,
+        "kpis": [
+          {
+            "key": "reader_need",
+            "label": "Reader need",
+            "score": 14,
+            "maximum": 15
+          },
+          {
+            "key": "source_evidence",
+            "label": "Source evidence",
+            "score": 15,
+            "maximum": 15
+          },
+          {
+            "key": "destination_fit",
+            "label": "Destination fit",
+            "score": 17,
+            "maximum": 20
+          },
+          {
+            "key": "anchor_expectation",
+            "label": "Anchor expectation",
+            "score": 15,
+            "maximum": 15
+          },
+          {
+            "key": "placement",
+            "label": "Context and placement",
+            "score": 15,
+            "maximum": 15
+          },
+          {
+            "key": "added_value",
+            "label": "Added information value",
+            "score": 9,
+            "maximum": 10
+          },
+          {
+            "key": "quality_risk",
+            "label": "Quality and risk",
+            "score": 9,
+            "maximum": 10
+          }
+        ],
+        "hard_gates": [
+          {
+            "label": "Source phrase exists",
+            "status": "pass"
+          },
+          {
+            "label": "Destination evidence exists",
+            "status": "pass"
+          },
+          {
+            "label": "Approved visible section",
+            "status": "pass"
+          },
+          {
+            "label": "No existing inline duplicate",
+            "status": "pass"
+          },
+          {
+            "label": "Rendered crawlable link",
+            "status": "pending"
+          }
+        ],
+        "missing_information": [
+          "Rendered <a href> validation remains pending until an approved dry run and apply."
+        ],
+        "disclaimer": "Editorial reference only. It does not reproduce Google ranking systems or predict AI citations."
+      }
+    },
+    {
+      "id": "v02-new:5",
+      "verdict": "draft_ready",
+      "checks": {
+        "allowed_section": true,
+        "visible_explanatory_prose": true,
+        "not_already_linked_inline": true,
+        "descriptive_anchor": true,
+        "destination_evidence": true,
+        "neutral_non_pushy": true,
+        "no_negative_or_disclaimer_context": true
+      },
+      "source_report": "Kuwait Funeral Homes Market Size, Share & Forecast, By Service Type, Customer Type & Channel, 2025-2032",
+      "source_url": "https://www.thekenconsulting.com/industry-reports/kuwait-funeral-homes-market",
+      "destination_report": "Kuwait Funeral and Repatriation Services Market Size, Share & Forecast, By Service Type and Payer Type, 2025–2032",
+      "destination_url": "https://www.thekenconsulting.com/industry-reports/kuwait-funeral-and-repatriation-services-market",
+      "source_field": "v02_market_segmentation",
+      "source_version": "a2555c313e44c2d83c4146058e4247c34668a6ac6908a4742f5b5ea888d36931",
+      "anchor": "Repatriation Services",
+      "exact_find": "Service Type determines the commercial revenue boundary. Mourning Infrastructure is the largest explicitly identified service line in the supplied analysis, reflecting equipment, venue and setup expenditure beyond public burial provision. Repatriation Services require a different operating capability built around case coordination. Separating these activities helps investors distinguish asset utilization economics from staff-intensive administration and prevents unrelated hospitality spending from entering the market.",
+      "before_copy": "Service Type determines the commercial revenue boundary. Mourning Infrastructure is the largest explicitly identified service line in the supplied analysis, reflecting equipment, venue and setup expenditure beyond public burial provision. Repatriation Services require a different operating capability built around case coordination. Separating these activities helps investors distinguish asset utilization economics from staff-intensive administration and prevents unrelated hospitality spending from entering the market.",
+      "after_copy": "Service Type determines the commercial revenue boundary. Mourning Infrastructure is the largest explicitly identified service line in the supplied analysis, reflecting equipment, venue and setup expenditure beyond public burial provision. [Repatriation Services](https://www.thekenconsulting.com/industry-reports/kuwait-funeral-and-repatriation-services-market) require a different operating capability built around case coordination. Separating these activities helps investors distinguish asset utilization economics from staff-intensive administration and prevents unrelated hospitality spending from entering the market.",
+      "copy_change": null,
+      "reader_value": "The paragraph distinguishes repatriation as a separate operating capability built around case coordination, giving readers a clear reason to open the specialist report.",
+      "source_evidence": "Service Type determines the commercial revenue boundary. Mourning Infrastructure is the largest explicitly identified service line in the supplied analysis, reflecting equipment, venue and setup expenditure beyond public burial provision. Repatriation Services require a different operating capability built around case coordination. Separating these activities helps investors distinguish asset utilization economics from staff-intensive administration and prevents unrelated hospitality spending from entering the market.",
+      "target_evidence_field": "v02_market_segmentation",
+      "target_evidence": "Service Type is the primary commercial lens. Outbound repatriation is the largest modeled revenue sub-segment because a single dispatch combines several paid tasks and has a higher local revenue yield than a typical mourning-only case. Employers and insurers can consolidate coordination with one provider while receiving separate disclosure of cargo and destination fees. Mourning venues retain a distinct domestic customer base. gov.uk",
+      "target_shared_terms": [
+        "case",
+        "commercial",
+        "coordination",
+        "largest",
+        "mourn",
+        "repatriation",
+        "revenue",
+        "service",
+        "type",
+        "venue"
+      ],
+      "cms_validation": "not_run_shadow_only",
+      "scorer": {
+        "version": "contextual-editorial-v1",
+        "label": "Independent editorial reference",
+        "decision": "approve",
+        "total": 99,
+        "maximum": 100,
+        "confidence": 97,
+        "kpis": [
+          {
+            "key": "reader_need",
+            "label": "Reader need",
+            "score": 15,
+            "maximum": 15
+          },
+          {
+            "key": "source_evidence",
+            "label": "Source evidence",
+            "score": 15,
+            "maximum": 15
+          },
+          {
+            "key": "destination_fit",
+            "label": "Destination fit",
+            "score": 20,
+            "maximum": 20
+          },
+          {
+            "key": "anchor_expectation",
+            "label": "Anchor expectation",
+            "score": 15,
+            "maximum": 15
+          },
+          {
+            "key": "placement",
+            "label": "Context and placement",
+            "score": 14,
+            "maximum": 15
+          },
+          {
+            "key": "added_value",
+            "label": "Added information value",
+            "score": 10,
+            "maximum": 10
+          },
+          {
+            "key": "quality_risk",
+            "label": "Quality and risk",
+            "score": 10,
+            "maximum": 10
+          }
+        ],
+        "hard_gates": [
+          {
+            "label": "Source phrase exists",
+            "status": "pass"
+          },
+          {
+            "label": "Destination evidence exists",
+            "status": "pass"
+          },
+          {
+            "label": "Approved visible section",
+            "status": "pass"
+          },
+          {
+            "label": "No existing inline duplicate",
+            "status": "pass"
+          },
+          {
+            "label": "Rendered crawlable link",
+            "status": "pending"
+          }
+        ],
+        "missing_information": [
+          "Rendered <a href> validation remains pending until an approved dry run and apply."
+        ],
+        "disclaimer": "Editorial reference only. It does not reproduce Google ranking systems or predict AI citations."
+      }
+    },
+    {
+      "id": "v02-new:6",
+      "verdict": "draft_ready",
+      "checks": {
+        "allowed_section": true,
+        "visible_explanatory_prose": true,
+        "not_already_linked_inline": true,
+        "descriptive_anchor": true,
+        "destination_evidence": true,
+        "neutral_non_pushy": true,
+        "no_negative_or_disclaimer_context": true
+      },
+      "source_report": "Latin America Cargo Security Market Size, Share & Forecast, By Service Type and Transport Mode, 2025–2032",
+      "source_url": "https://www.thekenconsulting.com/industry-reports/latin-america-cargo-security-market",
+      "destination_report": "Mexico Cargo Security Market Size, Share & Forecast, by Solution Type, Transport Mode & End User, 2025-2032",
+      "destination_url": "https://www.thekenconsulting.com/industry-reports/mexico-cargo-security-market",
+      "source_field": "v02_regional_analysis",
+      "source_version": "9f2fc3c252a39308205b51d164c8a243cd37bf1b35a6b6de4cc7e04415456525",
+      "anchor": "Mexico Cargo Security Market",
+      "exact_find": "Brazil leads the six named country markets and anchors South American coverage. Mexico is the closest commercial comparator because of its scale and cross-border freight, while Colombia, Argentina, Chile and Peru show how local demand and transport mix shape deployment.",
+      "before_copy": "Brazil leads the six named country markets and anchors South American coverage. Mexico is the closest commercial comparator because of its scale and cross-border freight, while Colombia, Argentina, Chile and Peru show how local demand and transport mix shape deployment.",
+      "after_copy": "Brazil leads the six named country markets and anchors South American coverage. [Mexico Cargo Security Market](https://www.thekenconsulting.com/industry-reports/mexico-cargo-security-market) is the closest commercial comparator because of its scale and cross-border freight, while Colombia, Argentina, Chile and Peru show how local demand and transport mix shape deployment.",
+      "copy_change": {
+        "operation": "replace",
+        "find": "Brazil leads the six named country markets and anchors South American coverage. Mexico is the closest commercial comparator because of its scale and cross-border freight, while Colombia, Argentina, Chile and Peru show how local demand and transport mix shape deployment.",
+        "new_text": "Brazil leads the six named country markets and anchors South American coverage. [Mexico Cargo Security Market](https://www.thekenconsulting.com/industry-reports/mexico-cargo-security-market) is the closest commercial comparator because of its scale and cross-border freight, while Colombia, Argentina, Chile and Peru show how local demand and transport mix shape deployment."
+      },
+      "reader_value": "The regional paragraph directly compares Mexico on market scale and cross-border freight. Naming the full destination market makes the comparison clear.",
+      "source_evidence": "Brazil leads the six named country markets and anchors South American coverage. Mexico is the closest commercial comparator because of its scale and cross-border freight, while Colombia, Argentina, Chile and Peru show how local demand and transport mix shape deployment.",
+      "target_evidence_field": "v02_regional_analysis",
+      "target_evidence": "Mexico ranks second in the modeled peer set of Brazil, Mexico, Colombia, Peru and Chile. The comparison applies the same commercial cargo protection scope to each country and uses merchandise exports and the tracking and tracing score as independent demand and operating benchmarks. wto.org worldbank.org",
+      "target_shared_terms": [
+        "brazil",
+        "cargo",
+        "chile",
+        "colombia",
+        "commercial",
+        "country",
+        "demand",
+        "peru"
+      ],
+      "cms_validation": "not_run_shadow_only",
+      "scorer": {
+        "version": "contextual-editorial-v1",
+        "label": "Independent editorial reference",
+        "decision": "approve",
+        "total": 98,
+        "maximum": 100,
+        "confidence": 96,
+        "kpis": [
+          {
+            "key": "reader_need",
+            "label": "Reader need",
+            "score": 15,
+            "maximum": 15
+          },
+          {
+            "key": "source_evidence",
+            "label": "Source evidence",
+            "score": 15,
+            "maximum": 15
+          },
+          {
+            "key": "destination_fit",
+            "label": "Destination fit",
+            "score": 20,
+            "maximum": 20
+          },
+          {
+            "key": "anchor_expectation",
+            "label": "Anchor expectation",
+            "score": 15,
+            "maximum": 15
+          },
+          {
+            "key": "placement",
+            "label": "Context and placement",
+            "score": 15,
+            "maximum": 15
+          },
+          {
+            "key": "added_value",
+            "label": "Added information value",
+            "score": 10,
+            "maximum": 10
+          },
+          {
+            "key": "quality_risk",
+            "label": "Quality and risk",
+            "score": 8,
+            "maximum": 10
+          }
+        ],
+        "hard_gates": [
+          {
+            "label": "Source phrase exists",
+            "status": "pass"
+          },
+          {
+            "label": "Destination evidence exists",
+            "status": "pass"
+          },
+          {
+            "label": "Approved visible section",
+            "status": "pass"
+          },
+          {
+            "label": "No existing inline duplicate",
+            "status": "pass"
+          },
+          {
+            "label": "Rendered crawlable link",
+            "status": "pending"
+          }
+        ],
+        "missing_information": [
+          "Rendered <a href> validation remains pending until an approved dry run and apply."
+        ],
+        "disclaimer": "Editorial reference only. It does not reproduce Google ranking systems or predict AI citations."
+      }
+    },
+    {
+      "id": "v02-new:7",
+      "verdict": "draft_ready",
+      "checks": {
+        "allowed_section": true,
+        "visible_explanatory_prose": true,
+        "not_already_linked_inline": true,
+        "descriptive_anchor": true,
+        "destination_evidence": true,
+        "neutral_non_pushy": true,
+        "no_negative_or_disclaimer_context": true
+      },
+      "source_report": "Latin America Warehousing Market Size, Share & Forecast, By Service Type, End-Use Industry & Geography, 2025-2032",
+      "source_url": "https://www.thekenconsulting.com/industry-reports/latin-america-warehousing-market",
+      "destination_report": "Mexico Warehousing Market Size, Share & Forecast, By Service Type, End-Use Industry & Geography, 2025-2032",
+      "destination_url": "https://www.thekenconsulting.com/industry-reports/mexico-warehousing-market",
+      "source_field": "v02_regional_analysis",
+      "source_version": "8729760dac6f0bf06f8fa3a2be6e44634f884b55e5cfaaff486ea310bc0a251e",
+      "anchor": "Mexico Warehousing Market",
+      "exact_find": "Brazil ranks first among the six named markets on the 2025 revenue model, with domestic retail, manufacturing and food distribution supporting a broad base of warehousing demand. Mexico ranks second and grows faster in the forecast, reflecting the role of export-linked manufacturing and cross-border inventory. The comparison uses one service revenue definition and allocates active warehouse area consistently across countries. jll.com",
+      "before_copy": "Brazil ranks first among the six named markets on the 2025 revenue model, with domestic retail, manufacturing and food distribution supporting a broad base of warehousing demand. Mexico ranks second and grows faster in the forecast, reflecting the role of export-linked manufacturing and cross-border inventory. The comparison uses one service revenue definition and allocates active warehouse area consistently across countries. jll.com",
+      "after_copy": "Brazil ranks first among the six named markets on the 2025 revenue model, with domestic retail, manufacturing and food distribution supporting a broad base of warehousing demand. [Mexico Warehousing Market](https://www.thekenconsulting.com/industry-reports/mexico-warehousing-market) ranks second and grows faster in the forecast, reflecting the role of export-linked manufacturing and cross-border inventory. The comparison uses one service revenue definition and allocates active warehouse area consistently across countries. jll.com",
+      "copy_change": {
+        "operation": "replace",
+        "find": "Brazil ranks first among the six named markets on the 2025 revenue model, with domestic retail, manufacturing and food distribution supporting a broad base of warehousing demand. Mexico ranks second and grows faster in the forecast, reflecting the role of export-linked manufacturing and cross-border inventory. The comparison uses one service revenue definition and allocates active warehouse area consistently across countries. jll.com",
+        "new_text": "Brazil ranks first among the six named markets on the 2025 revenue model, with domestic retail, manufacturing and food distribution supporting a broad base of warehousing demand. [Mexico Warehousing Market](https://www.thekenconsulting.com/industry-reports/mexico-warehousing-market) ranks second and grows faster in the forecast, reflecting the role of export-linked manufacturing and cross-border inventory. The comparison uses one service revenue definition and allocates active warehouse area consistently across countries. jll.com"
+      },
+      "reader_value": "The regional paragraph directly compares Mexico's ranking, forecast growth, manufacturing role and cross-border inventory using the same revenue definition.",
+      "source_evidence": "Brazil ranks first among the six named markets on the 2025 revenue model, with domestic retail, manufacturing and food distribution supporting a broad base of warehousing demand. Mexico ranks second and grows faster in the forecast, reflecting the role of export-linked manufacturing and cross-border inventory. The comparison uses one service revenue definition and allocates active warehouse area consistently across countries. jll.com",
+      "target_evidence_field": "v02_regional_analysis",
+      "target_evidence": "Mexico ranks second in the estimated five-country set, behind Brazil. Its USD 3,750 million base combines manufacturing-related demand with major metropolitan distribution requirements; property comparisons support the underlying scale assessment. cbre.com",
+      "target_shared_terms": [
+        "base",
+        "brazil",
+        "com",
+        "comparison",
+        "country",
+        "demand",
+        "distribution",
+        "manufactur",
+        "rank",
+        "second",
+        "support",
+        "with"
+      ],
+      "cms_validation": "not_run_shadow_only",
+      "scorer": {
+        "version": "contextual-editorial-v1",
+        "label": "Independent editorial reference",
+        "decision": "approve",
+        "total": 97,
+        "maximum": 100,
+        "confidence": 94,
+        "kpis": [
+          {
+            "key": "reader_need",
+            "label": "Reader need",
+            "score": 15,
+            "maximum": 15
+          },
+          {
+            "key": "source_evidence",
+            "label": "Source evidence",
+            "score": 15,
+            "maximum": 15
+          },
+          {
+            "key": "destination_fit",
+            "label": "Destination fit",
+            "score": 19,
+            "maximum": 20
+          },
+          {
+            "key": "anchor_expectation",
+            "label": "Anchor expectation",
+            "score": 15,
+            "maximum": 15
+          },
+          {
+            "key": "placement",
+            "label": "Context and placement",
+            "score": 15,
+            "maximum": 15
+          },
+          {
+            "key": "added_value",
+            "label": "Added information value",
+            "score": 10,
+            "maximum": 10
+          },
+          {
+            "key": "quality_risk",
+            "label": "Quality and risk",
+            "score": 8,
+            "maximum": 10
+          }
+        ],
+        "hard_gates": [
+          {
+            "label": "Source phrase exists",
+            "status": "pass"
+          },
+          {
+            "label": "Destination evidence exists",
+            "status": "pass"
+          },
+          {
+            "label": "Approved visible section",
+            "status": "pass"
+          },
+          {
+            "label": "No existing inline duplicate",
+            "status": "pass"
+          },
+          {
+            "label": "Rendered crawlable link",
+            "status": "pending"
+          }
+        ],
+        "missing_information": [
+          "Rendered <a href> validation remains pending until an approved dry run and apply."
+        ],
+        "disclaimer": "Editorial reference only. It does not reproduce Google ranking systems or predict AI citations."
+      }
+    }
+  ]
+}

@@ -1,0 +1,160 @@
+{
+  "schema_version": 1,
+  "dataset": "v0.2",
+  "editorial_policy": "owner-2026-11-20",
+  "generated_at": "2026-11-19T19:08:39.388Z",
+  "mode": "shadow_read_only",
+  "summary": {
+    "audited": 3,
+    "draft_ready": 3,
+    "refused": 0
+  },
+  "results": [
+    {
+      "proposal_id": "contextual:8",
+      "current_status": "Live - verified",
+      "source_report": "Procurement Spend Control",
+      "destination_report": "Document Management Systems",
+      "source_url": "https://www.thekenconsulting.com/industry-reports/kuwait-cloud-based-procurement-spend-control-platforms-market",
+      "destination_url": "https://www.thekenconsulting.com/industry-reports/kuwait-cloud-based-document-management-systems-market",
+      "source_field": "v02_growth_drivers",
+      "expected_source_version": "9f585c33a9c9fff93c37626bc823b25d80fac04c3b194326ac0e3908590e7b07",
+      "anchor": "document management",
+      "checks": {
+        "policy_eligible": true,
+        "allowed_section": true,
+        "visible_explanatory_prose": true,
+        "correct_existing_destination": true,
+        "destination_supported": true,
+        "descriptive_anchor": true,
+        "neutral_tone": true,
+        "no_new_claim": true
+      },
+      "score": 100,
+      "threshold": 80,
+      "verdict": "draft_ready",
+      "failures": [],
+      "evidence": {
+        "source_type": "li",
+        "source": "Separate registration and renewal workflows, reviewed in 2026 , create recurring document management and data-maintenance needs; configuration packages can reduce repetitive administrative work. capt.gov.kw",
+        "target_field": "v02_growth_drivers",
+        "target": "Kuwait's official privacy and cloud policy frameworks create opportunities for recurring services that translate document-control requirements into operational practice. e.gov.kw",
+        "target_shared_terms": [
+          "create",
+          "recurr",
+          "document",
+          "gov"
+        ]
+      },
+      "draft": {
+        "action": "keep_existing_contextual_link",
+        "anchor": "document management",
+        "exact_find": "document management",
+        "before_copy": "Separate registration and renewal workflows, reviewed in 2026 , create recurring document management and data-maintenance needs; configuration packages can reduce repetitive administrative work. capt.gov.kw",
+        "after_copy": "Separate registration and renewal workflows, reviewed in 2026 , create recurring document management and data-maintenance needs; configuration packages can reduce repetitive administrative work. capt.gov.kw",
+        "wording_change": null,
+        "cms_validation": "not_run_read_only",
+        "explanation": "The existing visible sentence supplies the context. Adding another sentence would be unnecessary and could make the link feel pushy."
+      }
+    },
+    {
+      "proposal_id": "contextual:12",
+      "current_status": "Live - verified",
+      "source_report": "Retail E-Commerce Analytics",
+      "destination_report": "Retail Inventory Forecasting",
+      "source_url": "https://www.thekenconsulting.com/industry-reports/kuwait-cloud-based-retail-e-commerce-analytics-market",
+      "destination_url": "https://www.thekenconsulting.com/industry-reports/kuwait-cloud-based-retail-inventory-forecasting-platforms-market",
+      "source_field": "v02_market_segmentation",
+      "expected_source_version": "a6d02dbbf329d0e4f83915abacd0a6c01babb282b305a3526c51eb20328f91b0",
+      "anchor": "Demand Forecasting and Inventory Analytics",
+      "checks": {
+        "policy_eligible": true,
+        "allowed_section": true,
+        "visible_explanatory_prose": true,
+        "correct_existing_destination": true,
+        "destination_supported": true,
+        "descriptive_anchor": true,
+        "neutral_tone": true,
+        "no_new_claim": true
+      },
+      "score": 100,
+      "threshold": 80,
+      "verdict": "draft_ready",
+      "failures": [],
+      "evidence": {
+        "source_type": "p",
+        "source": "Application contains the clearest expansion opportunity as retailers progress from retrospective reporting toward operational decisions. Demand Forecasting and Inventory Analytics is the priority growth proposition because replenishment, availability and markdown decisions connect directly to working capital and gross profit. Realization depends on dependable SKU histories and inventory records. Vendors should validate forecast improvements against existing planning methods before seeking enterprise-wide expansion.",
+        "target_field": "v02_growth_drivers",
+        "target": "Connecting forecasts to replenishment recommendations gives retailers a way to translate a better demand estimate into purchase quantities, order timing and inventory availability. brightpearl.com",
+        "target_shared_terms": [
+          "connect",
+          "forecast",
+          "replenishment",
+          "retailer",
+          "demand",
+          "inventory",
+          "availability"
+        ]
+      },
+      "draft": {
+        "action": "keep_existing_contextual_link",
+        "anchor": "Demand Forecasting and Inventory Analytics",
+        "exact_find": "Demand Forecasting and Inventory Analytics",
+        "before_copy": "Application contains the clearest expansion opportunity as retailers progress from retrospective reporting toward operational decisions. Demand Forecasting and Inventory Analytics is the priority growth proposition because replenishment, availability and markdown decisions connect directly to working capital and gross profit. Realization depends on dependable SKU histories and inventory records. Vendors should validate forecast improvements against existing planning methods before seeking enterprise-wide expansion.",
+        "after_copy": "Application contains the clearest expansion opportunity as retailers progress from retrospective reporting toward operational decisions. Demand Forecasting and Inventory Analytics is the priority growth proposition because replenishment, availability and markdown decisions connect directly to working capital and gross profit. Realization depends on dependable SKU histories and inventory records. Vendors should validate forecast improvements against existing planning methods before seeking enterprise-wide expansion.",
+        "wording_change": null,
+        "cms_validation": "not_run_read_only",
+        "explanation": "The existing visible sentence supplies the context. Adding another sentence would be unnecessary and could make the link feel pushy."
+      }
+    },
+    {
+      "proposal_id": "contextual:13",
+      "current_status": "Live - verified",
+      "source_report": "Retail Supply Chain AI",
+      "destination_report": "Retail Inventory Forecasting",
+      "source_url": "https://www.thekenconsulting.com/industry-reports/kuwait-cloud-based-retail-supply-chain-ai-market",
+      "destination_url": "https://www.thekenconsulting.com/industry-reports/kuwait-cloud-based-retail-inventory-forecasting-platforms-market",
+      "source_field": "v02_market_segmentation",
+      "expected_source_version": "7c3fa8f91f80cea3e60be3222c7c2704b31e2d2dcb54f0530a55a04af48d31f3",
+      "anchor": "Demand Forecasting Platforms",
+      "checks": {
+        "policy_eligible": true,
+        "allowed_section": true,
+        "visible_explanatory_prose": true,
+        "correct_existing_destination": true,
+        "destination_supported": true,
+        "descriptive_anchor": true,
+        "neutral_tone": true,
+        "no_new_claim": true
+      },
+      "score": 100,
+      "threshold": 80,
+      "verdict": "draft_ready",
+      "failures": [],
+      "evidence": {
+        "source_type": "p",
+        "source": "Solution Type - Demand Forecasting Platforms show the fastest modeled expansion within the solution framework. Commercial demand reflects the need to reconcile promotions, assortment changes and store-level variability before purchasing commitments are made. The strongest proposition combines reliable forecasts with planner adoption and replenishment integration. Vendors that demonstrate improvements on representative merchandise cohorts can build a stronger expansion case than those relying on aggregate accuracy metrics alone.",
+        "target_field": "v02_growth_drivers",
+        "target": "Retailers with shared online and in-store inventory need demand forecasts that support both channel plans and inventory allocation. docs.oracle.com",
+        "target_shared_terms": [
+          "store",
+          "inventory",
+          "need",
+          "demand",
+          "forecast",
+          "that"
+        ]
+      },
+      "draft": {
+        "action": "keep_existing_contextual_link",
+        "anchor": "Demand Forecasting Platforms",
+        "exact_find": "Demand Forecasting Platforms",
+        "before_copy": "Solution Type - Demand Forecasting Platforms show the fastest modeled expansion within the solution framework. Commercial demand reflects the need to reconcile promotions, assortment changes and store-level variability before purchasing commitments are made. The strongest proposition combines reliable forecasts with planner adoption and replenishment integration. Vendors that demonstrate improvements on representative merchandise cohorts can build a stronger expansion case than those relying on aggregate accuracy metrics alone.",
+        "after_copy": "Solution Type - Demand Forecasting Platforms show the fastest modeled expansion within the solution framework. Commercial demand reflects the need to reconcile promotions, assortment changes and store-level variability before purchasing commitments are made. The strongest proposition combines reliable forecasts with planner adoption and replenishment integration. Vendors that demonstrate improvements on representative merchandise cohorts can build a stronger expansion case than those relying on aggregate accuracy metrics alone.",
+        "wording_change": null,
+        "cms_validation": "not_run_read_only",
+        "explanation": "The existing visible sentence supplies the context. Adding another sentence would be unnecessary and could make the link feel pushy."
+      }
+    }
+  ]
+}

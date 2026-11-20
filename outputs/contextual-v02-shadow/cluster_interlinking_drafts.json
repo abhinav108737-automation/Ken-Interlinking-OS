@@ -1,0 +1,1728 @@
+{
+  "schema_version": 1,
+  "mode": "shadow_read_only",
+  "generated_at": "2026-11-20T06:45:15.121Z",
+  "inventory_reports": 506,
+  "exact_market_clusters": 9,
+  "existing_live_cluster_links": 2,
+  "draft_ready": 15,
+  "blocked_directions": [
+    {
+      "source": "mexico-cargo-security-market",
+      "destination": "latin-america-cargo-security-market",
+      "reason": "The Mexico source page has no public explanatory paragraph suitable for a natural contextual link."
+    }
+  ],
+  "results": [
+    {
+      "id": "cluster:1",
+      "verdict": "draft_ready",
+      "cluster": "dermal toxicity testing",
+      "relationship": "exact_market_different_geography",
+      "source_report": "Kuwait Dermal Toxicity Testing Market Size, Share & Forecast by Test Type and End Use, 2025–2032",
+      "source_slug": "kuwait-dermal-toxicity-testing-market",
+      "source_geography": "kuwait",
+      "source_url": "https://www.thekenconsulting.com/industry-reports/kuwait-dermal-toxicity-testing-market",
+      "destination_report": "Malaysia Dermal Toxicity Testing Market Size, Share & Forecast, by Service Type and End-Use Industry, 2025–2032",
+      "destination_slug": "malaysia-dermal-toxicity-testing-market",
+      "destination_geography": "malaysia",
+      "destination_url": "https://www.thekenconsulting.com/industry-reports/malaysia-dermal-toxicity-testing-market",
+      "source_field": "v02_market_trajectory",
+      "source_version": "3034e16478733d4fe037b92fb76db290358af3840b5e9782f29221983d7d739b",
+      "placement": "Insert after the visible forecast paragraph",
+      "exact_after_text": "Revenue reaches USD 35 million by 2032 at a 9.27% value CAGR for 2025–2032. Volume grows at a 6.99% CAGR for 2025–2032, and the blended fee rises to USD 11,009 per event, a 2.13% CAGR for 2025–2032. The mix shifts toward in vitro delivery, while specialty studies and dossier work sustain fee growth at the portfolio level. The blend can rise even where individual routine assays become less expensive, provided buyers commission more complex work or package several endpoints. Operators can track the forecast against repeat-order frequency, the proportion of studies that require specialist review and fees realized after subcontracting.",
+      "proposed_sentence": "The [Malaysia Dermal Toxicity Testing Market](https://www.thekenconsulting.com/industry-reports/malaysia-dermal-toxicity-testing-market) reaches USD 22 million by 2032 at 9.2% CAGR, compared with Kuwait's USD 35 million and 9.27%, giving readers a smaller-revenue Asian benchmark with nearly the same growth rate.",
+      "anchor": "Malaysia Dermal Toxicity Testing Market",
+      "source_evidence": "Revenue reaches USD 35 million by 2032 at a 9.27% value CAGR for 2025–2032. Volume grows at a 6.99% CAGR for 2025–2032, and the blended fee rises to USD 11,009 per event, a 2.13% CAGR for 2025–2032. The mix shifts toward in vitro delivery, while specialty studies and dossier work sustain fee growth at the portfolio level. The blend can rise even where individual routine assays become less expensive, provided buyers commission more complex work or package several endpoints. Operators can track the forecast against repeat-order frequency, the proportion of studies that require specialist review and fees realized after subcontracting.",
+      "destination_evidence": "Forecast revenue rises to USD 22 million in 2032 at a 9.2% CAGR for 2025–2032. The forecast retains the source's USD 18 million projection for 2030 and extends the same trajectory for two years. Blended revenue yield at the end of the period is approximately USD 7,657 per study. At that yield, volume and utilization explain most of the increase in receipts. Validated in vitro work contributes incremental throughput, while broader device or pharmaceutical study panels support contract value. Rising competition for routine endpoints and more selective use of physical tests limit the assumed gains in blended revenue per study.",
+      "reader_value": "The Malaysia Dermal Toxicity Testing Market reaches USD 22 million by 2032 at 9.2% CAGR, compared with Kuwait's USD 35 million and 9.27%, giving readers a smaller-revenue Asian benchmark with nearly the same growth rate.",
+      "checks": {
+        "exact_market_core": true,
+        "different_geography": true,
+        "public_source_placement": true,
+        "source_evidence": true,
+        "destination_evidence": true,
+        "no_existing_link": true,
+        "approved_section": true
+      },
+      "scorer": {
+        "version": "contextual-editorial-v1",
+        "label": "Independent editorial reference",
+        "decision": "approve",
+        "total": 96,
+        "maximum": 100,
+        "confidence": 91,
+        "kpis": [
+          {
+            "key": "reader_need",
+            "label": "Reader need",
+            "score": 14,
+            "maximum": 15
+          },
+          {
+            "key": "source_evidence",
+            "label": "Source evidence",
+            "score": 15,
+            "maximum": 15
+          },
+          {
+            "key": "destination_fit",
+            "label": "Destination fit",
+            "score": 20,
+            "maximum": 20
+          },
+          {
+            "key": "anchor_expectation",
+            "label": "Anchor expectation",
+            "score": 15,
+            "maximum": 15
+          },
+          {
+            "key": "placement",
+            "label": "Context and placement",
+            "score": 15,
+            "maximum": 15
+          },
+          {
+            "key": "added_value",
+            "label": "Added information value",
+            "score": 9,
+            "maximum": 10
+          },
+          {
+            "key": "quality_risk",
+            "label": "Quality and risk",
+            "score": 8,
+            "maximum": 10
+          }
+        ],
+        "hard_gates": [
+          {
+            "label": "Exact market cluster",
+            "status": "pass"
+          },
+          {
+            "label": "Source and destination evidence",
+            "status": "pass"
+          },
+          {
+            "label": "Publicly visible approved section",
+            "status": "pass"
+          },
+          {
+            "label": "No existing inline duplicate",
+            "status": "pass"
+          },
+          {
+            "label": "CMS dry run",
+            "status": "pending"
+          },
+          {
+            "label": "Rendered crawlable link",
+            "status": "pending"
+          }
+        ],
+        "missing_information": [
+          "CMS dry-run and rendered-link validation remain pending until approval."
+        ],
+        "disclaimer": "Editorial reference only. It does not reproduce Google ranking systems or predict AI citations."
+      }
+    },
+    {
+      "id": "cluster:2",
+      "verdict": "draft_ready",
+      "cluster": "dermal toxicity testing",
+      "relationship": "exact_market_different_geography",
+      "source_report": "Malaysia Dermal Toxicity Testing Market Size, Share & Forecast, by Service Type and End-Use Industry, 2025–2032",
+      "source_slug": "malaysia-dermal-toxicity-testing-market",
+      "source_geography": "malaysia",
+      "source_url": "https://www.thekenconsulting.com/industry-reports/malaysia-dermal-toxicity-testing-market",
+      "destination_report": "Kuwait Dermal Toxicity Testing Market Size, Share & Forecast by Test Type and End Use, 2025–2032",
+      "destination_slug": "kuwait-dermal-toxicity-testing-market",
+      "destination_geography": "kuwait",
+      "destination_url": "https://www.thekenconsulting.com/industry-reports/kuwait-dermal-toxicity-testing-market",
+      "source_field": "v02_market_trajectory",
+      "source_version": "ac5190eacc6e36452ac2c9aba4eccf7dcfc90308f400c541ab89a8216ce0759f",
+      "placement": "Insert after the visible forecast paragraph",
+      "exact_after_text": "Forecast revenue rises to USD 22 million in 2032 at a 9.2% CAGR for 2025–2032. The forecast retains the source's USD 18 million projection for 2030 and extends the same trajectory for two years. Blended revenue yield at the end of the period is approximately USD 7,657 per study. At that yield, volume and utilization explain most of the increase in receipts. Validated in vitro work contributes incremental throughput, while broader device or pharmaceutical study panels support contract value. Rising competition for routine endpoints and more selective use of physical tests limit the assumed gains in blended revenue per study.",
+      "proposed_sentence": "The [Kuwait Dermal Toxicity Testing Market](https://www.thekenconsulting.com/industry-reports/kuwait-dermal-toxicity-testing-market) reaches USD 35 million by 2032 at 9.27% CAGR, compared with Malaysia's USD 22 million and 9.2%, giving readers a Gulf benchmark with similar growth and higher modeled revenue.",
+      "anchor": "Kuwait Dermal Toxicity Testing Market",
+      "source_evidence": "Forecast revenue rises to USD 22 million in 2032 at a 9.2% CAGR for 2025–2032. The forecast retains the source's USD 18 million projection for 2030 and extends the same trajectory for two years. Blended revenue yield at the end of the period is approximately USD 7,657 per study. At that yield, volume and utilization explain most of the increase in receipts. Validated in vitro work contributes incremental throughput, while broader device or pharmaceutical study panels support contract value. Rising competition for routine endpoints and more selective use of physical tests limit the assumed gains in blended revenue per study.",
+      "destination_evidence": "Revenue reaches USD 35 million by 2032 at a 9.27% value CAGR for 2025–2032. Volume grows at a 6.99% CAGR for 2025–2032, and the blended fee rises to USD 11,009 per event, a 2.13% CAGR for 2025–2032. The mix shifts toward in vitro delivery, while specialty studies and dossier work sustain fee growth at the portfolio level. The blend can rise even where individual routine assays become less expensive, provided buyers commission more complex work or package several endpoints. Operators can track the forecast against repeat-order frequency, the proportion of studies that require specialist review and fees realized after subcontracting.",
+      "reader_value": "The Kuwait Dermal Toxicity Testing Market reaches USD 35 million by 2032 at 9.27% CAGR, compared with Malaysia's USD 22 million and 9.2%, giving readers a Gulf benchmark with similar growth and higher modeled revenue.",
+      "checks": {
+        "exact_market_core": true,
+        "different_geography": true,
+        "public_source_placement": true,
+        "source_evidence": true,
+        "destination_evidence": true,
+        "no_existing_link": true,
+        "approved_section": true
+      },
+      "scorer": {
+        "version": "contextual-editorial-v1",
+        "label": "Independent editorial reference",
+        "decision": "approve",
+        "total": 96,
+        "maximum": 100,
+        "confidence": 91,
+        "kpis": [
+          {
+            "key": "reader_need",
+            "label": "Reader need",
+            "score": 14,
+            "maximum": 15
+          },
+          {
+            "key": "source_evidence",
+            "label": "Source evidence",
+            "score": 15,
+            "maximum": 15
+          },
+          {
+            "key": "destination_fit",
+            "label": "Destination fit",
+            "score": 20,
+            "maximum": 20
+          },
+          {
+            "key": "anchor_expectation",
+            "label": "Anchor expectation",
+            "score": 15,
+            "maximum": 15
+          },
+          {
+            "key": "placement",
+            "label": "Context and placement",
+            "score": 15,
+            "maximum": 15
+          },
+          {
+            "key": "added_value",
+            "label": "Added information value",
+            "score": 9,
+            "maximum": 10
+          },
+          {
+            "key": "quality_risk",
+            "label": "Quality and risk",
+            "score": 8,
+            "maximum": 10
+          }
+        ],
+        "hard_gates": [
+          {
+            "label": "Exact market cluster",
+            "status": "pass"
+          },
+          {
+            "label": "Source and destination evidence",
+            "status": "pass"
+          },
+          {
+            "label": "Publicly visible approved section",
+            "status": "pass"
+          },
+          {
+            "label": "No existing inline duplicate",
+            "status": "pass"
+          },
+          {
+            "label": "CMS dry run",
+            "status": "pending"
+          },
+          {
+            "label": "Rendered crawlable link",
+            "status": "pending"
+          }
+        ],
+        "missing_information": [
+          "CMS dry-run and rendered-link validation remain pending until approval."
+        ],
+        "disclaimer": "Editorial reference only. It does not reproduce Google ranking systems or predict AI citations."
+      }
+    },
+    {
+      "id": "cluster:3",
+      "verdict": "draft_ready",
+      "cluster": "guaiacol",
+      "relationship": "exact_market_different_geography",
+      "source_report": "Kuwait Guaiacol Market Size, Share & Forecast, By Grade, Application & Sales Channel, 2025-2032",
+      "source_slug": "kuwait-guaiacol-market",
+      "source_geography": "kuwait",
+      "source_url": "https://www.thekenconsulting.com/industry-reports/kuwait-guaiacol-market",
+      "destination_report": "Malaysia Guaiacol Market Size, Share & Forecast, By Grade, Application & Sales Channel, 2025-2032",
+      "destination_slug": "malaysia-guaiacol-market",
+      "destination_geography": "malaysia",
+      "destination_url": "https://www.thekenconsulting.com/industry-reports/malaysia-guaiacol-market",
+      "source_field": "v02_market_trajectory",
+      "source_version": "67c383786fb7e412419471dfad2f3719d705209c4861400183126a23bdd0d530",
+      "placement": "Insert after the visible forecast paragraph",
+      "exact_after_text": "The forecast generates a cumulative value increase of 40.71% between 2025 and 2032 at a calculated CAGR of 5.00% (2025-2032). Modeled volume expands by 39.74%, preserving the supplied 2030 volume anchor of 127 metric tonnes. The 2030 value of USD 2,424,935 also reconciles with the brief’s rounded projection. Incremental price realization remains limited, with delivered ASP increasing by approximately 0.69% over the forecast interval. This favors low-overhead distribution, qualified repeat orders and disciplined inventory financing. A stronger expansion would require independently demonstrated local conversion activity or sustained growth in direct guaiacol formulations.",
+      "proposed_sentence": "The [Malaysia Guaiacol Market](https://www.thekenconsulting.com/industry-reports/malaysia-guaiacol-market) grows at 6.5% CAGR through 2032, compared with Kuwait's 5.0%, giving readers a faster-growth distribution benchmark in the same product market.",
+      "anchor": "Malaysia Guaiacol Market",
+      "source_evidence": "The forecast generates a cumulative value increase of 40.71% between 2025 and 2032 at a calculated CAGR of 5.00% (2025-2032). Modeled volume expands by 39.74%, preserving the supplied 2030 volume anchor of 127 metric tonnes. The 2030 value of USD 2,424,935 also reconciles with the brief’s rounded projection. Incremental price realization remains limited, with delivered ASP increasing by approximately 0.69% over the forecast interval. This favors low-overhead distribution, qualified repeat orders and disciplined inventory financing. A stronger expansion would require independently demonstrated local conversion activity or sustained growth in direct guaiacol formulations.",
+      "destination_evidence": "The projected value CAGR is 6.5% (2025-2032), calculated across seven annual intervals. The terminal market value rounds to USD 6 million, while the index reaches 155.3987 against 100.0000 in 2025. The implied cumulative expansion is 55.4%. Forecast volume follows the same trajectory, while the blended purchase price remains constant. This deliberately avoids treating both the supplied value-growth and volume-growth assumptions as separate additive drivers. Pharmaceutical manufacturing’s modeled expenditure share reaches 46% in 2032, but that mix change is assumed to be offset by procurement competition. Stronger price realization would represent an upside case rather than embedded base-case growth.",
+      "reader_value": "The Malaysia Guaiacol Market grows at 6.5% CAGR through 2032, compared with Kuwait's 5.0%, giving readers a faster-growth distribution benchmark in the same product market.",
+      "checks": {
+        "exact_market_core": true,
+        "different_geography": true,
+        "public_source_placement": true,
+        "source_evidence": true,
+        "destination_evidence": true,
+        "no_existing_link": true,
+        "approved_section": true
+      },
+      "scorer": {
+        "version": "contextual-editorial-v1",
+        "label": "Independent editorial reference",
+        "decision": "approve",
+        "total": 96,
+        "maximum": 100,
+        "confidence": 91,
+        "kpis": [
+          {
+            "key": "reader_need",
+            "label": "Reader need",
+            "score": 14,
+            "maximum": 15
+          },
+          {
+            "key": "source_evidence",
+            "label": "Source evidence",
+            "score": 15,
+            "maximum": 15
+          },
+          {
+            "key": "destination_fit",
+            "label": "Destination fit",
+            "score": 20,
+            "maximum": 20
+          },
+          {
+            "key": "anchor_expectation",
+            "label": "Anchor expectation",
+            "score": 15,
+            "maximum": 15
+          },
+          {
+            "key": "placement",
+            "label": "Context and placement",
+            "score": 15,
+            "maximum": 15
+          },
+          {
+            "key": "added_value",
+            "label": "Added information value",
+            "score": 9,
+            "maximum": 10
+          },
+          {
+            "key": "quality_risk",
+            "label": "Quality and risk",
+            "score": 8,
+            "maximum": 10
+          }
+        ],
+        "hard_gates": [
+          {
+            "label": "Exact market cluster",
+            "status": "pass"
+          },
+          {
+            "label": "Source and destination evidence",
+            "status": "pass"
+          },
+          {
+            "label": "Publicly visible approved section",
+            "status": "pass"
+          },
+          {
+            "label": "No existing inline duplicate",
+            "status": "pass"
+          },
+          {
+            "label": "CMS dry run",
+            "status": "pending"
+          },
+          {
+            "label": "Rendered crawlable link",
+            "status": "pending"
+          }
+        ],
+        "missing_information": [
+          "CMS dry-run and rendered-link validation remain pending until approval."
+        ],
+        "disclaimer": "Editorial reference only. It does not reproduce Google ranking systems or predict AI citations."
+      }
+    },
+    {
+      "id": "cluster:4",
+      "verdict": "draft_ready",
+      "cluster": "guaiacol",
+      "relationship": "exact_market_different_geography",
+      "source_report": "Malaysia Guaiacol Market Size, Share & Forecast, By Grade, Application & Sales Channel, 2025-2032",
+      "source_slug": "malaysia-guaiacol-market",
+      "source_geography": "malaysia",
+      "source_url": "https://www.thekenconsulting.com/industry-reports/malaysia-guaiacol-market",
+      "destination_report": "Kuwait Guaiacol Market Size, Share & Forecast, By Grade, Application & Sales Channel, 2025-2032",
+      "destination_slug": "kuwait-guaiacol-market",
+      "destination_geography": "kuwait",
+      "destination_url": "https://www.thekenconsulting.com/industry-reports/kuwait-guaiacol-market",
+      "source_field": "v02_market_trajectory",
+      "source_version": "9ea33fa1f5af39f5ba73ef8b16f2f37a2fc0a36d17b7bfd3535f9a8e769b379a",
+      "placement": "Insert after the visible forecast paragraph",
+      "exact_after_text": "The projected value CAGR is 6.5% (2025-2032), calculated across seven annual intervals. The terminal market value rounds to USD 6 million, while the index reaches 155.3987 against 100.0000 in 2025. The implied cumulative expansion is 55.4%. Forecast volume follows the same trajectory, while the blended purchase price remains constant. This deliberately avoids treating both the supplied value-growth and volume-growth assumptions as separate additive drivers. Pharmaceutical manufacturing’s modeled expenditure share reaches 46% in 2032, but that mix change is assumed to be offset by procurement competition. Stronger price realization would represent an upside case rather than embedded base-case growth.",
+      "proposed_sentence": "The [Kuwait Guaiacol Market](https://www.thekenconsulting.com/industry-reports/kuwait-guaiacol-market) grows at 5.0% CAGR through 2032, compared with Malaysia's 6.5%, giving readers a Gulf distribution benchmark with a more moderate modeled growth rate.",
+      "anchor": "Kuwait Guaiacol Market",
+      "source_evidence": "The projected value CAGR is 6.5% (2025-2032), calculated across seven annual intervals. The terminal market value rounds to USD 6 million, while the index reaches 155.3987 against 100.0000 in 2025. The implied cumulative expansion is 55.4%. Forecast volume follows the same trajectory, while the blended purchase price remains constant. This deliberately avoids treating both the supplied value-growth and volume-growth assumptions as separate additive drivers. Pharmaceutical manufacturing’s modeled expenditure share reaches 46% in 2032, but that mix change is assumed to be offset by procurement competition. Stronger price realization would represent an upside case rather than embedded base-case growth.",
+      "destination_evidence": "The forecast generates a cumulative value increase of 40.71% between 2025 and 2032 at a calculated CAGR of 5.00% (2025-2032). Modeled volume expands by 39.74%, preserving the supplied 2030 volume anchor of 127 metric tonnes. The 2030 value of USD 2,424,935 also reconciles with the brief’s rounded projection. Incremental price realization remains limited, with delivered ASP increasing by approximately 0.69% over the forecast interval. This favors low-overhead distribution, qualified repeat orders and disciplined inventory financing. A stronger expansion would require independently demonstrated local conversion activity or sustained growth in direct guaiacol formulations.",
+      "reader_value": "The Kuwait Guaiacol Market grows at 5.0% CAGR through 2032, compared with Malaysia's 6.5%, giving readers a Gulf distribution benchmark with a more moderate modeled growth rate.",
+      "checks": {
+        "exact_market_core": true,
+        "different_geography": true,
+        "public_source_placement": true,
+        "source_evidence": true,
+        "destination_evidence": true,
+        "no_existing_link": true,
+        "approved_section": true
+      },
+      "scorer": {
+        "version": "contextual-editorial-v1",
+        "label": "Independent editorial reference",
+        "decision": "approve",
+        "total": 96,
+        "maximum": 100,
+        "confidence": 91,
+        "kpis": [
+          {
+            "key": "reader_need",
+            "label": "Reader need",
+            "score": 14,
+            "maximum": 15
+          },
+          {
+            "key": "source_evidence",
+            "label": "Source evidence",
+            "score": 15,
+            "maximum": 15
+          },
+          {
+            "key": "destination_fit",
+            "label": "Destination fit",
+            "score": 20,
+            "maximum": 20
+          },
+          {
+            "key": "anchor_expectation",
+            "label": "Anchor expectation",
+            "score": 15,
+            "maximum": 15
+          },
+          {
+            "key": "placement",
+            "label": "Context and placement",
+            "score": 15,
+            "maximum": 15
+          },
+          {
+            "key": "added_value",
+            "label": "Added information value",
+            "score": 9,
+            "maximum": 10
+          },
+          {
+            "key": "quality_risk",
+            "label": "Quality and risk",
+            "score": 8,
+            "maximum": 10
+          }
+        ],
+        "hard_gates": [
+          {
+            "label": "Exact market cluster",
+            "status": "pass"
+          },
+          {
+            "label": "Source and destination evidence",
+            "status": "pass"
+          },
+          {
+            "label": "Publicly visible approved section",
+            "status": "pass"
+          },
+          {
+            "label": "No existing inline duplicate",
+            "status": "pass"
+          },
+          {
+            "label": "CMS dry run",
+            "status": "pending"
+          },
+          {
+            "label": "Rendered crawlable link",
+            "status": "pending"
+          }
+        ],
+        "missing_information": [
+          "CMS dry-run and rendered-link validation remain pending until approval."
+        ],
+        "disclaimer": "Editorial reference only. It does not reproduce Google ranking systems or predict AI citations."
+      }
+    },
+    {
+      "id": "cluster:5",
+      "verdict": "draft_ready",
+      "cluster": "heating radiator",
+      "relationship": "exact_market_different_geography",
+      "source_report": "Kuwait Heating Radiator Market Size, Share & Forecast, By Product Type, End User & Distribution Channel, 2025-2032",
+      "source_slug": "kuwait-heating-radiator-market",
+      "source_geography": "kuwait",
+      "source_url": "https://www.thekenconsulting.com/industry-reports/kuwait-heating-radiator-market",
+      "destination_report": "Malaysia Heating Radiator Market Size, Share & Forecast, By Product Type, Application & Sales Channel, 2025-2032",
+      "destination_slug": "malaysia-heating-radiator-market",
+      "destination_geography": "malaysia",
+      "destination_url": "https://www.thekenconsulting.com/industry-reports/malaysia-heating-radiator-market",
+      "source_field": "v02_market_trajectory",
+      "source_version": "d6f0d891835a6a1043bd2bca2b2619b64b2015def506da26fd9e6df0c3201063",
+      "placement": "Insert after the visible forecast paragraph",
+      "exact_after_text": "The projected 5.6% CAGR (2025-2032) produces a terminal market size of USD 41 million. Value grows by 46.4% across the period, while product volume increases by 35.2%. The resulting difference represents a combination of price, product mix and directly associated service content. Total revenue per unit reaches USD 468.57 in 2032; this is a revenue-intensity measure, not a retail appliance price. Annual growth variations in the tables primarily reflect whole-million rounding. The forecast assumes steady construction delivery, continued replacement activity and no abrupt expansion into industrial heating or full-building cooling expenditure.",
+      "proposed_sentence": "The [Malaysia Heating Radiator Market](https://www.thekenconsulting.com/industry-reports/malaysia-heating-radiator-market) reaches USD 46 million by 2032 at 6.8% CAGR, compared with Kuwait's USD 41 million and 5.6%, providing a slightly larger and faster-growing country benchmark.",
+      "anchor": "Malaysia Heating Radiator Market",
+      "source_evidence": "The projected 5.6% CAGR (2025-2032) produces a terminal market size of USD 41 million. Value grows by 46.4% across the period, while product volume increases by 35.2%. The resulting difference represents a combination of price, product mix and directly associated service content. Total revenue per unit reaches USD 468.57 in 2032; this is a revenue-intensity measure, not a retail appliance price. Annual growth variations in the tables primarily reflect whole-million rounding. The forecast assumes steady construction delivery, continued replacement activity and no abrupt expansion into industrial heating or full-building cooling expenditure.",
+      "destination_evidence": "The projected CAGR is 6.8% (2025-2032), reconciling the displayed USD 29 million and USD 46 million endpoints. Equipment-count CAGR is 7.0% (2025-2032), while the blended value-per-count indicator moves from USD 24.64 to USD 24.35. The resulting outlook assumes broadly stable aggregate pricing rather than a sustained premiumization windfall. Whole-number market-value presentation creates apparent annual growth fluctuations, particularly late in the series; these should not be interpreted as independently forecast demand shocks. Higher-value industrial assemblies can outperform the aggregate commercially, but their economics must be assessed separately from portable heaters because unit definitions and specification complexity differ materially.",
+      "reader_value": "The Malaysia Heating Radiator Market reaches USD 46 million by 2032 at 6.8% CAGR, compared with Kuwait's USD 41 million and 5.6%, providing a slightly larger and faster-growing country benchmark.",
+      "checks": {
+        "exact_market_core": true,
+        "different_geography": true,
+        "public_source_placement": true,
+        "source_evidence": true,
+        "destination_evidence": true,
+        "no_existing_link": true,
+        "approved_section": true
+      },
+      "scorer": {
+        "version": "contextual-editorial-v1",
+        "label": "Independent editorial reference",
+        "decision": "approve",
+        "total": 96,
+        "maximum": 100,
+        "confidence": 91,
+        "kpis": [
+          {
+            "key": "reader_need",
+            "label": "Reader need",
+            "score": 14,
+            "maximum": 15
+          },
+          {
+            "key": "source_evidence",
+            "label": "Source evidence",
+            "score": 15,
+            "maximum": 15
+          },
+          {
+            "key": "destination_fit",
+            "label": "Destination fit",
+            "score": 20,
+            "maximum": 20
+          },
+          {
+            "key": "anchor_expectation",
+            "label": "Anchor expectation",
+            "score": 15,
+            "maximum": 15
+          },
+          {
+            "key": "placement",
+            "label": "Context and placement",
+            "score": 15,
+            "maximum": 15
+          },
+          {
+            "key": "added_value",
+            "label": "Added information value",
+            "score": 9,
+            "maximum": 10
+          },
+          {
+            "key": "quality_risk",
+            "label": "Quality and risk",
+            "score": 8,
+            "maximum": 10
+          }
+        ],
+        "hard_gates": [
+          {
+            "label": "Exact market cluster",
+            "status": "pass"
+          },
+          {
+            "label": "Source and destination evidence",
+            "status": "pass"
+          },
+          {
+            "label": "Publicly visible approved section",
+            "status": "pass"
+          },
+          {
+            "label": "No existing inline duplicate",
+            "status": "pass"
+          },
+          {
+            "label": "CMS dry run",
+            "status": "pending"
+          },
+          {
+            "label": "Rendered crawlable link",
+            "status": "pending"
+          }
+        ],
+        "missing_information": [
+          "CMS dry-run and rendered-link validation remain pending until approval."
+        ],
+        "disclaimer": "Editorial reference only. It does not reproduce Google ranking systems or predict AI citations."
+      }
+    },
+    {
+      "id": "cluster:6",
+      "verdict": "draft_ready",
+      "cluster": "heating radiator",
+      "relationship": "exact_market_different_geography",
+      "source_report": "Malaysia Heating Radiator Market Size, Share & Forecast, By Product Type, Application & Sales Channel, 2025-2032",
+      "source_slug": "malaysia-heating-radiator-market",
+      "source_geography": "malaysia",
+      "source_url": "https://www.thekenconsulting.com/industry-reports/malaysia-heating-radiator-market",
+      "destination_report": "Kuwait Heating Radiator Market Size, Share & Forecast, By Product Type, End User & Distribution Channel, 2025-2032",
+      "destination_slug": "kuwait-heating-radiator-market",
+      "destination_geography": "kuwait",
+      "destination_url": "https://www.thekenconsulting.com/industry-reports/kuwait-heating-radiator-market",
+      "source_field": "v02_market_trajectory",
+      "source_version": "390fceca6f9b40df57daef58feb88cd81b850795db09111eece4293b5ccf4051",
+      "placement": "Insert after the visible forecast paragraph",
+      "exact_after_text": "The projected CAGR is 6.8% (2025-2032), reconciling the displayed USD 29 million and USD 46 million endpoints. Equipment-count CAGR is 7.0% (2025-2032), while the blended value-per-count indicator moves from USD 24.64 to USD 24.35. The resulting outlook assumes broadly stable aggregate pricing rather than a sustained premiumization windfall. Whole-number market-value presentation creates apparent annual growth fluctuations, particularly late in the series; these should not be interpreted as independently forecast demand shocks. Higher-value industrial assemblies can outperform the aggregate commercially, but their economics must be assessed separately from portable heaters because unit definitions and specification complexity differ materially.",
+      "proposed_sentence": "The [Kuwait Heating Radiator Market](https://www.thekenconsulting.com/industry-reports/kuwait-heating-radiator-market) reaches USD 41 million by 2032 at 5.6% CAGR, compared with Malaysia's USD 46 million and 6.8%, providing a closely sized Gulf benchmark with more moderate growth.",
+      "anchor": "Kuwait Heating Radiator Market",
+      "source_evidence": "The projected CAGR is 6.8% (2025-2032), reconciling the displayed USD 29 million and USD 46 million endpoints. Equipment-count CAGR is 7.0% (2025-2032), while the blended value-per-count indicator moves from USD 24.64 to USD 24.35. The resulting outlook assumes broadly stable aggregate pricing rather than a sustained premiumization windfall. Whole-number market-value presentation creates apparent annual growth fluctuations, particularly late in the series; these should not be interpreted as independently forecast demand shocks. Higher-value industrial assemblies can outperform the aggregate commercially, but their economics must be assessed separately from portable heaters because unit definitions and specification complexity differ materially.",
+      "destination_evidence": "The projected 5.6% CAGR (2025-2032) produces a terminal market size of USD 41 million. Value grows by 46.4% across the period, while product volume increases by 35.2%. The resulting difference represents a combination of price, product mix and directly associated service content. Total revenue per unit reaches USD 468.57 in 2032; this is a revenue-intensity measure, not a retail appliance price. Annual growth variations in the tables primarily reflect whole-million rounding. The forecast assumes steady construction delivery, continued replacement activity and no abrupt expansion into industrial heating or full-building cooling expenditure.",
+      "reader_value": "The Kuwait Heating Radiator Market reaches USD 41 million by 2032 at 5.6% CAGR, compared with Malaysia's USD 46 million and 6.8%, providing a closely sized Gulf benchmark with more moderate growth.",
+      "checks": {
+        "exact_market_core": true,
+        "different_geography": true,
+        "public_source_placement": true,
+        "source_evidence": true,
+        "destination_evidence": true,
+        "no_existing_link": true,
+        "approved_section": true
+      },
+      "scorer": {
+        "version": "contextual-editorial-v1",
+        "label": "Independent editorial reference",
+        "decision": "approve",
+        "total": 96,
+        "maximum": 100,
+        "confidence": 91,
+        "kpis": [
+          {
+            "key": "reader_need",
+            "label": "Reader need",
+            "score": 14,
+            "maximum": 15
+          },
+          {
+            "key": "source_evidence",
+            "label": "Source evidence",
+            "score": 15,
+            "maximum": 15
+          },
+          {
+            "key": "destination_fit",
+            "label": "Destination fit",
+            "score": 20,
+            "maximum": 20
+          },
+          {
+            "key": "anchor_expectation",
+            "label": "Anchor expectation",
+            "score": 15,
+            "maximum": 15
+          },
+          {
+            "key": "placement",
+            "label": "Context and placement",
+            "score": 15,
+            "maximum": 15
+          },
+          {
+            "key": "added_value",
+            "label": "Added information value",
+            "score": 9,
+            "maximum": 10
+          },
+          {
+            "key": "quality_risk",
+            "label": "Quality and risk",
+            "score": 8,
+            "maximum": 10
+          }
+        ],
+        "hard_gates": [
+          {
+            "label": "Exact market cluster",
+            "status": "pass"
+          },
+          {
+            "label": "Source and destination evidence",
+            "status": "pass"
+          },
+          {
+            "label": "Publicly visible approved section",
+            "status": "pass"
+          },
+          {
+            "label": "No existing inline duplicate",
+            "status": "pass"
+          },
+          {
+            "label": "CMS dry run",
+            "status": "pending"
+          },
+          {
+            "label": "Rendered crawlable link",
+            "status": "pending"
+          }
+        ],
+        "missing_information": [
+          "CMS dry-run and rendered-link validation remain pending until approval."
+        ],
+        "disclaimer": "Editorial reference only. It does not reproduce Google ranking systems or predict AI citations."
+      }
+    },
+    {
+      "id": "cluster:7",
+      "verdict": "draft_ready",
+      "cluster": "organic dyes",
+      "relationship": "exact_market_different_geography",
+      "source_report": "Malaysia Organic Dyes Market Size, Share & Forecast, By Product Type & End-Use Industry, 2025-2032",
+      "source_slug": "malaysia-organic-dyes-market",
+      "source_geography": "malaysia",
+      "source_url": "https://www.thekenconsulting.com/industry-reports/malaysia-organic-dyes-market",
+      "destination_report": "Qatar Organic Dyes Market Size, Share & Forecast, By Product Type and End-Use Industry, 2025-2032",
+      "destination_slug": "qatar-organic-dyes-market",
+      "destination_geography": "qatar",
+      "destination_url": "https://www.thekenconsulting.com/industry-reports/qatar-organic-dyes-market",
+      "source_field": "v02_market_trajectory",
+      "source_version": "163f0c296ffbdc5a5e49425ae2a62fca725a0a882220933f9abea857439ada7f",
+      "placement": "Insert after the visible forecast paragraph",
+      "exact_after_text": "Forecast CAGR of 6.03% (2025-2032) reconciles directly with the displayed USD 75 million and USD 113 million endpoints. Volume CAGR of 5.49% (2025-2032) provides most of the expansion, with ASP CAGR of 0.51% (2025-2032) completing the value bridge. Annual value growth fluctuates because whole-million display rounding is retained consistently. The forecast favors suppliers that increase qualified sales volumes without proportionately expanding inventory or technical-service costs. Natural dye development, cleaner processing recipes and differentiated disperse dye performance offer selective upside, but the base case does not assume a structural commodity-price surge or a sudden replacement of imported dyes.",
+      "proposed_sentence": "The [Qatar Organic Dyes Market](https://www.thekenconsulting.com/industry-reports/qatar-organic-dyes-market) reaches USD 7.649 million by 2032 at 3.98% CAGR, compared with Malaysia's USD 113 million and 6.03%, giving readers a smaller localized demand benchmark.",
+      "anchor": "Qatar Organic Dyes Market",
+      "source_evidence": "Forecast CAGR of 6.03% (2025-2032) reconciles directly with the displayed USD 75 million and USD 113 million endpoints. Volume CAGR of 5.49% (2025-2032) provides most of the expansion, with ASP CAGR of 0.51% (2025-2032) completing the value bridge. Annual value growth fluctuates because whole-million display rounding is retained consistently. The forecast favors suppliers that increase qualified sales volumes without proportionately expanding inventory or technical-service costs. Natural dye development, cleaner processing recipes and differentiated disperse dye performance offer selective upside, but the base case does not assume a structural commodity-price surge or a sudden replacement of imported dyes.",
+      "destination_evidence": "The terminal estimate of USD 7,649 thousand produces forecast CAGR of 3.98% (2025-2032) and adds USD 1,829 thousand to annual expenditure. Physical consumption rises by 105 metric tonnes over the same period. The model implies a 31.43% cumulative increase in value, compared with 22.63% in volume, supporting selective premiumization rather than a commodity-volume surge. Blended realization reaches USD 13.44/kg in 2032. Annual values through 2029 remain those supplied in the brief; later values extend approximately 4% annually. Rounded year-to-year growth rates are calculated from the displayed endpoints, preserving table reconciliation.",
+      "reader_value": "The Qatar Organic Dyes Market reaches USD 7.649 million by 2032 at 3.98% CAGR, compared with Malaysia's USD 113 million and 6.03%, giving readers a smaller localized demand benchmark.",
+      "checks": {
+        "exact_market_core": true,
+        "different_geography": true,
+        "public_source_placement": true,
+        "source_evidence": true,
+        "destination_evidence": true,
+        "no_existing_link": true,
+        "approved_section": true
+      },
+      "scorer": {
+        "version": "contextual-editorial-v1",
+        "label": "Independent editorial reference",
+        "decision": "approve",
+        "total": 96,
+        "maximum": 100,
+        "confidence": 91,
+        "kpis": [
+          {
+            "key": "reader_need",
+            "label": "Reader need",
+            "score": 14,
+            "maximum": 15
+          },
+          {
+            "key": "source_evidence",
+            "label": "Source evidence",
+            "score": 15,
+            "maximum": 15
+          },
+          {
+            "key": "destination_fit",
+            "label": "Destination fit",
+            "score": 20,
+            "maximum": 20
+          },
+          {
+            "key": "anchor_expectation",
+            "label": "Anchor expectation",
+            "score": 15,
+            "maximum": 15
+          },
+          {
+            "key": "placement",
+            "label": "Context and placement",
+            "score": 15,
+            "maximum": 15
+          },
+          {
+            "key": "added_value",
+            "label": "Added information value",
+            "score": 9,
+            "maximum": 10
+          },
+          {
+            "key": "quality_risk",
+            "label": "Quality and risk",
+            "score": 8,
+            "maximum": 10
+          }
+        ],
+        "hard_gates": [
+          {
+            "label": "Exact market cluster",
+            "status": "pass"
+          },
+          {
+            "label": "Source and destination evidence",
+            "status": "pass"
+          },
+          {
+            "label": "Publicly visible approved section",
+            "status": "pass"
+          },
+          {
+            "label": "No existing inline duplicate",
+            "status": "pass"
+          },
+          {
+            "label": "CMS dry run",
+            "status": "pending"
+          },
+          {
+            "label": "Rendered crawlable link",
+            "status": "pending"
+          }
+        ],
+        "missing_information": [
+          "CMS dry-run and rendered-link validation remain pending until approval."
+        ],
+        "disclaimer": "Editorial reference only. It does not reproduce Google ranking systems or predict AI citations."
+      }
+    },
+    {
+      "id": "cluster:8",
+      "verdict": "draft_ready",
+      "cluster": "organic dyes",
+      "relationship": "exact_market_different_geography",
+      "source_report": "Qatar Organic Dyes Market Size, Share & Forecast, By Product Type and End-Use Industry, 2025-2032",
+      "source_slug": "qatar-organic-dyes-market",
+      "source_geography": "qatar",
+      "source_url": "https://www.thekenconsulting.com/industry-reports/qatar-organic-dyes-market",
+      "destination_report": "Malaysia Organic Dyes Market Size, Share & Forecast, By Product Type & End-Use Industry, 2025-2032",
+      "destination_slug": "malaysia-organic-dyes-market",
+      "destination_geography": "malaysia",
+      "destination_url": "https://www.thekenconsulting.com/industry-reports/malaysia-organic-dyes-market",
+      "source_field": "v02_market_trajectory",
+      "source_version": "508c65089926235ecb1eb734d900c6ae908329d210d7ed9ba1961e8b83144e81",
+      "placement": "Insert after the visible forecast paragraph",
+      "exact_after_text": "The terminal estimate of USD 7,649 thousand produces forecast CAGR of 3.98% (2025-2032) and adds USD 1,829 thousand to annual expenditure. Physical consumption rises by 105 metric tonnes over the same period. The model implies a 31.43% cumulative increase in value, compared with 22.63% in volume, supporting selective premiumization rather than a commodity-volume surge. Blended realization reaches USD 13.44/kg in 2032. Annual values through 2029 remain those supplied in the brief; later values extend approximately 4% annually. Rounded year-to-year growth rates are calculated from the displayed endpoints, preserving table reconciliation.",
+      "proposed_sentence": "The [Malaysia Organic Dyes Market](https://www.thekenconsulting.com/industry-reports/malaysia-organic-dyes-market) reaches USD 113 million by 2032 at 6.03% CAGR, compared with Qatar's USD 7.649 million and 3.98%, giving readers a larger manufacturing-demand benchmark.",
+      "anchor": "Malaysia Organic Dyes Market",
+      "source_evidence": "The terminal estimate of USD 7,649 thousand produces forecast CAGR of 3.98% (2025-2032) and adds USD 1,829 thousand to annual expenditure. Physical consumption rises by 105 metric tonnes over the same period. The model implies a 31.43% cumulative increase in value, compared with 22.63% in volume, supporting selective premiumization rather than a commodity-volume surge. Blended realization reaches USD 13.44/kg in 2032. Annual values through 2029 remain those supplied in the brief; later values extend approximately 4% annually. Rounded year-to-year growth rates are calculated from the displayed endpoints, preserving table reconciliation.",
+      "destination_evidence": "Forecast CAGR of 6.03% (2025-2032) reconciles directly with the displayed USD 75 million and USD 113 million endpoints. Volume CAGR of 5.49% (2025-2032) provides most of the expansion, with ASP CAGR of 0.51% (2025-2032) completing the value bridge. Annual value growth fluctuates because whole-million display rounding is retained consistently. The forecast favors suppliers that increase qualified sales volumes without proportionately expanding inventory or technical-service costs. Natural dye development, cleaner processing recipes and differentiated disperse dye performance offer selective upside, but the base case does not assume a structural commodity-price surge or a sudden replacement of imported dyes.",
+      "reader_value": "The Malaysia Organic Dyes Market reaches USD 113 million by 2032 at 6.03% CAGR, compared with Qatar's USD 7.649 million and 3.98%, giving readers a larger manufacturing-demand benchmark.",
+      "checks": {
+        "exact_market_core": true,
+        "different_geography": true,
+        "public_source_placement": true,
+        "source_evidence": true,
+        "destination_evidence": true,
+        "no_existing_link": true,
+        "approved_section": true
+      },
+      "scorer": {
+        "version": "contextual-editorial-v1",
+        "label": "Independent editorial reference",
+        "decision": "approve",
+        "total": 96,
+        "maximum": 100,
+        "confidence": 91,
+        "kpis": [
+          {
+            "key": "reader_need",
+            "label": "Reader need",
+            "score": 14,
+            "maximum": 15
+          },
+          {
+            "key": "source_evidence",
+            "label": "Source evidence",
+            "score": 15,
+            "maximum": 15
+          },
+          {
+            "key": "destination_fit",
+            "label": "Destination fit",
+            "score": 20,
+            "maximum": 20
+          },
+          {
+            "key": "anchor_expectation",
+            "label": "Anchor expectation",
+            "score": 15,
+            "maximum": 15
+          },
+          {
+            "key": "placement",
+            "label": "Context and placement",
+            "score": 15,
+            "maximum": 15
+          },
+          {
+            "key": "added_value",
+            "label": "Added information value",
+            "score": 9,
+            "maximum": 10
+          },
+          {
+            "key": "quality_risk",
+            "label": "Quality and risk",
+            "score": 8,
+            "maximum": 10
+          }
+        ],
+        "hard_gates": [
+          {
+            "label": "Exact market cluster",
+            "status": "pass"
+          },
+          {
+            "label": "Source and destination evidence",
+            "status": "pass"
+          },
+          {
+            "label": "Publicly visible approved section",
+            "status": "pass"
+          },
+          {
+            "label": "No existing inline duplicate",
+            "status": "pass"
+          },
+          {
+            "label": "CMS dry run",
+            "status": "pending"
+          },
+          {
+            "label": "Rendered crawlable link",
+            "status": "pending"
+          }
+        ],
+        "missing_information": [
+          "CMS dry-run and rendered-link validation remain pending until approval."
+        ],
+        "disclaimer": "Editorial reference only. It does not reproduce Google ranking systems or predict AI citations."
+      }
+    },
+    {
+      "id": "cluster:9",
+      "verdict": "draft_ready",
+      "cluster": "ortho-phthalaldehyde",
+      "relationship": "exact_market_different_geography",
+      "source_report": "Malaysia Ortho-Phthalaldehyde Market Size, Share & Forecast, By Product Type and Application, 2025-2032",
+      "source_slug": "malaysia-ortho-phthalaldehyde-market",
+      "source_geography": "malaysia",
+      "source_url": "https://www.thekenconsulting.com/industry-reports/malaysia-ortho-phthalaldehyde-market",
+      "destination_report": "Qatar Ortho-Phthalaldehyde Market Size, Share & Forecast by Product Type and Application, 2025-2032",
+      "destination_slug": "qatar-ortho-phthalaldehyde-market",
+      "destination_geography": "qatar",
+      "destination_url": "https://www.thekenconsulting.com/industry-reports/qatar-ortho-phthalaldehyde-market",
+      "source_field": "v02_market_trajectory",
+      "source_version": "4e5c2e3b18cafda4258736662dc480166fcffc3495e3da3947c9f8f68f52b2c7",
+      "placement": "Insert after the visible forecast paragraph",
+      "exact_after_text": "The forecast projects an 8.0% CAGR (2025-2032), reaching approximately USD 8 Mn in 2032. Aggregate revenue per equivalent litre remains close to USD 30.6 throughout the forecast, limiting dependence on price escalation. The modeled application mix moves from 70% healthcare disinfection, 25% analytical derivatization and 5% specialty synthesis in 2025 to 68%, 27% and 5% respectively in 2032. Each allocation totals 100%. This shift favors differentiated reagent offerings while preserving healthcare as the main demand base. It is a scenario assumption, not evidence of contracted orders or an independently measured segment forecast.",
+      "proposed_sentence": "The [Qatar Ortho-Phthalaldehyde Market](https://www.thekenconsulting.com/industry-reports/qatar-ortho-phthalaldehyde-market) reaches USD 7.74 million by 2032 at 7.0% CAGR, compared with Malaysia's approximately USD 8 million and 8.0%, giving readers a similar-scale benchmark with slightly slower growth.",
+      "anchor": "Qatar Ortho-Phthalaldehyde Market",
+      "source_evidence": "The forecast projects an 8.0% CAGR (2025-2032), reaching approximately USD 8 Mn in 2032. Aggregate revenue per equivalent litre remains close to USD 30.6 throughout the forecast, limiting dependence on price escalation. The modeled application mix moves from 70% healthcare disinfection, 25% analytical derivatization and 5% specialty synthesis in 2025 to 68%, 27% and 5% respectively in 2032. Each allocation totals 100%. This shift favors differentiated reagent offerings while preserving healthcare as the main demand base. It is a scenario assumption, not evidence of contracted orders or an independently measured segment forecast.",
+      "destination_evidence": "Forecast value CAGR is 7.0% (2025-2032), taking the market to USD 7,740,000. Formulated-solution volume increases by approximately 50.4% over the same period, while value increases by approximately 60.6%. The difference reflects modest pricing and mix improvement. Supplied annual estimates through 2029 are retained; later years extend the base-case direction, with small annual variations arising from rounded inputs. Blended market expenditure per reference litre increases from USD 25.98 in 2025 to USD 27.75 in 2032. This is a portfolio ratio, not a quoted disinfectant selling price, because the numerator includes non-liquid OPA products.",
+      "reader_value": "The Qatar Ortho-Phthalaldehyde Market reaches USD 7.74 million by 2032 at 7.0% CAGR, compared with Malaysia's approximately USD 8 million and 8.0%, giving readers a similar-scale benchmark with slightly slower growth.",
+      "checks": {
+        "exact_market_core": true,
+        "different_geography": true,
+        "public_source_placement": true,
+        "source_evidence": true,
+        "destination_evidence": true,
+        "no_existing_link": true,
+        "approved_section": true
+      },
+      "scorer": {
+        "version": "contextual-editorial-v1",
+        "label": "Independent editorial reference",
+        "decision": "approve",
+        "total": 96,
+        "maximum": 100,
+        "confidence": 91,
+        "kpis": [
+          {
+            "key": "reader_need",
+            "label": "Reader need",
+            "score": 14,
+            "maximum": 15
+          },
+          {
+            "key": "source_evidence",
+            "label": "Source evidence",
+            "score": 15,
+            "maximum": 15
+          },
+          {
+            "key": "destination_fit",
+            "label": "Destination fit",
+            "score": 20,
+            "maximum": 20
+          },
+          {
+            "key": "anchor_expectation",
+            "label": "Anchor expectation",
+            "score": 15,
+            "maximum": 15
+          },
+          {
+            "key": "placement",
+            "label": "Context and placement",
+            "score": 15,
+            "maximum": 15
+          },
+          {
+            "key": "added_value",
+            "label": "Added information value",
+            "score": 9,
+            "maximum": 10
+          },
+          {
+            "key": "quality_risk",
+            "label": "Quality and risk",
+            "score": 8,
+            "maximum": 10
+          }
+        ],
+        "hard_gates": [
+          {
+            "label": "Exact market cluster",
+            "status": "pass"
+          },
+          {
+            "label": "Source and destination evidence",
+            "status": "pass"
+          },
+          {
+            "label": "Publicly visible approved section",
+            "status": "pass"
+          },
+          {
+            "label": "No existing inline duplicate",
+            "status": "pass"
+          },
+          {
+            "label": "CMS dry run",
+            "status": "pending"
+          },
+          {
+            "label": "Rendered crawlable link",
+            "status": "pending"
+          }
+        ],
+        "missing_information": [
+          "CMS dry-run and rendered-link validation remain pending until approval."
+        ],
+        "disclaimer": "Editorial reference only. It does not reproduce Google ranking systems or predict AI citations."
+      }
+    },
+    {
+      "id": "cluster:10",
+      "verdict": "draft_ready",
+      "cluster": "ortho-phthalaldehyde",
+      "relationship": "exact_market_different_geography",
+      "source_report": "Qatar Ortho-Phthalaldehyde Market Size, Share & Forecast by Product Type and Application, 2025-2032",
+      "source_slug": "qatar-ortho-phthalaldehyde-market",
+      "source_geography": "qatar",
+      "source_url": "https://www.thekenconsulting.com/industry-reports/qatar-ortho-phthalaldehyde-market",
+      "destination_report": "Malaysia Ortho-Phthalaldehyde Market Size, Share & Forecast, By Product Type and Application, 2025-2032",
+      "destination_slug": "malaysia-ortho-phthalaldehyde-market",
+      "destination_geography": "malaysia",
+      "destination_url": "https://www.thekenconsulting.com/industry-reports/malaysia-ortho-phthalaldehyde-market",
+      "source_field": "v02_market_trajectory",
+      "source_version": "e27262310494a60abb7d05f745a10c98c0de7358e09508463aa4f8c187fa8493",
+      "placement": "Insert after the visible forecast paragraph",
+      "exact_after_text": "Forecast value CAGR is 7.0% (2025-2032), taking the market to USD 7,740,000. Formulated-solution volume increases by approximately 50.4% over the same period, while value increases by approximately 60.6%. The difference reflects modest pricing and mix improvement. Supplied annual estimates through 2029 are retained; later years extend the base-case direction, with small annual variations arising from rounded inputs. Blended market expenditure per reference litre increases from USD 25.98 in 2025 to USD 27.75 in 2032. This is a portfolio ratio, not a quoted disinfectant selling price, because the numerator includes non-liquid OPA products.",
+      "proposed_sentence": "The [Malaysia Ortho-Phthalaldehyde Market](https://www.thekenconsulting.com/industry-reports/malaysia-ortho-phthalaldehyde-market) reaches approximately USD 8 million by 2032 at 8.0% CAGR, compared with Qatar's USD 7.74 million and 7.0%, giving readers a similar-scale benchmark with slightly faster growth.",
+      "anchor": "Malaysia Ortho-Phthalaldehyde Market",
+      "source_evidence": "Forecast value CAGR is 7.0% (2025-2032), taking the market to USD 7,740,000. Formulated-solution volume increases by approximately 50.4% over the same period, while value increases by approximately 60.6%. The difference reflects modest pricing and mix improvement. Supplied annual estimates through 2029 are retained; later years extend the base-case direction, with small annual variations arising from rounded inputs. Blended market expenditure per reference litre increases from USD 25.98 in 2025 to USD 27.75 in 2032. This is a portfolio ratio, not a quoted disinfectant selling price, because the numerator includes non-liquid OPA products.",
+      "destination_evidence": "The forecast projects an 8.0% CAGR (2025-2032), reaching approximately USD 8 Mn in 2032. Aggregate revenue per equivalent litre remains close to USD 30.6 throughout the forecast, limiting dependence on price escalation. The modeled application mix moves from 70% healthcare disinfection, 25% analytical derivatization and 5% specialty synthesis in 2025 to 68%, 27% and 5% respectively in 2032. Each allocation totals 100%. This shift favors differentiated reagent offerings while preserving healthcare as the main demand base. It is a scenario assumption, not evidence of contracted orders or an independently measured segment forecast.",
+      "reader_value": "The Malaysia Ortho-Phthalaldehyde Market reaches approximately USD 8 million by 2032 at 8.0% CAGR, compared with Qatar's USD 7.74 million and 7.0%, giving readers a similar-scale benchmark with slightly faster growth.",
+      "checks": {
+        "exact_market_core": true,
+        "different_geography": true,
+        "public_source_placement": true,
+        "source_evidence": true,
+        "destination_evidence": true,
+        "no_existing_link": true,
+        "approved_section": true
+      },
+      "scorer": {
+        "version": "contextual-editorial-v1",
+        "label": "Independent editorial reference",
+        "decision": "approve",
+        "total": 96,
+        "maximum": 100,
+        "confidence": 91,
+        "kpis": [
+          {
+            "key": "reader_need",
+            "label": "Reader need",
+            "score": 14,
+            "maximum": 15
+          },
+          {
+            "key": "source_evidence",
+            "label": "Source evidence",
+            "score": 15,
+            "maximum": 15
+          },
+          {
+            "key": "destination_fit",
+            "label": "Destination fit",
+            "score": 20,
+            "maximum": 20
+          },
+          {
+            "key": "anchor_expectation",
+            "label": "Anchor expectation",
+            "score": 15,
+            "maximum": 15
+          },
+          {
+            "key": "placement",
+            "label": "Context and placement",
+            "score": 15,
+            "maximum": 15
+          },
+          {
+            "key": "added_value",
+            "label": "Added information value",
+            "score": 9,
+            "maximum": 10
+          },
+          {
+            "key": "quality_risk",
+            "label": "Quality and risk",
+            "score": 8,
+            "maximum": 10
+          }
+        ],
+        "hard_gates": [
+          {
+            "label": "Exact market cluster",
+            "status": "pass"
+          },
+          {
+            "label": "Source and destination evidence",
+            "status": "pass"
+          },
+          {
+            "label": "Publicly visible approved section",
+            "status": "pass"
+          },
+          {
+            "label": "No existing inline duplicate",
+            "status": "pass"
+          },
+          {
+            "label": "CMS dry run",
+            "status": "pending"
+          },
+          {
+            "label": "Rendered crawlable link",
+            "status": "pending"
+          }
+        ],
+        "missing_information": [
+          "CMS dry-run and rendered-link validation remain pending until approval."
+        ],
+        "disclaimer": "Editorial reference only. It does not reproduce Google ranking systems or predict AI citations."
+      }
+    },
+    {
+      "id": "cluster:11",
+      "verdict": "draft_ready",
+      "cluster": "orthopedic spine navigation systems",
+      "relationship": "exact_market_different_geography",
+      "source_report": "Malaysia Orthopedic Spine Navigation Systems Market Size, Share & Forecast, By Technology and Offering, 2025–2032",
+      "source_slug": "malaysia-orthopedic-spine-navigation-systems-market",
+      "source_geography": "malaysia",
+      "source_url": "https://www.thekenconsulting.com/industry-reports/malaysia-orthopedic-spine-navigation-systems-market",
+      "destination_report": "Qatar Orthopedic Spine Navigation Systems Market Size, Share & Forecast by Product Type and Care Setting, 2025-2032",
+      "destination_slug": "qatar-orthopedic-spine-navigation-systems-market",
+      "destination_geography": "qatar",
+      "destination_url": "https://www.thekenconsulting.com/industry-reports/qatar-orthopedic-spine-navigation-systems-market",
+      "source_field": "v02_market_trajectory",
+      "source_version": "0b9b0b8bd4065550b41151cf05111af9ccbc18102d7a48a8bd19ec3c377b8b95",
+      "placement": "Insert after the visible forecast paragraph",
+      "exact_after_text": "The market reaches USD 24 Mn in 2032 at an 11.1% CAGR for 2025–2032. The forecast retains the supplied executive-summary checkpoint of USD 20 Mn in 2030, rounded, and extends its implied trajectory for two years. Modeled accessory revenue grows at a 13.4% CAGR for 2025–2032 as installed systems support more cases. The assumed average workstation price falls to USD 230,000 by 2032 as procurement shifts toward a wider range of packages. Faster fleet expansion can coexist with weaker equipment pricing when buyers obtain group discounts or negotiate a longer commercial commitment.",
+      "proposed_sentence": "The [Qatar Orthopedic Spine Navigation Systems Market](https://www.thekenconsulting.com/industry-reports/qatar-orthopedic-spine-navigation-systems-market) reaches USD 1.885 million by 2032 at 8.0% CAGR, compared with Malaysia's USD 24 million and 11.1%, giving readers a smaller hospital-procurement benchmark.",
+      "anchor": "Qatar Orthopedic Spine Navigation Systems Market",
+      "source_evidence": "The market reaches USD 24 Mn in 2032 at an 11.1% CAGR for 2025–2032. The forecast retains the supplied executive-summary checkpoint of USD 20 Mn in 2030, rounded, and extends its implied trajectory for two years. Modeled accessory revenue grows at a 13.4% CAGR for 2025–2032 as installed systems support more cases. The assumed average workstation price falls to USD 230,000 by 2032 as procurement shifts toward a wider range of packages. Faster fleet expansion can coexist with weaker equipment pricing when buyers obtain group discounts or negotiate a longer commercial commitment.",
+      "destination_evidence": "The terminal market value of USD 1,885,000 implies an 8.0% CAGR (2025-2032) from the supplied base. The annual forecast is rounded to USD thousand, and displayed YoY rates are calculated from those displayed values. Product-level planning allocations place capital equipment at USD 700,000, disposables and accessories at USD 400,000, service and maintenance at USD 710,000, and software at USD 75,000 in 2032. Together these allocations close exactly to the terminal total. They imply respective CAGRs of 7.6%, 9.6%, 7.1% and 14.0% (2025-2032), with each product allocation treated as an analyst forecast.",
+      "reader_value": "The Qatar Orthopedic Spine Navigation Systems Market reaches USD 1.885 million by 2032 at 8.0% CAGR, compared with Malaysia's USD 24 million and 11.1%, giving readers a smaller hospital-procurement benchmark.",
+      "checks": {
+        "exact_market_core": true,
+        "different_geography": true,
+        "public_source_placement": true,
+        "source_evidence": true,
+        "destination_evidence": true,
+        "no_existing_link": true,
+        "approved_section": true
+      },
+      "scorer": {
+        "version": "contextual-editorial-v1",
+        "label": "Independent editorial reference",
+        "decision": "approve",
+        "total": 96,
+        "maximum": 100,
+        "confidence": 91,
+        "kpis": [
+          {
+            "key": "reader_need",
+            "label": "Reader need",
+            "score": 14,
+            "maximum": 15
+          },
+          {
+            "key": "source_evidence",
+            "label": "Source evidence",
+            "score": 15,
+            "maximum": 15
+          },
+          {
+            "key": "destination_fit",
+            "label": "Destination fit",
+            "score": 20,
+            "maximum": 20
+          },
+          {
+            "key": "anchor_expectation",
+            "label": "Anchor expectation",
+            "score": 15,
+            "maximum": 15
+          },
+          {
+            "key": "placement",
+            "label": "Context and placement",
+            "score": 15,
+            "maximum": 15
+          },
+          {
+            "key": "added_value",
+            "label": "Added information value",
+            "score": 9,
+            "maximum": 10
+          },
+          {
+            "key": "quality_risk",
+            "label": "Quality and risk",
+            "score": 8,
+            "maximum": 10
+          }
+        ],
+        "hard_gates": [
+          {
+            "label": "Exact market cluster",
+            "status": "pass"
+          },
+          {
+            "label": "Source and destination evidence",
+            "status": "pass"
+          },
+          {
+            "label": "Publicly visible approved section",
+            "status": "pass"
+          },
+          {
+            "label": "No existing inline duplicate",
+            "status": "pass"
+          },
+          {
+            "label": "CMS dry run",
+            "status": "pending"
+          },
+          {
+            "label": "Rendered crawlable link",
+            "status": "pending"
+          }
+        ],
+        "missing_information": [
+          "CMS dry-run and rendered-link validation remain pending until approval."
+        ],
+        "disclaimer": "Editorial reference only. It does not reproduce Google ranking systems or predict AI citations."
+      }
+    },
+    {
+      "id": "cluster:12",
+      "verdict": "draft_ready",
+      "cluster": "orthopedic spine navigation systems",
+      "relationship": "exact_market_different_geography",
+      "source_report": "Qatar Orthopedic Spine Navigation Systems Market Size, Share & Forecast by Product Type and Care Setting, 2025-2032",
+      "source_slug": "qatar-orthopedic-spine-navigation-systems-market",
+      "source_geography": "qatar",
+      "source_url": "https://www.thekenconsulting.com/industry-reports/qatar-orthopedic-spine-navigation-systems-market",
+      "destination_report": "Malaysia Orthopedic Spine Navigation Systems Market Size, Share & Forecast, By Technology and Offering, 2025–2032",
+      "destination_slug": "malaysia-orthopedic-spine-navigation-systems-market",
+      "destination_geography": "malaysia",
+      "destination_url": "https://www.thekenconsulting.com/industry-reports/malaysia-orthopedic-spine-navigation-systems-market",
+      "source_field": "v02_market_trajectory",
+      "source_version": "ffff2ba15ec80c16760fb6b15e3dbc2205fe1438f1e72d39841c46dbfb015c60",
+      "placement": "Insert after the visible forecast paragraph",
+      "exact_after_text": "The terminal market value of USD 1,885,000 implies an 8.0% CAGR (2025-2032) from the supplied base. The annual forecast is rounded to USD thousand, and displayed YoY rates are calculated from those displayed values. Product-level planning allocations place capital equipment at USD 700,000, disposables and accessories at USD 400,000, service and maintenance at USD 710,000, and software at USD 75,000 in 2032. Together these allocations close exactly to the terminal total. They imply respective CAGRs of 7.6%, 9.6%, 7.1% and 14.0% (2025-2032), with each product allocation treated as an analyst forecast.",
+      "proposed_sentence": "The [Malaysia Orthopedic Spine Navigation Systems Market](https://www.thekenconsulting.com/industry-reports/malaysia-orthopedic-spine-navigation-systems-market) reaches USD 24 million by 2032 at 11.1% CAGR, compared with Qatar's USD 1.885 million and 8.0%, giving readers a larger and faster-expanding hospital-procurement benchmark.",
+      "anchor": "Malaysia Orthopedic Spine Navigation Systems Market",
+      "source_evidence": "The terminal market value of USD 1,885,000 implies an 8.0% CAGR (2025-2032) from the supplied base. The annual forecast is rounded to USD thousand, and displayed YoY rates are calculated from those displayed values. Product-level planning allocations place capital equipment at USD 700,000, disposables and accessories at USD 400,000, service and maintenance at USD 710,000, and software at USD 75,000 in 2032. Together these allocations close exactly to the terminal total. They imply respective CAGRs of 7.6%, 9.6%, 7.1% and 14.0% (2025-2032), with each product allocation treated as an analyst forecast.",
+      "destination_evidence": "The market reaches USD 24 Mn in 2032 at an 11.1% CAGR for 2025–2032. The forecast retains the supplied executive-summary checkpoint of USD 20 Mn in 2030, rounded, and extends its implied trajectory for two years. Modeled accessory revenue grows at a 13.4% CAGR for 2025–2032 as installed systems support more cases. The assumed average workstation price falls to USD 230,000 by 2032 as procurement shifts toward a wider range of packages. Faster fleet expansion can coexist with weaker equipment pricing when buyers obtain group discounts or negotiate a longer commercial commitment.",
+      "reader_value": "The Malaysia Orthopedic Spine Navigation Systems Market reaches USD 24 million by 2032 at 11.1% CAGR, compared with Qatar's USD 1.885 million and 8.0%, giving readers a larger and faster-expanding hospital-procurement benchmark.",
+      "checks": {
+        "exact_market_core": true,
+        "different_geography": true,
+        "public_source_placement": true,
+        "source_evidence": true,
+        "destination_evidence": true,
+        "no_existing_link": true,
+        "approved_section": true
+      },
+      "scorer": {
+        "version": "contextual-editorial-v1",
+        "label": "Independent editorial reference",
+        "decision": "approve",
+        "total": 96,
+        "maximum": 100,
+        "confidence": 91,
+        "kpis": [
+          {
+            "key": "reader_need",
+            "label": "Reader need",
+            "score": 14,
+            "maximum": 15
+          },
+          {
+            "key": "source_evidence",
+            "label": "Source evidence",
+            "score": 15,
+            "maximum": 15
+          },
+          {
+            "key": "destination_fit",
+            "label": "Destination fit",
+            "score": 20,
+            "maximum": 20
+          },
+          {
+            "key": "anchor_expectation",
+            "label": "Anchor expectation",
+            "score": 15,
+            "maximum": 15
+          },
+          {
+            "key": "placement",
+            "label": "Context and placement",
+            "score": 15,
+            "maximum": 15
+          },
+          {
+            "key": "added_value",
+            "label": "Added information value",
+            "score": 9,
+            "maximum": 10
+          },
+          {
+            "key": "quality_risk",
+            "label": "Quality and risk",
+            "score": 8,
+            "maximum": 10
+          }
+        ],
+        "hard_gates": [
+          {
+            "label": "Exact market cluster",
+            "status": "pass"
+          },
+          {
+            "label": "Source and destination evidence",
+            "status": "pass"
+          },
+          {
+            "label": "Publicly visible approved section",
+            "status": "pass"
+          },
+          {
+            "label": "No existing inline duplicate",
+            "status": "pass"
+          },
+          {
+            "label": "CMS dry run",
+            "status": "pending"
+          },
+          {
+            "label": "Rendered crawlable link",
+            "status": "pending"
+          }
+        ],
+        "missing_information": [
+          "CMS dry-run and rendered-link validation remain pending until approval."
+        ],
+        "disclaimer": "Editorial reference only. It does not reproduce Google ranking systems or predict AI citations."
+      }
+    },
+    {
+      "id": "cluster:13",
+      "verdict": "draft_ready",
+      "cluster": "outdoor payment terminals",
+      "relationship": "exact_market_different_geography",
+      "source_report": "Malaysia Outdoor Payment Terminals Market Size, Share & Forecast, By Product Type, Application & Technology, 2025-2032",
+      "source_slug": "malaysia-outdoor-payment-terminals-market",
+      "source_geography": "malaysia",
+      "source_url": "https://www.thekenconsulting.com/industry-reports/malaysia-outdoor-payment-terminals-market",
+      "destination_report": "Qatar Outdoor Payment Terminals Market Size, Share & Forecast, By Product Type, Application & Technology, 2025-2032",
+      "destination_slug": "qatar-outdoor-payment-terminals-market",
+      "destination_geography": "qatar",
+      "destination_url": "https://www.thekenconsulting.com/industry-reports/qatar-outdoor-payment-terminals-market",
+      "source_field": "v02_market_trajectory",
+      "source_version": "2f2bc77bbac3ddce4cb25297ea6b96760957f67d7aa54c7ab9109b58afc15c6a",
+      "placement": "Insert after the visible forecast paragraph",
+      "exact_after_text": "Forecast CAGR reaches 13.8% (2025-2032), calculated from USD 48 million to USD 119 million. Hardware ASP rises from USD 4,800 in 2025 to USD 5,200 in 2032, while its revenue share moderates by five percentage points. This combination allows software and services to participate more strongly without assuming continuous acceleration in equipment prices. The terminal stock grows by 45,800 over the forecast interval. Deployment intensity remains application dependent: a shared charging-hub kiosk can serve several connectors, whereas lane-based parking often requires dedicated acceptance points. Integrators with reusable software interfaces can capture expansion while limiting repeated engineering effort.",
+      "proposed_sentence": "The [Qatar Outdoor Payment Terminals Market](https://www.thekenconsulting.com/industry-reports/qatar-outdoor-payment-terminals-market) reaches USD 26 million by 2032 at 13.08% CAGR, compared with Malaysia's USD 119 million and 13.8%, giving readers a smaller deployment market with a similar growth rate.",
+      "anchor": "Qatar Outdoor Payment Terminals Market",
+      "source_evidence": "Forecast CAGR reaches 13.8% (2025-2032), calculated from USD 48 million to USD 119 million. Hardware ASP rises from USD 4,800 in 2025 to USD 5,200 in 2032, while its revenue share moderates by five percentage points. This combination allows software and services to participate more strongly without assuming continuous acceleration in equipment prices. The terminal stock grows by 45,800 over the forecast interval. Deployment intensity remains application dependent: a shared charging-hub kiosk can serve several connectors, whereas lane-based parking often requires dedicated acceptance points. Integrators with reusable software interfaces can capture expansion while limiting repeated engineering effort.",
+      "destination_evidence": "Forecast revenue reaches USD 26 million in 2032, generating calculated CAGR of 13.08% (2025-2032). Installed stock adds 2,616 terminals over the same period, with volume CAGR of 9.00% (2025-2032). The difference reflects replacement hardware and service intensity rather than a corresponding increase in transaction fees. Annual value growth varies after whole-number rounding and should not be interpreted as a precisely timed procurement cycle. The terminal-year estimate extends the supplied model beyond its original horizon, assuming continued deployment and lifecycle demand. No new tournament-hosting assumption is required to support the extension.",
+      "reader_value": "The Qatar Outdoor Payment Terminals Market reaches USD 26 million by 2032 at 13.08% CAGR, compared with Malaysia's USD 119 million and 13.8%, giving readers a smaller deployment market with a similar growth rate.",
+      "checks": {
+        "exact_market_core": true,
+        "different_geography": true,
+        "public_source_placement": true,
+        "source_evidence": true,
+        "destination_evidence": true,
+        "no_existing_link": true,
+        "approved_section": true
+      },
+      "scorer": {
+        "version": "contextual-editorial-v1",
+        "label": "Independent editorial reference",
+        "decision": "approve",
+        "total": 96,
+        "maximum": 100,
+        "confidence": 91,
+        "kpis": [
+          {
+            "key": "reader_need",
+            "label": "Reader need",
+            "score": 14,
+            "maximum": 15
+          },
+          {
+            "key": "source_evidence",
+            "label": "Source evidence",
+            "score": 15,
+            "maximum": 15
+          },
+          {
+            "key": "destination_fit",
+            "label": "Destination fit",
+            "score": 20,
+            "maximum": 20
+          },
+          {
+            "key": "anchor_expectation",
+            "label": "Anchor expectation",
+            "score": 15,
+            "maximum": 15
+          },
+          {
+            "key": "placement",
+            "label": "Context and placement",
+            "score": 15,
+            "maximum": 15
+          },
+          {
+            "key": "added_value",
+            "label": "Added information value",
+            "score": 9,
+            "maximum": 10
+          },
+          {
+            "key": "quality_risk",
+            "label": "Quality and risk",
+            "score": 8,
+            "maximum": 10
+          }
+        ],
+        "hard_gates": [
+          {
+            "label": "Exact market cluster",
+            "status": "pass"
+          },
+          {
+            "label": "Source and destination evidence",
+            "status": "pass"
+          },
+          {
+            "label": "Publicly visible approved section",
+            "status": "pass"
+          },
+          {
+            "label": "No existing inline duplicate",
+            "status": "pass"
+          },
+          {
+            "label": "CMS dry run",
+            "status": "pending"
+          },
+          {
+            "label": "Rendered crawlable link",
+            "status": "pending"
+          }
+        ],
+        "missing_information": [
+          "CMS dry-run and rendered-link validation remain pending until approval."
+        ],
+        "disclaimer": "Editorial reference only. It does not reproduce Google ranking systems or predict AI citations."
+      }
+    },
+    {
+      "id": "cluster:14",
+      "verdict": "draft_ready",
+      "cluster": "outdoor payment terminals",
+      "relationship": "exact_market_different_geography",
+      "source_report": "Qatar Outdoor Payment Terminals Market Size, Share & Forecast, By Product Type, Application & Technology, 2025-2032",
+      "source_slug": "qatar-outdoor-payment-terminals-market",
+      "source_geography": "qatar",
+      "source_url": "https://www.thekenconsulting.com/industry-reports/qatar-outdoor-payment-terminals-market",
+      "destination_report": "Malaysia Outdoor Payment Terminals Market Size, Share & Forecast, By Product Type, Application & Technology, 2025-2032",
+      "destination_slug": "malaysia-outdoor-payment-terminals-market",
+      "destination_geography": "malaysia",
+      "destination_url": "https://www.thekenconsulting.com/industry-reports/malaysia-outdoor-payment-terminals-market",
+      "source_field": "v02_market_trajectory",
+      "source_version": "437562a8261829364fc55ba9d34fd2797e4f9c4cc61ede3438037984b0332fbb",
+      "placement": "Insert after the visible forecast paragraph",
+      "exact_after_text": "Forecast revenue reaches USD 26 million in 2032, generating calculated CAGR of 13.08% (2025-2032). Installed stock adds 2,616 terminals over the same period, with volume CAGR of 9.00% (2025-2032). The difference reflects replacement hardware and service intensity rather than a corresponding increase in transaction fees. Annual value growth varies after whole-number rounding and should not be interpreted as a precisely timed procurement cycle. The terminal-year estimate extends the supplied model beyond its original horizon, assuming continued deployment and lifecycle demand. No new tournament-hosting assumption is required to support the extension.",
+      "proposed_sentence": "The [Malaysia Outdoor Payment Terminals Market](https://www.thekenconsulting.com/industry-reports/malaysia-outdoor-payment-terminals-market) reaches USD 119 million by 2032 at 13.8% CAGR, compared with Qatar's USD 26 million and 13.08%, giving readers a larger deployment benchmark with a similar growth rate.",
+      "anchor": "Malaysia Outdoor Payment Terminals Market",
+      "source_evidence": "Forecast revenue reaches USD 26 million in 2032, generating calculated CAGR of 13.08% (2025-2032). Installed stock adds 2,616 terminals over the same period, with volume CAGR of 9.00% (2025-2032). The difference reflects replacement hardware and service intensity rather than a corresponding increase in transaction fees. Annual value growth varies after whole-number rounding and should not be interpreted as a precisely timed procurement cycle. The terminal-year estimate extends the supplied model beyond its original horizon, assuming continued deployment and lifecycle demand. No new tournament-hosting assumption is required to support the extension.",
+      "destination_evidence": "Forecast CAGR reaches 13.8% (2025-2032), calculated from USD 48 million to USD 119 million. Hardware ASP rises from USD 4,800 in 2025 to USD 5,200 in 2032, while its revenue share moderates by five percentage points. This combination allows software and services to participate more strongly without assuming continuous acceleration in equipment prices. The terminal stock grows by 45,800 over the forecast interval. Deployment intensity remains application dependent: a shared charging-hub kiosk can serve several connectors, whereas lane-based parking often requires dedicated acceptance points. Integrators with reusable software interfaces can capture expansion while limiting repeated engineering effort.",
+      "reader_value": "The Malaysia Outdoor Payment Terminals Market reaches USD 119 million by 2032 at 13.8% CAGR, compared with Qatar's USD 26 million and 13.08%, giving readers a larger deployment benchmark with a similar growth rate.",
+      "checks": {
+        "exact_market_core": true,
+        "different_geography": true,
+        "public_source_placement": true,
+        "source_evidence": true,
+        "destination_evidence": true,
+        "no_existing_link": true,
+        "approved_section": true
+      },
+      "scorer": {
+        "version": "contextual-editorial-v1",
+        "label": "Independent editorial reference",
+        "decision": "approve",
+        "total": 96,
+        "maximum": 100,
+        "confidence": 91,
+        "kpis": [
+          {
+            "key": "reader_need",
+            "label": "Reader need",
+            "score": 14,
+            "maximum": 15
+          },
+          {
+            "key": "source_evidence",
+            "label": "Source evidence",
+            "score": 15,
+            "maximum": 15
+          },
+          {
+            "key": "destination_fit",
+            "label": "Destination fit",
+            "score": 20,
+            "maximum": 20
+          },
+          {
+            "key": "anchor_expectation",
+            "label": "Anchor expectation",
+            "score": 15,
+            "maximum": 15
+          },
+          {
+            "key": "placement",
+            "label": "Context and placement",
+            "score": 15,
+            "maximum": 15
+          },
+          {
+            "key": "added_value",
+            "label": "Added information value",
+            "score": 9,
+            "maximum": 10
+          },
+          {
+            "key": "quality_risk",
+            "label": "Quality and risk",
+            "score": 8,
+            "maximum": 10
+          }
+        ],
+        "hard_gates": [
+          {
+            "label": "Exact market cluster",
+            "status": "pass"
+          },
+          {
+            "label": "Source and destination evidence",
+            "status": "pass"
+          },
+          {
+            "label": "Publicly visible approved section",
+            "status": "pass"
+          },
+          {
+            "label": "No existing inline duplicate",
+            "status": "pass"
+          },
+          {
+            "label": "CMS dry run",
+            "status": "pending"
+          },
+          {
+            "label": "Rendered crawlable link",
+            "status": "pending"
+          }
+        ],
+        "missing_information": [
+          "CMS dry-run and rendered-link validation remain pending until approval."
+        ],
+        "disclaimer": "Editorial reference only. It does not reproduce Google ranking systems or predict AI citations."
+      }
+    },
+    {
+      "id": "cluster:15",
+      "verdict": "draft_ready",
+      "cluster": "warehousing",
+      "relationship": "exact_market_different_geography",
+      "source_report": "Mexico Warehousing Market Size, Share & Forecast, By Service Type, End-Use Industry & Geography, 2025-2032",
+      "source_slug": "mexico-warehousing-market",
+      "source_geography": "mexico",
+      "source_url": "https://www.thekenconsulting.com/industry-reports/mexico-warehousing-market",
+      "destination_report": "Latin America Warehousing Market Size, Share & Forecast, By Service Type, End-Use Industry & Geography, 2025-2032",
+      "destination_slug": "latin-america-warehousing-market",
+      "destination_geography": "latin-america",
+      "destination_url": "https://www.thekenconsulting.com/industry-reports/latin-america-warehousing-market",
+      "source_field": "v02_market_trajectory",
+      "source_version": "2d2535474fe65f6c406a0acbccb416d6c0927714162e3746ec2f815b54533b81",
+      "placement": "Insert after the visible forecast paragraph",
+      "exact_after_text": "Forecast CAGR of 6.5% (2025-2032) takes the market to USD 5,830 million in 2032. Operated area approaches 35.2 million square metres, while monthly revenue intensity increases to approximately USD 13.80 per operated square metre. Revenue therefore expands by 55.47% from the base year, compared with approximately 40.8% for area. Handling intensity, specialist storage and fulfillment provide the incremental monetization bridge. The outlook assumes gradual capacity commissioning and continued external customer demand. It does not assume that every newly completed industrial building becomes a commercial warehouse, or that automation equipment spending is separately added to service-provider revenue.",
+      "proposed_sentence": "The [Latin America Warehousing Market](https://www.thekenconsulting.com/industry-reports/latin-america-warehousing-market) reaches USD 108,524 million by 2032 at 9.0% CAGR, compared with Mexico's USD 5,830 million and 6.5%, placing the country forecast within the broader regional scale and growth pattern.",
+      "anchor": "Latin America Warehousing Market",
+      "source_evidence": "Forecast CAGR of 6.5% (2025-2032) takes the market to USD 5,830 million in 2032. Operated area approaches 35.2 million square metres, while monthly revenue intensity increases to approximately USD 13.80 per operated square metre. Revenue therefore expands by 55.47% from the base year, compared with approximately 40.8% for area. Handling intensity, specialist storage and fulfillment provide the incremental monetization bridge. The outlook assumes gradual capacity commissioning and continued external customer demand. It does not assume that every newly completed industrial building becomes a commercial warehouse, or that automation equipment spending is separately added to service-provider revenue.",
+      "destination_evidence": "Revenue reaches a modeled USD 108,524 Mn by 2032, a 9.0% CAGR in 2025-2032. The model places terminal active area at 152.4 million square meters and annual realization at USD 712 per active square meter. Growth in area moderates to 5.8% in 2032 as the forecast shifts toward greater throughput and a richer service mix. The realization measure combines storage, handling and eligible value-added fees, so an operator’s ability to win and price additional work matters alongside occupancy. The last three forecast years extend the supplied revenue path and assume a gradual slowdown in net additions to active space.",
+      "reader_value": "The Latin America Warehousing Market reaches USD 108,524 million by 2032 at 9.0% CAGR, compared with Mexico's USD 5,830 million and 6.5%, placing the country forecast within the broader regional scale and growth pattern.",
+      "checks": {
+        "exact_market_core": true,
+        "different_geography": true,
+        "public_source_placement": true,
+        "source_evidence": true,
+        "destination_evidence": true,
+        "no_existing_link": true,
+        "approved_section": true
+      },
+      "scorer": {
+        "version": "contextual-editorial-v1",
+        "label": "Independent editorial reference",
+        "decision": "approve",
+        "total": 96,
+        "maximum": 100,
+        "confidence": 91,
+        "kpis": [
+          {
+            "key": "reader_need",
+            "label": "Reader need",
+            "score": 14,
+            "maximum": 15
+          },
+          {
+            "key": "source_evidence",
+            "label": "Source evidence",
+            "score": 15,
+            "maximum": 15
+          },
+          {
+            "key": "destination_fit",
+            "label": "Destination fit",
+            "score": 20,
+            "maximum": 20
+          },
+          {
+            "key": "anchor_expectation",
+            "label": "Anchor expectation",
+            "score": 15,
+            "maximum": 15
+          },
+          {
+            "key": "placement",
+            "label": "Context and placement",
+            "score": 15,
+            "maximum": 15
+          },
+          {
+            "key": "added_value",
+            "label": "Added information value",
+            "score": 9,
+            "maximum": 10
+          },
+          {
+            "key": "quality_risk",
+            "label": "Quality and risk",
+            "score": 8,
+            "maximum": 10
+          }
+        ],
+        "hard_gates": [
+          {
+            "label": "Exact market cluster",
+            "status": "pass"
+          },
+          {
+            "label": "Source and destination evidence",
+            "status": "pass"
+          },
+          {
+            "label": "Publicly visible approved section",
+            "status": "pass"
+          },
+          {
+            "label": "No existing inline duplicate",
+            "status": "pass"
+          },
+          {
+            "label": "CMS dry run",
+            "status": "pending"
+          },
+          {
+            "label": "Rendered crawlable link",
+            "status": "pending"
+          }
+        ],
+        "missing_information": [
+          "CMS dry-run and rendered-link validation remain pending until approval."
+        ],
+        "disclaimer": "Editorial reference only. It does not reproduce Google ranking systems or predict AI citations."
+      }
+    }
+  ]
+}

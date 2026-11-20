@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+    <title>Ken Interlinking Review</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand"><span class="brand-mark">KR</span><span>Ken Interlinking Review</span></div>
+      <div class="dataset-pill">v0.2 · shadow review</div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div>
+          <p class="eyebrow">Editorial decision desk</p>
+          <h1>Decide what deserves a link.</h1>
+          <p class="hero-copy">Review the source, destination, wording and reader value. Every rejection becomes structured project learning. Approval alone never changes the live site.</p>
+        </div>
+        <div class="safety-note"><strong>Safe workflow</strong><span>Decision → queue → dry run → five-page canary → verify</span></div>
+      </section>
+
+      <section class="metrics" aria-label="Review summary">
+        <article><span>Total proposals</span><strong id="metric-total">—</strong></article>
+        <article><span>Policy eligible</span><strong id="metric-eligible">—</strong></article>
+        <article><span>Excluded by learning</span><strong id="metric-excluded">—</strong></article>
+        <article><span>Awaiting decision</span><strong id="metric-pending">—</strong></article>
+        <article><span>Approved</span><strong id="metric-approved">—</strong></article>
+        <article><span>Needs revision</span><strong id="metric-revised">—</strong></article>
+        <article><span>Rejected</span><strong id="metric-rejected">—</strong></article>
+        <article class="accent"><span>Queued next</span><strong id="metric-queued">—</strong></article>
+      </section>
+
+      <details class="scorer-reference" open>
+        <summary><span>Contextual interlinking scorer reference</span><strong>100 points · 7 KPIs</strong></summary>
+        <div class="scorer-reference-body">
+          <p>This is an independent editorial reference, not a Google ranking score or an AI-citation prediction. A high score cannot bypass a failed evidence or technical gate.</p>
+          <div class="kpi-reference-grid" aria-label="Scorer weights">
+            <div><strong>15</strong><span>Reader need</span></div>
+            <div><strong>15</strong><span>Source evidence</span></div>
+            <div><strong>20</strong><span>Destination fit</span></div>
+            <div><strong>15</strong><span>Anchor expectation</span></div>
+            <div><strong>15</strong><span>Context and placement</span></div>
+            <div><strong>10</strong><span>Added information value</span></div>
+            <div><strong>10</strong><span>Quality and risk</span></div>
+          </div>
+          <div class="score-thresholds"><span><strong>85–100</strong> Approve reference</span><span><strong>70–84</strong> Revise</span><span><strong>0–69</strong> Reject</span><span><strong>Missing evidence</strong> Insufficient evidence</span></div>
+          <p class="hard-gate-copy"><strong>Separate hard gates:</strong> source phrase, destination evidence, approved visible section, no inline duplicate, and a rendered crawlable <code>&lt;a href&gt;</code>. The rendered-link gate stays pending until an approved apply is verified.</p>
+          <p class="reference-links">Reference: <a href="https://developers.google.com/search/docs/crawling-indexing/links-crawlable" target="_blank" rel="noreferrer">Google link best practices</a> · <a href="https://developers.google.com/search/docs/appearance/ai-features" target="_blank" rel="noreferrer">Google AI features guidance</a> · <a href="https://developers.google.com/search/docs/essentials/spam-policies" target="_blank" rel="noreferrer">Google spam policies</a></p>
+        </div>
+      </details>
+
+      <details class="scorer-reference authority-reference" open>
+        <summary><span>Authority and indexability routing</span><strong>Hard gate · not extra score</strong></summary>
+        <div class="scorer-reference-body">
+          <p>Use internal links to support a weaker or undiscovered page only when it is the best useful destination for the reader. Authority need never makes an irrelevant link acceptable.</p>
+          <div class="authority-rule-grid">
+            <div><strong>1</strong><span>Page returns HTTP 200</span></div>
+            <div><strong>2</strong><span>No <code>noindex</code> directive</span></div>
+            <div><strong>3</strong><span>Canonical points to itself</span></div>
+            <div><strong>4</strong><span>Useful destination content is publicly presented</span></div>
+          </div>
+          <p class="hard-gate-copy"><strong>Important:</strong> a contextual link can improve discovery, crawl paths and topical signals. It does not guarantee that Google will index or rank the destination. Google index and query performance status require Search Console data.</p>
+        </div>
+      </details>
+
+      <details class="scorer-reference graph-review" open>
+        <summary><span>Kuwait topic link graph</span><strong>Existing, proposed and live paths</strong></summary>
+        <div class="scorer-reference-body">
+          <div class="graph-toolbar"><label>Topic group<select id="graph-group"><option value="all">All groups</option></select></label><div class="graph-legend"><span class="existing">Existing</span><span class="proposed">Proposed</span><span class="approved">Approved</span><span class="live">Live</span></div></div>
+          <div id="graph-summary" class="graph-summary"></div>
+          <svg id="link-graph" class="link-graph" viewBox="0 0 1100 620" role="img" aria-label="Interactive Kuwait internal-link graph"></svg>
+          <p class="reference-links">Select a group to isolate a cluster. Click a node to open its report. Node size reflects current inbound live and existing links; red outlines mark orphaned nodes in this 28-report subset.</p>
+        </div>
+      </details>
+
+      <section class="workspace">
+        <aside class="filters" aria-label="Review filters">
+          <h2>Review queue</h2>
+          <label>Search<input id="search" type="search" placeholder="Market, report or wording" /></label>
+          <fieldset>
+            <legend>Editorial eligibility</legend>
+            <label><input type="radio" name="eligibility" value="eligible" checked /> Eligible only</label>
+            <label><input type="radio" name="eligibility" value="excluded" /> Excluded learning</label>
+            <label><input type="radio" name="eligibility" value="all" /> All proposals</label>
+          </fieldset>
+          <fieldset>
+            <legend>Link type</legend>
+            <label><input type="radio" name="kind" value="all" checked /> All proposals</label>
+            <label><input type="radio" name="kind" value="contextual" /> Contextual copy</label>
+            <label><input type="radio" name="kind" value="regional" /> Regional siblings</label>
+            <label><input type="radio" name="kind" value="cluster" /> Exact-market clusters</label>
+            <label><input type="radio" name="kind" value="topic" /> Kuwait topic clusters</label>
+          </fieldset>
+          <fieldset>
+            <legend>Decision</legend>
+            <label><input type="radio" name="status" value="all" checked /> Any decision</label>
+            <label><input type="radio" name="status" value="pending" /> Awaiting decision</label>
+            <label><input type="radio" name="status" value="approve" /> Approved</label>
+            <label><input type="radio" name="status" value="revise" /> Needs revision</label>
+            <label><input type="radio" name="status" value="reject" /> Rejected</label>
+          </fieldset>
+          <div class="learning-box"><strong>Learning is append-only</strong><p>Changing a decision adds another event. The earlier judgment is kept in the learning log.</p></div>
+        </aside>
+
+        <div class="queue-column">
+          <div class="queue-head"><div><h2 id="queue-title">All proposals</h2><p id="queue-count">Loading…</p></div><button id="refresh" class="button secondary" type="button">Refresh data</button></div>
+          <div id="error" class="error" role="alert" hidden></div>
+          <div id="cards" class="cards" aria-live="polite"></div>
+        </div>
+      </section>
+    </main>
+
+    <dialog id="decision-dialog">
+      <form id="decision-form" method="dialog">
+        <div class="dialog-head"><div><p class="eyebrow">Record editorial judgment</p><h2 id="dialog-title">Decision</h2></div><button class="close-button" value="cancel" aria-label="Close">×</button></div>
+        <input id="proposal-id" type="hidden" />
+        <fieldset class="decision-options">
+          <legend>Your decision</legend>
+          <label class="approve"><input type="radio" name="decision" value="approve" /> Approve</label>
+          <label class="revise"><input type="radio" name="decision" value="revise" /> Revise</label>
+          <label class="reject"><input type="radio" name="decision" value="reject" /> Reject</label>
+        </fieldset>
+        <div id="revision-fields" hidden><label>What should change?<textarea id="revision-note" rows="4" placeholder="State the exact wording, destination or placement change."></textarea></label></div>
+        <div id="rejection-fields" hidden>
+          <label>Primary rejection reason<select id="reason-code"><option value="">Choose a reason</option><option value="irrelevant_destination">Destination is not relevant</option><option value="better_destination_exists">A better destination exists</option><option value="misleading_anchor">Anchor is misleading</option><option value="unnatural_anchor">Anchor sounds unnatural</option><option value="anchor_too_generic">Anchor is too generic</option><option value="wrong_placement">Placement is wrong</option><option value="over_linking">This would over-link the page</option><option value="duplicate_existing_link">Link already exists</option><option value="outdated_content">Source content is outdated</option><option value="reader_journey_mismatch">Does not help the reader journey</option><option value="regional_relationship_too_weak">Regional relationship is too weak</option><option value="destination_not_indexable">Destination is not technically indexable</option><option value="destination_content_too_weak">Destination content is too weak</option><option value="authority_only_without_reader_value">Authority goal has no reader value</option><option value="other">Other</option></select></label>
+          <label>Why are you rejecting it?<textarea id="reason-note" rows="4" placeholder="Explain what failed and what a better suggestion would look like."></textarea><span class="field-hint">Required. This note is recorded as project learning.</span></label>
+        </div>
+        <div id="form-error" class="error" role="alert" hidden></div>
+        <div class="dialog-actions"><button class="button secondary" value="cancel">Cancel</button><button id="save-decision" class="button primary" type="submit">Save decision</button></div>
+      </form>
+    </dialog>
+    <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+    <script src="/app.js"></script>
+  </body>
+</html>
+

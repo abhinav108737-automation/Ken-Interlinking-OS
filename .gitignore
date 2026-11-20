@@ -67,3 +67,8 @@ keys/
 
 # Real-site exports and crawl output (public content, but large and regenerable)
 /data/
+
+# Playwright/Edge user-data directories written beside a run's audit artifacts. The JSON, Markdown
+# and screenshot records in `outputs/` ARE the audit trail and are committed; a browser profile
+# cache is 12MB of regenerable noise.
+outputs/**/*-profile/
