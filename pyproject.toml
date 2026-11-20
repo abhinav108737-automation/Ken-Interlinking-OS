@@ -82,7 +82,9 @@ line-length = 100
 target-version = "py312"
 # Ruff 0.17 also formats Python code blocks inside Markdown. Exclude all Markdown:
 # it once rewrote a user-authored governance file (.claude/agents/*.md).
-extend-exclude = ["migrations/versions", "_research", ".venv", "*.md", ".claude"]
+# docs/live-tests holds verbatim records of scripts that ran against a live CMS. Reformatting
+# them would change the record of what actually ran, so they are archived, not linted.
+extend-exclude = ["migrations/versions", "_research", ".venv", "*.md", ".claude", "docs/live-tests"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "N", "UP", "B", "A", "C4", "SIM", "RUF", "ASYNC", "S"]

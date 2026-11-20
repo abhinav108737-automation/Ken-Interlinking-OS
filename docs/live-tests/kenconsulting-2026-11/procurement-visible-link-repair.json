@@ -1,0 +1,19 @@
+{
+  "date": "2026-11-19",
+  "source_page_id": "kuwait-cloud-based-procurement-spend-control-platforms-market:v02_growth_drivers",
+  "target_href": "/industry-reports/kuwait-cloud-based-document-management-systems-market",
+  "anchor_text": "document management",
+  "original_hidden_deployment_id": "20",
+  "failed_attempt_restoration_deployment_id": "23",
+  "final_content_deployment_id": "24",
+  "old_text": "create recurring data-maintenance needs",
+  "new_text": "create recurring document management and data-maintenance needs",
+  "new_html": "create recurring <a href=\"/industry-reports/kuwait-cloud-based-document-management-systems-market\">document management</a> and data-maintenance needs",
+  "verification": {
+    "cms_link_count": 1,
+    "public_http_status": 200,
+    "public_rendered_anchor_matches": 1,
+    "public_target_href_occurrences_in_raw_html": 2,
+    "note": "One href is the rendered anchor; the other is serialized page data."
+  }
+}

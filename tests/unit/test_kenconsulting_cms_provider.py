@@ -151,7 +151,8 @@ def validate_response(*results: dict[str, object]) -> httpx.Response:
 
 
 def all_valid(n: int = 1) -> Handler:
-    return lambda _r: validate_response(*({"valid": True},) * n)
+    row: dict[str, object] = {"valid": True}
+    return lambda _r: validate_response(*(row,) * n)
 
 
 # ------------------------------------------------------------------ gating
