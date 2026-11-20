@@ -38,6 +38,7 @@ APP_TABLES = frozenset(
         "opportunities",
         "page_modules",
         "page_module_items",
+        "page_priorities",
         "agent_runs",
         "agent_steps",
         "agent_run_plans",

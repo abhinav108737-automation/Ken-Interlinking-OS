@@ -60,6 +60,9 @@ from tests.integration.conftest import (
     LEARNING_TABLES,
     LEARNING_TRIGGERS,
     MODULE_TABLES,
+    PRIORITY_FUNCTIONS,
+    PRIORITY_TABLES,
+    PRIORITY_TRIGGERS,
     SyncDb,
 )
 from tests.integration.test_review_schema import PLAN, SOURCE, _seed, _state
@@ -547,13 +550,23 @@ def test_downgrade_to_0007_restores_exactly_the_deployment_schema(
     try:
         state = sync_db.run(_state)
         # A downgrade below 0008 also takes the Phase 8 learning schema with it (0009).
-        later = ANALYTICS_TABLES | LEARNING_TABLES | AUTONOMY_TABLES | MODULE_TABLES
+        later = (
+            ANALYTICS_TABLES | LEARNING_TABLES | AUTONOMY_TABLES | MODULE_TABLES | PRIORITY_TABLES
+        )
         assert state["tables"] == head["tables"] - later
         assert state["functions"] == (
-            head["functions"] - ANALYTICS_FUNCTIONS - LEARNING_FUNCTIONS - AUTONOMY_FUNCTIONS
+            head["functions"]
+            - ANALYTICS_FUNCTIONS
+            - LEARNING_FUNCTIONS
+            - AUTONOMY_FUNCTIONS
+            - PRIORITY_FUNCTIONS
         )
         assert state["triggers"] == (
-            head["triggers"] - ANALYTICS_TRIGGERS - LEARNING_TRIGGERS - AUTONOMY_TRIGGERS
+            head["triggers"]
+            - ANALYTICS_TRIGGERS
+            - LEARNING_TRIGGERS
+            - AUTONOMY_TRIGGERS
+            - PRIORITY_TRIGGERS
         )
         assert state["revision"] == "0007_controlled_deployment"
     finally:

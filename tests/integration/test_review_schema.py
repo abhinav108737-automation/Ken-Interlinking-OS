@@ -43,6 +43,9 @@ from tests.integration.conftest import (
     LEARNING_TABLES,
     LEARNING_TRIGGERS,
     MODULE_TABLES,
+    PRIORITY_FUNCTIONS,
+    PRIORITY_TABLES,
+    PRIORITY_TRIGGERS,
     SyncDb,
 )
 
@@ -569,6 +572,7 @@ def test_downgrade_to_0005_restores_exactly_the_agents_schema(
             - LEARNING_TABLES
             - AUTONOMY_TABLES
             - MODULE_TABLES
+            - PRIORITY_TABLES
         )
         assert state["functions"] == (
             head["functions"]
@@ -577,6 +581,7 @@ def test_downgrade_to_0005_restores_exactly_the_agents_schema(
             - ANALYTICS_FUNCTIONS
             - LEARNING_FUNCTIONS
             - AUTONOMY_FUNCTIONS
+            - PRIORITY_FUNCTIONS
         )
         assert state["functions"] == {
             "ken_reject_mutation",
@@ -591,6 +596,7 @@ def test_downgrade_to_0005_restores_exactly_the_agents_schema(
             - ANALYTICS_TRIGGERS
             - LEARNING_TRIGGERS
             - AUTONOMY_TRIGGERS
+            - PRIORITY_TRIGGERS
         )
         assert state["revision"] == "0005_agent_runs"
 

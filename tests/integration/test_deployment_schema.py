@@ -48,6 +48,9 @@ from tests.integration.conftest import (
     LEARNING_TABLES,
     LEARNING_TRIGGERS,
     MODULE_TABLES,
+    PRIORITY_FUNCTIONS,
+    PRIORITY_TABLES,
+    PRIORITY_TRIGGERS,
     SyncDb,
 )
 from tests.integration.test_review_schema import (
@@ -473,13 +476,26 @@ def test_downgrade_to_0006_restores_exactly_the_review_schema(
     try:
         state = sync_db.run(_state)
         assert state["tables"] == head["tables"] - (
-            DEPLOYMENT_TABLES | ANALYTICS_TABLES | LEARNING_TABLES | AUTONOMY_TABLES | MODULE_TABLES
+            DEPLOYMENT_TABLES
+            | ANALYTICS_TABLES
+            | LEARNING_TABLES
+            | AUTONOMY_TABLES
+            | MODULE_TABLES
+            | PRIORITY_TABLES
         )
         assert state["functions"] == head["functions"] - (
-            DEPLOYMENT_FUNCTIONS | ANALYTICS_FUNCTIONS | LEARNING_FUNCTIONS | AUTONOMY_FUNCTIONS
+            DEPLOYMENT_FUNCTIONS
+            | ANALYTICS_FUNCTIONS
+            | LEARNING_FUNCTIONS
+            | AUTONOMY_FUNCTIONS
+            | PRIORITY_FUNCTIONS
         )
         assert state["triggers"] == head["triggers"] - (
-            DEPLOYMENT_TRIGGERS | ANALYTICS_TRIGGERS | LEARNING_TRIGGERS | AUTONOMY_TRIGGERS
+            DEPLOYMENT_TRIGGERS
+            | ANALYTICS_TRIGGERS
+            | LEARNING_TRIGGERS
+            | AUTONOMY_TRIGGERS
+            | PRIORITY_TRIGGERS
         )
         assert state["revision"] == "0006_review_control_plane"
         assert not sync_db.run(_txid)

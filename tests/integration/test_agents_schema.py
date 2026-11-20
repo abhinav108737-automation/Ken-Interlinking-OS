@@ -37,6 +37,8 @@ from tests.integration.conftest import (
     LEARNING_TABLES,
     LEARNING_TRIGGERS,
     MODULE_TABLES,
+    PRIORITY_TABLES,
+    PRIORITY_TRIGGERS,
     SyncDb,
 )
 
@@ -720,6 +722,7 @@ def test_downgrade_to_0004_restores_exactly_the_recommendations_schema(
             - LEARNING_TABLES
             - AUTONOMY_TABLES
             - MODULE_TABLES
+            - PRIORITY_TABLES
         )
         assert state["functions"] == {"ken_reject_mutation", "ken_link_plan_content_guard"}
         assert state["triggers"] == (
@@ -729,6 +732,7 @@ def test_downgrade_to_0004_restores_exactly_the_recommendations_schema(
             - ANALYTICS_TRIGGERS
             - LEARNING_TRIGGERS
             - AUTONOMY_TRIGGERS
+            - PRIORITY_TRIGGERS
             - {
                 "agent_runs_guard",
                 "agent_runs_no_delete",

@@ -42,6 +42,9 @@ from tests.integration.conftest import (
     AUTONOMY_TRIGGERS,
     HEAD_REVISION,
     MODULE_TABLES,
+    PRIORITY_FUNCTIONS,
+    PRIORITY_TABLES,
+    PRIORITY_TRIGGERS,
     SyncDb,
 )
 from tests.integration.test_review_schema import SOURCE, TARGET, _seed, _state
@@ -769,9 +772,9 @@ def test_downgrade_to_0009_restores_exactly_the_learning_schema(
     command.downgrade(alembic_config, "0009_learning")
     try:
         state = sync_db.run(_state)
-        assert state["tables"] == head["tables"] - AUTONOMY_TABLES - MODULE_TABLES
-        assert state["functions"] == head["functions"] - AUTONOMY_FUNCTIONS
-        assert state["triggers"] == head["triggers"] - AUTONOMY_TRIGGERS
+        assert state["tables"] == head["tables"] - AUTONOMY_TABLES - MODULE_TABLES - PRIORITY_TABLES
+        assert state["functions"] == head["functions"] - AUTONOMY_FUNCTIONS - PRIORITY_FUNCTIONS
+        assert state["triggers"] == head["triggers"] - AUTONOMY_TRIGGERS - PRIORITY_TRIGGERS
         assert state["revision"] == "0009_learning"
         # The frozen literal copies are restored too: a downgraded database refuses the new
         # statuses and the new job kinds.

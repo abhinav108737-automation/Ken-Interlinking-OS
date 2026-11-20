@@ -51,7 +51,7 @@ TRUNCATE_ALL = (
     "link_measurements, page_metrics_daily, link_metrics_daily, link_events, "
     "analytics_imports, deployment_verifications, deployment_items, deployments, "
     "review_actions, auth_sessions, users, agent_run_plans, agent_steps, agent_runs, "
-    "page_module_items, page_modules, "
+    "page_priorities, page_module_items, page_modules, "
     "link_candidates, link_plan_transitions, link_plans, opportunities, "
     "page_relationships, page_protections, page_embeddings, page_analyses, job_runs, "
     "existing_links, known_urls, page_versions, pages, ingestion_issues, "
@@ -465,7 +465,7 @@ LEARNING_TRIGGERS = frozenset(
         "experiment_assignments_immutable",
     }
 )
-HEAD_REVISION = "0012_page_modules"
+HEAD_REVISION = "0013_page_priorities"
 """The single migration head. Named once, so adding a migration touches one line here
 instead of every schema test that asserts "a round trip came back to head"."""
 
@@ -484,6 +484,15 @@ MODULE_TABLES = frozenset({"page_modules", "page_module_items"})
 """Migration 0012: what a downgrade below 0012 removes. Named here, like the sets above, so
 that adding a table touches one line instead of every "a downgrade removes exactly these"
 test -- which is how the two that did break were found."""
+
+PRIORITY_TABLES = frozenset({"page_priorities"})
+"""Migration 0013: what a downgrade below 0013 removes (Business Phase 2A-1)."""
+
+PRIORITY_TRIGGERS = frozenset({"page_priorities_no_overlap"})
+"""Migration 0013's non-overlap guard."""
+
+PRIORITY_FUNCTIONS = frozenset({"ken_priority_validity", "ken_page_priority_no_overlap"})
+"""Migration 0013's validity arithmetic and the guard that uses it."""
 
 AUTONOMY_FUNCTIONS = frozenset({"ken_autonomy_decision_guard"})
 AUTONOMY_TRIGGERS = frozenset(

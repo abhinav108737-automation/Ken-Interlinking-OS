@@ -852,6 +852,10 @@ def test_downgrade_to_0003_restores_exactly_the_intelligence_schema(
         "ken_experiment_assignment_guard",
         # Phase 9 (migration 0010): the autonomy decision guard.
         "ken_autonomy_decision_guard",
+        # Business Phase 2A-1 (migration 0013): the priority validity interval, and the
+        # non-overlap guard that uses it.
+        "ken_priority_validity",
+        "ken_page_priority_no_overlap",
     }
     assert {
         "link_plans_content_immutable",
