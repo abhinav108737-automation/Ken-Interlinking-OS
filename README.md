@@ -2,467 +2,500 @@
 
 # Ken Research Agentic Interlinking OS
 
-**A self-hosted, local-first system that finds, vets, publishes, verifies and measures contextual internal links, under strict human control.**
+**A governed, self-hosted system that discovers, reviews, publishes, verifies and learns from contextual internal links across Ken Research content.**
 
-![Status](https://img.shields.io/badge/phases-0%E2%80%939%20implemented-2ea44f)
+![Status](https://img.shields.io/badge/software%20phases-0--9%20implemented-2ea44f)
 ![Python](https://img.shields.io/badge/python-3.12-3776ab)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791)
 ![Qdrant](https://img.shields.io/badge/vector%20index-Qdrant-dc382d)
-![Inference](https://img.shields.io/badge/inference-local%20(Ollama)-black)
-![Licence](https://img.shields.io/badge/licence-proprietary-lightgrey)
+![Inference](https://img.shields.io/badge/inference-local%20Ollama-black)
+![Control](https://img.shields.io/badge/publishing-human%20governed-orange)
 
 </div>
 
-Ken Research publishes thousands of market reports, articles and surveys. This system reads that content, works
-out which pages should link to which, places each link on a natural phrase **already in the text**, and (only
-when policy and people allow it) publishes, verifies and measures the result. Models propose and critique; they
-never write to storage, call the CMS or promote anything. Everything runs on your own machine, with no paid API.
+## Executive summary
 
-> **For the technical team running the compliance audit.** This README describes the repository as of
-> **2026-10-30**. Every claim names the file, ADR, command or test where it can be checked; where something is
-> *not* yet true, it says so (sections 9 and 11). **Nothing is connected to the production CMS, and nothing is published.**
+Ken Research has thousands of reports, articles, surveys and commercial service pages. This project turns that catalogue into a connected research journey.
 
-## Highlights
+The system:
 
-- **Deterministic first.** Retrieval, scoring, eligibility, placement, safety checks and deployment are plain code. Models are optional reviewers behind a strict, validated schema.
-- **Safe by construction.** Hard safety rules, protected pages, version locks, a verified splice (one `<a>` inserted, every other byte identical) and rollback for every change.
-- **Autonomy you control.** `shadow` (default) records what *would* happen; `guarded` and `autonomous` are opt-in and refused against a production CMS without extra acknowledgement.
-- **Local and private.** PostgreSQL, Qdrant and Ollama on loopback. Google Analytics and Search Console are optional and read-only.
-- **Auditable.** 26 architecture decision records, a frozen contract package, typed events, about 6,200 automated tests and evaluation datasets.
+1. reads and versions website content;
+2. understands each page's market, geography, industry, type and intent;
+3. finds genuinely related source and destination pages;
+4. applies hard relevance, geography, eligibility and safety gates;
+5. drafts a natural contextual link and explains why a reader may use it;
+6. shows the exact source evidence, destination evidence, anchor and placement to a reviewer;
+7. records approval, revision or rejection and the reason;
+8. publishes only an explicitly authorised, version-locked change through the CMS API;
+9. verifies the link in both CMS data and the public rendered page;
+10. keeps a rollback handle and learns from decisions and outcomes.
+
+The business objective is not to maximise link count. It is to help visitors discover the next useful piece of research, reduce orphan and dead-end pages, strengthen coherent topic clusters, and create relevant journeys toward reports, samples, analysts, surveys, experts and consulting services.
+
+> **Current safety boundary:** the latest writes are controlled canaries on `thekenconsulting.com`, a test host that declares `noindex,nofollow`. They prove drafting, approval, CMS mutation, public rendering and rollback. They do **not** transfer SEO authority and are not a claim of production impact on `kenresearch.com`.
+
+## What has been built
+
+| Capability | What it does | Current state |
+|---|---|---|
+| Content inventory | Imports exports or crawls public pages; normalises URLs; stores immutable page versions, canonical data and existing links | Implemented |
+| Content intelligence | Classifies page type, market, industry, geography and intent; creates embeddings and typed relationships | Implemented |
+| Hybrid discovery | Uses semantic, lexical, taxonomy, geography, graph and under-linking signals | Implemented |
+| Recommendation engine | Applies deterministic gates, scoring, anchor selection and placement rules; creates explainable link plans | Implemented |
+| Contextual copy drafting | Links existing text, makes a supported micro-edit, or adds a short evidence-backed bridge sentence | Implemented and live-tested |
+| Human review | Shows before/after copy, evidence, seven KPI scores and hard gates; captures approve/revise/reject feedback | Implemented |
+| Controlled CMS publishing | Dry run, exact version lock, idempotent operation ID, atomic apply, verification and rollback | Implemented and live-tested |
+| Related-market and regional clusters | Evaluates exact-market regional siblings and closely connected workflow/topic pages without forcing reciprocity | Implemented in review and canary workflows |
+| Graph intelligence | Finds orphans, dead ends, inbound/outbound connections and paths; supports snapshot, diff and sitemap seed audits | Implemented |
+| Priority routing | Holds governed, time-bound business-priority designations behind every relevance and safety gate | Implemented in shadow mode |
+| Analytics and learning | First-party link events, optional GA4/GSC inputs, decision logs, evaluation datasets and policy/skill proposals | Implemented; real outcome volume is still limited |
+| Selective autonomy | Supports shadow, guarded and autonomous policy modes; production promotion remains human controlled | Implemented; default is shadow |
+
+## Contextual interlinking, in plain language
+
+This is the key capability currently being piloted.
+
+Keyword overlap alone is not enough. A good contextual link must make sense inside the sentence, preserve the source report's meaning, and tell the visitor what additional information the destination provides.
+
+### The reader test
+
+A proposal is eligible only when the surrounding copy answers both questions:
+
+1. Why is this destination related to the point I am reading?
+2. What useful information will I receive if I click?
+
+If either answer is unclear, the system creates no inline link.
+
+### The four permitted outcomes
+
+1. **Link useful text that already exists.** This is the lowest-risk option.
+2. **Make a small contextual edit.** Add only a supported market term or qualifier without changing the claim.
+3. **Add a short bridge sentence.** Explain the operational or research connection using evidence from the source and destination.
+4. **Create no link.** A missing link is better than a forced, misleading or promotional link.
+
+### Example implemented on the test host
+
+Source topic: Kuwait cloud-based retail inventory forecasting.
+
+Destination topic: Kuwait cloud-based order management systems.
+
+Published contextual copy:
+
+> For execution, **order management systems** help turn inventory forecasts into stock reservations and fulfilment plans. The Kuwait market is projected to reach USD 137 Mn by 2032.
+
+Why this works:
+
+- the source already discusses forecast-led inventory decisions;
+- order management is the next operational step in that workflow;
+- the anchor accurately predicts the destination;
+- one publicly visible destination figure gives the visitor a useful preview;
+- the wording remains neutral and useful even without the hyperlink;
+- the original source facts and meaning are preserved.
+
+### Placement rules learned from real rendering
+
+Preferred surfaces are visible explanatory prose in:
+
+- Market Trajectory;
+- Growth Drivers or Opportunities, but only when that content visibly renders;
+- segmentation explanation;
+- regional analysis, but only when that content visibly renders.
+
+Hard exclusions:
+
+- **Market Overview:** it must remain focused on the report's own market;
+- **Related Reports:** it already performs the recommendation job, so an inline link there is duplicative and pushy;
+- headings, tables, navigation, table of contents, citations, methodology, legal copy, hidden descriptions and boilerplate FAQs.
+
+Live testing exposed an important template issue: many CMS fields exist but do not appear on the public page. A CMS success is therefore never treated as proof. Every applied link must also be found as a visible, crawlable `<a href>` in rendered HTML. Non-rendering placements are rolled back.
+
+### Copy controls
+
+- Preserve existing numbers, dates, entities, comparisons and market claims.
+- Every added claim must be traceable to stored source or destination evidence.
+- Use neutral analyst language, normal punctuation and no sales pressure.
+- Do not use “click here”, curiosity bait or unsupported cause-and-effect wording.
+- Avoid em dashes and repetitive AI-style phrasing.
+- Use no more than one new inline link per content block.
+- Inserted bridge copy is governed separately from the internal rationale and cannot simply publish the rationale as page text.
+- Current bridge-copy rule: two short sentences, 32–38 words, rounded currency figures and no direct address to the visitor.
+
+Detailed editorial rules: [Full contextual interlinking](knowledge/FULL_CONTEXTUAL_INTERLINKING.md) and [optimisation lessons](knowledge/INTERLINKING_OPTIMISATION_LESSONS.md).
+
+## Reviewer dashboard and scoring
+
+The local v0.2 review dashboard runs at `http://127.0.0.1:4177`:
+
+```powershell
+npm run dashboard:v02
+```
+
+Each proposal shows:
+
+- source and destination pages;
+- current source copy and proposed linked copy;
+- exact anchor and placement section;
+- source and destination evidence;
+- reader benefit and relationship rationale;
+- current CMS version and validation state;
+- indexability, canonical and rendered-link gates;
+- approval history, structured rejection reason and reviewer notes;
+- live deployment status after publishing;
+- a filterable topic graph with existing, proposed and live edges.
+
+The editorial reference score is out of 100:
+
+| KPI | Weight | What the reviewer checks |
+|---|---:|---|
+| Reader need | 15 | The source creates a genuine question, task or useful next step |
+| Source evidence | 15 | The exact source passage establishes that need |
+| Destination fit | 20 | Destination evidence answers or materially advances it |
+| Anchor expectation | 15 | The anchor accurately predicts the page that opens |
+| Context and placement | 15 | The link reads naturally in an approved visible section |
+| Added information value | 10 | The destination adds information instead of repeating the source |
+| Quality and risk | 10 | The wording is supported, neutral, non-redundant and non-promotional |
+
+Reference outcomes are 85–100 **approve**, 70–84 **revise**, and 0–69 **reject**. Missing evidence produces **insufficient evidence**, regardless of the numeric total.
+
+This is an editorial aid, not a Google score, ranking prediction or LLM-citation score. A high score cannot bypass hard gates.
+
+## Hard gates before a link can go live
+
+```text
+Candidate
+  -> source and destination eligible
+  -> page families compatible
+  -> market relationship valid
+  -> geography relationship valid
+  -> source evidence exists
+  -> destination evidence exists
+  -> approved visible placement
+  -> natural, descriptive anchor
+  -> no duplicate or over-linking
+  -> human decision where required
+  -> CMS dry-run validates
+  -> source version still matches
+  -> atomic apply succeeds
+  -> CMS content verifies
+  -> public rendered anchor verifies
+  -> deployment and rollback recorded
+```
+
+Business priority, commercial value and orphan status can reorder candidates only **after** these gates pass. They cannot make an irrelevant link eligible.
+
+## Current canary evidence
+
+The repository contains durable, reproducible audit files for the v0.2 test-host work.
+
+### Kuwait topic cluster
+
+- Seven evidence-backed proposals were drafted and scored from 92 to 97.
+- Six owner-approved proposals are CMS-verified and publicly rendered.
+- Deployment history: canary revisions `35–37`, approved batch `38–42`.
+- The seventh proposal remains unpublished because it was not approved.
+- The graph snapshot contains 28 reports and 12 observed/proposed connections, including six live topic links.
+
+### Exact-market regional clusters
+
+- Twelve approved exact-market regional links were published as deployments `43–54`.
+- Owner feedback identified overly formulaic wording even though technical gates passed.
+- All twelve sentences were rewritten in a more natural analyst voice as deployments `55–66`.
+- This learning is enforced centrally by the copy-rule validator and shown in the dashboard before approval.
+
+### Earlier v0.2 contextual batch
+
+- Four approved contextual links rendered successfully.
+- Three technically successful CMS changes did not appear in the public template and were rolled back.
+- That result established rendered visibility as a mandatory post-apply gate.
+
+Key records:
+
+- [Contextual publishing events](knowledge/contextual-interlinking-publish-events.jsonl)
+- [Approved Kuwait batch](outputs/contextual-v02-live/approved-topic-batch-2026-11-20.json)
+- [Kuwait canary](outputs/contextual-v02-live/topic-kuwait-1-live-2026-11-20.json)
+- [Optimisation lessons](knowledge/INTERLINKING_OPTIMISATION_LESSONS.md)
+- [GitHub-pattern implementation report](docs/handover/GITHUB_REPOSITORY_INHERITANCE_IMPLEMENTATION_2026-11-20.md)
+
+## System architecture
+
+The core rule is:
+
+```text
+Model suggestion
+  -> typed structured output
+  -> deterministic policy and validation
+  -> human or policy authorisation
+  -> deterministic CMS execution
+  -> rendered verification
+  -> measurement and learning
+```
+
+Models may propose or critique. They never receive direct production database or CMS authority.
+
+```mermaid
+flowchart LR
+    SRC[Exports / public crawl / CMS read API] --> INV[Versioned content inventory]
+    INV --> INT[Taxonomy, geography, intent, embeddings]
+    INT --> RET[Hybrid candidate retrieval]
+    RET --> GATE[Deterministic gates and scoring]
+    GATE --> DRAFT[Evidence-backed contextual drafter]
+    DRAFT --> REVIEW[Human review dashboard]
+    REVIEW -->|approved| CMS[Controlled CMS adapter]
+    CMS --> VERIFY[CMS + public DOM verification]
+    VERIFY --> ANALYTICS[Events, outcomes and graph audit]
+    ANALYTICS --> LEARN[Offline evaluation and proposals]
+    LEARN --> GATE
+    REVIEW -->|revise / reject| LEARN
+```
+
+### Technology
+
+| Layer | Implementation |
+|---|---|
+| Control UI | Next.js, React and TypeScript |
+| Contextual review UI | Local Node dashboard with evidence cards and interactive SVG graph |
+| API | Python 3.12, FastAPI, Pydantic |
+| Business services | Deterministic Python services for inventory, intelligence, recommendations, review, deployment, analytics and autonomy |
+| Agent orchestration | LangGraph supervised workflow |
+| System of record | PostgreSQL 16 with SQLAlchemy and Alembic |
+| Vector retrieval | Qdrant derived index; PostgreSQL remains authoritative |
+| Local inference | Ollama through a provider abstraction |
+| Deployment | Typed CMS provider with validate/apply/verify/rollback lifecycle |
+| Infrastructure | Docker Compose; services bind to loopback by default |
+
+Dependencies flow inward:
+
+```text
+UI/API -> services -> core platform -> frozen contracts
+```
+
+## Software phases completed
+
+| Phase | Delivery |
+|---:|---|
+| 0 | Contracts, platform, health checks, local stack and mock providers |
+| 1 | Content inventory, crawling, parsing, canonical identity and immutable versions |
+| 2 | Taxonomy, entities, embeddings, graph relationships and eligibility |
+| 3 | Hybrid recommendations, deterministic scoring, placement and explanations |
+| 4 | Supervised local-model review agents with typed state and failures |
+| 5 | Authentication, RBAC, review inbox and structured feedback |
+| 6 | Dry run, version locking, idempotent publishing, verification and rollback |
+| 7 | First-party analytics plus optional read-only GA4 and Search Console providers |
+| 8 | Evaluation datasets, experiments, skill/policy lifecycle and learning proposals |
+| 9 | Shadow/guarded/autonomous decision policy and Qdrant vector architecture |
+
+Each phase has a report at the repository root: `PHASE_0_REPORT.md` through `PHASE_9_REPORT.md`.
+
+## Business Phase 2
+
+Business Phase 2 is separate from software Phase 2. Its purpose is to strengthen engagement-oriented silo and priority routing without weakening editorial safety.
+
+Implemented foundation:
+
+- a governed page-priority registry with type, tier, reason, owner and effective dates;
+- non-overlapping time validity and retirement history;
+- shadow reporting that proves priority cannot bypass gates;
+- graph auditing for orphans and dead ends;
+- contextual topic and regional-cluster pilots;
+- real reviewer decisions stored as evaluation data;
+- reciprocal-rank-fusion utilities for future shadow comparisons.
+
+Still governed or pending:
+
+- production page-family routing expansion;
+- curated public topic hubs;
+- analytics identity for related-module items;
+- production indexability/canonical mapping;
+- enough positive, negative and click outcomes to train a real reranker.
+
+The reranker readiness gate currently refuses training because the first topic judgment set has 6 decisions, 0 negative labels and 0 measured click outcomes. The minimums are 100 decisions, 20 negatives and 50 measured outcomes. Synthetic clicks are not accepted as proof.
+
+See [Business Phase 2 knowledge](knowledge/BUSINESS_PHASE_2_PRIORITY_INTERLINKING.md) and [gap analysis](docs/handover/BUSINESS_PHASE_2_GAP_ANALYSIS.md).
+
+## Graph and ranking improvements
+
+Patterns from three permissively licensed reference projects were studied, then reimplemented inside the existing architecture rather than imported as a second engine.
+
+Delivered:
+
+- sitemap and sitemap-index seed discovery;
+- graph snapshot and before/after diff;
+- shortest-path queries;
+- orphan, inbound and outbound summaries;
+- reviewer graph filtering and clickable nodes;
+- deterministic reciprocal-rank fusion;
+- precision@k and recall@k helpers;
+- a real-decision judgment set and reranker-readiness guard.
+
+RRF remains shadow-only until real lexical and semantic rank exports can be evaluated against reviewer decisions. No external repository's synthetic performance claim is presented as a Ken Research result.
+
+## Safety, governance and auditability
+
+- PostgreSQL is the authoritative record; Qdrant is rebuildable derived state.
+- Every content mutation has an operation ID and expected source version.
+- Stale versions fail instead of overwriting newer editorial work.
+- Protected, unpublished, noindex, redirected, non-canonical, stale and ineligible pages are blocked.
+- Every apply is validated first and retains rollback metadata.
+- Public rendered verification is mandatory after an apply.
+- Roles are `viewer`, `reviewer` and `operator_admin`; no account is created by default.
+- Models use narrow typed tools, never raw infrastructure credentials.
+- Learning can propose a policy or skill but cannot promote it.
+- Secrets, CMS credentials and large regenerable exports are excluded from Git.
+- Architecture changes are recorded in 31 ADRs under [docs/adr](docs/adr/).
+- Database evolution is recorded in 13 Alembic migrations.
 
 ## Quick start
 
-### Windows 11 (PowerShell)
+### Prerequisites
 
-Requires Python 3.12, Node 22/24+, Git, [Docker Desktop](https://www.docker.com/products/docker-desktop/) and [Ollama](https://ollama.com/download).
-`make` is not used on Windows; every command below is the plain equivalent.
+- Python 3.12
+- Node.js 22.22+ or 24.15+
+- Git
+- Docker Desktop
+- Ollama
+
+### Windows PowerShell
 
 ```powershell
-# 1. Get the code and install dependencies
 git clone https://github.com/abhinav108737-automation/Ken-Interlinking-OS.git
 cd Ken-Interlinking-OS
+
 py -3.12 -m venv .venv
 .venv\Scripts\python.exe -m pip install --upgrade pip
 .venv\Scripts\pip.exe install -e ".[dev]" -c requirements.lock.txt
 npm ci
 
-# 2. Configure (use 127.0.0.1, not localhost: Windows resolves localhost to IPv6 and the database will time out)
 Copy-Item .env.example .env
 (Get-Content .env) -replace 'localhost','127.0.0.1' | Set-Content .env
 
-# 3. Start PostgreSQL and Qdrant, then create the schema
 docker compose up -d postgres qdrant
 .venv\Scripts\alembic.exe upgrade head
 ollama pull nomic-embed-text
+```
 
-# 4. Run the API (terminal 1)
+Run the API:
+
+```powershell
 .venv\Scripts\uvicorn.exe ken_api.main:app --host 127.0.0.1 --port 8000
+```
 
-# 5. Run the dashboard (terminal 2)
+Run the main web application in another terminal:
+
+```powershell
 cd apps\web
 $env:NEXT_TELEMETRY_DISABLED = "1"
 ..\..\node_modules\.bin\next.cmd dev --hostname 127.0.0.1 --port 3000
 ```
 
-> `npm run dev` does not work on Windows because its script uses POSIX `VAR=1 command` syntax; use the `next.cmd` line above.
+Run the contextual-review dashboard:
 
-Create your account (you are asked for a password; no account exists until you do), then open
-**http://127.0.0.1:3000**:
+```powershell
+npm run dashboard:v02
+```
+
+Open:
+
+| URL | Purpose |
+|---|---|
+| `http://127.0.0.1:3000/inventory` | Pages, versions and existing links |
+| `http://127.0.0.1:3000/intelligence` | Page classification and relationships |
+| `http://127.0.0.1:3000/recommendations` | Inline link plans and score breakdowns |
+| `http://127.0.0.1:3000/recommendations/modules` | Same-market regional module proposals |
+| `http://127.0.0.1:3000/agents` | Agent runs and model steps |
+| `http://127.0.0.1:3000/jobs` | Pipeline jobs and counters |
+| `http://127.0.0.1:4177` | Contextual evidence and approval dashboard |
+| `http://127.0.0.1:8000/docs` | Interactive API reference |
+
+Create a local administrator:
 
 ```powershell
 .venv\Scripts\python.exe -m ken_services.auth.cli user-create --username you --role operator_admin --display-name "Your Name"
 ```
 
-Load the synthetic demo site and run the pipeline (nothing is published at any step):
+Load the synthetic demo and run the non-publishing pipeline:
 
 ```powershell
 .venv\Scripts\python.exe -m ken_services.inventory.cli import-file tests\fixtures\demo\research_site.jsonl
-.venv\Scripts\python.exe -m ken_services.intelligence.cli analyze          # classify, embed, relate
-.venv\Scripts\python.exe -m ken_services.recommendations.cli recommend     # propose links
-.venv\Scripts\python.exe -m ken_agents.cli agents                          # local model reviews them
+.venv\Scripts\python.exe -m ken_services.intelligence.cli analyze
+.venv\Scripts\python.exe -m ken_services.recommendations.cli recommend
+.venv\Scripts\python.exe -m ken_agents.cli agents
 ```
 
-### macOS / Linux
+See [development instructions](docs/DEVELOPMENT.md) for macOS/Linux commands and full configuration.
 
-```bash
-colima start                       # or Docker Desktop
-make setup                         # venv, dependencies, .env
-make dev                           # PostgreSQL + Qdrant + migrations
-make dev-api                       # terminal 1: http://127.0.0.1:8000/ready
-make dev-web                       # terminal 2: http://127.0.0.1:3000
-make ingest-file FILE=tests/fixtures/demo/research_site.jsonl
-make analyze && make recommend && make agents
-make modules                       # rebuild the related-report modules alone (seconds)
-make user-create USERNAME=you ROLE=operator_admin
-make verify                        # the full quality gate
-```
+## Verification
 
-### What you can open
-
-| URL | What it shows |
-|---|---|
-| `http://127.0.0.1:3000/inventory` | Every page, its versions and the links it already contains |
-| `http://127.0.0.1:3000/intelligence` | Page type, market, geography, relationships, eligibility |
-| `http://127.0.0.1:3000/recommendations` | Proposed link plans with rationale, score breakdown and before/after preview |
-| `http://127.0.0.1:3000/recommendations/modules` | Related-report modules: the same market in every other geography, ranked |
-| `http://127.0.0.1:3000/agents` | Every agent run, step and model call |
-| `http://127.0.0.1:3000/jobs` | Job runs and their counters |
-| `http://127.0.0.1:8000/docs` | Interactive API reference |
-
-More detail: [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md). The current evaluation of the engine's output is in
-[docs/evaluation/](docs/evaluation/INTERLINK_BASELINE_2026-10-30.md).
-
-## Contents
-
-1. [At a glance](#1-at-a-glance) · 2. [How to read this repository](#2-how-to-read-this-repository) · 3. [Architecture](#3-architecture) · 4. [Runtime topology](#4-runtime-topology)
-5. [Control framework](#5-control-framework-constraint--enforcement--evidence) · 6. [Data handling and privacy](#6-data-handling-and-privacy) · 7. [Security posture](#7-security-posture)
-8. [Verification](#8-verification-how-to-reproduce) · 9. [Known limitations](#9-known-limitations-stated-openly) · 10. [Data holdings](#10-data-holdings-and-the-real-site-bootstrap-adr-0025)
-11. [What the implementing team must provide](#11-what-the-implementing-team-must-provide-to-move-beyond-local) · 12. [Repository layout](#12-repository-layout) · 13. [Licensing](#13-licensing-and-provenance) · 14. [Documentation index](#14-documentation-index)
-
----
-
-## 1. At a glance
-
-| | |
-|---|---|
-| **Purpose** | Observe → understand → recommend → decide → publish → verify → measure → learn, for internal body links |
-| **Status** | Phases 0–9 implemented and verified locally; reports in §10. Not deployed. Not connected to the production CMS |
-| **Backend** | Python 3.12 · FastAPI 0.143 · SQLAlchemy 2.1 (asyncio) + asyncpg · Alembic · Pydantic 2.14 · LangGraph 1.2 (`StateGraph` only) |
-| **Frontend** | Next.js 16.4 · React 19.3 (server-rendered; no direct database access) |
-| **System of record** | PostgreSQL 16, 10 Alembic migrations (head `0010_qdrant_and_autonomy`) |
-| **Vector index** | Qdrant v1.19.1, a **derived** index that can always be rebuilt from PostgreSQL ([ADR-0017](docs/adr/ADR-0017-qdrant-vector-architecture.md)) |
-| **Models** | Local only, through Ollama behind a provider abstraction: reasoning `qwen3:8b-q4_K_M`, fast `qwen3:4b`, embeddings `nomic-embed-text` |
-| **Paid APIs / SaaS** | None required. Google Analytics 4 and Search Console are optional, **read-only** and off unless enabled |
-| **Governance** | 26 architecture decision records ([docs/adr/](docs/adr/)), a frozen contract package, a 20-point constraint list ([CLAUDE.md](CLAUDE.md)) |
-| **Verification** | About 6,200 automated tests plus evaluation datasets; ruff and mypy clean (§8) |
-| **Licence** | Proprietary (`pyproject.toml`). Third-party licences are permissive; see §13 |
-
----
-
-## 2. How to read this repository
-
-Read in this order. The first five are the **governing specification**; code must comply with them.
-
-1. [START_HERE.md](START_HERE.md): project brief
-2. [PRD.md](PRD.md) and [TRD.md](TRD.md): product and technical requirements
-3. [CLAUDE.md](CLAUDE.md): the 20 non-negotiable constraints and the ALLOW / ASK rules (§5 maps each to its enforcement)
-4. [AUTONOMY_AND_PERMISSIONS.md](AUTONOMY_AND_PERMISSIONS.md): the ALLOW / ASK / BLOCK permission model
-5. [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md): the phases
-6. [docs/adr/](docs/adr/): *why* each architectural choice was made (decisions that depart from the specification are recorded here, not made silently)
-7. [docs/CONTRACTS.md](docs/CONTRACTS.md): the frozen shared contracts; [NEXT_STEPS.md](NEXT_STEPS.md): open decisions and known limitations
-
----
-
-## 3. Architecture
-
-### 3.1 The one rule that shapes everything
-
-Probabilistic reasoning must always end at a **typed, deterministic boundary** before any irreversible action
-(TRD §24):
-
-```
-LLM → structured decision → policy → deterministic validation → authorisation
-    → deterministic execution → measurement → learning
-```
-
-Models propose and critique. They never write to storage, call the CMS, or promote anything.
-
-### 3.2 Components
-
-```mermaid
-flowchart TD
-    UI["Next.js UI<br/>apps/web"] -->|server-side fetch| API["FastAPI Control API<br/>apps/api / ken_api"]
-    API --> SVC["Deterministic services<br/>inventory, intelligence, recommendations,<br/>deployment, analytics, autonomy"]
-    API --> AG["LangGraph agents<br/>review plans only"]
-    API --> LRN["Learning and evaluation<br/>reflect, propose, offline eval, shadow, human promotion"]
-    SVC --> CORE["ken_core<br/>settings, db, providers, repositories"]
-    AG --> CORE
-    LRN --> CORE
-    CORE --> PG[("PostgreSQL 16<br/>system of record")]
-    CORE --> QD[("Qdrant<br/>derived vector index")]
-    CORE --> OL["Ollama<br/>local models"]
-    CORE --> CMS["CMSProvider<br/>mock / simulator<br/>real HTTP adapter disabled"]
-```
-
-| Layer | Package | Rule |
-|---|---|---|
-| Contracts | `ken_contracts` | Frozen Pydantic models and protocols; imports nothing internal |
-| Platform | `ken_core` | Settings, logging, DB, ORM, repositories, provider implementations |
-| Deterministic services | `ken_services` | All business logic that can be deterministic is |
-| Control API | `ken_api` | Thin HTTP layer; about 70 routes, almost all read-only (§7) |
-| Agent runtime | `ken_agents` | Supervised LangGraph workflow and worker loop |
-| UI | `apps/web` | Never imports Electron, never touches the database ([ADR-0008](docs/adr/ADR-0008-electron-readiness.md)) |
-
-Dependencies point **inward only**: `ken_api → ken_services → ken_core → ken_contracts`.
-
-### 3.3 The pipeline, by phase
-
-| Phase | Capability | Report |
-|---|---|---|
-| 0 | Contracts, event log, platform, health | [PHASE_0](PHASE_0_REPORT.md) |
-| 1 | Inventory: JSONL export, polite crawler, read-only CMS adapter; hash-versioned pages | [PHASE_1](PHASE_1_REPORT.md) |
-| 2 | Content intelligence: taxonomy policy, page type / intent / market / geography, embeddings, relationships, eligibility | [PHASE_2](PHASE_2_REPORT.md) |
-| 3 | Recommendations: semantic, lexical, taxonomy and graph channels → immutable `LinkPlan`s with rationale | [PHASE_3](PHASE_3_REPORT.md) |
-| 4 | Supervised agents that **review** plans | [PHASE_4](PHASE_4_REPORT.md) |
-| 5 | Sign-in, roles, dashboard, review inbox, structured feedback | [PHASE_5](PHASE_5_REPORT.md) |
-| 6 | Controlled deployment: validate → dry-run → version-locked apply → verify → roll back | [PHASE_6](PHASE_6_REPORT.md) |
-| 7 | Analytics: first-party beacon, GA4, Search Console, outcome attribution | [PHASE_7](PHASE_7_REPORT.md) |
-| 8 | Learning: eval datasets, offline eval, skill and policy lifecycles, experiments | [PHASE_8](PHASE_8_REPORT.md) |
-| 9 | Autonomy policy engine (`shadow` / `guarded` / `autonomous`); Qdrant | [PHASE_9](PHASE_9_REPORT.md) |
-
----
-
-## 4. Runtime topology
-
-All listeners bind to **loopback only** (`docker-compose.yml`, `.env.example`).
-
-| Service | Address | Notes |
-|---|---|---|
-| PostgreSQL 16 (pgvector image) | `127.0.0.1:5433` | Not 5432: another local PostgreSQL may own it. `make doctor` guards this |
-| Qdrant v1.19.1 | `127.0.0.1:6333` / `6334` | Image pinned by digest |
-| Ollama | `127.0.0.1:11434` | Host daemon; never exposed on `0.0.0.0` ([ADR-0007](docs/adr/ADR-0007.md)) |
-| FastAPI | `127.0.0.1:8000` | `GET /health`, `/ready`, `/meta`, `/docs` |
-| Next.js | `127.0.0.1:3000` | |
-| First-party analytics collector | its own loopback port | Never part of the control API |
-
----
-
-## 5. Control framework: constraint → enforcement → evidence
-
-The 20 constraints in [CLAUDE.md](CLAUDE.md) are the compliance baseline. The table maps each to where it is
-enforced and how an auditor can check it. "Evidence" is a pointer, not a claim of independent verification.
-
-| # | Constraint | Enforced by | Evidence / how to check |
-|---|---|---|---|
-| 1, 3 | No mandatory paid API; no OpenAI / Anthropic / Gemini / managed vector DB / paid SaaS | Dependency list; model provider is `ollama` or `mock`; Google is optional | `pyproject.toml` dependencies; `KEN_MODEL_PROVIDER`; [ADR-0004](docs/adr/ADR-0004.md) |
-| 2, 6 | Local / self-hosted inference; Ollama first | `ken_core/providers/model/` | Provider tests; `.env.example` |
-| 4, 5 | PostgreSQL is the record; vector layer is replaceable | Qdrant is derived and rebuildable (`make qdrant-rebuild`, `qdrant-verify`) | [ADR-0017](docs/adr/ADR-0017-qdrant-vector-architecture.md); the semantic step searches through it ([ADR-0026](docs/adr/ADR-0026-similarity-through-the-vector-store.md)). *This replaced the original "pgvector first" choice; the decision is recorded, not silent* |
-| 7 | LangGraph supervisor | `ken_agents`, `StateGraph` only (no checkpointer, no tracing; tracing is refused at start-up) | [ADR-0012](docs/adr/ADR-0012-agent-orchestration.md) |
-| 8 | Deterministic code over LLM wherever possible | Candidate retrieval, scoring, eligibility, placement, safety and deployment are deterministic | [ADR-0011](docs/adr/ADR-0011-recommendation-engine.md) |
-| 9 | Every cross-boundary LLM output validated with Pydantic | `ken_contracts`; strict output schemas with a deterministic fallback | `tests/unit/learning/test_reflection_model_boundary.py` and the agent tests |
-| 10, 11 | No LLM writes to production; changes only through a controlled CMS adapter | Agents hold typed, allow-listed tools and no credentials; CMS provider is `mock`; real writes need `KEN_CMS_WRITES_ENABLED` plus `KEN_CMS_ALLOW_REMOTE` | [ADR-0012](docs/adr/ADR-0012-agent-orchestration.md), [ADR-0014](docs/adr/ADR-0014-controlled-deployment.md) |
-| 12 | Every mutation idempotent, version-aware, auditable, reversible | Operation ids, version locks, typed events, rollback, durable deployment intent (`make deployments-reconcile`) | Phase 6 tests; [ADR-0014](docs/adr/ADR-0014-controlled-deployment.md) |
-| 13 | Every schema change has an Alembic migration | `migrations/versions/0001`–`0010`; `tests/integration/test_migrations.py` (upgrade → downgrade → upgrade) | `alembic history` |
-| 14 | Every endpoint has tests | `tests/unit/test_api_*.py`, `tests/integration/` | `make test` |
-| 15 | Every material agent capability has evaluation fixtures | `evals/datasets/` (12 datasets), `evals/suites/`, recorded model fixtures | [evals/README.md](evals/README.md) |
-| 16 | Agents may propose policies / skills, never self-promote | Promotion is a human control-plane action (`operator_admin` only); the database refuses a `*.promoted` event without a human actor; demonstration mode currently refuses every promotion | [ADR-0016](docs/adr/ADR-0016-learning.md) |
-| 17 | No silent architecture changes | Changes carry an ADR (26 so far) | `docs/adr/` |
-| 18, 19 | Reference repos not cloned into source; licences checked | None vendored; two reference projects are licence hazards and are flagged | [docs/research/INTERLINKING_REFERENCE_REPOS.md](docs/research/INTERLINKING_REFERENCE_REPOS.md); [NEXT_STEPS.md](NEXT_STEPS.md) |
-| 20 | No secrets in source control | `.gitignore` (`keys/`, `*-service-account*.json`, `.env`); a test fails the build if a credential is tracked; credential files must live outside the repo | commit `b5287d2`; [ADR-0022](docs/adr/ADR-0022-google-analytics-authentication.md) |
-
-### 5.1 Permission model (ALLOW / ASK / BLOCK)
-
-Defined in [AUTONOMY_AND_PERMISSIONS.md](AUTONOMY_AND_PERMISSIONS.md). In short:
-
-- **ASK** (needs explicit human approval): pushing to a remote, real CMS writes, real write credentials,
-  destructive DB actions, enabling auto-publishing, promoting a policy or skill, a new infrastructure
-  service, calling a paid or external API, live deployment.
-- **BLOCK** (never, unless policy changes): mandatory paid API, direct LLM writes to production,
-  silent self-promotion, unlogged production mutation, irreversible publication without rollback metadata,
-  committed credentials, bypassing protected-page policy.
-
-### 5.2 Autonomy modes ([ADR-0018](docs/adr/ADR-0018-autonomy-first-publishing.md))
-
-`KEN_AUTONOMY_MODE` is `shadow` (default) | `guarded` | `autonomous`.
-
-- `shadow` records what *would* happen and publishes nothing.
-- `autonomous` is refused unless `KEN_AUTONOMY_AUTONOMOUS_ACKNOWLEDGED=true`, and refused against an `http`
-  CMS with writes enabled unless `KEN_AUTONOMY_ALLOW_PRODUCTION=true` (a `Settings` validator, `ken_core/config.py`).
-- The legacy `KEN_AUTO_APPROVE_ENABLED` is retired and refuses `true`.
-- Decision order: deterministic hard blocks first; a critic can only decline or tighten; risk can only rise;
-  calibration can only lower confidence; mode floors can only block.
-- People are the **control plane** (overrides, promotion, rollback), not a per-link approval step.
-
-### 5.3 Roles ([ADR-0013](docs/adr/ADR-0013-reviewer-control-plane.md))
-
-`viewer`, `reviewer`, `operator_admin`; deny-by-default routes; no default accounts (create one with
-`make user-create`). Actors come from the session, never from the request body.
-
----
-
-## 6. Data handling and privacy
-
-| Data | Where | Notes |
-|---|---|---|
-| Page content and versions | PostgreSQL | Immutable, hash-based version history |
-| Embeddings | PostgreSQL (values) + Qdrant (index) | Local model; nothing is sent outside the machine |
-| Events / audit | PostgreSQL `events` | Typed payloads; **not yet append-only at the database level** (§9) |
-| Real-site exports | `data/` (git-ignored) | Public site content, regenerable, not committed |
-| Credentials | Outside the repository | Never in `.env.example`; the service-account key path is configuration only |
-| Analytics beacon | First-party collector | Stores **no IP, user agent, page-view id, referrer or cookie**; honours Global Privacy Control, Do Not Track and a consent flag |
-| Google GA4 / Search Console | Egress, read-only | Sends only a property id and dates. Off unless `KEN_ANALYTICS_GOOGLE_ENABLED=true` |
-
-Retention periods are recorded in policy but **no purge job enforces them yet** (§9). Whether the beacon needs
-a consent mechanism under ePrivacy, GDPR or India's DPDP Act is an open legal decision (NEXT_STEPS item 17).
-
----
-
-## 7. Security posture
-
-**Implemented**
-- Loopback-only binds; default `ken:ken` credentials refused in staging and production.
-- Deny-by-default RBAC; per-account lockout; validation errors never echo input values.
-- Crawler: `robots.txt` always honoured, GET only, no cookies, 1 s delay, at most 2 requests in flight,
-  explicit site allow-list, identified user-agent.
-- Database guards: immutable `page_versions` and `existing_links`; a `page_protections` trigger; a deferred
-  constraint trigger on link-plan status transitions; a CHECK-capped holdout share for experiments.
-- Deployment writes are re-validated under lock, spliced deterministically (one `<a>` inserted, every other
-  byte identical), verified after publication and reversible.
-- Google calls are refused before any request unless explicitly enabled; token exchange goes through the
-  project's own guarded HTTP client.
-
-**Known limitations an auditor should see** are listed in §9 rather than hidden.
-
----
-
-## 8. Verification: how to reproduce
-
-### 8.1 Prerequisites
-
-Python **3.12**, Node `^22.22.2 || ^24.15.0 || >=26`, Docker (Colima or Docker Desktop), Ollama with
-`nomic-embed-text` (and optionally `qwen3:4b`, `qwen3:8b-q4_K_M`). Details: [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
-
-### 8.2 Run
-
-Follow the [Quick start](#quick-start). To run the quality gate:
-
-```bash
-make verify        # macOS / Linux: lint, types, tests, web tests, compose config, migrate, doctor
-```
+Run focused checks:
 
 ```powershell
-# Windows
-$env:KEN_TEST_DATABASE_URL = "postgresql+asyncpg://ken:ken@127.0.0.1:5433/ken_interlink_test"
-.venv\Scripts\ruff.exe check services contracts agents apps evals tests
-.venv\Scripts\mypy.exe
-.venv\Scripts\python.exe -m pytest tests -q
+.venv\Scripts\python.exe -m pytest tests\unit -q
+.venv\Scripts\python.exe -m pytest tests\contract -q
+.venv\Scripts\ruff.exe check .
+.venv\Scripts\mypy.exe .
+npm run lint
+npm run typecheck
+npm test
+docker compose config --quiet
 ```
 
-Use `127.0.0.1`, not `localhost`: on Windows the integration tests **skip silently** otherwise. The
-`ken_interlink_test` database is created by the container's init script on first start.
+The repository also contains integration, migration round-trip, agent, evaluation and CMS-provider tests. Use `127.0.0.1` instead of `localhost` for the Windows PostgreSQL test URL; otherwise IPv6 resolution can cause integration tests to skip.
 
-### 8.3 Test layers
+The latest added RRF unit suite passes 5/5. Historical full-suite evidence and known reds are recorded in [NEXT_STEPS.md](NEXT_STEPS.md) and the phase reports. Do not interpret a focused test result as a fresh full-suite certification.
 
-`tests/unit` · `tests/contract` (frozen-contract tests) · `tests/integration` (real PostgreSQL) · `evals/`
-(datasets and recorded-model suites) · `apps/web` (vitest).
+## Repository map
 
-### 8.4 Most recent results (2026-10-29/30, Windows)
-
-| Check | Result |
-|---|---|
-| `ruff check` | clean |
-| `mypy` (strict on `ken_agents`) | clean, 509 source files |
-| Full suite (excluding `tests/e2e`) | 6,194 passed, 37 skipped, 0 failed, 1 transient setup timeout that passed on rerun. Earlier failures were root-caused and fixed (`PHASE_8_REPORT.md` §4) |
-| Phase 8 learning | 863 unit/contract + 174 integration passed |
-| Phase 9 autonomy | 336 passed |
-
-The 37 skips are platform limits (POSIX file modes, signal handlers, `make`). **CI has never run**: the workflow
-exists (`.github/workflows/ci.yml`) but the repository has no remote.
-
----
-
-## 9. Known limitations (stated openly)
-
-| Area | Limitation | Where recorded |
-|---|---|---|
-| Not production-ready | No production CMS integration; parity with Ken's real page templates unproven | NEXT_STEPS items 12, 14 |
-| Database role | The app connects as superuser `ken` locally; production needs a least-privilege role (DML only) | NEXT_STEPS "Hard gates" |
-| Audit log | `events` is not append-only in the database (`page_versions` and `existing_links` are) | NEXT_STEPS |
-| Web security | CSP allows `'unsafe-inline'` (nonces not yet generated); account lockout can be triggered by anyone who knows a username | PHASE_5_REPORT |
-| Analytics | First-party counts are spoofable; outcomes are correlational only; retention is recorded but not enforced | PHASE_7_REPORT |
-| Autonomy | No calibration exists, so `guarded` mode would publish nothing on a fresh deployment | PHASE_9_REPORT |
-| Learning | Demonstration mode refuses all promotions; the learning corpus has no real human review actions yet | PHASE_8_REPORT |
-| Taxonomy | The real-site taxonomy is **proposed** (v3, 5,451 markets derived from URL slugs), needs owner review, and its tag rate measures coverage, not correctness; the company / product list is empty | ADR-0025, NEXT_STEPS 26 |
-| Inventory completeness | The sitemaps list about 9,000 pages, but analytics shows about 65,000 site paths with traffic; a sample suggests roughly 40,000 live pages are missing from the inventory | ADR-0025 addendum, NEXT_STEPS 24 |
-| Scale | The semantic step now searches through Qdrant (ADR-0026): the full 8,858-page run took 16 minutes. A full-scale recommendation run has not been measured yet | NEXT_STEPS 25 |
-| CI | Authored, never executed | NEXT_STEPS |
-| Platform | Developed on macOS and Windows; some tests skip on Windows | PHASE_8_REPORT |
-
----
-
-## 10. Data holdings and the real-site bootstrap ([ADR-0025](docs/adr/ADR-0025-real-site-bootstrap.md))
-
-With the owner's written approval (2026-10-29), the public sitemaps of `www.kenresearch.com` were fetched
-**read-only** (robots-honouring, identified user-agent, 1 s delay, at most 2 requests in flight):
-
-| Database | Content | Purpose |
-|---|---|---|
-| `ken_interlink` | Synthetic demo site (about 65 pages) | Development and tests; never mixed with real data |
-| `ken_real500` | 498 pages, Playwright-rendered | First real run: analysis, 126 link plans, shadow autonomy, live Google check |
-| `ken_full` | 8,858 pages, raw HTML from every non-disallowed sitemap URL (about 18 % of the live site, see section 9) | Full sitemap inventory; analysed under taxonomy v3, 88,282 semantic edges through Qdrant |
-
-Nothing was written to the website. Google Analytics 4 and Search Console were read live (read-only, one
-week of data).
-
----
-
-## 11. What the implementing team must provide (to move beyond local)
-
-These are **ASK-level** or external dependencies. None is done; each needs the owner's explicit approval.
-
-1. **CMS integration**: base URL, link-change contract (must tell a version conflict 409 from a reused
-   operation id), sanitiser behaviour for `data-*` attributes, and write credentials stored outside source
-   control ([docs/handover/CMS_INTEGRATION_REQUIREMENTS.md](docs/handover/CMS_INTEGRATION_REQUIREMENTS.md)).
-2. **Least-privilege database role**, TLS and network isolation for any shared environment.
-3. **Secrets management** for the CMS and Google credentials; rotation procedure
-   ([docs/handover/GOOGLE_ANALYTICS_SETUP.md](docs/handover/GOOGLE_ANALYTICS_SETUP.md)).
-4. **Nonce-based CSP**, and a decision on lockout behaviour if exposed beyond a trusted network.
-5. **Consent decision** for the analytics beacon (legal), and the production home of first-party collection.
-6. **Real-template parity check** on 10–20 real page bodies before any deployment.
-7. **Calibration data** and real editorial decisions before `guarded` / `autonomous` mode can mean anything.
-8. **CI** on a hosted remote, and an audit-log hardening pass (append-only `events`).
-9. **Owner review** of the proposed taxonomy and the company / product list.
-
-The full, current list of open decisions is [NEXT_STEPS.md](NEXT_STEPS.md).
-
----
-
-## 12. Repository layout
-
-```
-apps/           api (FastAPI) · web (Next.js) · desktop (reserved, not installed)
-contracts/      ken_contracts: frozen Pydantic models and protocols
-services/       ken_core (platform) · ken_services (inventory, intelligence, recommendations,
-                deployment, review, analytics, learning, autonomy, auth, vectors, graph, jobs, agents)
-agents/         ken_agents: LangGraph workflow and worker
-migrations/     Alembic versions 0001–0010
-policies/       Versioned policy data: taxonomy (v1 default, v2 proposed), ranking, recommendation,
-                autonomy, analytics, learning, graph, agents
-skills/         Reserved for approved skills (none promoted; promotion is human-only)
-evals/          Datasets, suites, runners, derivation tools
-tests/          unit · contract · integration · fixtures
-docs/           ADRs, contracts, development guide, handover notes, research
-infrastructure/ Container build files and helper scripts
-workflows/      Reserved for workflow definitions (README only)
-data/           Git-ignored local exports (real-site content)
+```text
+apps/web/                         Main Next.js control UI
+apps/api/ken_api/                 FastAPI control API
+agents/ken_agents/                Supervised LangGraph review agents
+contracts/python/ken_contracts/   Frozen cross-boundary models
+services/ken_services/            Deterministic business services
+tools/v02-review-dashboard/       Contextual review and feedback dashboard
+tools/v02-contextual-audit/       Evidence, drafting, validation and canary tools
+tools/graph-intelligence/         Snapshot, diff, path and sitemap tools
+tools/ranking-eval/               Judgments, readiness and RRF evaluation
+policies/                         Versioned ranking, taxonomy, graph and autonomy policy
+knowledge/                        Approved editorial and business learning
+evals/                            Evaluation datasets, suites and results
+migrations/                       Alembic schema history
+docs/adr/                         Architecture decision records
+docs/evaluation/                  Editorial and engine audits
+docs/handover/                    Implementation and handover reports
+tests/                            Unit, contract, integration and system tests
+outputs/                          Reproducible shadow/live-test audit artifacts
 ```
 
+## Known limitations and next decisions
+
+1. **Not production-authority tested.** The canary host is `noindex,nofollow`.
+2. **Rendered CMS coverage is incomplete.** Several authored fields are missing from the public template.
+3. **Sitemap coverage is incomplete.** The staging sitemap exposed no usable report URLs during the latest audit.
+4. **Taxonomy still needs business curation.** Market adjacency and company/product gazetteers remain incomplete.
+5. **Reranking lacks outcome volume.** There are not enough rejections or measured clicks to train safely.
+6. **Public topic hubs need curation.** The system must not auto-generate thin doorway pages.
+7. **Module-item analytics identity needs an ADR.** Inline plans and module items currently have different measurement paths.
+8. **Production CMS activation remains a separate approval.** Test-host access does not grant production authority.
+9. **SEO results are not guaranteed.** Indexing, rankings, engagement and conversions must be measured through Search Console and first-party events.
+
+The detailed, continuously maintained decision list is [NEXT_STEPS.md](NEXT_STEPS.md).
+
+## Documentation path for reviewers and managers
+
+Read in this order:
+
+1. This README for the complete product view.
+2. [START_HERE.md](START_HERE.md) for the original objective and constraints.
+3. [Full contextual interlinking](knowledge/FULL_CONTEXTUAL_INTERLINKING.md) for current editorial behaviour.
+4. [Optimisation lessons](knowledge/INTERLINKING_OPTIMISATION_LESSONS.md) for what the live tests taught us.
+5. [Business Phase 2](knowledge/BUSINESS_PHASE_2_PRIORITY_INTERLINKING.md) for the engagement and silo strategy.
+6. [NEXT_STEPS.md](NEXT_STEPS.md) for measured state, open decisions and limitations.
+7. [ADRs](docs/adr/) for architecture rationale.
+8. `PHASE_0_REPORT.md` through `PHASE_9_REPORT.md` for implementation history.
+
+## Licence and provenance
+
+This repository is proprietary Ken Research project code. Third-party libraries retain their own licences. Reference repositories are used for research and pattern comparison only; they are not vendored into the application. Any reused implementation must pass licence review and have documented provenance.
+
 ---
 
-## 13. Licensing and provenance
-
-- This project: **proprietary** (`pyproject.toml`).
-- Dependencies are pinned and permissive (MIT, BSD, Apache-2.0). Choices that avoided restrictive licences
-  are documented in `pyproject.toml` (for example, no LangGraph Postgres checkpointer because it pulls an
-  LGPL driver). The `sharp` image library is LGPL and must be re-checked before any packaged desktop bundle.
-- **Two research references are licence hazards and must not be copied from:** `searchsolved/search-solved-public-seo`
-  (CC BY-NC 4.0, non-commercial) and `Deepak-J0shi/SEO-Interlinking-Tool` (no licence declared). Nothing was
-  copied; influence is conceptual only. See [NEXT_STEPS.md](NEXT_STEPS.md) and
-  [docs/research/INTERLINKING_REFERENCE_REPOS.md](docs/research/INTERLINKING_REFERENCE_REPOS.md).
-- Models: `qwen3` (Apache-2.0) and `nomic-embed-text` (Apache-2.0), run locally.
-
----
-
-## 14. Documentation index
-
-| Document | Purpose |
-|---|---|
-| [START_HERE.md](START_HERE.md), [PRD.md](PRD.md), [TRD.md](TRD.md) | Brief and governing requirements |
-| [CLAUDE.md](CLAUDE.md), [AUTONOMY_AND_PERMISSIONS.md](AUTONOMY_AND_PERMISSIONS.md) | Constraints and permission model |
-| [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md), `PHASE_0…9_REPORT.md` | Plan and evidence per phase |
-| [NEXT_STEPS.md](NEXT_STEPS.md) | Open decisions, limitations, approvals needed |
-| [docs/ARCHITECTURE_OVERVIEW.md](docs/ARCHITECTURE_OVERVIEW.md), [docs/CONTRACTS.md](docs/CONTRACTS.md) | Architecture and frozen contracts |
-| [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | Setup and daily workflow |
-| [docs/adr/](docs/adr/) | Decision records (ADR-0001 … ADR-0026) |
-| [docs/handover/](docs/handover/) | CMS and Google Analytics integration requirements |
-| [evals/README.md](evals/README.md) | Evaluation datasets and suites |
+**Product principle:** create fewer, stronger links that help a person continue their research. Relevance, evidence and trust come before link volume or commercial priority.
