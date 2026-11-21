@@ -66,7 +66,10 @@ keys/
 /.playwright-mcp/
 
 # Real-site exports and crawl output (public content, but large and regenerable)
-/data/
+/data/*
+# ...except the v0.2 review state: the owner's approval decisions are not regenerable, and the
+# review dashboard cannot start without its proposals file. 216 KB, no credentials.
+!/data/v02-contextual-review/
 
 # Playwright/Edge user-data directories written beside a run's audit artifacts. The JSON, Markdown
 # and screenshot records in `outputs/` ARE the audit trail and are committed; a browser profile

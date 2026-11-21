@@ -1,0 +1,284 @@
+{
+  "schema_version": 1,
+  "decisions": {
+    "contextual:1": {
+      "proposal_id": "contextual:1",
+      "decision": "reject",
+      "reason_code": "unnatural_anchor",
+      "reason_note": "We are talking about Ai driven customer journey orchestration Market and the link we are creating is on journey orchestration, which is confusing and does not refer to a market, additionally record that we will avoid market overview section since this should conetrate on the mentioned market, creating an interlink to a related, regional, adjacent report will be too pushy.",
+      "revision_note": "",
+      "queued": false,
+      "recorded_at": "2026-11-19T18:28:48.016Z"
+    },
+    "contextual:2": {
+      "proposal_id": "contextual:2",
+      "decision": "reject",
+      "reason_code": "anchor_too_generic",
+      "reason_note": "First thing, we are not going to add any interlink to any report's market overview section, since it will look to pushy and can dissolve the relevance of currently stated market. No market at end and context is quite light",
+      "revision_note": "",
+      "queued": false,
+      "recorded_at": "2026-11-19T18:30:47.631Z"
+    },
+    "contextual:3": {
+      "proposal_id": "contextual:3",
+      "decision": "reject",
+      "reason_code": "wrong_placement",
+      "reason_note": "Market Overview must stay focused entirely on the current market and must never host an interlink to another market. Editing this section risks weakening the source report meaning. This suggestion also fails the reader-benefit test: it feels inserted to create a link instead of offering a clear, useful next piece of market information. Related Reports modules are also excluded because those reports are already listed there.",
+      "revision_note": "",
+      "queued": false,
+      "recorded_at": "2026-11-19T18:44:58.988Z"
+    },
+    "contextual:8": {
+      "proposal_id": "contextual:8",
+      "decision": "approve",
+      "reason_code": null,
+      "reason_note": "",
+      "revision_note": "",
+      "queued": false,
+      "recorded_at": "2026-11-19T18:52:46.629Z"
+    },
+    "contextual:12": {
+      "proposal_id": "contextual:12",
+      "decision": "approve",
+      "reason_code": null,
+      "reason_note": "",
+      "revision_note": "",
+      "queued": false,
+      "recorded_at": "2026-11-19T19:50:27.453Z"
+    },
+    "contextual:13": {
+      "proposal_id": "contextual:13",
+      "decision": "approve",
+      "reason_code": null,
+      "reason_note": "",
+      "revision_note": "",
+      "queued": false,
+      "recorded_at": "2026-11-19T18:56:18.841Z"
+    },
+    "v02-new:1": {
+      "proposal_id": "v02-new:1",
+      "decision": "approve",
+      "reason_code": null,
+      "reason_note": "",
+      "revision_note": "",
+      "queued": false,
+      "recorded_at": "2026-11-20T07:55:51.683Z"
+    },
+    "v02-new:3": {
+      "proposal_id": "v02-new:3",
+      "decision": "approve",
+      "reason_code": null,
+      "reason_note": "",
+      "revision_note": "",
+      "queued": false,
+      "recorded_at": "2026-11-19T19:42:15.616Z"
+    },
+    "v02-new:5": {
+      "proposal_id": "v02-new:5",
+      "decision": "approve",
+      "reason_code": null,
+      "reason_note": "",
+      "revision_note": "",
+      "queued": false,
+      "recorded_at": "2026-11-19T19:42:42.124Z"
+    },
+    "v02-new:7": {
+      "proposal_id": "v02-new:7",
+      "decision": "approve",
+      "reason_code": null,
+      "reason_note": "",
+      "revision_note": "",
+      "queued": false,
+      "recorded_at": "2026-11-19T19:43:36.145Z"
+    },
+    "v02-new:2": {
+      "proposal_id": "v02-new:2",
+      "decision": "approve",
+      "reason_code": null,
+      "reason_note": "",
+      "revision_note": "",
+      "queued": false,
+      "recorded_at": "2026-11-20T07:55:55.825Z"
+    },
+    "v02-new:4": {
+      "proposal_id": "v02-new:4",
+      "decision": "approve",
+      "reason_code": null,
+      "reason_note": "",
+      "revision_note": "",
+      "queued": false,
+      "recorded_at": "2026-11-19T19:44:38.261Z"
+    },
+    "v02-new:6": {
+      "proposal_id": "v02-new:6",
+      "decision": "approve",
+      "reason_code": null,
+      "reason_note": "",
+      "revision_note": "",
+      "queued": false,
+      "recorded_at": "2026-11-19T19:44:48.794Z"
+    },
+    "topic-kuwait:1": {
+      "proposal_id": "topic-kuwait:1",
+      "decision": "approve",
+      "reason_code": null,
+      "reason_note": "",
+      "revision_note": "",
+      "queued": false,
+      "recorded_at": "2026-11-20T07:15:36.166Z"
+    },
+    "topic-kuwait:2": {
+      "proposal_id": "topic-kuwait:2",
+      "decision": "approve",
+      "reason_code": null,
+      "reason_note": "",
+      "revision_note": "",
+      "queued": false,
+      "recorded_at": "2026-11-20T07:51:04.669Z"
+    },
+    "topic-kuwait:3": {
+      "proposal_id": "topic-kuwait:3",
+      "decision": "approve",
+      "reason_code": null,
+      "reason_note": "",
+      "revision_note": "",
+      "queued": false,
+      "recorded_at": "2026-11-20T07:51:10.151Z"
+    },
+    "topic-kuwait:4": {
+      "proposal_id": "topic-kuwait:4",
+      "decision": "approve",
+      "reason_code": null,
+      "reason_note": "",
+      "revision_note": "",
+      "queued": false,
+      "recorded_at": "2026-11-20T07:51:41.713Z"
+    },
+    "topic-kuwait:5": {
+      "proposal_id": "topic-kuwait:5",
+      "decision": "approve",
+      "reason_code": null,
+      "reason_note": "",
+      "revision_note": "",
+      "queued": false,
+      "recorded_at": "2026-11-20T07:52:12.699Z"
+    },
+    "topic-kuwait:6": {
+      "proposal_id": "topic-kuwait:6",
+      "decision": "approve",
+      "reason_code": null,
+      "reason_note": "",
+      "revision_note": "",
+      "queued": false,
+      "recorded_at": "2026-11-20T07:52:20.188Z"
+    },
+    "cluster:2": {
+      "proposal_id": "cluster:2",
+      "decision": "approve",
+      "reason_code": null,
+      "reason_note": "",
+      "revision_note": "",
+      "queued": false,
+      "recorded_at": "2026-11-21T05:33:38.273Z"
+    },
+    "cluster:3": {
+      "proposal_id": "cluster:3",
+      "decision": "approve",
+      "reason_code": null,
+      "reason_note": "",
+      "revision_note": "",
+      "queued": false,
+      "recorded_at": "2026-11-20T07:52:56.556Z"
+    },
+    "cluster:4": {
+      "proposal_id": "cluster:4",
+      "decision": "approve",
+      "reason_code": null,
+      "reason_note": "",
+      "revision_note": "",
+      "queued": false,
+      "recorded_at": "2026-11-20T07:53:04.264Z"
+    },
+    "cluster:5": {
+      "proposal_id": "cluster:5",
+      "decision": "approve",
+      "reason_code": null,
+      "reason_note": "",
+      "revision_note": "",
+      "queued": false,
+      "recorded_at": "2026-11-20T07:53:08.800Z"
+    },
+    "cluster:7": {
+      "proposal_id": "cluster:7",
+      "decision": "approve",
+      "reason_code": null,
+      "reason_note": "",
+      "revision_note": "",
+      "queued": false,
+      "recorded_at": "2026-11-20T07:53:24.040Z"
+    },
+    "cluster:8": {
+      "proposal_id": "cluster:8",
+      "decision": "approve",
+      "reason_code": null,
+      "reason_note": "",
+      "revision_note": "",
+      "queued": false,
+      "recorded_at": "2026-11-20T07:53:33.385Z"
+    },
+    "cluster:9": {
+      "proposal_id": "cluster:9",
+      "decision": "approve",
+      "reason_code": null,
+      "reason_note": "",
+      "revision_note": "",
+      "queued": false,
+      "recorded_at": "2026-11-20T07:53:38.583Z"
+    },
+    "cluster:10": {
+      "proposal_id": "cluster:10",
+      "decision": "approve",
+      "reason_code": null,
+      "reason_note": "",
+      "revision_note": "",
+      "queued": false,
+      "recorded_at": "2026-11-20T07:53:49.046Z"
+    },
+    "cluster:11": {
+      "proposal_id": "cluster:11",
+      "decision": "approve",
+      "reason_code": null,
+      "reason_note": "",
+      "revision_note": "",
+      "queued": false,
+      "recorded_at": "2026-11-20T07:53:57.437Z"
+    },
+    "cluster:12": {
+      "proposal_id": "cluster:12",
+      "decision": "approve",
+      "reason_code": null,
+      "reason_note": "",
+      "revision_note": "",
+      "queued": false,
+      "recorded_at": "2026-11-20T07:54:02.555Z"
+    },
+    "cluster:13": {
+      "proposal_id": "cluster:13",
+      "decision": "approve",
+      "reason_code": null,
+      "reason_note": "",
+      "revision_note": "",
+      "queued": false,
+      "recorded_at": "2026-11-20T07:54:56.611Z"
+    },
+    "cluster:14": {
+      "proposal_id": "cluster:14",
+      "decision": "approve",
+      "reason_code": null,
+      "reason_note": "",
+      "revision_note": "",
+      "queued": false,
+      "recorded_at": "2026-11-20T07:55:01.165Z"
+    }
+  }
+}
