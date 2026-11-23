@@ -26,10 +26,10 @@ historical     0 until Phase 8 provides calibrated outcome evidence
 ``semantic_similarity``, ``lexical_similarity``, ``topic_relevance``, ``geography``,
 ``destination_priority``, the ``graph_*`` position, ``orphan_recovery_value``,
 ``gsc_opportunity`` and ``ga4_engagement`` -- exactly as the generators measured them. The eight
-weighted components above are the FROZEN ranking contract (``RANKING_COMPONENTS``); a signal
-that is not one of them is RECORDED, not weighted, until a new ranking policy version adds a
-component. In particular the analytics signals never enter ``relevance``: first-party counts are
-spoofable, so analytics may surface and may block but never justify (ADR-0016 s16.7).
+weighted components above are the FROZEN relevance contract (``RANKING_COMPONENTS``). Analytics
+never enters ``relevance`` or any pass/fail threshold. A versioned, bounded prioritisation overlay
+may reorder candidates that already passed without analytics; this changes review priority, never
+eligibility, final score or confidence (ADR-0016 s16.7).
 :func:`explain_ranking` packages the final score, the full breakdown, the policy versions, the
 (raw) confidence and the per-channel attribution into one record.
 
@@ -168,6 +168,9 @@ class PairFeatures:
     orphan_recovery_value: float | None = None
     gsc_opportunity: float | None = None
     ga4_engagement: float | None = None
+    source_authority: float | None = None
+    target_search_need: float | None = None
+    authority_transfer: float | None = None
     """Analytics signals: surfaced and recorded; they never enter ``relevance``."""
 
 
@@ -181,6 +184,10 @@ class ScoredPair:
     """Component name -> value, in ``RANKING_COMPONENTS`` order."""
     signals: Mapping[str, float] = field(default_factory=dict)
     """Every measured signal under its own name (module docstring); never summed."""
+    analytics_priority: float = 0.0
+    """Policy-weighted analytics signal in [0, 1]; ordering only, never a gate."""
+    priority_score: float = 0.0
+    """Relevance plus the bounded ordering boost; never persisted as plan confidence."""
 
 
 def _clamp(value: float) -> float:
@@ -279,11 +286,36 @@ def _signals(
             out["graph_crawl_depth"] = float(features.graph.crawl_depth)
         out["graph_is_orphan"] = 1.0 if features.graph.is_orphan else 0.0
         out["graph_is_bridge"] = 1.0 if features.graph.is_bridge else 0.0
-    for name in ("orphan_recovery_value", "gsc_opportunity", "ga4_engagement"):
+    for name in (
+        "orphan_recovery_value",
+        "gsc_opportunity",
+        "ga4_engagement",
+        "source_authority",
+        "target_search_need",
+        "authority_transfer",
+    ):
         value = getattr(features, name)
         if value is not None and math.isfinite(value):
             out[name] = float(value)
     return out
+
+
+def _analytics_priority(
+    signals: Mapping[str, float], ranking: RankingPolicy
+) -> tuple[float, float]:
+    """Return ``(analytics_priority, priority_score_boost)`` for an eligible pair.
+
+    Missing signals are zero. Values are clamped because imported providers are untrusted
+    measurement inputs. A disabled policy is exactly inert, preserving v1 ordering.
+    """
+    policy = ranking.analytics_priority
+    if not policy.enabled or policy.max_boost <= 0.0:
+        return (0.0, 0.0)
+    priority = math.fsum(
+        policy.weights[name] * _clamp(float(signals.get(name, 0.0))) for name in policy.weights
+    )
+    priority = _clamp(priority)
+    return (priority, priority * policy.max_boost)
 
 
 def score_pair(
@@ -364,12 +396,18 @@ def score_pair(
     elif geography_key is not None:
         relationship_type = _GEOGRAPHY_RELATIONSHIPS.get(geography_key)
 
+    signals = _signals(features, values=values, topic_relevance=_clamp(taxonomy_value))
+    analytics_priority, priority_boost = _analytics_priority(signals, ranking)
+    signals["analytics_priority"] = analytics_priority
+    signals["analytics_priority_boost"] = priority_boost
     return ScoredPair(
         breakdown=breakdown,
         reason_codes=merge_reason_codes(codes),
         relationship_type=relationship_type,
         component_values=dict(values),
-        signals=_signals(features, values=values, topic_relevance=_clamp(taxonomy_value)),
+        signals=signals,
+        analytics_priority=analytics_priority,
+        priority_score=min(1.0, relevance + priority_boost),
     )
 
 
@@ -397,6 +435,8 @@ class RankingExplanation:
     both policy versions, the confidence and which generators nominated the candidate."""
 
     final_score: float
+    priority_score: float
+    analytics_priority: float
     confidence: float
     calibration_version: str | None
     """``None`` = the confidence is RAW; no threshold may treat it as calibrated."""
@@ -425,6 +465,8 @@ def explain_ranking(
     """
     return RankingExplanation(
         final_score=final.total,
+        priority_score=scored.priority_score,
+        analytics_priority=scored.analytics_priority,
         confidence=final.total,
         calibration_version=None,
         components=final.components,

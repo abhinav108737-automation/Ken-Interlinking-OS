@@ -48,7 +48,8 @@ ALEMBIC_INI = Path(__file__).resolve().parents[2] / "alembic.ini"
 TRUNCATE_ALL = (
     "TRUNCATE experiment_assignments, experiments, learning_proposal_transitions, "
     "policy_evaluations, skills, policy_candidates, learning_proposals, "
-    "link_measurements, page_metrics_daily, link_metrics_daily, link_events, "
+    "link_measurements, page_query_metrics_daily, page_metrics_daily, "
+    "link_metrics_daily, link_events, "
     "analytics_imports, deployment_verifications, deployment_items, deployments, "
     "review_actions, auth_sessions, users, agent_run_plans, agent_steps, agent_runs, "
     "page_priorities, page_module_items, page_modules, "
@@ -409,6 +410,7 @@ ANALYTICS_TABLES = frozenset(
         "link_events",
         "link_metrics_daily",
         "page_metrics_daily",
+        "page_query_metrics_daily",
         "link_measurements",
     }
 )
@@ -418,6 +420,7 @@ ANALYTICS_TRIGGERS = frozenset(
         "link_events_writer_guard",
         "link_metrics_daily_writer_guard",
         "page_metrics_daily_writer_guard",
+        "page_query_metrics_daily_writer_guard",
         "analytics_imports_immutable",
         "link_measurements_immutable",
     }
@@ -465,7 +468,7 @@ LEARNING_TRIGGERS = frozenset(
         "experiment_assignments_immutable",
     }
 )
-HEAD_REVISION = "0013_page_priorities"
+HEAD_REVISION = "0014_gsc_query_metrics"
 """The single migration head. Named once, so adding a migration touches one line here
 instead of every schema test that asserts "a round trip came back to head"."""
 

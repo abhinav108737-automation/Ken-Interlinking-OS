@@ -46,6 +46,7 @@ refused, so a partial day is never stored.
 
 from __future__ import annotations
 
+import hashlib
 import uuid
 from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
@@ -58,6 +59,7 @@ from ken_contracts.analytics import (
     ANALYTICS_EMITTED_BY,
     LINK_SOURCES,
     PAGE_SOURCES,
+    QUERY_SOURCES,
     SUBJECT_ANALYTICS_IMPORT,
     AnalyticsBatch,
     AnalyticsBatchProvider,
@@ -69,7 +71,9 @@ from ken_contracts.analytics import (
     ImportVia,
     LinkMetrics,
     LiveWindow,
+    MetricSource,
     PageMetrics,
+    QueryMetrics,
 )
 from ken_contracts.events import EventEnvelope, EventName
 from ken_contracts.inventory import RunStatus
@@ -133,6 +137,7 @@ class PreparedRows:
 
     link_rows: list[repo.LinkRow] = field(default_factory=list)
     page_rows: list[repo.PageRow] = field(default_factory=list)
+    query_rows: list[repo.QueryRow] = field(default_factory=list)
     counters: dict[str, int] = field(default_factory=lambda: dict.fromkeys(COUNTER_NAMES, 0))
 
     def count(self, name: str, by: int = 1) -> None:
@@ -144,7 +149,9 @@ class PreparedRows:
 
     @property
     def pages_affected(self) -> int:
-        return len({row.page_id for row in self.page_rows})
+        return len(
+            {row.page_id for row in self.page_rows} | {row.page_id for row in self.query_rows}
+        )
 
 
 def _live_days(window: LiveWindow, *, timezone: str) -> tuple[date, date | None] | None:
@@ -157,7 +164,10 @@ def _live_days(window: LiveWindow, *, timezone: str) -> tuple[date, date | None]
 
 
 def _daily_day(
-    item: LinkMetrics | PageMetrics, *, date_range: DateRange, prepared: PreparedRows
+    item: LinkMetrics | PageMetrics | QueryMetrics,
+    *,
+    date_range: DateRange,
+    prepared: PreparedRows,
 ) -> date | None:
     if item.range.start != item.range.end:
         prepared.count("non_daily_row")
@@ -183,6 +193,7 @@ def prepare_rows(
     known_plans: set[uuid.UUID],
     known_pages: set[uuid.UUID],
     windows: Mapping[uuid.UUID, LiveWindow],
+    max_queries_per_page_day: int = 50,
 ) -> PreparedRows:
     """Validate, drop and MERGE provider rows into what the database will hold.
 
@@ -232,6 +243,58 @@ def prepare_rows(
             )
             for (_source, day, plan_id), counts in sorted(merged.items(), key=lambda i: i[0])
         ]
+        return prepared
+
+    if request.dataset is Dataset.QUERIES:
+        merged_queries: dict[tuple[date, uuid.UUID, str], list[Any]] = {}
+        for query_row in batch.query_rows:
+            day = _daily_day(query_row, date_range=request.date_range, prepared=prepared)
+            if day is None:
+                continue
+            if query_row.source is not MetricSource.SEARCH_CONSOLE:
+                prepared.count("rejected_invalid")
+                continue
+            page_id = _uuid_or_none(query_row.page_id)
+            if page_id is None or page_id not in known_pages:
+                prepared.count("unresolved_url")
+                continue
+            query_hash = hashlib.sha256(query_row.query.encode("utf-8")).hexdigest()
+            position_sum = (
+                0.0
+                if query_row.position is None or query_row.impressions == 0
+                else query_row.position * query_row.impressions
+            )
+            query_key = (day, page_id, query_hash)
+            if query_key in merged_queries:
+                prepared.count("merged_rows")
+                values = merged_queries[query_key]
+                values[1] += query_row.impressions
+                values[2] += query_row.clicks
+                values[3] += position_sum
+            else:
+                merged_queries[query_key] = [
+                    query_row.query,
+                    query_row.impressions,
+                    query_row.clicks,
+                    position_sum,
+                ]
+        grouped: dict[tuple[date, uuid.UUID], list[repo.QueryRow]] = {}
+        for (day, page_id, query_hash), values in merged_queries.items():
+            grouped.setdefault((day, page_id), []).append(
+                repo.QueryRow(
+                    metric_date=day,
+                    page_id=page_id,
+                    query_hash=query_hash,
+                    query=str(values[0]),
+                    impressions=int(values[1]),
+                    clicks=int(values[2]),
+                    position_sum=float(values[3]) if int(values[1]) > 0 else 0.0,
+                )
+            )
+        for rows in grouped.values():
+            rows.sort(key=lambda row: (-row.impressions, -row.clicks, row.query_hash))
+            prepared.query_rows.extend(rows[:max_queries_per_page_day])
+        prepared.query_rows.sort(key=lambda row: row.key)
         return prepared
 
     merged_pages: dict[tuple[str, date, uuid.UUID], list[float]] = {}
@@ -290,8 +353,16 @@ def _validate_request(
 ) -> None:
     """Every refusal that needs no I/O (mirrors the 0008 ledger CHECKs plus the lag rule)."""
     validate_range(request.date_range)
-    sources = LINK_SOURCES if request.dataset is Dataset.LINKS else PAGE_SOURCES
+    sources = {
+        Dataset.LINKS: LINK_SOURCES,
+        Dataset.PAGES: PAGE_SOURCES,
+        Dataset.QUERIES: QUERY_SOURCES,
+    }[request.dataset]
     if request.source not in sources:
+        raise AnalyticsImportError(ImportErrorCode.INVALID_REQUEST)
+    if request.dataset is Dataset.QUERIES and request.date_range.start != request.date_range.end:
+        # Query cardinality is far higher than page cardinality. One day per transaction
+        # bounds provider memory, retry cost and the writer-lock duration.
         raise AnalyticsImportError(ImportErrorCode.INVALID_REQUEST)
     if request.via is ImportVia.COLLECTOR and (
         request.source is not AnalyticsSource.FIRST_PARTY or request.dataset is not Dataset.LINKS
@@ -494,6 +565,11 @@ async def _import_once(
         for parsed in (_uuid_or_none(row.page_id) for row in batch.page_rows)
         if parsed is not None
     }
+    page_ids.update(
+        parsed
+        for parsed in (_uuid_or_none(row.page_id) for row in batch.query_rows)
+        if parsed is not None
+    )
     async with sessionmaker() as reading:
         known_plans = await repo.plan_ids_present(reading, plan_ids)
         known_pages = await repo.page_ids_present(reading, page_ids)
@@ -504,10 +580,13 @@ async def _import_once(
         known_plans=known_plans,
         known_pages=known_pages,
         windows=windows,
+        max_queries_per_page_day=policy.imports.max_queries_per_page_day,
     )
-    rows_written = (
-        len(prepared.link_rows) if stamped.dataset is Dataset.LINKS else len(prepared.page_rows)
-    )
+    rows_written = {
+        Dataset.LINKS: len(prepared.link_rows),
+        Dataset.PAGES: len(prepared.page_rows),
+        Dataset.QUERIES: len(prepared.query_rows),
+    }[stamped.dataset]
     _refuse_destructive_replace(prepared, rows_written=rows_written, request=stamped)
 
     import_id = uuid.uuid4()
@@ -521,12 +600,16 @@ async def _import_once(
                 start=stamped.date_range.start,
                 end=stamped.date_range.end,
             )
-        else:
+        elif stamped.dataset is Dataset.PAGES:
             origins = await repo.existing_page_origins(
                 session,
                 source=stamped.source,
                 start=stamped.date_range.start,
                 end=stamped.date_range.end,
+            )
+        else:
+            origins = await repo.existing_query_origins(
+                session, start=stamped.date_range.start, end=stamped.date_range.end
             )
         _check_mix(origins, request=stamped)
         if stamped.dataset is Dataset.LINKS:
@@ -536,12 +619,16 @@ async def _import_once(
                 start=stamped.date_range.start,
                 end=stamped.date_range.end,
             )
-        else:
+        elif stamped.dataset is Dataset.PAGES:
             await repo.replace_delete_pages(
                 session,
                 source=stamped.source,
                 start=stamped.date_range.start,
                 end=stamped.date_range.end,
+            )
+        else:
+            await repo.replace_delete_queries(
+                session, start=stamped.date_range.start, end=stamped.date_range.end
             )
         await repo.insert_import(
             session,
@@ -570,9 +657,13 @@ async def _import_once(
             await repo.insert_link_rows(
                 session, prepared.link_rows, import_id=import_id, synthetic=stamped.synthetic
             )
-        else:
+        elif stamped.dataset is Dataset.PAGES:
             await repo.insert_page_rows(
                 session, prepared.page_rows, import_id=import_id, synthetic=stamped.synthetic
+            )
+        else:
+            await repo.insert_query_rows(
+                session, prepared.query_rows, import_id=import_id, synthetic=stamped.synthetic
             )
         prepared.counters["rows_written"] = rows_written
         if stamped.dataset is Dataset.LINKS and not stamped.synthetic:

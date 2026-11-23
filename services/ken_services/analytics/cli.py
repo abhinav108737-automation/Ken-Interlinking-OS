@@ -34,7 +34,7 @@ import asyncio
 import json
 import sys
 from collections.abc import Sequence
-from datetime import date, datetime
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Final
 
@@ -64,7 +64,7 @@ from ken_services.analytics.protocol import (
 )
 from ken_services.analytics.synthetic import DEFAULT_SEED, run_demo_seed
 from ken_services.analytics.urls import InventoryUrlResolver
-from ken_services.analytics.windows import source_timezone
+from ken_services.analytics.windows import day_of, source_timezone
 from ken_services.jobs.runner import JobAlreadyRunningError
 
 __all__ = ["EXIT_OK", "EXIT_RUN_ERROR", "EXIT_USAGE", "SOURCE_ALIASES", "main", "outcome_line"]
@@ -107,6 +107,16 @@ def _seed(value: str) -> str:
     return text
 
 
+def _days(value: str) -> int:
+    try:
+        parsed = int(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError("must be an integer") from None
+    if not 1 <= parsed <= 31:
+        raise argparse.ArgumentTypeError("must be between 1 and 31")
+    return parsed
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="python -m ken_services.analytics.cli",
@@ -125,6 +135,17 @@ def _parser() -> argparse.ArgumentParser:
         type=_existing_file,
         help="A canonical CSV (ken_link_daily / ken_page_daily).",
     )
+    importer.add_argument(
+        "--queries",
+        action="store_true",
+        help="Required opt-in for the GSC queries dataset.",
+    )
+
+    sync = commands.add_parser(
+        "sync", help="Refresh trailing safe GA4/GSC page windows; optionally GSC queries."
+    )
+    sync.add_argument("--days", default=7, type=_days)
+    sync.add_argument("--queries", action="store_true")
     importer.add_argument(
         "--replace-via",
         dest="replace_via",
@@ -177,6 +198,20 @@ async def _build_provider(
 async def _import(settings: Settings, policy: AnalyticsPolicy, args: argparse.Namespace) -> int:
     source = SOURCE_ALIASES[args.source]
     dataset = Dataset(args.dataset)
+    queries_opt_in = bool(getattr(args, "queries", False))
+    if (dataset is Dataset.QUERIES) != queries_opt_in:
+        print(
+            "configuration error: the queries dataset requires --queries and --queries "
+            "is only valid for that dataset",
+            file=sys.stderr,
+        )
+        return EXIT_USAGE
+    if dataset is Dataset.QUERIES and source is not AnalyticsSource.SEARCH_CONSOLE:
+        print("configuration error: queries are Search Console only", file=sys.stderr)
+        return EXIT_USAGE
+    if dataset is Dataset.QUERIES and args.file is not None:
+        print("configuration error: query imports are API-only", file=sys.stderr)
+        return EXIT_USAGE
     if args.file is not None:
         provider_name, via = "csv", ImportVia.CSV
     elif source in _API_PROVIDERS:
@@ -267,6 +302,57 @@ async def _aggregate(settings: Settings, policy: AnalyticsPolicy, args: argparse
     return EXIT_OK
 
 
+async def _sync(settings: Settings, policy: AnalyticsPolicy, args: argparse.Namespace) -> int:
+    """Idempotently replace trailing source-safe windows for a scheduler."""
+    moment = datetime.now(UTC)
+    runs = [
+        (AnalyticsSource.GA4, Dataset.PAGES, False),
+        (AnalyticsSource.SEARCH_CONSOLE, Dataset.PAGES, False),
+    ]
+    for source, dataset, queries in runs:
+        timezone = source_timezone(source, settings)
+        end = day_of(moment, timezone) - timedelta(days=policy.lag_days(source))
+        start = end - timedelta(days=args.days - 1)
+        code = await _import(
+            settings,
+            policy,
+            argparse.Namespace(
+                source=source.value,
+                dataset=dataset.value,
+                start=start,
+                end=end,
+                file=None,
+                replace_via=False,
+                queries=queries,
+            ),
+        )
+        if code != EXIT_OK:
+            return code
+    if args.queries:
+        source = AnalyticsSource.SEARCH_CONSOLE
+        timezone = source_timezone(source, settings)
+        end = day_of(moment, timezone) - timedelta(days=policy.lag_days(source))
+        start = end - timedelta(days=args.days - 1)
+        for offset in range(args.days):
+            day = start + timedelta(days=offset)
+            code = await _import(
+                settings,
+                policy,
+                argparse.Namespace(
+                    source=source.value,
+                    dataset=Dataset.QUERIES.value,
+                    start=day,
+                    end=day,
+                    file=None,
+                    replace_via=False,
+                    queries=True,
+                ),
+            )
+            if code != EXIT_OK:
+                return code
+    return EXIT_OK
+
+
 async def _demo_seed(settings: Settings, policy: AnalyticsPolicy, args: argparse.Namespace) -> int:
     engine = create_engine(settings)
     try:
@@ -305,6 +391,8 @@ async def _run(settings: Settings, policy: AnalyticsPolicy, args: argparse.Names
             return await _import(settings, policy, args)
         case "aggregate":
             return await _aggregate(settings, policy, args)
+        case "sync":
+            return await _sync(settings, policy, args)
         case "demo-seed":
             return await _demo_seed(settings, policy, args)
         case _:  # pragma: no cover - argparse requires a known command

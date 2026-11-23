@@ -89,12 +89,48 @@ function cardHtml(proposal) {
 
 function render() {
   updateMetrics();
+  renderAnalyticsComparison();
   renderGraph();
   const rows = filtered();
   $("#queue-count").textContent = `${rows.length} of ${state.data.proposals.length} proposals shown`;
   cards.innerHTML = rows.length ? rows.map(cardHtml).join("") : '<div class="empty">No proposals match these filters.</div>';
   document.querySelectorAll(".decide").forEach((button) => button.addEventListener("click", () => openDecision(button.dataset.id)));
   document.querySelectorAll(".queue-action").forEach((button) => button.addEventListener("click", () => queue(button.dataset.id, button.dataset.queued === "true")));
+}
+
+function formatScore(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number.toFixed(6) : "-";
+}
+
+function renderAnalyticsComparison() {
+  const comparison = state.data?.analytics_comparison;
+  const status = $("#analytics-comparison-status");
+  const summary = $("#analytics-comparison-summary");
+  const authoritySummary = $("#authority-transfer-summary");
+  const body = $("#analytics-comparison-body");
+  if (!status || !summary || !authoritySummary || !body) return;
+  if (!comparison?.candidates?.length) {
+    status.textContent = "No comparison available";
+    summary.textContent = "The dashboard API did not return an analytics ranking comparison.";
+    authoritySummary.textContent = "";
+    body.innerHTML = '<tr><td colspan="8">No comparison candidates are available.</td></tr>';
+    return;
+  }
+  status.textContent = `${reasonLabel(comparison.status)} v2 · review order only`;
+  const source = comparison.source ?? {};
+  const formula = comparison.formula ?? {};
+  const authority = comparison.authority_transfer ?? {};
+  summary.innerHTML = `<div><span class="score-caption">Sample source paragraph</span><strong><a href="${escapeHtml(source.url)}" target="_blank" rel="noreferrer">${escapeHtml(source.title)}</a></strong><small>${escapeHtml(comparison.baseline_policy)} compared with ${escapeHtml(comparison.comparison_policy)} · ${escapeHtml(comparison.window?.days)} days ending ${escapeHtml(comparison.window?.ends_on)}</small></div><p><strong>Formula:</strong> 95% relevance + 3.5% GSC + 1.5% GA4, capped at ${escapeHtml(formula.maximum_analytics_boost)} analytics boost. ${escapeHtml(formula.guardrail)}</p>`;
+  authoritySummary.innerHTML = `<div><span class="score-caption">Directional authority passing</span><strong>${escapeHtml(reasonLabel(authority.status))} ${escapeHtml(authority.policy)}</strong></div><p><strong>${escapeHtml(authority.formula)}</strong> · ${escapeHtml(authority.source_authority)}. Target need: ${escapeHtml(authority.target_search_need)}.</p><p>${escapeHtml(authority.guardrail)}</p>`;
+  body.innerHTML = comparison.candidates.map((candidate) => {
+    const movement = Number(candidate.baseline_rank) - Number(candidate.comparison_rank);
+    const movementClass = movement > 0 ? "up" : movement < 0 ? "down" : "same";
+    const movementLabel = movement > 0 ? `Up ${movement}` : movement < 0 ? `Down ${Math.abs(movement)}` : "No change";
+    const placement = candidate.placement ?? {};
+    const excerpt = `${placement.before ?? ""}[${placement.anchor ?? ""}]${placement.after ?? ""}`;
+    return `<tr><td><a class="comparison-target" href="${escapeHtml(candidate.url)}" target="_blank" rel="noreferrer">${escapeHtml(candidate.title)}</a><span class="placement-meta">${escapeHtml(placement.block_kind)} · ${escapeHtml(placement.block_id)}</span><span class="placement-excerpt">${escapeHtml(excerpt)}</span></td><td class="rank-cell"><strong>#${escapeHtml(candidate.baseline_rank)}</strong></td><td class="rank-cell"><strong>#${escapeHtml(candidate.comparison_rank)}</strong><span class="movement ${movementClass}">${escapeHtml(movementLabel)}</span></td><td>${formatScore(candidate.relevance_score)}</td><td>${formatScore(candidate.gsc_signal)}</td><td>${formatScore(candidate.ga4_signal)}</td><td>${formatScore(candidate.analytics_priority)}</td><td><strong>${formatScore(candidate.ordering_score)}</strong></td></tr>`;
+  }).join("");
 }
 
 function renderGraph() {

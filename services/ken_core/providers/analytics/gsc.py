@@ -34,6 +34,7 @@ from ken_contracts.analytics import (
     MetricSource,
     PageMetrics,
     PageUrlResolver,
+    QueryMetrics,
 )
 from ken_contracts.model import ProviderHealth
 from ken_core.config import Settings
@@ -120,11 +121,13 @@ class SearchConsoleAnalyticsProvider(BaseAnalyticsProvider):
         return f"/webmasters/v3/sites/{quote(self._site, safe='')}/searchAnalytics/query"
 
     @staticmethod
-    def query_body(date_range: DateRange, *, start_row: int) -> dict[str, Any]:
+    def query_body(
+        date_range: DateRange, *, start_row: int, include_queries: bool = False
+    ) -> dict[str, Any]:
         return {
             "startDate": date_range.start.isoformat(),
             "endDate": date_range.end.isoformat(),
-            "dimensions": ["date", "page"],
+            "dimensions": ["date", "page", "query"] if include_queries else ["date", "page"],
             "type": "web",
             "dataState": "final",
             "rowLimit": GSC_ROW_LIMIT,
@@ -135,29 +138,77 @@ class SearchConsoleAnalyticsProvider(BaseAnalyticsProvider):
         self, *, date_range: DateRange, datasets: frozenset[Dataset]
     ) -> AnalyticsBatch:
         self._egress.gate()  # before ANY I/O, and before the token file is touched
-        if Dataset.PAGES not in datasets:
+        include_queries = Dataset.QUERIES in datasets
+        if Dataset.PAGES not in datasets and not include_queries:
             # Search Console has no link-level data: nothing to fetch, nothing sent.
             return AnalyticsBatch()
         path = self._path()
         token = await self._egress.access_token()
         stats = StatsBuilder()
         page_rows: list[PageMetrics] = []
+        query_rows: list[QueryMetrics] = []
         start_row = 0
         for _ in range(MAX_PAGES):
             payload = await self._egress.post(
-                path, body=self.query_body(date_range, start_row=start_row), token=token
+                path,
+                body=self.query_body(
+                    date_range, start_row=start_row, include_queries=include_queries
+                ),
+                token=token,
             )
             rows = payload.get("rows")
             batch = rows if isinstance(rows, list) else []
             for row in batch:
                 stats.rows_read += 1
-                parsed = self._row(row, stats)
+                parsed = self._query_row(row, stats) if include_queries else self._row(row, stats)
                 if parsed is not None:
-                    page_rows.append(parsed)
+                    if isinstance(parsed, QueryMetrics):
+                        query_rows.append(parsed)
+                    else:
+                        page_rows.append(parsed)
             start_row += len(batch)
             if len(batch) < GSC_ROW_LIMIT:
                 break
-        return AnalyticsBatch(page_rows=tuple(page_rows), stats=stats.build())
+        return AnalyticsBatch(
+            page_rows=tuple(page_rows), query_rows=tuple(query_rows), stats=stats.build()
+        )
+
+    def _query_row(self, row: Any, stats: StatsBuilder) -> QueryMetrics | None:
+        keys = row.get("keys") if isinstance(row, dict) else None
+        if not isinstance(keys, list) or len(keys) != 3:
+            stats.rejected_invalid += 1
+            return None
+        day = _parse_day(keys[0])
+        url, query = keys[1], keys[2]
+        clicks = _count_of(row.get("clicks"))
+        impressions = _count_of(row.get("impressions"))
+        position = _position_of(row.get("position"))
+        if (
+            day is None
+            or not isinstance(url, str)
+            or not isinstance(query, str)
+            or not query
+            or len(query) > 500
+            or clicks is None
+            or impressions is None
+        ):
+            stats.rejected_invalid += 1
+            return None
+        page_id = stats.resolve(self._resolver, url)
+        if page_id is None:
+            return None
+        try:
+            return QueryMetrics(
+                page_id=page_id,
+                range=DateRange(start=day, end=day),
+                query=query,
+                impressions=impressions,
+                clicks=clicks,
+                position=position,
+            )
+        except ValueError:
+            stats.rejected_invalid += 1
+            return None
 
     def _row(self, row: Any, stats: StatsBuilder) -> PageMetrics | None:
         keys = row.get("keys") if isinstance(row, dict) else None

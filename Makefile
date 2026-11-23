@@ -24,7 +24,7 @@ export NEXT_TELEMETRY_DISABLED := 1
         ingest-file ingest-cms-mock crawl analyze recommend modules agents \
         user-create user-list user-disable user-enable user-set-role user-set-password \
         sessions-prune deployments-reconcile jobs-reap cms-sim-seed cms-sim-serve \
-        analytics-import analytics-aggregate analytics-demo-seed analytics-sim-serve \
+        analytics-import analytics-sync analytics-aggregate analytics-demo-seed analytics-sim-serve \
         reflect eval shadow policy-promote experiment-create experiment-assign \
         qdrant-up qdrant-down qdrant-index qdrant-rebuild qdrant-verify graph-metrics \
         autonomy autonomy-shadow autonomy-run autonomy-dry-run
@@ -207,10 +207,13 @@ cms-sim-serve: ## Serve the simulated CMS on 127.0.0.1:<free port> (prints the v
 # action can cause Google egress. GA4 / Search Console calls need KEN_ANALYTICS_GOOGLE_ENABLED
 # (ASK) and a 0600 token file; without FILE= and without that setting the import is refused
 # before any I/O. Every run is one ANALYTICS_IMPORT job, so `make jobs-reap` applies.
-analytics-import: ## Import daily rows: make analytics-import SOURCE=ga4|gsc|first_party DATASET=links|pages START=YYYY-MM-DD END=YYYY-MM-DD [FILE=rows.csv] [ARGS=--replace-via]
+analytics-import: ## Import rows: SOURCE=ga4|gsc|first_party DATASET=links|pages|queries START= END= [ARGS=--queries]
 	@test -n "$(SOURCE)" && test -n "$(DATASET)" && test -n "$(START)" && test -n "$(END)" \
-	  || (echo 'usage: make analytics-import SOURCE=ga4|gsc|first_party DATASET=links|pages START=YYYY-MM-DD END=YYYY-MM-DD [FILE=rows.csv]' >&2; exit 2)
+	  || (echo 'usage: make analytics-import SOURCE=ga4|gsc|first_party DATASET=links|pages|queries START=YYYY-MM-DD END=YYYY-MM-DD [FILE=rows.csv]' >&2; exit 2)
 	$(VENV)/python -m ken_services.analytics.cli import --source "$(SOURCE)" --dataset "$(DATASET)" --start "$(START)" --end "$(END)" $(if $(FILE),--file "$(FILE)") $(ARGS)
+
+analytics-sync: ## Refresh trailing GA4/GSC pages: make analytics-sync [DAYS=7] [ARGS=--queries]
+	$(VENV)/python -m ken_services.analytics.cli sync --days "$(or $(DAYS),7)" $(ARGS)
 
 analytics-aggregate: ## First-party link events -> daily rows, then the measure sweep: make analytics-aggregate [START= END=]
 	$(VENV)/python -m ken_services.analytics.cli aggregate $(if $(START),--start "$(START)") $(if $(END),--end "$(END)")

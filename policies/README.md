@@ -4,6 +4,8 @@ Versioned **policy data**. TRD.md §12 requires ranking weights to live here, no
 
 | File | Status | Loaded by |
 |---|---|---|
+| `ranking/ranking_weights.v2.yaml` | proposed analytics-priority comparison | `resolve_ranking_policy` via `recommendation.v2.yaml`; not active by default |
+| `recommendation/recommendation.v2.yaml` | proposed analytics retrieval comparison | explicit offline/shadow use only; not active by default |
 | `ranking/ranking_weights.v1.yaml` | baseline (TRD §12) | `resolve_ranking_policy`, via the `ranking_policy:` pointer in the recommendation document — **not** from `Settings` |
 | `recommendation/recommendation.v1.yaml` | baseline | `load_recommendation_policy` |
 | `taxonomy/taxonomy.v1.yaml` | illustrative seed | `load_taxonomy` |

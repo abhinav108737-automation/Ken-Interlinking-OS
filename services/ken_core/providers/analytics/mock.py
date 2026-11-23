@@ -18,6 +18,7 @@ from ken_contracts.analytics import (
     FetchStats,
     LinkMetrics,
     PageMetrics,
+    QueryMetrics,
 )
 from ken_core.providers.analytics.base import (
     AnalyticsFetchError,
@@ -40,11 +41,13 @@ class MockAnalyticsProvider(BaseAnalyticsProvider):
         *,
         link_rows: Iterable[LinkMetrics] = (),
         page_rows: Iterable[PageMetrics] = (),
+        query_rows: Iterable[QueryMetrics] = (),
         stats: FetchStats | None = None,
         error: FetchErrorCode | None = None,
     ) -> None:
         self._link_rows = tuple(link_rows)
         self._page_rows = tuple(page_rows)
+        self._query_rows = tuple(query_rows)
         self._stats = stats
         self._error = error
         self.calls: list[tuple[DateRange, frozenset[Dataset]]] = []
@@ -57,7 +60,8 @@ class MockAnalyticsProvider(BaseAnalyticsProvider):
             raise AnalyticsFetchError(self._error)
         links = self._link_rows if Dataset.LINKS in datasets else ()
         pages = self._page_rows if Dataset.PAGES in datasets else ()
+        queries = self._query_rows if Dataset.QUERIES in datasets else ()
         stats = self._stats
         if stats is None:
-            stats = FetchStats(rows_read=len(links) + len(pages))
-        return AnalyticsBatch(link_rows=links, page_rows=pages, stats=stats)
+            stats = FetchStats(rows_read=len(links) + len(pages) + len(queries))
+        return AnalyticsBatch(link_rows=links, page_rows=pages, query_rows=queries, stats=stats)

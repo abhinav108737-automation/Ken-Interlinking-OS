@@ -181,6 +181,25 @@ def _page_row(c: Connection, **overrides: Any) -> None:
     )
 
 
+def _query_row(c: Connection, **overrides: Any) -> None:
+    values: dict[str, Any] = {
+        "page": SOURCE,
+        "query_hash": sha256(b"battery market").hexdigest(),
+        "query": "battery market",
+        "imp": 100,
+        "clk": 5,
+        "pos": 350.0,
+    } | overrides
+    c.execute(
+        text(
+            "INSERT INTO page_query_metrics_daily (metric_date, page_id, query_hash, query, "
+            "impressions, clicks, position_sum, import_id, synthetic) VALUES (DATE '2026-09-01', "
+            ":page, :query_hash, :query, :imp, :clk, :pos, :imp_id, true)"
+        ),
+        {"imp_id": IMPORT, **values},
+    )
+
+
 def _measurement(c: Connection, **overrides: Any) -> None:
     values: dict[str, Any] = {"imports": json.dumps([str(IMPORT)])} | overrides
     c.execute(
@@ -201,6 +220,7 @@ def _seed_all(c: Connection) -> None:
     _event(c)
     _link_row(c)
     _page_row(c)
+    _query_row(c)
 
 
 @pytest.fixture
@@ -298,6 +318,7 @@ _UPDATES = {
     "link_events": "UPDATE link_events SET match_mode = 'href'",
     "link_metrics_daily": "UPDATE link_metrics_daily SET clicks = clicks + 1",
     "page_metrics_daily": "UPDATE page_metrics_daily SET clicks = clicks + 1",
+    "page_query_metrics_daily": "UPDATE page_query_metrics_daily SET clicks = clicks + 1",
 }
 
 
@@ -404,7 +425,7 @@ def test_enum_checks_match_the_contract_vocabulary(db: SyncDb) -> None:
                 "SELECT conname, pg_get_constraintdef(oid) FROM pg_constraint "
                 "WHERE contype = 'c' AND conrelid = ANY(ARRAY['analytics_imports'::regclass, "
                 "'link_events'::regclass, 'link_metrics_daily'::regclass, "
-                "'page_metrics_daily'::regclass])"
+                "'page_metrics_daily'::regclass, 'page_query_metrics_daily'::regclass])"
             )
         ).all()
         return {str(name): str(definition) for name, definition in rows}
@@ -465,6 +486,8 @@ def test_received_at_minute_check_is_independent_of_the_session_time_zone(db: Sy
          "ck_analytics_imports_link_dataset_source"),
         ({"source": "first_party", "dataset": "pages", "via": "csv", "file_name": "a.csv",
           "file_sha256": SHA}, "ck_analytics_imports_page_dataset_source"),
+        ({"source": "ga4", "dataset": "queries", "via": "api", "synthetic": False},
+         "ck_analytics_imports_query_dataset_source"),
         ({"source": "ga4"}, "ck_analytics_imports_collector_is_first_party_links"),
         ({"via": "api"}, "ck_analytics_imports_api_is_google"),
         ({"via": "synthetic", "synthetic": False}, "ck_analytics_imports_synthetic_via_is_synthetic"),  # noqa: E501
@@ -508,9 +531,17 @@ def test_valid_ledger_variants(db: SyncDb) -> None:
             end="2026-09-04",  # exactly 400 days, inclusive
         )
         _import(c, id=uuid.uuid4(), source="search_console", dataset="pages", via="synthetic")
+        _import(
+            c,
+            id=uuid.uuid4(),
+            source="search_console",
+            dataset="queries",
+            via="api",
+            synthetic=False,
+        )
 
     db.run(_go)
-    assert _count(db, "analytics_imports") == 4
+    assert _count(db, "analytics_imports") == 5
 
 
 @pytest.mark.parametrize(
@@ -522,6 +553,10 @@ def test_valid_ledger_variants(db: SyncDb) -> None:
         (lambda c: _page_row(c, source="ga4", pv=-1), "ck_page_metrics_daily_counts_non_negative"),
         (lambda c: _page_row(c, source="ga4", imp=0, pos=1.0), "ck_page_metrics_daily_position_sum_valid"),  # noqa: E501
         (lambda c: _page_row(c, source="ga4", pos=-1.0), "ck_page_metrics_daily_position_sum_valid"),  # noqa: E501
+        (lambda c: _query_row(c, query_hash="bad"), "ck_page_query_metrics_daily_query_hash_sha256"),  # noqa: E501
+        (lambda c: _query_row(c, query=""), "ck_page_query_metrics_daily_query_bounded"),
+        (lambda c: _query_row(c, clk=-1), "ck_page_query_metrics_daily_counts_non_negative"),
+        (lambda c: _query_row(c, imp=0, pos=1.0), "ck_page_query_metrics_daily_position_sum_valid"),
         (lambda c: _measurement(c, imports="[]"), "ck_link_measurements_import_ids_non_empty_array"),  # noqa: E501
     ],
 )  # fmt: skip

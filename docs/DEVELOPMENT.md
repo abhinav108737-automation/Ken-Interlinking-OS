@@ -183,6 +183,13 @@ Reading analytics needs no configuration. Producing data has three paths.
   file's `source` column. Without `FILE`, `ga4` and `gsc` call Google, which is **off by default**
   (`KEN_ANALYTICS_GOOGLE_ENABLED`) and an ASK action; `first_party` without `FILE` is refused and
   points you at `make analytics-aggregate`.
+- **GSC queries (explicit opt-in):** `make analytics-import SOURCE=gsc DATASET=queries
+  START=YYYY-MM-DD END=YYYY-MM-DD ARGS=--queries`. Query imports are API-only and one day per
+  transaction; each page/day retains its top 50 queries by impressions, with a SHA-256 query key.
+- **Daily refresh:** `make analytics-sync DAYS=7 ARGS=--queries` replaces the trailing safe
+  windows for GA4 and GSC pages and imports GSC queries one day at a time. On Windows,
+  `tools/analytics-sync.ps1` supplies the full-site local database and enables Google only for
+  the duration of that run; register that wrapper with the chosen production scheduler.
 
 An import is **authoritative for its whole range**: it deletes those dates and re-inserts, in one
 transaction, so re-running it is safe and repeatable. It refuses to mix synthetic with real rows,

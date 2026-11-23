@@ -16,6 +16,16 @@ followability, destination HTTP status and `noindex`, canonical href alignment, 
 presentation. These are hard gates, not bonus points. Google index and ranking status remain
 unknown unless Search Console data is connected.
 
+The dashboard also reads `data/v02-contextual-review/analytics-ranking-comparison.json` and shows
+the proposed GA4/GSC v2 review order beside the relevance-only baseline, including the exact
+paragraph or list-item placement used for each candidate. This comparison changes review order
+only; it does not bypass any editorial or technical gate. Override the file with
+`KEN_REVIEW_ANALYTICS_COMPARISON_PATH` when validating a different sample.
+
+The same panel describes the proposed v3 directional authority-transfer signal. It combines a
+source page's observed GSC visibility and GA4 attention with a target page's observed search
+weakness. Missing GSC data remains unknown; it is not presented as proof of non-indexation.
+
 ## Start
 
 1. Refresh the proposal dataset and workbook:

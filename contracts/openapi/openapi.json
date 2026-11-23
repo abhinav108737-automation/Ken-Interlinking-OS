@@ -1894,7 +1894,8 @@
       "Dataset": {
         "enum": [
           "links",
-          "pages"
+          "pages",
+          "queries"
         ],
         "title": "Dataset",
         "type": "string"

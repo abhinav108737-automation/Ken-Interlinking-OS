@@ -82,7 +82,7 @@ const SOURCE: Readonly<Record<AnalyticsSource, Labelled>> = {
   search_console: {
     label: "Search Console",
     description:
-      "Google Search Console. Page-level only (impressions, clicks and average position); it has no link-level data.",
+      "Google Search Console. Page and query metrics include impressions, clicks and average position; it has no link-level data.",
   },
   first_party: {
     label: "First-party",
@@ -98,6 +98,7 @@ export const PAGE_SOURCES: readonly AnalyticsSource[] = ["ga4", "search_console"
 const DATASET: Readonly<Record<Dataset, string>> = {
   links: "Links",
   pages: "Pages",
+  queries: "Queries",
 };
 
 const IMPORT_VIA: Readonly<Record<ImportVia, string>> = {

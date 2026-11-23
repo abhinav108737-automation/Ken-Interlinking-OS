@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime, timedelta
+from hashlib import sha256
 from pathlib import Path
 
 import pytest
@@ -23,6 +24,7 @@ from ken_contracts.analytics import (
     LinkMetrics,
     MetricSource,
     PageMetrics,
+    QueryMetrics,
 )
 from ken_services.analytics.protocol import (
     AnalyticsImportError,
@@ -121,6 +123,46 @@ async def test_a_csv_import_writes_rows_a_ledger_row_and_one_event(
     assert events[0].subject_type == "analytics_import"
     assert events[0].emitted_by == "ken-analytics"
     assert events[0].correlation_id == outcome.job_run_id
+
+
+async def test_gsc_query_import_hashes_caps_and_replaces_rows(
+    migrated: None, sessionmaker: SM
+) -> None:
+    pages = await seed_pages(sessionmaker, SOURCE)
+    day = DateRange(start=datetime(2026, 5, 11).date(), end=datetime(2026, 5, 11).date())
+    rows = [
+        QueryMetrics(
+            page_id=str(pages[SOURCE]),
+            range=day,
+            query=f"query {index}",
+            impressions=100 - index,
+            clicks=index % 3,
+            position=2.0,
+        )
+        for index in range(55)
+    ]
+    outcome = await run_mock_import(
+        sessionmaker,
+        request=ImportRequest(
+            source=AnalyticsSource.SEARCH_CONSOLE,
+            dataset=Dataset.QUERIES,
+            via=ImportVia.API,
+            date_range=day,
+            source_timezone="America/Los_Angeles",
+        ),
+        query_rows=rows,
+        now=datetime(2026, 5, 15, tzinfo=UTC),
+    )
+    stored = await rows_of(
+        sessionmaker,
+        "SELECT query, query_hash, impressions FROM page_query_metrics_daily "
+        "ORDER BY impressions DESC, query_hash",
+    )
+    assert len(stored) == 50
+    assert outcome.counters["rows_written"] == 50
+    assert stored[0].query == "query 0"
+    assert stored[0].query_hash == sha256(b"query 0").hexdigest()
+    assert all(len(row.query_hash) == 64 for row in stored)
 
 
 async def test_importing_the_same_file_twice_gives_identical_rows(

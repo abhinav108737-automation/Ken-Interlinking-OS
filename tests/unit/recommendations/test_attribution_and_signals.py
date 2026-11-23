@@ -10,6 +10,7 @@ from datetime import UTC, datetime
 import pytest
 
 from ken_contracts.recommendations import (
+    AnalyticsPriorityPolicy,
     CandidateView,
     GraphSignals,
     RetrievalChannel,
@@ -204,6 +205,84 @@ def test_analytics_and_graph_signals_do_not_change_the_score() -> None:
     )
     assert loud.breakdown.relevance == plain.breakdown.relevance
     assert loud.breakdown.components == plain.breakdown.components
+    assert loud.priority_score == loud.breakdown.relevance
+
+
+def test_v2_analytics_priority_reorders_without_changing_relevance_or_confidence() -> None:
+    proposed = ranking().model_copy(
+        update={
+            "version": 2,
+            "analytics_priority": AnalyticsPriorityPolicy(
+                enabled=True,
+                max_boost=0.05,
+                weights={"gsc_opportunity": 0.7, "ga4_engagement": 0.3},
+            ),
+        }
+    )
+    plain = score_pair(
+        _features(), policy=policy(), ranking=proposed, taxonomy=taxonomy(), semantic_floor=0.5
+    )
+    measured = score_pair(
+        _features(gsc_opportunity=0.8, ga4_engagement=0.4),
+        policy=policy(),
+        ranking=proposed,
+        taxonomy=taxonomy(),
+        semantic_floor=0.5,
+    )
+    assert measured.breakdown == plain.breakdown
+    assert measured.analytics_priority == pytest.approx(0.68)
+    assert measured.priority_score == pytest.approx(measured.breakdown.relevance + 0.034)
+    final = with_placement(measured.breakdown, 0.8)
+    why = explain_ranking(
+        final,
+        measured,
+        channels=(S, AN),
+        attribution=(),
+        recommendation_policy_version=2,
+    )
+    assert why.final_score == why.confidence == final.total
+    assert why.priority_score > why.final_score
+    assert why.analytics_priority == pytest.approx(0.68)
+
+
+def test_v3_authority_transfer_reorders_only_an_eligible_relevant_pair() -> None:
+    proposed = ranking().model_copy(
+        update={
+            "version": 3,
+            "analytics_priority": AnalyticsPriorityPolicy(
+                enabled=True,
+                max_boost=0.05,
+                weights={
+                    "gsc_opportunity": 0.45,
+                    "ga4_engagement": 0.20,
+                    "authority_transfer": 0.35,
+                },
+            ),
+        }
+    )
+    plain = score_pair(
+        _features(), policy=policy(), ranking=proposed, taxonomy=taxonomy(), semantic_floor=0.5
+    )
+    transfer = score_pair(
+        _features(
+            gsc_opportunity=0.4,
+            ga4_engagement=0.5,
+            source_authority=0.9,
+            target_search_need=0.8,
+            authority_transfer=0.72,
+        ),
+        policy=policy(),
+        ranking=proposed,
+        taxonomy=taxonomy(),
+        semantic_floor=0.5,
+    )
+    expected = 0.45 * 0.4 + 0.20 * 0.5 + 0.35 * 0.72
+    assert transfer.breakdown == plain.breakdown
+    assert transfer.analytics_priority == pytest.approx(expected)
+    assert transfer.priority_score == pytest.approx(transfer.breakdown.relevance + expected * 0.05)
+    assert transfer.signals["source_authority"] == 0.9
+    assert transfer.signals["target_search_need"] == 0.8
+    assert transfer.signals["authority_transfer"] == 0.72
 
 
 def test_the_explanation_carries_score_signals_policy_confidence_and_sources() -> None:

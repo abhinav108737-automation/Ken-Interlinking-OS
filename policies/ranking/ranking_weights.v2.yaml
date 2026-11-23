@@ -1,0 +1,22 @@
+# Proposed analytics-prioritised ranking policy. Relevance weights are unchanged from v1.
+# The overlay runs only after hard gates and min_relevance; it cannot change eligibility,
+# final score or confidence. It may only reorder the already-eligible review queue.
+policy: ranking
+version: 2
+status: proposed
+source: Basecamp contextual-link follow-up, 2026-11-22
+weights:
+  semantic: 0.30
+  taxonomy: 0.20
+  intent: 0.15
+  graph: 0.15
+  geography: 0.08
+  commercial: 0.05
+  underlinked: 0.04
+  historical: 0.03
+analytics_priority:
+  enabled: true
+  max_boost: 0.05
+  weights:
+    gsc_opportunity: 0.70
+    ga4_engagement: 0.30

@@ -61,7 +61,7 @@ describe("labels", () => {
     for (const sort of LINK_SORTS) expect(describeLinkSort(sort)).not.toMatch(/^Unknown/);
     expect(describeSource("bigquery")).toBe("Unknown (bigquery)");
     expect(describeSource("")).toBe("Unknown (empty)");
-    expect(describeDataset("queries")).toBe("Unknown (queries)");
+    expect(describeDataset("queries")).toBe("Queries");
     expect(describeComparisonMetric("clicks")).toBe("Clicks");
     expect(describeComparisonMetric("pageviews")).toBe("Pageviews");
     expect(describeComparisonRole("source")).toMatch(/Source page/);

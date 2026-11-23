@@ -11,6 +11,7 @@ from ken_core.db.models.analytics import (
     LinkMeasurementRow,
     LinkMetricsDaily,
     PageMetricsDaily,
+    PageQueryMetricsDaily,
 )
 from ken_core.db.models.autonomy import AutonomyDecisionRow, PublishAttempt
 from ken_core.db.models.deployment import Deployment, DeploymentItem, DeploymentVerification
@@ -81,6 +82,7 @@ __all__ = [
     "PageGraphMetrics",
     "PageMetricsDaily",
     "PageProtection",
+    "PageQueryMetricsDaily",
     "PageRelationship",
     "PageVersion",
     "PolicyCandidate",

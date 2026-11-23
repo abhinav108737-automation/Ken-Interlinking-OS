@@ -12,8 +12,9 @@ topic           stored taxonomy relationships (market structure)            topi
 graph           link-graph opportunity: low in-degree in the source's       graph_in_degree,
                 industry (``page_graph_metrics``; SQL inbound if absent)    graph_pagerank,
                                                                             graph_authority
-analytics       demand without supply from stored GSC / GA4 rows            gsc_opportunity,
-                                                                            ga4_engagement
+analytics       demand without supply and directional authority transfer     gsc_opportunity,
+                from stored GSC / GA4 rows                                  ga4_engagement,
+                                                                            authority_transfer
 orphan_recovery orphan / nearly-orphan pages near the source (industry      orphan_recovery_value
                 or topical cluster)
 ==============  =========================================================  ====================
@@ -37,6 +38,7 @@ never used to place a link).
 
 from __future__ import annotations
 
+import math
 import uuid
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
@@ -653,12 +655,52 @@ class OrphanRecoveryCandidateGenerator:
 # --------------------------------------------------------------------------- #
 # analytics (may surface, may block, never alone justify)
 # --------------------------------------------------------------------------- #
+def _position_quality(position: float | None) -> float:
+    """Map a GSC average position to [0, 1], where position 1 is strongest."""
+    if position is None or not math.isfinite(position):
+        return 0.0
+    return 1.0 - (min(100.0, max(1.0, position)) - 1.0) / 99.0
+
+
+def _target_search_need(*, impressions: int, clicks: int, position: float | None) -> float:
+    """Ranking weakness with observed GSC demand; no observations remain unknown (zero)."""
+    if impressions <= 0 or position is None:
+        return 0.0
+    position_need = 1.0 - _position_quality(position)
+    no_click_rate = 1.0 - min(1.0, max(0.0, clicks / impressions))
+    return 0.6 * position_need + 0.4 * no_click_rate
+
+
+def _source_authority(
+    *,
+    impressions: int,
+    clicks: int,
+    position: float | None,
+    pageviews: int,
+    max_impressions: int,
+    max_clicks: int,
+    max_pageviews: int,
+) -> float:
+    """Observed source strength: 80% GSC visibility/performance and 20% GA4 attention."""
+    impression_share = impressions / max_impressions if max_impressions > 0 else 0.0
+    click_share = clicks / max_clicks if max_clicks > 0 else 0.0
+    gsc_strength = (
+        0.35 * min(1.0, impression_share)
+        + 0.35 * min(1.0, click_share)
+        + 0.30 * _position_quality(position)
+    )
+    ga4_share = pageviews / max_pageviews if max_pageviews > 0 else 0.0
+    return min(1.0, 0.8 * gsc_strength + 0.2 * min(1.0, ga4_share))
+
+
 class AnalyticsCandidateGenerator:
     """Destinations with search demand that is not converting: ``gsc_opportunity``.
 
     ``gsc_opportunity = (impressions / max impressions in the corpus) x (1 - clicks /
     impressions)`` over the newest ``analytics_window_days`` of imported data; ``ga4_engagement``
-    is the page's share of the corpus maximum pageviews. Both are RECORDED as separate signals.
+    is the page's share of the corpus maximum pageviews. ``authority_transfer`` combines the
+    current source's observed GSC/GA4 strength with the target's observed search weakness.
+    All are RECORDED as separate signals.
     Nothing here reaches a score component: analytics only SURFACES a destination, and
     :class:`AnalyticsSupportGate` then requires non-analytics support (see module docstring).
     Rows flagged ``synthetic`` are used (the demo corpus has no other analytics) and reported
@@ -690,6 +732,7 @@ class AnalyticsCandidateGenerator:
                     func.sum(PageMetricsDaily.impressions),
                     func.sum(PageMetricsDaily.clicks),
                     func.sum(PageMetricsDaily.pageviews),
+                    func.sum(PageMetricsDaily.position_sum),
                     func.bool_or(PageMetricsDaily.synthetic),
                 )
                 .join(Page, Page.id == PageMetricsDaily.page_id)
@@ -702,32 +745,66 @@ class AnalyticsCandidateGenerator:
                 .order_by(PageMetricsDaily.page_id, PageMetricsDaily.source)
             )
         ).all()
-        gsc: dict[uuid.UUID, tuple[int, int, bool]] = {}
+        gsc: dict[uuid.UUID, tuple[int, int, float, bool]] = {}
         ga4: dict[uuid.UUID, int] = {}
         for row in rows:
             page_id: uuid.UUID = row[0]
             if row[1] == "search_console":
-                gsc[page_id] = (int(row[2] or 0), int(row[3] or 0), bool(row[5]))
+                gsc[page_id] = (
+                    int(row[2] or 0),
+                    int(row[3] or 0),
+                    float(row[5] or 0.0),
+                    bool(row[6]),
+                )
             elif row[1] == "ga4":
                 ga4[page_id] = int(row[4] or 0)
-        max_impressions = max((i for i, _, _ in gsc.values()), default=0)
+        max_impressions = max((i for i, _, _, _ in gsc.values()), default=0)
+        max_clicks = max((c for _, c, _, _ in gsc.values()), default=0)
         max_views = max(ga4.values(), default=0)
+        source_impressions, source_clicks, source_position_sum, _ = gsc.get(
+            ctx.source_page_id, (0, 0, 0.0, False)
+        )
+        source_position = (
+            source_position_sum / source_impressions if source_impressions > 0 else None
+        )
+        source_authority = _source_authority(
+            impressions=source_impressions,
+            clicks=source_clicks,
+            position=source_position,
+            pageviews=ga4.get(ctx.source_page_id, 0),
+            max_impressions=max_impressions,
+            max_clicks=max_clicks,
+            max_pageviews=max_views,
+        )
         out: list[GeneratedCandidate] = []
-        for page_id, (impressions, clicks, synthetic) in gsc.items():
+        for page_id, (impressions, clicks, position_sum, synthetic) in gsc.items():
             if page_id == ctx.source_page_id or impressions <= 0 or max_impressions <= 0:
                 continue
             opportunity = (impressions / max_impressions) * (1.0 - min(1.0, clicks / impressions))
             if opportunity <= 0.0:
                 continue
             engagement = (ga4.get(page_id, 0) / max_views) if max_views > 0 else 0.0
+            target_position = position_sum / impressions
+            target_need = _target_search_need(
+                impressions=impressions, clicks=clicks, position=target_position
+            )
+            authority_transfer = source_authority * target_need
             out.append(
                 GeneratedCandidate(
                     target_page_id=page_id,
                     raw=opportunity,
-                    signals={"gsc_opportunity": opportunity, "ga4_engagement": engagement},
+                    signals={
+                        "gsc_opportunity": opportunity,
+                        "ga4_engagement": engagement,
+                        "source_authority": source_authority,
+                        "target_search_need": target_need,
+                        "authority_transfer": authority_transfer,
+                    },
                     evidence={
                         "impressions": impressions,
                         "clicks": clicks,
+                        "avg_position": target_position,
+                        "source_authority": source_authority,
                         "window_days": ctx.analytics_window_days,
                         "window_end": end.isoformat(),
                         "synthetic": synthetic,

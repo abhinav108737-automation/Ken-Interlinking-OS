@@ -32,6 +32,7 @@ from ken_core.db.models.analytics import (
     LinkMeasurementRow,
     LinkMetricsDaily,
     PageMetricsDaily,
+    PageQueryMetricsDaily,
 )
 from ken_core.db.models.deployment import Deployment, DeploymentItem, ItemStage
 from ken_core.db.models.inventory import KnownUrl, Page, PageVersion
@@ -48,6 +49,7 @@ __all__ = [
     "LinkTotals",
     "PageDaily",
     "PageRow",
+    "QueryRow",
     "TransitionWindow",
     "VerifiedPlan",
     "aggregate_link_events",
@@ -57,11 +59,13 @@ __all__ = [
     "enable_writer",
     "existing_link_origins",
     "existing_page_origins",
+    "existing_query_origins",
     "has_non_synthetic_rows",
     "insert_import",
     "insert_link_rows",
     "insert_measurement",
     "insert_page_rows",
+    "insert_query_rows",
     "latest_link_dates",
     "latest_page_dates",
     "ledger_row",
@@ -79,6 +83,7 @@ __all__ = [
     "rank_deployed_plans",
     "replace_delete_links",
     "replace_delete_pages",
+    "replace_delete_queries",
     "source_is_rolling_back",
     "total_link_events",
     "url_index_rows",
@@ -121,6 +126,21 @@ class PageRow:
     @property
     def key(self) -> tuple[str, date, uuid.UUID]:
         return (self.source.value, self.metric_date, self.page_id)
+
+
+@dataclass(frozen=True, slots=True)
+class QueryRow:
+    metric_date: date
+    page_id: uuid.UUID
+    query_hash: str
+    query: str
+    impressions: int
+    clicks: int
+    position_sum: float
+
+    @property
+    def key(self) -> tuple[date, uuid.UUID, str]:
+        return (self.metric_date, self.page_id, self.query_hash)
 
 
 @dataclass(frozen=True, slots=True)
@@ -343,6 +363,21 @@ async def existing_page_origins(
     return {(bool(row[0]), str(row[1])) for row in found}
 
 
+async def existing_query_origins(
+    session: AsyncSession, *, start: date, end: date
+) -> set[tuple[bool, str]]:
+    found = await session.execute(
+        select(PageQueryMetricsDaily.synthetic, AnalyticsImport.via)
+        .join(AnalyticsImport, AnalyticsImport.id == PageQueryMetricsDaily.import_id)
+        .where(
+            PageQueryMetricsDaily.metric_date >= start,
+            PageQueryMetricsDaily.metric_date <= end,
+        )
+        .distinct()
+    )
+    return {(bool(row[0]), str(row[1])) for row in found}
+
+
 async def replace_delete_links(
     session: AsyncSession, *, source: AnalyticsSource, start: date, end: date
 ) -> None:
@@ -364,6 +399,15 @@ async def replace_delete_pages(
             PageMetricsDaily.source == source.value,
             PageMetricsDaily.metric_date >= start,
             PageMetricsDaily.metric_date <= end,
+        )
+    )
+
+
+async def replace_delete_queries(session: AsyncSession, *, start: date, end: date) -> None:
+    await session.execute(
+        delete(PageQueryMetricsDaily).where(
+            PageQueryMetricsDaily.metric_date >= start,
+            PageQueryMetricsDaily.metric_date <= end,
         )
     )
 
@@ -425,6 +469,35 @@ async def insert_page_rows(
                 position_sum=row.position_sum,
                 pageviews=row.pageviews,
                 sessions=row.sessions,
+                import_id=import_id,
+                synthetic=synthetic,
+            )
+            for row in sorted(rows, key=lambda item: item.key)
+        ]
+    )
+    await session.flush()
+    return len(rows)
+
+
+async def insert_query_rows(
+    session: AsyncSession,
+    rows: Sequence[QueryRow],
+    *,
+    import_id: uuid.UUID,
+    synthetic: bool,
+) -> int:
+    if not rows:
+        return 0
+    session.add_all(
+        [
+            PageQueryMetricsDaily(
+                metric_date=row.metric_date,
+                page_id=row.page_id,
+                query_hash=row.query_hash,
+                query=row.query,
+                impressions=row.impressions,
+                clicks=row.clicks,
+                position_sum=row.position_sum,
                 import_id=import_id,
                 synthetic=synthetic,
             )

@@ -61,7 +61,12 @@ from ken_core.db.models.inventory import _one_of
 ANALYTICS_WRITER_SETTING: Final = "ken.analytics_writer"
 """Transaction-local GUC: ``SELECT set_config('ken.analytics_writer', 'on', true)`` lets the
 SAME transaction DELETE rows of :data:`WRITER_GATED_TABLES` (and nothing else)."""
-WRITER_GATED_TABLES: Final = ("link_events", "link_metrics_daily", "page_metrics_daily")
+WRITER_GATED_TABLES: Final = (
+    "link_events",
+    "link_metrics_daily",
+    "page_metrics_daily",
+    "page_query_metrics_daily",
+)
 APPEND_ONLY_ANALYTICS_TABLES: Final = ("analytics_imports", "link_measurements")
 LINK_EVENT_COLUMNS: Final = frozenset(
     {"id", "event_type", "plan_id", "match_mode", "synthetic", "event_date", "received_at",
@@ -123,6 +128,10 @@ class AnalyticsImport(Base):
         CheckConstraint(_one_of("via", ImportVia), name="via_valid"),
         CheckConstraint(f"dataset <> 'links' OR {_LINK_SOURCES}", name="link_dataset_source"),
         CheckConstraint(f"dataset <> 'pages' OR {_PAGE_SOURCES}", name="page_dataset_source"),
+        CheckConstraint(
+            "dataset <> 'queries' OR source = 'search_console'",
+            name="query_dataset_source",
+        ),
         CheckConstraint(
             "via <> 'collector' OR (source = 'first_party' AND dataset = 'links')",
             name="collector_is_first_party_links",
@@ -256,6 +265,37 @@ class PageMetricsDaily(Base):
     )
 
 
+class PageQueryMetricsDaily(Base):
+    __tablename__ = "page_query_metrics_daily"
+
+    metric_date: Mapped[date] = mapped_column(Date, nullable=False)
+    page_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("pages.id", ondelete="RESTRICT"), nullable=False
+    )
+    query_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    query: Mapped[str] = mapped_column(Text, nullable=False)
+    impressions: Mapped[int] = _count()
+    clicks: Mapped[int] = _count()
+    position_sum: Mapped[float] = mapped_column(Float, nullable=False)
+    import_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("analytics_imports.id", ondelete="RESTRICT"), nullable=False
+    )
+    synthetic: Mapped[bool] = mapped_column(Boolean, nullable=False)
+
+    __table_args__ = (
+        PrimaryKeyConstraint("metric_date", "page_id", "query_hash"),
+        CheckConstraint(f"query_hash {_SHA256}", name="query_hash_sha256"),
+        CheckConstraint("length(query) BETWEEN 1 AND 500", name="query_bounded"),
+        CheckConstraint("impressions >= 0 AND clicks >= 0", name="counts_non_negative"),
+        CheckConstraint(
+            "position_sum >= 0 AND (impressions > 0 OR position_sum = 0)",
+            name="position_sum_valid",
+        ),
+        Index("ix_page_query_metrics_daily_page_id_metric_date", "page_id", "metric_date"),
+        Index("ix_page_query_metrics_daily_import_id", "import_id"),
+    )
+
+
 class LinkMeasurementRow(Base):
     __tablename__ = "link_measurements"
 
@@ -303,4 +343,5 @@ __all__ = [
     "LinkMeasurementRow",
     "LinkMetricsDaily",
     "PageMetricsDaily",
+    "PageQueryMetricsDaily",
 ]

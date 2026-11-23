@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-11-22T00:00:00+05:30",
+  "status": "proposed",
+  "title": "GA4/GSC recommendation ranking comparison",
+  "baseline_policy": "ranking_weights.v1",
+  "comparison_policy": "ranking_weights.v2",
+  "window": { "days": 90, "ends_on": "2026-11-22" },
+  "formula": {
+    "relevance_weight": 0.95,
+    "gsc_weight": 0.035,
+    "ga4_weight": 0.015,
+    "maximum_analytics_boost": 0.05,
+    "guardrail": "Analytics changes review order only. It cannot bypass relevance, evidence, editorial, or technical gates."
+  },
+  "authority_transfer": {
+    "status": "proposed",
+    "policy": "ranking_weights.v3",
+    "formula": "source_authority × target_search_need",
+    "source_authority": "80% GSC visibility, clicks and position quality + 20% GA4 pageview share",
+    "target_search_need": "60% observed position weakness + 40% no-click rate",
+    "priority_weight": 0.35,
+    "guardrail": "Only observed GSC weakness qualifies. Missing GSC data is unknown, not proof that a page is unindexed; URL Inspection evidence is required for index status."
+  },
+  "source": {
+    "title": "Indonesia Car Rental Market",
+    "url": "https://www.kenresearch.com/industry-reports/indonesia-car-rental-market"
+  },
+  "candidates": [
+    {
+      "title": "Global Car Rental Market",
+      "url": "https://www.kenresearch.com/industry-reports/global-car-rental-market",
+      "placement": { "block_kind": "li", "block_id": "b506", "anchor": "Car Rental Market", "before": "Indonesia ", "after": " Size, Share & Forecast, By Vehicle Type, Customer Type & Usage Type, 2026-2031" },
+      "baseline_rank": 2,
+      "comparison_rank": 1,
+      "relevance_score": 0.807819,
+      "gsc_signal": 0.033632,
+      "ga4_signal": 0.004673,
+      "analytics_priority": 0.024944,
+      "ordering_score": 0.809066
+    },
+    {
+      "title": "Malaysia Car Rental Market",
+      "url": "https://www.kenresearch.com/malaysia-car-rental-market",
+      "placement": { "block_kind": "li", "block_id": "b509", "anchor": "Malaysia Car Rental Market", "before": "", "after": " Size, Share & Forecast, By Vehicle Type, Customer Type & Usage Type, 2026-2031" },
+      "baseline_rank": 1,
+      "comparison_rank": 2,
+      "relevance_score": 0.808032,
+      "gsc_signal": 0,
+      "ga4_signal": 0.002974,
+      "analytics_priority": 0.000892,
+      "ordering_score": 0.808076
+    },
+    {
+      "title": "Indonesia Car Rental & Leasing article",
+      "url": "https://www.kenresearch.com/articles/indonesia-car-rental-leasing-market-b2b-ota-dominance",
+      "placement": { "block_kind": "p", "block_id": "b2", "anchor": "Indonesia Car Rental Market", "before": "The ", "after": " serves leisure travelers, corporate fleets, government users, project teams, and households seeking temporary vehicle access without ownership. Demand is reinforced by domestic travel intensity:" },
+      "baseline_rank": 3,
+      "comparison_rank": 3,
+      "relevance_score": 0.748606,
+      "gsc_signal": 0.001427,
+      "ga4_signal": 0.004036,
+      "analytics_priority": 0.00221,
+      "ordering_score": 0.748717
+    }
+  ]
+}

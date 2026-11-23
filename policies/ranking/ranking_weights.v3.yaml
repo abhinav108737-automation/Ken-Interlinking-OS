@@ -1,0 +1,22 @@
+# Proposed directional authority-transfer ranking policy. Relevance weights remain unchanged.
+# Analytics runs only after hard gates and min_relevance and changes review order only.
+policy: ranking
+version: 3
+status: proposed
+source: GA4/GSC authority-passing follow-up, 2026-11-22
+weights:
+  semantic: 0.30
+  taxonomy: 0.20
+  intent: 0.15
+  graph: 0.15
+  geography: 0.08
+  commercial: 0.05
+  underlinked: 0.04
+  historical: 0.03
+analytics_priority:
+  enabled: true
+  max_boost: 0.05
+  weights:
+    gsc_opportunity: 0.45
+    ga4_engagement: 0.20
+    authority_transfer: 0.35

@@ -54,6 +54,7 @@ bot_ua_patterns:
 imports:
   max_rows: 1000000
   max_unresolved_sample: 100
+  max_queries_per_page_day: 50  # GSC query rows retained per resolved page/day
 
 # RECORDED for later: Phase 7 enforces none of these (the purge command is deferred).
 retention:

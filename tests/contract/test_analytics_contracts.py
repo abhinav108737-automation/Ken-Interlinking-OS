@@ -62,13 +62,14 @@ def test_page_metrics_bounds() -> None:
 def test_the_stored_vocabulary() -> None:
     assert [s.value for s in a.AnalyticsSource] == ["ga4", "search_console", "first_party"]
     assert [v.value for v in a.ImportVia] == ["api", "csv", "collector", "synthetic"]
-    assert [d.value for d in a.Dataset] == ["links", "pages"]
+    assert [d.value for d in a.Dataset] == ["links", "pages", "queries"]
     assert [e.value for e in a.LinkEventType] == [
         "internal_link_impression",
         "internal_link_click",
     ]
     assert {a.AnalyticsSource.GA4, a.AnalyticsSource.FIRST_PARTY} == set(a.LINK_SOURCES)
     assert {a.AnalyticsSource.GA4, a.AnalyticsSource.SEARCH_CONSOLE} == set(a.PAGE_SOURCES)
+    assert {a.AnalyticsSource.SEARCH_CONSOLE} == set(a.QUERY_SOURCES)
     assert [s.value for s in a.LinkSort] == ["clicks", "impressions", "ctr"]
 
 
@@ -131,10 +132,24 @@ def test_protocols_are_runtime_checkable() -> None:
     assert isinstance(Resolver(), a.PageUrlResolver)
 
 
-def test_a_batch_carries_no_query_rows() -> None:
-    assert set(a.AnalyticsBatch.model_fields) == {"link_rows", "page_rows", "stats"}
+def test_a_batch_carries_validated_query_rows() -> None:
+    assert set(a.AnalyticsBatch.model_fields) == {
+        "link_rows",
+        "page_rows",
+        "query_rows",
+        "stats",
+    }
+    row = a.QueryMetrics(
+        page_id="p",
+        range=DAY,
+        query="battery market",
+        impressions=10,
+        clicks=2,
+        position=3.5,
+    )
+    assert a.AnalyticsBatch(query_rows=(row,)).query_rows == (row,)
     with pytest.raises(ValidationError):
-        a.AnalyticsBatch.model_validate({"query_rows": []})
+        a.QueryMetrics(page_id="p", range=DAY, query="x\x00y")
 
 
 def test_fetch_stats_sample_is_bounded_paths_only() -> None:
@@ -182,7 +197,6 @@ def test_analytics_updated_payload_shape() -> None:
     "overrides",
     [
         {"source": "csv"},
-        {"dataset": "queries"},
         {"via": "jsonl"},
         {"date_end": "2026-08-31"},
         {"synthetic": True, "plans_measured": 1},

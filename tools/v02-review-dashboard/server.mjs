@@ -22,6 +22,7 @@ const clusterLivePath = process.env.KEN_REVIEW_CLUSTER_LIVE_PATH || path.join(ro
 const clusterRewritePath = process.env.KEN_REVIEW_CLUSTER_REWRITE_PATH || path.join(root, "outputs", "contextual-v02-live", "cluster-copy-rewrite-apply-2026-11-20.json");
 const relocatedDraftsPath = process.env.KEN_REVIEW_RELOCATED_DRAFTS_PATH || path.join(root, "outputs", "contextual-v02-shadow", "relocated-rolled-back-drafts-2026-11-20.json");
 const graphSnapshotPath = process.env.KEN_REVIEW_GRAPH_PATH || path.join(root, "outputs", "graph-intelligence", "kuwait-topic-graph-current.json");
+const analyticsComparisonPath = process.env.KEN_REVIEW_ANALYTICS_COMPARISON_PATH || path.join(root, "data", "v02-contextual-review", "analytics-ranking-comparison.json");
 const host = "127.0.0.1";
 const port = Number.parseInt(process.env.KEN_REVIEW_DASHBOARD_PORT || "4177", 10);
 
@@ -79,6 +80,7 @@ async function load() {
   const clusterLive = await readJson(clusterLivePath, { results: [] });
   const clusterRewrite = await readJson(clusterRewritePath, { results: [] });
   const relocatedDrafts = await readJson(relocatedDraftsPath, { results: [] });
+  const analyticsComparison = await readJson(analyticsComparisonPath, null);
   const clusterLiveById = new Map(clusterLive.results.filter((result) => result.rendered_verified).map((result) => [result.id, result]));
   const clusterRewriteById = new Map(clusterRewrite.results.filter((result) => result.rendered_verified).map((result) => [result.id, result]));
   const liveById = new Map(liveApply.results.map((result) => [result.id, result]));
@@ -271,7 +273,7 @@ async function load() {
   const withCopyRule = (proposal) => ["cluster", "topic", "relocated"].includes(proposal.kind)
     ? { ...proposal, copy_rule_problems: copyRuleProblems(plain(proposal.proposed_wording), { readerValue: proposal.reader_value }) }
     : proposal;
-  return { dataset: { ...dataset, proposals: [...relocatedAdditions, ...topicAdditions, ...clusterAdditions, ...additions, ...dataset.proposals].map(withCopyRule), graph }, state };
+  return { dataset: { ...dataset, proposals: [...relocatedAdditions, ...topicAdditions, ...clusterAdditions, ...additions, ...dataset.proposals].map(withCopyRule), graph, analytics_comparison: analyticsComparison }, state };
 }
 
 function proposalMap(dataset) {

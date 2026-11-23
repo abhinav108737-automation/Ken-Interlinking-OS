@@ -120,6 +120,23 @@ class PageMetrics(ContractModel):
     )
 
 
+class QueryMetrics(ContractModel):
+    """One Search Console query for one resolved page and day."""
+
+    page_id: str
+    source: MetricSource = MetricSource.SEARCH_CONSOLE
+    range: DateRange
+    query: str = Field(min_length=1, max_length=500)
+    impressions: int = Field(default=0, ge=0)
+    clicks: int = Field(default=0, ge=0)
+    position: float | None = Field(default=None, ge=1.0)
+
+    @field_validator("query")
+    @classmethod
+    def _storable_query(cls, value: str) -> str:
+        return reject_unstorable_text(value)
+
+
 @runtime_checkable
 class AnalyticsProvider(AsyncClosable, Protocol):
     """Read-only measurement input. Deliberately has no write method."""
@@ -152,11 +169,14 @@ LINK_SOURCES: Final = frozenset({AnalyticsSource.GA4, AnalyticsSource.FIRST_PART
 """Sources with link-level rows (``link_metrics_daily``). GSC has no link-level data."""
 PAGE_SOURCES: Final = frozenset({AnalyticsSource.GA4, AnalyticsSource.SEARCH_CONSOLE})
 """Sources with page-level rows (``page_metrics_daily``)."""
+QUERY_SOURCES: Final = frozenset({AnalyticsSource.SEARCH_CONSOLE})
+"""Search Console is the sole source of query-level rows."""
 
 
 class Dataset(StrEnum):
     LINKS = "links"
     PAGES = "pages"
+    QUERIES = "queries"
 
 
 class ImportVia(StrEnum):
@@ -227,6 +247,7 @@ class AnalyticsBatch(FrozenModel):
 
     link_rows: tuple[LinkMetrics, ...] = ()
     page_rows: tuple[PageMetrics, ...] = ()
+    query_rows: tuple[QueryMetrics, ...] = ()
     stats: FetchStats = Field(default_factory=FetchStats)
 
 
@@ -709,6 +730,7 @@ class AggregationPolicy(FrozenModel):
 class ImportPolicy(FrozenModel):
     max_rows: int = Field(default=1_000_000, ge=1, le=10_000_000)
     max_unresolved_sample: int = Field(default=100, ge=0, le=MAX_UNRESOLVED_SAMPLE)
+    max_queries_per_page_day: int = Field(default=50, ge=1, le=500)
 
 
 class RetentionPolicy(FrozenModel):
@@ -757,6 +779,7 @@ __all__ = [
     "MAX_TOP_LINKS",
     "MAX_UNRESOLVED_SAMPLE",
     "PAGE_SOURCES",
+    "QUERY_SOURCES",
     "SUBJECT_ANALYTICS_IMPORT",
     "AggregationPolicy",
     "AnalyticsBatch",
@@ -794,6 +817,7 @@ __all__ = [
     "PageMetrics",
     "PageUrlResolver",
     "PageWindowComparison",
+    "QueryMetrics",
     "RateLimitPolicy",
     "RetentionPolicy",
     "SortOrder",

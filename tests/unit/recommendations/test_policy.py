@@ -19,6 +19,11 @@ from ken_services.recommendations.policy import (
 )
 from tests.unit.recommendations._support import RANKING_V1, RECOMMENDATION_V1, REPO_ROOT
 
+RANKING_V2 = REPO_ROOT / "policies" / "ranking" / "ranking_weights.v2.yaml"
+RECOMMENDATION_V2 = REPO_ROOT / "policies" / "recommendation" / "recommendation.v2.yaml"
+RANKING_V3 = REPO_ROOT / "policies" / "ranking" / "ranking_weights.v3.yaml"
+RECOMMENDATION_V3 = REPO_ROOT / "policies" / "recommendation" / "recommendation.v3.yaml"
+
 
 @pytest.fixture(autouse=True)
 def _fresh_caches() -> None:
@@ -61,6 +66,31 @@ def test_v1_ranking_policy_loads_and_weights_every_component() -> None:
     assert (loaded.policy, loaded.version) == ("ranking", 1)
     assert tuple(loaded.weights) == RANKING_COMPONENTS
     assert loaded.weights["historical"] == 0.03
+    assert not loaded.analytics_priority.enabled
+
+
+def test_v2_enables_bounded_analytics_prioritisation_without_changing_relevance_weights() -> None:
+    recommendation = load_recommendation_policy(RECOMMENDATION_V2)
+    ranking_v2 = load_ranking_policy(RANKING_V2)
+    assert recommendation.version == ranking_v2.version == 2
+    assert RetrievalChannel.ANALYTICS in recommendation.retrieval.channels_enabled
+    assert recommendation.retrieval.analytics_k == 50
+    assert ranking_v2.weights == load_ranking_policy(RANKING_V1).weights
+    assert ranking_v2.analytics_priority.enabled
+    assert ranking_v2.analytics_priority.max_boost == 0.05
+    assert resolve_ranking_policy(recommendation, root=REPO_ROOT) is ranking_v2
+
+
+def test_v3_adds_directional_authority_transfer_without_changing_relevance_weights() -> None:
+    recommendation = load_recommendation_policy(RECOMMENDATION_V3)
+    ranking_v3 = load_ranking_policy(RANKING_V3)
+    assert recommendation.version == ranking_v3.version == 3
+    assert RetrievalChannel.ANALYTICS in recommendation.retrieval.channels_enabled
+    assert RetrievalChannel.ORPHAN_RECOVERY in recommendation.retrieval.channels_enabled
+    assert ranking_v3.weights == load_ranking_policy(RANKING_V1).weights
+    assert ranking_v3.analytics_priority.weights["authority_transfer"] == 0.35
+    assert ranking_v3.analytics_priority.max_boost == 0.05
+    assert resolve_ranking_policy(recommendation, root=REPO_ROOT) is ranking_v3
 
 
 def test_resolve_ranking_policy_follows_the_repo_relative_reference() -> None:

@@ -1,0 +1,65 @@
+# Proposed comparison policy. v1 remains the active baseline and is not edited in place.
+policy: recommendation
+version: 2
+status: proposed
+source: Basecamp contextual-link follow-up, 2026-11-22
+ranking_policy: policies/ranking/ranking_weights.v2.yaml
+
+retrieval:
+  semantic_k: 30
+  lexical_k: 30
+  graph_k: 20
+  analytics_k: 50
+  orphan_recovery_k: 0
+  max_candidates_per_source: 100
+  channels_enabled: [semantic, lexical, taxonomy, graph, analytics]
+
+selection:
+  min_relevance: 0.30
+  min_score: 0.35
+  rejection_cooldown_days: 90
+  max_plans_per_source: 3
+  max_open_plans_per_target: 5
+  max_internal_links_per_100_words: 2.0
+  max_links_per_block: 1
+
+placement:
+  block_kinds: [p, li]
+  min_anchor_words: 1
+  min_anchor_words_non_topic: 2
+  max_anchor_words: 8
+  min_anchor_chars: 4
+  forbidden_anchors: [click here, here, read more, learn more, this page, this report, this article]
+  skip_first_block: false
+  excluded_ancestors: [a, table, thead, tbody, tr, td, th, blockquote, figure, figcaption,
+                       pre, code, kbd, samp, cite, q, sup, sub, h1, h2, h3, h4, h5, h6, caption,
+                       label, legend, del, s, small, video, audio, canvas, math, map,
+                       header, footer, dialog, address, details, summary, fieldset]
+
+intent_compatibility:
+  informational:
+    commercial_research: 1.0
+    informational: 0.8
+    navigational: 0.3
+  commercial_research:
+    commercial_research: 0.9
+    informational: 0.7
+    navigational: 0.3
+  navigational:
+    commercial_research: 0.8
+    informational: 0.6
+  unknown:
+    commercial_research: 0.5
+    informational: 0.5
+
+page_type_targets:
+  report: [report, insight, hub]
+  insight: [report, insight, hub]
+  other: [report, insight]
+excluded_target_paths: ['^/$']
+underlinked_inbound_threshold: 3
+geography_scores:
+  same_country: 1.0
+  region_contains_source: 0.6
+  same_region: 0.5
+  global_target: 0.3

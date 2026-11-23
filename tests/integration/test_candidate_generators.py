@@ -194,8 +194,15 @@ async def test_analytics_generator_surfaces_demand_without_supply(
         ids["/reports/d"],
     ]
     assert [round(c.raw, 4) for c in found] == [0.99, 0.25, 0.1]
-    assert found[0].signals == {"gsc_opportunity": pytest.approx(0.99), "ga4_engagement": 0.0}
+    assert found[0].signals == {
+        "gsc_opportunity": pytest.approx(0.99),
+        "ga4_engagement": 0.0,
+        "source_authority": 0.0,
+        "target_search_need": pytest.approx(0.408121),
+        "authority_transfer": 0.0,
+    }
     assert found[0].evidence["impressions"] == 1000 and found[0].evidence["synthetic"] is False
+    assert found[0].evidence["avg_position"] == pytest.approx(3.0)
 
 
 async def test_analytics_alone_cannot_justify_a_candidate_but_support_lets_it_through(

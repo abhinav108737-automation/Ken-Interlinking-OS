@@ -587,6 +587,7 @@ class _Recommend:
             industry_id=None if source_analysis is None else source_analysis.industry_id,
             analysis_version=self.av,
             vector_store=self.vector_store,
+            semantic_floor=self.settings.similarity_min_score,
         )
 
         # Occupancy: open plans (after expiry) and plans whose link is on the page.
@@ -754,6 +755,14 @@ class _Recommend:
                 target=target_analysis,
                 source_links_into_target_market=0 if market is None else source_markets[market],
                 target_inbound_links=world.inbound.get(target.id, 0),
+                lexical_similarity=candidate.signals.get("lexical_similarity"),
+                graph=candidate.graph_signals,
+                orphan_recovery_value=candidate.signals.get("orphan_recovery_value"),
+                gsc_opportunity=candidate.signals.get("gsc_opportunity"),
+                ga4_engagement=candidate.signals.get("ga4_engagement"),
+                source_authority=candidate.signals.get("source_authority"),
+                target_search_need=candidate.signals.get("target_search_need"),
+                authority_transfer=candidate.signals.get("authority_transfer"),
             )
             scored = self.tools.score_pair(
                 features,
@@ -776,9 +785,16 @@ class _Recommend:
                     geography=verdict,
                 )
             )
-        # Ties break on the target's canonical URL, never a random UUID (determinism).
+        # Analytics may reorder only candidates that already passed hard gates and the
+        # non-analytics relevance floor. It never changes relevance, final score, confidence,
+        # or any threshold. v1's disabled overlay makes priority_score == relevance exactly.
         ranked.sort(
-            key=lambda r: (-r.scored.breakdown.relevance, r.target.canonical_url, r.target.id)
+            key=lambda r: (
+                -r.scored.priority_score,
+                -r.scored.breakdown.relevance,
+                r.target.canonical_url,
+                r.target.id,
+            )
         )
 
         # ---- placement + final score + caps, in rank order

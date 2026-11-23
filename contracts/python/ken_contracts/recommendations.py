@@ -406,6 +406,43 @@ RANKING_COMPONENTS: Final = (
 )
 """TRD section 12 component names, in order. The ranking policy must weight exactly these."""
 
+ANALYTICS_PRIORITY_SIGNALS: Final = (
+    "gsc_opportunity",
+    "ga4_engagement",
+    "authority_transfer",
+)
+"""Signals allowed to reorder already-eligible candidates; never relevance components."""
+
+
+class AnalyticsPriorityPolicy(FrozenModel):
+    """Bounded ordering overlay applied only after hard gates and minimum relevance.
+
+    This deliberately does not add an analytics component to ``ScoreBreakdown``. The
+    underlying relevance and final score remain the evidence-backed values used by gates,
+    thresholds and reviewer confidence; analytics can only choose the review order among
+    candidates that passed without it.
+    """
+
+    enabled: bool = False
+    max_boost: float = Field(default=0.0, ge=0.0, le=0.20)
+    weights: dict[str, float] = Field(
+        default_factory=lambda: {"gsc_opportunity": 0.7, "ga4_engagement": 0.3}
+    )
+
+    @field_validator("weights")
+    @classmethod
+    def _weights_complete(cls, value: dict[str, float]) -> dict[str, float]:
+        if not value or not set(value).issubset(ANALYTICS_PRIORITY_SIGNALS):
+            raise ValueError(
+                f"analytics priority weights must be a non-empty subset of "
+                f"{list(ANALYTICS_PRIORITY_SIGNALS)}"
+            )
+        if any(weight < 0 for weight in value.values()):
+            raise ValueError("analytics priority weights must be non-negative")
+        if abs(sum(value.values()) - 1.0) > 1e-6:
+            raise ValueError("analytics priority weights must sum to 1")
+        return value
+
 
 class RankingPolicy(FrozenModel):
     """``policies/ranking/ranking_weights.v<N>.yaml`` (TRD section 12)."""
@@ -415,6 +452,7 @@ class RankingPolicy(FrozenModel):
     status: str
     source: str
     weights: dict[str, float]
+    analytics_priority: AnalyticsPriorityPolicy = Field(default_factory=AnalyticsPriorityPolicy)
 
     @field_validator("weights")
     @classmethod

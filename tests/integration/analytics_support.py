@@ -32,6 +32,7 @@ from ken_contracts.analytics import (
     ImportVia,
     LinkMetrics,
     PageMetrics,
+    QueryMetrics,
 )
 from ken_contracts.auth import Role
 from ken_contracts.deployment import DeploymentStatus
@@ -411,12 +412,15 @@ async def run_mock_import(
     request: ImportRequest,
     link_rows: Sequence[LinkMetrics] = (),
     page_rows: Sequence[PageMetrics] = (),
+    query_rows: Sequence[QueryMetrics] = (),
     stats: FetchStats | None = None,
     now: datetime = T0,
     settings: Settings = SETTINGS,
 ) -> ImportOutcome:
     """Exact provider rows through the real importer (row-level rules under test)."""
-    provider = MockAnalyticsProvider(link_rows=link_rows, page_rows=page_rows, stats=stats)
+    provider = MockAnalyticsProvider(
+        link_rows=link_rows, page_rows=page_rows, query_rows=query_rows, stats=stats
+    )
     return await run_import(
         sessionmaker=sessionmaker,
         settings=settings,

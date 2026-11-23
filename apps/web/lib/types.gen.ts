@@ -2121,7 +2121,7 @@ export interface components {
          * Dataset
          * @enum {string}
          */
-        Dataset: "links" | "pages";
+        Dataset: "links" | "pages" | "queries";
         /** DateRange */
         DateRange: {
             /**

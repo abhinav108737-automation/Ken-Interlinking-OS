@@ -375,7 +375,7 @@ async def test_the_search_console_request_is_exactly_the_documented_body(
         "rowLimit": GSC_ROW_LIMIT,
         "startRow": 0,
     }
-    assert "query" not in recorder.body()["dimensions"]  # query metrics are Phase 8
+    assert "query" not in recorder.body()["dimensions"]
     assert len(batch.page_rows) == 1
     row = batch.page_rows[0]
     assert row.page_id == str(PAGE_A)
@@ -383,6 +383,12 @@ async def test_the_search_console_request_is_exactly_the_documented_body(
     assert row.source is MetricSource.SEARCH_CONSOLE
     assert batch.stats.unresolved_url == 1
     assert GSC_TIMEZONE == "America/Los_Angeles"
+
+
+def test_search_console_query_request_is_explicitly_opted_in() -> None:
+    assert SearchConsoleAnalyticsProvider.query_body(RANGE, start_row=0, include_queries=True)[
+        "dimensions"
+    ] == ["date", "page", "query"]
 
 
 async def test_search_console_pages_with_start_row(tmp_path: Path) -> None:
