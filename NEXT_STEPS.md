@@ -1,5 +1,14 @@
 # Next Steps
 
+**Market Overview links rolled back (2026-11-25):** on the owner's instruction, deployments 18
+(`contextual:1`, also rejected in review) and 19 (`contextual:7`) were rolled back because ADR-0031
+made Market Overview a hard exclusion after they went live. Both verified: link gone from the CMS
+read-back and the public page, visible text and every other link unchanged. 25 links remain live,
+all confirmed present on the public pages. Tool: `tools/v02-contextual-audit/rollback-deployments.mjs`;
+record: `outputs/contextual-v02-live/market-overview-rollback-2026-11-25.json`. The seven pending
+drafts are all test-host (`thekenconsulting.com`) drafts; none has been read from or validated
+against the production kenresearch.com API.
+
 **Copy rule enforced, and seven drafts ready for the owner's decision (2026-11-20, later):**
 the 12 live cluster sentences were rewritten to the owner's rule (two or more sentences, 32-38
 words; deployments 55-66, 12 of 12 publicly verified) because all 12 had been the draft's internal

@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "authority": "Owner instruction, 2026-11-25: roll back the live links placed in Market Overview (ADR-0031 hard exclusion).",
+  "items": [
+    {
+      "proposal_id": "contextual:1",
+      "deployment_id": "18",
+      "page_id": "kuwait-cloud-based-digital-experience-analytics-platforms-market:v02_market_overview",
+      "destination_url": "https://www.thekenconsulting.com/industry-reports/kuwait-cloud-based-ai-driven-customer-journey-orchestration-platforms-market",
+      "reason": "Placed in Market Overview before ADR-0031 made it a hard exclusion; also rejected in the review dashboard (unnatural_anchor)."
+    },
+    {
+      "proposal_id": "contextual:7",
+      "deployment_id": "19",
+      "page_id": "kuwait-cloud-based-predictive-ai-platforms-market:v02_market_overview",
+      "destination_url": "https://www.thekenconsulting.com/industry-reports/kuwait-cloud-based-fraud-detection-platforms-for-digital-banking-market",
+      "reason": "Placed in Market Overview before ADR-0031 made it a hard exclusion."
+    }
+  ]
+}

@@ -46,7 +46,7 @@ make every editorial decision.
 | Filter | Deterministic gates refuse the links a careful editor would refuse, before anyone spends time on them | Same run: 245,149 refused as unrelated markets, 190,054 as the wrong geography, 166,535 as incompatible page types and 99,604 for lack of a natural anchor; 915 link plans survived |
 | Write | Links words already on the page where possible; otherwise adds a bridge sentence that must cite source and destination evidence and pass the copy rule | The 18 bridge sentences in the Kuwait topic and exact-market batches each carry a figure taken from the destination report |
 | Decide | Shows the reviewer the exact before/after copy, evidence, seven KPI scores and the hard gates, and stores every decision with its reason | 31 proposals decided in the review dashboard: 28 approved, 3 rejected with a structured reason |
-| Publish | Dry run, exact version lock, atomic apply, CMS read-back, public-page check and a rollback handle for every change | 27 links live on the test host, all confirmed present on the public pages on 25 Nov 2026; 4 changes that saved but never displayed (deployments 20, 26, 27, 29) were caught and rolled back |
+| Publish | Dry run, exact version lock, atomic apply, CMS read-back, public-page check and a rollback handle for every change | 25 links live on the test host, all confirmed present on the public pages on 25 Nov 2026; 4 changes that saved but never displayed (deployments 20, 26, 27, 29) were caught and rolled back, and 2 links placed before a later editorial rule were removed on the owner's instruction |
 | Learn | Turns decisions and incidents into evaluation data and enforced rules | Owner feedback on formulaic copy became a validator that now blocks such copy before any write |
 
 The outcome is fewer, better links: each has a recorded reason, evidence at both ends, a named
@@ -212,15 +212,15 @@ The repository contains durable, reproducible audit files for the v0.2 test-host
 
 ### Live on the test host today
 
-Checked against the public pages on 25 November 2026: all 27 links below are present.
+Checked against the public pages on 25 November 2026: all 25 links below are present.
 
 | Batch | Date | Deployments | Live |
 |---|---|---|---:|
-| First existing-text links | 19 Nov | 18, 19, 21, 22, 24 | 5 |
+| First existing-text links | 19 Nov | 21, 22, 24 (18 and 19 rolled back 25 Nov) | 3 |
 | v0.2 contextual batch | 19-20 Nov | 28, 30, 31-32, 33-34 | 4 (3 more rolled back) |
 | Kuwait topic cluster | 20 Nov | 35-42 | 6 |
 | Exact-market regional clusters | 20 Nov | 43-54, copy rewritten as 55-66 | 12 |
-| **Total** | | | **27** |
+| **Total** | | | **25** |
 
 ### Waiting for an owner decision
 
@@ -229,10 +229,13 @@ Checked against the public pages on 25 November 2026: all 27 links below are pre
   approvals covered other wording in another section. Four more (`cluster:1`, `:6`, `:15` and
   `topic-kuwait:7`) are rewritten to the copy rule. All seven pass a CMS dry run and the copy rule;
   none can be published without an approval.
-- **Two live links conflict with a later rule.** Deployments 18 and 19 were placed in Market
-  Overview before [ADR-0031](docs/adr/ADR-0031-editorial-section-and-engagement-gates.md) made
-  that section a hard exclusion, and the first has since been rejected in the dashboard. Both are
-  flagged for a rollback decision; the system does not remove live content on its own.
+
+Deployments 18 and 19 had been placed in Market Overview before
+[ADR-0031](docs/adr/ADR-0031-editorial-section-and-engagement-gates.md) made that section a hard
+exclusion. The system flagged them rather than removing live content on its own; on the owner's
+instruction both were rolled back on 25 November 2026. Each link is gone from the CMS and the
+public page, and the surrounding text is unchanged
+([record](outputs/contextual-v02-live/market-overview-rollback-2026-11-25.json)).
 
 ### Kuwait topic cluster
 
@@ -520,7 +523,7 @@ Latest results for the code on `main`:
 | Types (`mypy`) | Clean, 534 source files | 25 Nov 2026 |
 | Unit and contract tests | 5,352 passed, 0 failed, 45 skipped | 25 Nov 2026 |
 | Integration tests (real PostgreSQL) | 1,252 passed and 3 failed (known, below), plus the 35 priority-schema tests, which passed separately | 20-21 Nov 2026; the Python code on `main` is unchanged since |
-| Live links on the test host | 27 of 27 present on the public pages | 25 Nov 2026 |
+| Live links on the test host | 25 of 25 present on the public pages; the 2 rolled-back links confirmed absent | 25 Nov 2026 |
 
 The skips are platform limits (POSIX file modes and signal handlers on Windows) and the vector-store
 contract tests, which skip when Qdrant is not running. The three integration failures have a known

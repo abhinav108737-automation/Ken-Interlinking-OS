@@ -8,7 +8,7 @@
     {
       "id": "contextual:1",
       "kind": "contextual",
-      "current_status": "Live - verified",
+      "current_status": "Rolled back - Market Overview excluded (ADR-0031)",
       "change_class": "Link existing text",
       "mode": "Existing text",
       "source_report": "Digital Experience Analytics",
@@ -19,7 +19,7 @@
       "source_url": "https://www.thekenconsulting.com/industry-reports/kuwait-cloud-based-digital-experience-analytics-platforms-market",
       "destination_url": "https://www.thekenconsulting.com/industry-reports/kuwait-cloud-based-ai-driven-customer-journey-orchestration-platforms-market",
       "deployment_id": "18",
-      "next_step": "contextual_canary",
+      "next_step": "none",
       "policy_eligible": false,
       "policy_reasons": [
         "Market Overview is reserved for the source market."
@@ -128,7 +128,7 @@
     {
       "id": "contextual:7",
       "kind": "contextual",
-      "current_status": "Live - verified",
+      "current_status": "Rolled back - Market Overview excluded (ADR-0031)",
       "change_class": "Link existing text",
       "mode": "Existing text",
       "source_report": "Predictive AI Platforms",
@@ -139,7 +139,7 @@
       "source_url": "https://www.thekenconsulting.com/industry-reports/kuwait-cloud-based-predictive-ai-platforms-market",
       "destination_url": "https://www.thekenconsulting.com/industry-reports/kuwait-cloud-based-fraud-detection-platforms-for-digital-banking-market",
       "deployment_id": "19",
-      "next_step": "contextual_canary",
+      "next_step": "none",
       "policy_eligible": false,
       "policy_reasons": [
         "Market Overview is reserved for the source market."
