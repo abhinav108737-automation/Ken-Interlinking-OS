@@ -104,10 +104,16 @@ words; they were left as approved.
 
 A CMS write can succeed while the public template never shows that section. Mapping all v0.2
 fields of three reports against their public pages (`map-rendered-sections.mjs`) found that only
-**Market Trajectory** and **Key Stakeholders** render in full. Growth Drivers shows 1 of its 10
-paragraphs; Regional Analysis, Research Methodology and FAQ show none. Every link placed outside
-Market Trajectory so far has either vanished or been rolled back.
+**Market Trajectory** and **Key Stakeholders** render in full on those three. Growth Drivers shows
+1 of its 10 paragraphs, Research Methodology and FAQ show none, and Regional Analysis showed none
+on these three reports.
 
-Map the rendered sections of a report before drafting for it, and choose placements only from
+Visibility is decided paragraph by paragraph, not section by section. Seven links outside Market
+Trajectory are live and visible, in Market Segmentation, Regional Analysis and Growth Drivers,
+because their exact paragraph is one the template shows. *Correction, 2026-11-25:* an earlier
+version of this lesson said every link placed outside Market Trajectory had vanished or been
+rolled back. That generalised from three reports and was wrong.
+
+Map the rendered paragraphs of a report before drafting for it, and choose placements only from
 paragraphs a visitor can see. This is a property of the public template, not of the content, so it
 is worth raising with the site team: much of the written analysis never reaches a reader.

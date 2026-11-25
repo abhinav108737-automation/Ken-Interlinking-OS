@@ -12,8 +12,11 @@ ids, because the old approvals covered other wording and another section), `clus
 rule; rewriting them is an owner decision. **Restart the dashboard** (`npm run dashboard:v02`) to
 see the new statuses: a running server holds the code it started with.
 
-**Finding: the public template hides most of every report.** `map-rendered-sections.mjs` shows only
-Market Trajectory and Key Stakeholders render in full; Growth Drivers shows 1 of 10 paragraphs.
+**Finding: the public template hides much of each mapped report.** On three reports,
+`map-rendered-sections.mjs` shows only Market Trajectory and Key Stakeholders render in full;
+Growth Drivers shows 1 of 10 paragraphs. Visibility is per paragraph: seven live links sit in
+Market Segmentation, Regional Analysis and Growth Drivers (corrected 2026-11-25; the first version
+over-generalised).
 See knowledge lesson 8. Worth raising with the site team.
 
 **GitHub-inheritance sequence, honest state.** Step 1 (copy and evidence rule for all drafts) is
