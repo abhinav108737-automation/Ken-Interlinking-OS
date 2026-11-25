@@ -100,6 +100,9 @@ async function main() {
     const pageUrl = `${base}/internal/pages/${pageId}/`;
     const targetPath = new URL(draft.destination_url).pathname;
     try {
+      // ADR-0031 and the owner's standing instruction (2026-11-25): no link is ever placed in Market
+      // Overview or Related Reports, whatever a draft proposes. Refused before any request.
+      if (/^v02_(market_overview|related_reports?)$/.test(draft.source_field)) throw new Error(`placement: ${draft.source_field} is a hard exclusion (ADR-0031)`);
       // The copy rule is checked before the page is even read: a draft that breaks it never
       // reaches the CMS, whichever builder produced it.
       const copyProblems = copyRuleProblems(linkedSentence(draft, targetPath).plain, { readerValue: draft.reader_value });
